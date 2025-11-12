@@ -1,18 +1,92 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
+// Golf Courses
+export const golfCourses = pgTable("golf_courses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  name: text("name").notNull(),
+  city: text("city").notNull(),
+  province: text("province").notNull(),
+  country: text("country").notNull().default("Spain"),
+  lat: decimal("lat", { precision: 10, scale: 7 }),
+  lng: decimal("lng", { precision: 10, scale: 7 }),
+  websiteUrl: text("website_url"),
+  bookingUrl: text("booking_url"),
+  email: text("email"),
+  phone: text("phone"),
+  notes: text("notes"),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertGolfCourseSchema = createInsertSchema(golfCourses).omit({ id: true });
+export type InsertGolfCourse = z.infer<typeof insertGolfCourseSchema>;
+export type GolfCourse = typeof golfCourses.$inferSelect;
+
+// Tee Time Providers
+export const teeTimeProviders = pgTable("tee_time_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  baseUrl: text("base_url"),
+  type: text("type").notNull(), // SCRAPER, API, DEEP_LINK_ONLY
+  config: text("config"), // JSON string for additional config
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export const insertTeeTimeProviderSchema = createInsertSchema(teeTimeProviders).omit({ id: true });
+export type InsertTeeTimeProvider = z.infer<typeof insertTeeTimeProviderSchema>;
+export type TeeTimeProvider = typeof teeTimeProviders.$inferSelect;
+
+// Course Provider Links
+export const courseProviderLinks = pgTable("course_provider_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  providerId: varchar("provider_id").notNull().references(() => teeTimeProviders.id),
+  providerCourseCode: text("provider_course_code"),
+  bookingUrl: text("booking_url"),
+});
+
+export const insertCourseProviderLinkSchema = createInsertSchema(courseProviderLinks).omit({ id: true });
+export type InsertCourseProviderLink = z.infer<typeof insertCourseProviderLinkSchema>;
+export type CourseProviderLink = typeof courseProviderLinks.$inferSelect;
+
+// Booking Requests
+export const bookingRequests = pgTable("booking_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  teeTime: timestamp("tee_time").notNull(),
+  players: integer("players").notNull(),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull(),
+  customerPhone: text("customer_phone"),
+  status: text("status").notNull().default("PENDING"), // PENDING, SENT_TO_COURSE, CONFIRMED, CANCELLED
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBookingRequestSchema = createInsertSchema(bookingRequests).omit({ 
+  id: true, 
+  createdAt: true 
+}).extend({
+  teeTime: z.string(),
+});
+
+export type InsertBookingRequest = z.infer<typeof insertBookingRequestSchema>;
+export type BookingRequest = typeof bookingRequests.$inferSelect;
+
+// Affiliate Emails
+export const affiliateEmails = pgTable("affiliate_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  sentAt: timestamp("sent_at"),
+  status: text("status").notNull().default("DRAFT"), // DRAFT, SENT, ERROR
+  errorMessage: text("error_message"),
+});
+
+export const insertAffiliateEmailSchema = createInsertSchema(affiliateEmails).omit({ 
+  id: true, 
+  sentAt: true 
+});
+
+export type InsertAffiliateEmail = z.infer<typeof insertAffiliateEmailSchema>;
+export type AffiliateEmail = typeof affiliateEmails.$inferSelect;
