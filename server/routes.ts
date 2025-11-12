@@ -35,29 +35,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { lat, lng, radiusKm, date, players, fromTime, toTime } = req.query;
 
-      // For now, return mock data structure
       const courses = await storage.getAllCourses();
+      const userLat = lat ? parseFloat(lat as string) : null;
+      const userLng = lng ? parseFloat(lng as string) : null;
 
-      // Mock response showing structure for future implementation
-      const mockSlots = courses.slice(0, 5).map((course) => ({
+      // Helper function to calculate distance (Haversine formula)
+      const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLng = (lng2 - lng1) * (Math.PI / 180);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * (Math.PI / 180)) *
+            Math.cos(lat2 * (Math.PI / 180)) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      };
+
+      // Generate mock tee times within the requested time window
+      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number) => {
+        const slots = [];
+        const [fromHour] = from.split(":").map(Number);
+        const [toHour] = to.split(":").map(Number);
+        
+        // Generate 3-5 random slots within the time window
+        const numSlots = Math.floor(Math.random() * 3) + 3;
+        const baseDate = searchDate ? new Date(searchDate) : new Date();
+        baseDate.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < numSlots; i++) {
+          // Random hour within the time window
+          const hour = fromHour + Math.floor(Math.random() * (toHour - fromHour));
+          const minute = Math.random() < 0.5 ? 0 : 30; // Either :00 or :30
+
+          const slotDate = new Date(baseDate);
+          slotDate.setHours(hour, minute, 0, 0);
+
+          slots.push({
+            teeTime: slotDate.toISOString(),
+            greenFee: Math.floor(Math.random() * 80) + 40, // €40-120
+            currency: "EUR",
+            players: numPlayers,
+            source: "mock-provider",
+          });
+        }
+
+        return slots.sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime());
+      };
+
+      // Filter and sort courses by distance
+      const coursesWithDistance = courses
+        .map((course) => {
+          if (!userLat || !userLng || !course.lat || !course.lng) {
+            return null;
+          }
+          const courseLat = parseFloat(course.lat);
+          const courseLng = parseFloat(course.lng);
+          
+          if (isNaN(courseLat) || isNaN(courseLng)) {
+            return null;
+          }
+
+          const distance = calculateDistance(userLat, userLng, courseLat, courseLng);
+          return { course, distance };
+        })
+        .filter((item): item is { course: any; distance: number } => 
+          item !== null && !isNaN(item.distance)
+        )
+        .sort((a, b) => a.distance - b.distance);
+
+      // Take nearest courses and generate mock slots
+      const mockSlots = coursesWithDistance.slice(0, 12).map(({ course, distance }) => ({
         courseId: course.id,
         courseName: course.name,
-        distanceKm: Math.random() * 50, // Mock distance
+        distanceKm: Math.round(distance * 10) / 10,
         bookingUrl: course.bookingUrl || course.websiteUrl,
-        slots: [
-          {
-            teeTime: new Date().toISOString(),
-            greenFee: Math.floor(Math.random() * 100) + 50,
-            currency: "EUR",
-            players: players ? parseInt(players as string) : 2,
-            source: "mock",
-          },
-        ],
-        note: "Booking via club website - real-time availability coming soon",
+        slots: generateMockSlots(
+          date as string || new Date().toISOString(),
+          fromTime as string || "07:00",
+          toTime as string || "20:00",
+          players ? parseInt(players as string) : 2
+        ),
+        note: "Mock availability - Real provider integration coming soon",
       }));
 
       res.json(mockSlots);
     } catch (error) {
+      console.error("Slot search error:", error);
       res.status(500).json({ error: "Failed to search slots" });
     }
   });

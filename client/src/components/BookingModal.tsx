@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +23,17 @@ import { CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
 import type { GolfCourse } from "@shared/schema";
 
+interface TeeTimeSlot {
+  teeTime: string;
+  greenFee: number;
+  currency: string;
+  players: number;
+  source: string;
+}
+
 interface BookingModalProps {
   course: GolfCourse | null;
+  selectedSlot?: TeeTimeSlot | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: {
@@ -40,6 +49,7 @@ interface BookingModalProps {
 
 export function BookingModal({
   course,
+  selectedSlot,
   open,
   onOpenChange,
   onSubmit,
@@ -52,17 +62,37 @@ export function BookingModal({
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
 
+  // Pre-fill from selected slot if available
+  useEffect(() => {
+    if (selectedSlot) {
+      const slotDate = new Date(selectedSlot.teeTime);
+      setDate(slotDate);
+      setTime(format(slotDate, "HH:mm"));
+      setPlayers(selectedSlot.players.toString());
+    }
+  }, [selectedSlot]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!course || !date) return;
+    if (!course) return;
 
-    const teeTime = new Date(date);
-    const [hours, minutes] = time.split(":");
-    teeTime.setHours(parseInt(hours), parseInt(minutes));
+    let teeTime: string;
+    if (selectedSlot) {
+      // Use the exact slot time
+      teeTime = selectedSlot.teeTime;
+    } else if (date) {
+      // Manual time selection
+      const teeTimeDate = new Date(date);
+      const [hours, minutes] = time.split(":");
+      teeTimeDate.setHours(parseInt(hours), parseInt(minutes));
+      teeTime = teeTimeDate.toISOString();
+    } else {
+      return;
+    }
 
     onSubmit({
       courseId: course.id,
-      teeTime: teeTime.toISOString(),
+      teeTime,
       players: parseInt(players),
       customerName,
       customerEmail,
@@ -85,9 +115,16 @@ export function BookingModal({
           <DialogTitle className="font-serif">Book Tee Time</DialogTitle>
           <DialogDescription>
             {course && (
-              <span className="font-medium text-foreground">
-                {course.name} - {course.city}
-              </span>
+              <>
+                <span className="font-medium text-foreground block">
+                  {course.name} - {course.city}
+                </span>
+                {selectedSlot && (
+                  <span className="text-sm text-primary mt-1 block">
+                    Selected: {format(new Date(selectedSlot.teeTime), "PPp")} • €{selectedSlot.greenFee}
+                  </span>
+                )}
+              </>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -203,10 +240,10 @@ export function BookingModal({
             </Button>
             <Button
               type="submit"
-              disabled={!date || isPending}
+              disabled={(!date && !selectedSlot) || isPending}
               data-testid="button-submit-booking"
             >
-              {isPending ? "Submitting..." : "Submit Request"}
+              {isPending ? "Submitting..." : "Confirm Booking Request"}
             </Button>
           </DialogFooter>
         </form>
