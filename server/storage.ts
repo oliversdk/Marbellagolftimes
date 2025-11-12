@@ -635,7 +635,20 @@ export class MemStorage implements IStorage {
 
   async createCourse(insertCourse: InsertGolfCourse): Promise<GolfCourse> {
     const id = randomUUID();
-    const course: GolfCourse = { ...insertCourse, id };
+    const course: GolfCourse = {
+      id,
+      name: insertCourse.name,
+      city: insertCourse.city,
+      province: insertCourse.province,
+      country: insertCourse.country || "Spain",
+      lat: insertCourse.lat || null,
+      lng: insertCourse.lng || null,
+      websiteUrl: insertCourse.websiteUrl || null,
+      bookingUrl: insertCourse.bookingUrl || null,
+      email: insertCourse.email || null,
+      phone: insertCourse.phone || null,
+      notes: insertCourse.notes || null,
+    };
     this.courses.set(id, course);
     return course;
   }
@@ -645,27 +658,40 @@ export class MemStorage implements IStorage {
     return Array.from(this.providers.values());
   }
 
+  async getLinksByCourseId(courseId: string): Promise<CourseProviderLink[]> {
+    return Array.from(this.links.values()).filter(
+      (link) => link.courseId === courseId
+    );
+  }
+
+  async createLink(data: InsertCourseProviderLink): Promise<CourseProviderLink> {
+    const id = randomUUID();
+    const link: CourseProviderLink = {
+      id,
+      courseId: data.courseId,
+      providerId: data.providerId,
+      bookingUrl: data.bookingUrl || null,
+      providerCourseCode: data.providerCourseCode || null,
+    };
+    this.links.set(id, link);
+    return link;
+  }
+
   async getProviderById(id: string): Promise<TeeTimeProvider | undefined> {
     return this.providers.get(id);
   }
 
   async createProvider(insertProvider: InsertTeeTimeProvider): Promise<TeeTimeProvider> {
     const id = randomUUID();
-    const provider: TeeTimeProvider = { ...insertProvider, id };
+    const provider: TeeTimeProvider = {
+      id,
+      name: insertProvider.name,
+      type: insertProvider.type,
+      baseUrl: insertProvider.baseUrl || null,
+      config: insertProvider.config || null,
+    };
     this.providers.set(id, provider);
     return provider;
-  }
-
-  // Course Provider Links
-  async getLinksByCourseId(courseId: string): Promise<CourseProviderLink[]> {
-    return Array.from(this.links.values()).filter((link) => link.courseId === courseId);
-  }
-
-  async createLink(insertLink: InsertCourseProviderLink): Promise<CourseProviderLink> {
-    const id = randomUUID();
-    const link: CourseProviderLink = { ...insertLink, id };
-    this.links.set(id, link);
-    return link;
   }
 
   // Booking Requests
@@ -682,9 +708,14 @@ export class MemStorage implements IStorage {
   async createBooking(insertBooking: InsertBookingRequest): Promise<BookingRequest> {
     const id = randomUUID();
     const booking: BookingRequest = {
-      ...insertBooking,
       id,
+      courseId: insertBooking.courseId,
       teeTime: new Date(insertBooking.teeTime),
+      players: insertBooking.players,
+      customerName: insertBooking.customerName,
+      customerEmail: insertBooking.customerEmail,
+      customerPhone: insertBooking.customerPhone || null,
+      status: insertBooking.status || "PENDING",
       createdAt: new Date(),
     };
     this.bookings.set(id, booking);
@@ -699,9 +730,13 @@ export class MemStorage implements IStorage {
   async createAffiliateEmail(insertEmail: InsertAffiliateEmail): Promise<AffiliateEmail> {
     const id = randomUUID();
     const email: AffiliateEmail = {
-      ...insertEmail,
       id,
+      courseId: insertEmail.courseId,
+      subject: insertEmail.subject,
+      body: insertEmail.body,
+      status: insertEmail.status || "DRAFT",
       sentAt: null,
+      errorMessage: insertEmail.errorMessage || null,
     };
     this.affiliateEmails.set(id, email);
     return email;
