@@ -1,0 +1,662 @@
+Her får du en færdig prompt, du kan copy-paste direkte ind i Replit (Agent / “Build me an app”) 👇
+Jeg skriver selve prompten på engelsk, så agenten bygger koden i korrekt tech-sprog.
+
+⸻
+
+
+You are an expert full-stack developer building a production-ready golf tee-time finder for the Costa del Sol (Spain), from Sotogrande to Málaga.
+
+## GOAL / APP IDEA
+
+Build a full-stack web app that:
+
+1. Maintains a structured directory of ALL golf courses between **Sotogrande and Málaga** along the south coast.
+2. Can query/scrape or call APIs for those courses (or their booking providers) to find **next available tee times**.
+3. Allows the user to:
+   - Use current **geolocation** or a typed location
+   - Find the **nearest golf course** and **next available tee time**
+   - Filter by date, number of players and time window
+   - Start a **booking flow** for a selected tee time
+4. Includes an **email service** so the owner can send bulk or one-by-one emails to the golf clubs asking for a **kickback/affiliate deal (20% commission)** for guests referred by the platform.
+
+The app does NOT need to actually charge credit cards yet; focus on searching tee times and storing “booking requests” plus sending emails.
+
+Use a clean, modern UI.
+
+---
+
+## TECH STACK
+
+- Backend: Node.js + Express (TypeScript if convenient)
+- Database: SQLite (using Prisma or similar ORM) – easy to run in Replit.
+- Frontend: React + Vite (or React + CRA if easier) with a simple component library or plain CSS.
+- HTTP client: `fetch` / `axios`.
+- Geolocation: Browser `navigator.geolocation` with fallback to manual address, plus distance calculation (Haversine formula).
+- Email sending: Configurable SMTP (e.g. using `nodemailer`). Read credentials from environment variables.
+
+Keep everything in a single Replit project (monorepo) with `server/` and `client/` folders.
+
+---
+
+## DATA MODEL
+
+Create a database with at least these tables:
+
+### `golf_courses`
+- `id` (primary key)
+- `name`
+- `city`
+- `province`
+- `country` (always "Spain")
+- `lat` (nullable at first)
+- `lng` (nullable at first)
+- `website_url`
+- `booking_url` (if different)
+- `email` (general contact / reservations email)
+- `phone`
+- `notes` (text: e.g. “booking via Golfmanager”)
+
+### `tee_time_providers`
+(to abstract the different booking engines; optional but recommended)
+- `id`
+- `name` (e.g. "Golfmanager", "iMasterGolf", "TeeTimes.pt", “DirectClubSite”)
+- `base_url`
+- `type` (e.g. `SCRAPER`, `API`, `DEEP_LINK_ONLY`)
+- optional config JSON
+
+### `course_provider_links`
+- `id`
+- `course_id` (FK)
+- `provider_id` (FK)
+- `provider_course_code` (identifier used in their system, if needed)
+- `booking_url` (full URL if deep link)
+
+### `booking_requests`
+- `id`
+- `course_id`
+- `tee_time` (datetime)
+- `players` (int)
+- `customer_name`
+- `customer_email`
+- `customer_phone`
+- `status` (`PENDING`, `SENT_TO_COURSE`, `CONFIRMED`, `CANCELLED`)
+- `created_at`
+
+### `affiliate_emails`
+- `id`
+- `course_id`
+- `subject`
+- `body`
+- `sent_at`
+- `status` (`DRAFT`, `SENT`, `ERROR`)
+- `error_message` (nullable)
+
+---
+
+## SEED DATA: GOLF COURSES (SOTOGRANDE → MÁLAGA)
+
+Seed the database with an initial list of courses between **Sotogrande and Málaga** (Costa del Sol). Use this partial list as initial seed (you can add more if you want):
+
+```ts
+const seedCourses = [
+  // Sotogrande / San Roque area
+  {
+    name: "Real Club Valderrama",
+    city: "Sotogrande",
+    province: "Cádiz",
+    country: "Spain",
+    website_url: "https://www.valderrama.com",
+    booking_url: "https://www.valderrama.com",
+    email: "greenfees@valderrama.com"
+  },
+  {
+    name: "Real Club de Golf Sotogrande",
+    city: "Sotogrande",
+    province: "Cádiz",
+    country: "Spain",
+    website_url: "https://www.golfsotogrande.com",
+    booking_url: "https://www.golfsotogrande.com",
+    email: "info@golfsotogrande.com"
+  },
+  {
+    name: "La Reserva Club Sotogrande",
+    city: "Sotogrande",
+    province: "Cádiz",
+    country: "Spain",
+    website_url: "https://www.sotogrande.com",
+    booking_url: "https://www.sotogrande.com/en/golf",
+    email: "lareserva@sotogrande.com"
+  },
+  {
+    name: "San Roque Club",
+    city: "San Roque",
+    province: "Cádiz",
+    country: "Spain",
+    website_url: "https://www.sanroqueclub.com",
+    booking_url: "https://www.sanroqueclub.com",
+    email: "info@sanroqueclub.com"
+  },
+  {
+    name: "Club de Golf La Cañada",
+    city: "Guadiaro / San Roque",
+    province: "Cádiz",
+    country: "Spain",
+    website_url: "https://www.lacanadagolf.com",
+    booking_url: "https://www.lacanadagolf.com",
+    email: "reservas@lacanadagolf.com"
+  },
+
+  // Casares / Estepona area
+  {
+    name: "Finca Cortesín Golf Club",
+    city: "Casares",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.fincacortesin.com",
+    booking_url: "https://www.fincacortesin.com/golf",
+    email: "proshop@golfcortesin.es"
+  },
+  {
+    name: "Casares Costa Golf",
+    city: "Casares",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.casarescostagolf.com",
+    booking_url: "https://www.casarescostagolf.com",
+    email: "info@casarescostagolf.com"
+  },
+  {
+    name: "Doña Julia Golf Club",
+    city: "Casares",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.donajuliagolf.es",
+    booking_url: "https://www.donajuliagolf.es",
+    email: "reservas@donajuliagolf.es"
+  },
+  {
+    name: "Valle Romano Golf & Resort",
+    city: "Estepona",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.valleromano.es",
+    booking_url: "https://www.valleromano.es/en/golf",
+    email: "reservasgolf@valleromano.es"
+  },
+  {
+    name: "El Paraíso Golf Club",
+    city: "Estepona",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://elparaisogolf.com",
+    booking_url: "https://elparaisogolf.com",
+    email: "info@elparaisogolfclub.com"
+  },
+  {
+    name: "Estepona Golf",
+    city: "Estepona",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.esteponagolf.com",
+    booking_url: "https://esteponagolf.com/en/online-booking",
+    email: "information@esteponagolf.com"
+  },
+  {
+    name: "La Resina Golf & Country Club",
+    city: "Estepona",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.laresinagolfclub.com",
+    booking_url: "https://www.laresinagolfclub.com",
+    email: "laresinagolf@hotmail.com"
+  },
+  {
+    name: "Flamingos Golf (Villa Padierna)",
+    city: "Benahavís / Estepona",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.villapadiernagolfclub.com",
+    booking_url: "https://www.villapadiernagolfclub.com/en/teetimes",
+    email: "info@villapadiernagolfclub.com"
+  },
+
+  // Benahavís / Marbella area
+  {
+    name: "Los Arqueros Golf & Country Club",
+    city: "Benahavís",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.losarquerosgolf.com",
+    booking_url: "https://www.losarquerosgolf.com/en/tee-times",
+    email: "caddiemaster@es.taylorwimpey.com"
+  },
+  {
+    name: "El Higueral Golf",
+    city: "Benahavís",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.elhigueralgolf.com",
+    booking_url: "https://www.elhigueralgolf.com",
+    email: "reservas@elhigueralgolf.com"
+  },
+  {
+    name: "Monte Mayor Golf & Country Club",
+    city: "Benahavís",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.montemayorspain.com",
+    booking_url: "https://www.montemayorspain.com",
+    email: "reservations@montemayorspain.com"
+  },
+  {
+    name: "Marbella Club Golf Resort",
+    city: "Benahavís",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.marbellaclubgolf.com",
+    booking_url: "https://www.marbellaclubgolf.com",
+    email: "info@marbellaclubgolf.com"
+  },
+  {
+    name: "Real Club de Golf Guadalmina (North & South)",
+    city: "San Pedro de Alcántara",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.guadalminagolf.com",
+    booking_url: "https://www.guadalminagolf.com/en/tee-times",
+    email: "reservas@guadalminagolf.com"
+  },
+  {
+    name: "La Quinta Golf & Country Club",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.laquintagolf.com",
+    booking_url: "https://www.laquintagolf.com/en/tee-times",
+    email: "reservas@laquintagolf.com"
+  },
+  {
+    name: "Los Naranjos Golf Club",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.losnaranjos.com",
+    booking_url: "https://www.losnaranjos.com/en/booking",
+    email: "golfclub@losnaranjos.com"
+  },
+  {
+    name: "Real Club de Golf Las Brisas",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.realclubdegolflasbrisas.com",
+    booking_url: "https://www.realclubdegolflasbrisas.com",
+    email: "info@realclubdegolflasbrisas.com"
+  },
+  {
+    name: "Aloha Golf Club",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.clubdegolfaloha.com",
+    booking_url: "https://www.clubdegolfaloha.com",
+    email: "info@clubdegolfaloha.com"
+  },
+  {
+    name: "Magna Marbella Golf",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.magnamarbellagolf.com",
+    booking_url: "https://www.magnamarbellagolf.com",
+    email: "info@magnamarbellagolf.com"
+  },
+  {
+    name: "Rio Real Golf & Hotel",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.rioreal.com",
+    booking_url: "https://www.rioreal.com/en/golf/online-booking",
+    email: "reservas@rioreal.com"
+  },
+  {
+    name: "Santa Clara Golf Marbella",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.santaclaragolfmarbella.com",
+    booking_url: "https://www.santaclaragolfmarbella.com/en/tee-times",
+    email: "reservas@santaclaragolfmarbella.com"
+  },
+  {
+    name: "Santa Maria Golf & Country Club",
+    city: "Marbella (Elviria)",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.santamariagolfclub.com",
+    booking_url: "https://www.santamariagolfclub.com/en/tee-times",
+    email: "caddymaster@santamariagolfclub.com"
+  },
+  {
+    name: "Marbella Golf & Country Club",
+    city: "Marbella",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.marbellagolf.com",
+    booking_url: "https://www.marbellagolf.com/online-bookings",
+    email: "reservas@marbellagolf.com"
+  },
+  {
+    name: "Greenlife Golf",
+    city: "Marbella (Elviria)",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.greenlife-golf.com",
+    booking_url: "https://www.greenlife-golf.com",
+    email: "golf@greenlife-golf.com"
+  },
+
+  // Mijas / Fuengirola / Benalmádena / Málaga
+  {
+    name: "La Cala Resort (America, Asia, Europa)",
+    city: "Mijas Costa",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.lacala.com",
+    booking_url: "https://www.lacala.com/en/golf/tee-times",
+    email: "golf@lacala.com"
+  },
+  {
+    name: "Mijas Golf (Los Lagos & Los Olivos)",
+    city: "Mijas",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.mijasgolf.org",
+    booking_url: "https://www.mijasgolf.org/teetimes",
+    email: "teetimes@mijasgolf.org"
+  },
+  {
+    name: "Santana Golf & Country Club",
+    city: "Mijas Costa",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.santanagolf.com",
+    booking_url: "https://www.santanagolf.com",
+    email: "info@santanagolf.com"
+  },
+  {
+    name: "El Chaparral Golf Club",
+    city: "Mijas Costa",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.golfelchaparral.com",
+    booking_url: "https://www.golfelchaparral.com/en/book-online",
+    email: "reservas@golfelchaparral.com"
+  },
+  {
+    name: "Miraflores Golf",
+    city: "Mijas Costa",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.miraflores-golf.com",
+    booking_url: "https://www.miraflores-golf.com",
+    email: "info@miraflores-golf.com"
+  },
+  {
+    name: "La Noria Golf & Resort",
+    city: "La Cala de Mijas",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.lanoriagolf.com",
+    booking_url: "https://www.lanoriagolf.com",
+    email: "info@lanoriagolf.net"
+  },
+  {
+    name: "La Siesta Golf",
+    city: "Mijas Costa (Calahonda)",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.lasiestagolf.com",
+    booking_url: "https://www.lasiestagolf.com",
+    email: "lasiestagolf@gmail.com"
+  },
+  {
+    name: "Cerrado del Águila Golf",
+    city: "Mijas Costa",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.cerradodelaguila.com",
+    booking_url: "https://www.cerradodelaguila.com/en/booking",
+    email: "info@cerradodelaguila.com"
+  },
+  {
+    name: "Lauro Golf (Lauro 27)",
+    city: "Alhaurín de la Torre",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.laurogolf.com",
+    booking_url: "https://www.laurogolf.com",
+    email: "info@laurogolf.com"
+  },
+  {
+    name: "Torrequebrada Golf",
+    city: "Benalmádena",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.golftorrequebrada.com",
+    booking_url: "https://www.golftorrequebrada.com/en/book-online",
+    email: "bookings@golftorrequebrada.com"
+  },
+  {
+    name: "Guadalhorce Club de Golf",
+    city: "Campanillas (Málaga)",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.guadalhorce.com",
+    booking_url: "https://www.guadalhorce.com",
+    email: "reservas@guadalhorce.com"
+  },
+  {
+    name: "Parador de Málaga Golf",
+    city: "Málaga",
+    province: "Málaga",
+    country: "Spain",
+    website_url: "https://www.parador.es",
+    booking_url: "https://www.parador.es/en/paradores/parador-de-malaga-golf",
+    email: "malaga@parador.es"
+  }
+];
+
+When seeding, you can leave lat and lng empty and later enrich them via Google Places API or OpenStreetMap geocoding if you want. The important part is the structure.
+
+⸻
+
+BACKEND ENDPOINTS
+
+Create these REST endpoints:
+	•	GET /api/courses
+	•	Optional query params: lat, lng, radiusKm, searchTerm
+	•	Returns list of courses, optionally sorted by distance.
+	•	GET /api/slots/search
+	•	Query params: lat, lng, radiusKm, date, players, fromTime, toTime
+	•	Logic:
+	1.	Determine nearby courses (distance-based).
+	2.	For each course, call a provider adapter that tries to fetch next available tee times:
+	•	If course has a known provider with an API → call API.
+	•	If not, optionally try a scraping adapter that:
+	•	Respects robots.txt
+	•	Uses server-side HTTP requests, not the client
+	•	Parses available tee times if feasible.
+	•	If scraping is not allowed or too complex, return a booking_url and a message “Click to complete booking on club site”.
+	3.	Aggregate results and return a uniform JSON shape:
+
+{
+  "courseId": 123,
+  "courseName": "Los Naranjos Golf Club",
+  "distanceKm": 12.3,
+  "slots": [
+    { "teeTime": "...", "greenFee": 120, "currency": "EUR", "players": 2, "source": "golfmanager" }
+  ]
+}
+
+
+	•	POST /api/bookings
+	•	Body: { courseId, teeTime, players, customerName, customerEmail, customerPhone }
+	•	Store in DB as PENDING.
+	•	Optionally send an email to the course with booking details (configurable).
+	•	Return booking object.
+	•	GET /api/bookings
+	•	List all for admin.
+	•	POST /api/affiliate-emails/send
+	•	Body: { courseIds: number[], subject?: string, body?: string }
+	•	For each course, send an email using SMTP and store record in affiliate_emails.
+
+⸻
+
+EMAIL SERVICE (AFFILIATE / KICKBACK DEAL)
+
+Use nodemailer with SMTP credentials from environment variables:
+	•	SMTP_HOST
+	•	SMTP_PORT
+	•	SMTP_USER
+	•	SMTP_PASS
+	•	FROM_EMAIL
+
+Create a default email template the owner can edit in the UI.
+
+Use this default English/Spanish template in the backend:
+
+Subject:
+Green fee partnership proposal – new guests for [COURSE_NAME]
+
+Body (variable placeholders: [COURSE_NAME], [SENDER_NAME]):
+
+Dear [COURSE_NAME] team,
+
+My name is [SENDER_NAME] and I run a new tee-time finder for golfers on the Costa del Sol.
+
+Our guests are mainly international golfers staying between Sotogrande and Málaga, and we would like to send more players to your course.
+
+I would like to propose a simple collaboration:
+
+– We list your course and send you confirmed bookings.
+– For each paid green fee generated through our platform, you offer us a 20% commission.
+– You keep full control of your prices and availability – we simply refer players and send you the booking details.
+
+If this is interesting for you, please let me know who is the best person to speak with, and we can set up a simple agreement.
+
+Kind regards,
+[SENDER_NAME]
+
+———
+
+Estimado equipo de [COURSE_NAME],
+
+Me llamo [SENDER_NAME] y gestiono una nueva plataforma de reservas de green fees en la Costa del Sol.
+
+Nuestros clientes son principalmente golfistas internacionales entre Sotogrande y Málaga y nos gustaría enviar más jugadores a su campo.
+
+Me gustaría proponer una colaboración sencilla:
+
+– Mostramos su campo y les enviamos reservas confirmadas.
+– Por cada green fee pagado generado a través de nuestra plataforma, ustedes nos ofrecen una comisión del 20 %.
+– Ustedes mantienen el control total sobre sus precios y disponibilidad; nosotros solo les remitimos los jugadores y los datos de la reserva.
+
+Si les interesa, por favor indíquenme la persona de contacto adecuada y podemos formalizar un acuerdo sencillo.
+
+Atentamente,
+[SENDER_NAME]
+
+Expose this template to the frontend so it can be previewed/edited before sending.
+
+⸻
+
+FRONTEND / UI REQUIREMENTS
+
+Build a React SPA with at least these views:
+	1.	Home / “Find Tee Time”
+	•	Button: “Use my current location” → call navigator.geolocation.
+	•	Fallback input: address or city (e.g. “Marbella”) → geocode via Google Maps or a simple dropdown of the known cities.
+	•	Filters:
+	•	Date picker (default today)
+	•	Number of players (1–4)
+	•	Time window (e.g. 07:00–20:00)
+	•	Button: “Find nearest tee time”
+	•	Results list:
+	•	Card per course with:
+	•	Course name
+	•	City
+	•	Distance in km
+	•	Next available tee times (e.g. next 3)
+	•	“Book” button
+	•	“Go to club site” (uses booking_url if we cannot book directly)
+	2.	Booking Flow Modal / Page
+	•	Shows selected course and tee time.
+	•	Form fields: name, email, phone, players.
+	•	On submit → call POST /api/bookings.
+	•	Show confirmation message: “Your booking request has been sent to the course / stored. We will confirm by email”.
+	3.	Admin / Affiliate Dashboard
+	•	Password protected via a simple environment variable password (e.g. ADMIN_PASSWORD).
+	•	Sections:
+	•	Courses list:
+	•	Table with courses, email, city, and a toggle “include in affiliate email campaign”.
+	•	Affiliate email:
+	•	Text input for subject, textarea for body with placeholders [COURSE_NAME] and [SENDER_NAME].
+	•	Button “Send emails” → calls /api/affiliate-emails/send.
+	•	Show sending status and a log (success/error per course).
+	•	Bookings list:
+	•	Table of recent bookings with filters.
+
+Use a very simple stylish layout: header with logo/title “Costa del Sol Tee Times”, responsive cards, and clear buttons.
+
+⸻
+
+SCRAPING & LEGAL / TOS CONSTRAINTS
+
+When implementing the tee-time fetching logic:
+	•	Create provider adapters in separate files, e.g. providers/golfmanager.ts, providers/teetimesPt.ts, providers/directClub.ts.
+	•	For any target site:
+	•	Check/assume robots.txt and Terms of Use – do not implement aggressive scraping that violates them.
+	•	Prefer:
+	•	Official public APIs (if available)
+	•	Query parameters documented by tee-time aggregators
+	•	Or simply providing a deep link (booking_url) where, if scraping is not allowed, we still help the user by linking them directly.
+	•	If real-time scraping is not feasible for some courses, return:
+
+{
+  "courseId": ...,
+  "courseName": "...",
+  "bookingUrl": "...",
+  "slots": [],
+  "note": "Booking only via club website; click to continue"
+}
+
+
+
+Make the code modular so that adding more providers later is easy.
+
+⸻
+
+IMPLEMENTATION NOTES
+	•	Provide an NPM script to run backend and frontend together (or two scripts documented in README).
+	•	Clearly document:
+	•	How to run database migrations/seed script.
+	•	Which environment variables are required.
+	•	Handle errors gracefully; show user-friendly messages on the frontend.
+
+Deliver a working starting version of this app with:
+	•	Seeded course data (above).
+	•	Geolocation search and distance sorting.
+	•	At least a mock implementation of tee-time fetching (it can return a few fake slots per course for now).
+	•	Working booking request creation.
+	•	Working email send for at least one test course using SMTP (if env vars are present).
+
+This should be a solid, extensible foundation that can later be enhanced with real provider integrations.
+
+---
+
+Hvis du vil, kan jeg i næste step:
+
+- Tilpasse affiliate-mailen til at komme specifikt fra dig (navn, firma, evt. logo),
+- Eller lave en kortere “lite”-prompt kun til at generere **backend API’et** først.
