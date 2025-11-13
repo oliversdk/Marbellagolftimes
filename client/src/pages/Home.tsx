@@ -176,11 +176,11 @@ export default function Home() {
         <div className="relative h-full flex items-center justify-center px-4">
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
-              Find Your Perfect Tee Time
+              Your Personal Guide to Costa del Sol Golf
             </h1>
             <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto">
-              Discover the best golf courses on Costa del Sol, from Sotogrande to Málaga.
-              Check real-time availability and book your next round.
+              Welcome to Fridas Golf. We curate the finest tee times across Costa del Sol's premier courses, 
+              from Sotogrande to Málaga, with real-time availability and personal service.
             </p>
 
             <Card className="bg-white/95 backdrop-blur-md border-0 shadow-xl max-w-xl mx-auto">

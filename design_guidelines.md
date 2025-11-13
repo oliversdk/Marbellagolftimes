@@ -1,9 +1,57 @@
-# Design Guidelines: Costa del Sol Golf Tee-Time Finder
+# Design Guidelines: Fridas Golf
 
 ## Design Approach
-**Reference-Based**: Drawing inspiration from premium booking platforms (Booking.com structure + Airbnb card aesthetics + GolfNow golf-specific patterns) to create a trustworthy, efficient golf discovery and booking experience.
+**Boutique-Premium**: Fridas Golf positions itself as a personal concierge for Costa del Sol's finest golf experiences. Drawing inspiration from luxury hospitality brands and curated travel services, we blend the efficiency of modern booking platforms with the warmth and personal touch of a dedicated golf advisor.
 
-**Core Principle**: Blend the functionality of travel booking platforms with the aspirational, premium feel appropriate for golf enthusiasts.
+**Core Principle**: Fridas Golf is your trusted guide—not just a search tool, but a carefully curated selection of premier tee times delivered with personal service and local expertise. Every interaction should feel warm, premium, and effortlessly elegant.
+
+---
+
+## Brand Identity
+
+**Voice & Tone**:
+- Warm and welcoming, like a knowledgeable friend
+- Premium without pretension
+- Personal and attentive (concierge-quality service)
+- Sophisticated yet approachable
+
+**Brand Promise**: We curate the finest tee times across Costa del Sol's premier courses, offering real-time availability with the personal touch of a dedicated golf concierge.
+
+---
+
+## Color Palette
+
+**Boutique-Premium Palette**:
+The color system reflects the natural beauty of Costa del Sol golf—olive groves, sage-covered hillsides, warm sand bunkers, and sunset skies.
+
+### Primary Colors
+- **Deep Olive** `#2F4C3A` (HSL: 143° 24% 24%)
+  - Use for: Primary actions, navigation highlights, brand elements
+  - Represents: Lush fairways, Mediterranean vegetation, premium quality
+  
+- **Sunlit Sage** `#8FAE8D` (HSL: 116° 17% 62%)
+  - Use for: Secondary elements, hover states in dark mode, lighter accents
+  - Represents: Morning dew on greens, coastal vegetation
+
+### Accent Colors
+- **Warm Sand** `#D8C4A3` (HSL: 37° 40% 74%)
+  - Use for: Accent backgrounds, highlights, secondary CTAs
+  - Represents: Bunkers, beach sand, golden hour light
+  
+- **Soft Rose** `#F2D4C8` (HSL: 17° 62% 87%)
+  - Use for: Subtle highlights, sidebar accents, gentle emphasis
+  - Represents: Sunset skies, warm hospitality
+
+### Text & Neutrals
+- **Charcoal** `#1E1E1E` (HSL: 0° 0% 12%)
+  - Use for: Body text, headings, primary content
+  - Represents: Sophistication, clarity, premium quality
+
+**Color Usage Guidelines**:
+- Maintain proper contrast ratios (4.5:1 minimum for text)
+- Use Deep Olive for primary actions and brand moments
+- Apply Warm Sand and Soft Rose sparingly for warmth and elegance
+- Dark mode: Sunlit Sage becomes primary, creating a lighter, more approachable feel
 
 ---
 
@@ -41,123 +89,145 @@
 ## Page Structures
 
 ### Landing/Marketing Page
-**Hero Section** (80vh):
-- Full-bleed background image: Stunning golf course at golden hour (lush fairways, Mediterranean backdrop)
-- Centered overlay with search widget
-- Blurred background behind search box (backdrop-blur-md bg-white/90)
-- Primary CTA: "Find Your Perfect Tee Time"
+**Hero Section** (60vh+):
+- Full-bleed background image: Stunning Costa del Sol golf course at golden hour
+- Centered overlay with warm, welcoming messaging
+- Blurred background behind search box (backdrop-blur-md bg-white/95)
+- Primary messaging: "Your Personal Guide to Costa del Sol Golf"
 
 **Sections** (in order):
-1. **Hero with Search** - Geolocation input, date picker, player count, time preference filters
-2. **Featured Courses** - 3-column grid showcasing premium courses with images and quick stats
-3. **How It Works** - 3-step process with icons (Search → Select → Book)
-4. **Benefits** - 2-column layout highlighting real-time availability, best prices, local expertise
-5. **Course Statistics** - 4-column stats (40+ Courses, Sotogrande to Málaga, Real-time Availability, Commission Partnership)
-6. **Testimonials** - 2-column customer quotes with golfer photos
-7. **Call-to-Action** - Centered CTA with secondary search widget
-8. **Footer** - Course categories, quick links, contact info, newsletter signup
+1. **Hero with Search** - Welcome message, geolocation input, search filters
+2. **Featured Courses** - 3-column grid showcasing premium courses with curated descriptions
+3. **Our Service** - Personal touch: How Fridas Golf curates your experience
+4. **Benefits** - Real-time availability, local expertise, premium course access
+5. **Course Statistics** - Premium courses across Sotogrande to Málaga
+6. **Testimonials** - Customer experiences with personal touch
+7. **Call-to-Action** - "Let us find your perfect tee time"
+8. **Footer** - Course regions, quick links, contact, newsletter
 
-### Course Search/Directory Page
-- **Sticky search bar** at top with filters (location, date, players, time)
-- **Map view toggle** - Side-by-side map and list view option
+### Course Search/Discovery Page
+- **Sticky search bar** with refined filters (location, date, players, time)
+- **Curated results** presented with distance, availability, and personal recommendations
 - **Course cards** in 3-column grid:
-  - Course image (16:9 aspect ratio)
-  - Course name (Playfair Display)
+  - High-quality course image (16:9 aspect ratio)
+  - Course name (Playfair Display, elegant presentation)
   - Location with distance indicator
-  - Quick stats (holes, par, rating)
-  - "View Tee Times" CTA button
-  - Price indicator if available
+  - Quick stats (holes, par, features)
+  - "View Available Times" CTA
+  - Real-time availability indicator
 
 ### Course Detail Page
-- **Hero gallery** - Large image with thumbnail gallery below
+- **Hero gallery** - Premium imagery showcasing the course
 - **Two-column layout**:
-  - Left: Course details, description, amenities, contact info
-  - Right: Sticky booking widget with tee-time selection
-- **Location map** - Embedded map showing course location
-- **Booking providers** - Cards showing different booking options (Golfmanager, iMasterGolf, direct)
+  - Left: Course story, amenities, local insights
+  - Right: Sticky booking widget with curated tee times
+- **Location context** - Map showing course within Costa del Sol
+- **Booking options** - Transparent presentation of available providers
 
-### Booking Flow
-- **Multi-step form** with progress indicator (1. Select Time → 2. Player Details → 3. Confirmation)
-- **Summary sidebar** - Sticky on desktop showing selected course, time, players, price estimate
-- **Form sections**: Player info, contact details, special requests
-- **Confirmation page**: Booking reference, course details, next steps, email confirmation notice
+### Booking Experience
+- **Streamlined flow** with clear progress (Time Selection → Details → Confirmation)
+- **Summary sidebar** - Always visible booking details
+- **Personal touches**: Special requests, course recommendations, local tips
+- **Confirmation**: Warm thank-you message, next steps, personal contact
 
-### Admin Dashboard (Email Management)
-- **Stats overview** - Card grid showing total courses, emails sent, response rate, partnerships
-- **Email composer** - Split view: Template editor (left) + Preview (right)
-- **Bulk send interface** - Course selection with checkboxes, merge field helpers
-- **Email tracking table** - Sortable table with course name, subject, status, sent date, actions
+### Admin Dashboard
+- **Overview stats** - Courses, partnerships, guest satisfaction
+- **Email management** - Professional correspondence with course partners
+- **Booking tracking** - Monitor and manage reservations
+- **Partnership tools** - Maintain relationships with premier courses
 
 ---
 
 ## Component Library
 
 ### Navigation
-- **Sticky header**: White background, subtle shadow on scroll
-- Logo (left), main nav links (center), "Find Courses" CTA button (right)
-- Mobile: Hamburger menu with slide-out drawer
+- **Sticky header**: Clean background with subtle elevation
+- Fridas Golf logo (left), navigation links (center), primary CTA (right)
+- Mobile: Elegant slide-out menu
 
 ### Cards
-- **Course Card**: Rounded corners (rounded-lg), subtle shadow, hover lift effect (transform)
-- Image with gradient overlay at bottom for text readability
-- Badge overlays for "Featured" or "Premium" courses
-- Heart icon for favorites (top-right)
+- **Course Card**: Rounded corners (rounded-lg), subtle shadow, elegant hover effect
+- Premium imagery with gentle gradient for text legibility
+- Tasteful badges for featured courses or special availability
+- Clean, organized information hierarchy
 
 ### Search & Filters
-- **Search input**: Large, rounded, with location icon prefix
-- **Filter chips**: Rounded-full pills that toggle active state
-- **Date picker**: Calendar dropdown with range selection
-- **Dropdown selects**: Custom styled with icons
+- **Search input**: Refined appearance, location icon, smooth interactions
+- **Filter controls**: Elegant toggles and selects
+- **Date picker**: Calendar with clear selection and availability indicators
+- **Results**: Organized by relevance and distance
 
 ### Buttons
-- **Primary CTA**: Solid, rounded-lg, medium padding (px-6 py-3), bold text
-- **Secondary**: Outline style with border
-- **On images**: Blurred background (backdrop-blur-md bg-white/20), no hover blur changes, standard hover state only
+- **Primary CTA**: Deep Olive, confident and inviting
+- **Secondary**: Outline style with Warm Sand accent
+- **On images**: Soft backgrounds with proper contrast
+- All interactions smooth and refined
 
 ### Forms
-- **Input fields**: Rounded borders, consistent padding (p-3), focus state with ring
-- **Labels**: Above inputs, medium weight, small text
-- **Validation**: Inline error messages below fields
+- **Input fields**: Clean borders, generous padding, clear focus states
+- **Labels**: Descriptive and helpful
+- **Validation**: Gentle, constructive feedback
+- **Overall feel**: Effortless and welcoming
 
 ### Data Display
-- **Stats cards**: Large number (text-3xl font-bold), small label below
-- **Tables**: Striped rows, sortable headers, action buttons in last column
-- **Maps**: Rounded corners, markers for course locations, info popups on click
+- **Stats cards**: Clear numbers with context
+- **Tables**: Clean, scannable information
+- **Maps**: Integrated seamlessly with refined markers
 
 ---
 
 ## Images
 
+### Photography Style:
+- **Premium quality**: High-resolution, professionally shot
+- **Golden hour preference**: Warm, inviting lighting
+- **Course diversity**: Showcase coastal, mountain, and valley courses
+- **Lifestyle moments**: Elegant golfers enjoying the experience
+- **Local context**: Mediterranean landscape, Spanish architecture
+
 ### Required Images:
-1. **Hero Background**: Pristine golf course at sunrise/sunset, wide landscape view showing fairway, greens, and coastal backdrop
-2. **Featured Course Cards** (3-6): Various Costa del Sol courses - mix of coastal views, mountain backdrops, and signature holes
-3. **Course Detail Galleries**: 4-6 images per course showing different angles, clubhouse, facilities
-4. **Testimonial Photos**: 2-3 diverse golfers (casual golfer headshots)
-5. **How It Works Section**: Simple iconography or small illustrative images for each step
+1. **Hero Background**: Sunrise/sunset on pristine Costa del Sol course
+2. **Featured Courses** (6-8): Diverse course selections showing variety
+3. **Course Details**: 4-6 images per course (signature holes, clubhouse, views)
+4. **Testimonials**: Authentic golfer experiences
+5. **Regional beauty**: Costa del Sol landscape contexts
 
 ### Image Treatment:
-- All course images: 16:9 aspect ratio for consistency
-- Subtle gradient overlays on cards for text legibility
-- Lazy loading for performance
-- Responsive srcset for mobile optimization
+- 16:9 aspect ratio for consistency and premium feel
+- Subtle overlays for text legibility
+- Responsive images for all devices
+- Thoughtful cropping highlighting course features
 
 ---
 
 ## Special Considerations
 
-**Geolocation UX**: 
-- Clear prompt for location permission
-- Fallback to manual location input
-- Visual indicator of "distance from you" on course cards
+**Personal Touch**:
+- Language emphasizes curation and expertise
+- Course descriptions include local insights
+- Recommendations feel personalized, not algorithmic
+- Communication is warm and helpful
 
-**Mobile Optimization**:
-- Bottom sheet for filters on mobile
-- Simplified single-column layouts
-- Touch-friendly button sizes (min 44px height)
-- Collapsible sections to reduce scrolling
+**Premium Experience**:
+- Interface is refined and sophisticated
+- Interactions are smooth and delightful
+- Information architecture is intuitive
+- Trust signals are subtle but present
 
-**Trust Signals**:
-- Display partner logos (golf course affiliations)
-- Real-time availability indicators
-- Contact information prominently displayed
-- Secure booking badges
+**Geographic Focus**:
+- Costa del Sol remains the core region
+- Sotogrande to Málaga coverage
+- Local knowledge and expertise emphasized
+- Regional characteristics celebrated
+
+**Mobile Experience**:
+- Touch-optimized interfaces
+- Streamlined navigation
+- Essential information prioritized
+- Booking process simplified
+
+**Trust & Credibility**:
+- Real-time availability clearly indicated
+- Transparent pricing and booking terms
+- Professional course partnerships highlighted
+- Responsive customer service emphasized

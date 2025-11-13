@@ -15,9 +15,9 @@ export function Header() {
             </Link>
             <Link href="/" className="flex flex-col">
               <span className="font-serif font-semibold text-lg leading-none">
-                Costa del Sol
+                Fridas Golf
               </span>
-              <span className="text-xs text-muted-foreground">Tee Times</span>
+              <span className="text-xs text-muted-foreground">Costa del Sol</span>
             </Link>
           </div>
 

@@ -1,8 +1,8 @@
-# Costa del Sol Golf Tee-Time Finder
+# Fridas Golf
 
 ## Overview
 
-This is a production-ready golf tee-time finder for Costa del Sol, Spain, covering 40+ courses from Sotogrande to Málaga. The platform provides **real tee-time availability checking** (not just booking forms), geolocation-based search, and a complete booking flow.
+Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain, covering 40+ premier courses from Sotogrande to Málaga. The platform provides **real tee-time availability checking** (not just booking forms), curated course selection, geolocation-based search, and a complete booking flow with personal concierge-quality service.
 
 **Core Features:**
 - ✅ **Real-time tee time availability** - Shows actual available times within your search window (e.g., 10:00-12:00 tomorrow)
