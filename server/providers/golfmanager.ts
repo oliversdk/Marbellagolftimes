@@ -1,23 +1,19 @@
 import type { GolfCourse } from "@shared/schema";
 
 export interface GolfmanagerConfig {
-  baseUrl: string;
-  username: string;
-  password: string;
+  apiKey: string;
+  baseUrl?: string;
 }
 
 export interface GolfmanagerSlot {
-  idType: number;
-  max: number;
-  min: number | null;
-  multiple: number | null;
-  name: string;
-  price: number;
+  area: number;
+  areaName: string;
+  typeName: string;
   start: string;
-  idResource: number;
-  resourceName: string;
-  resourceTags: string[];
-  tags: string[];
+  price: number;
+  max?: number;
+  min?: number;
+  slots?: number;
 }
 
 export interface TeeTimeSlot {
@@ -28,22 +24,13 @@ export interface TeeTimeSlot {
   source: string;
 }
 
-export interface CourseWithSlots {
-  courseId: string;
-  courseName: string;
-  distanceKm: number;
-  bookingUrl?: string;
-  slots: TeeTimeSlot[];
-  note?: string;
-}
-
 export class GolfmanagerProvider {
+  private apiKey: string;
   private baseUrl: string;
-  private auth: string;
 
   constructor(config: GolfmanagerConfig) {
-    this.baseUrl = config.baseUrl;
-    this.auth = Buffer.from(`${config.username}:${config.password}`).toString("base64");
+    this.apiKey = config.apiKey;
+    this.baseUrl = config.baseUrl || "https://eu.golfmanager.com/api";
   }
 
   async searchAvailability(
@@ -52,59 +39,34 @@ export class GolfmanagerProvider {
     endDate: string,
     slots: number
   ): Promise<GolfmanagerSlot[]> {
-    const formData = new URLSearchParams();
-    formData.append("tenant", tenant);
-    formData.append("start", startDate);
-    formData.append("end", endDate);
-    formData.append("slots", slots.toString());
+    const url = new URL(`${this.baseUrl}/bookings/searchAvailability`);
+    url.searchParams.append("start", startDate);
+    url.searchParams.append("end", endDate);
+    url.searchParams.append("slots", slots.toString());
 
-    const response = await fetch(`${this.baseUrl}/searchAvailability`, {
-      method: "POST",
+    const response = await fetch(url.toString(), {
+      method: "GET",
       headers: {
-        Authorization: `Basic ${this.auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "key": this.apiKey,
+        "tenant": tenant,
       },
-      body: formData.toString(),
     });
 
     if (!response.ok) {
-      throw new Error(`Golfmanager API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Golfmanager API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     return await response.json();
   }
 
-  async getTenantInfo(tenant: string): Promise<any> {
-    const formData = new URLSearchParams();
-    formData.append("tenant", tenant);
-
-    const response = await fetch(`${this.baseUrl}/tenantInfo`, {
-      method: "POST",
+  async getTenant(tenant: string): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/model/tenant`, {
+      method: "GET",
       headers: {
-        Authorization: `Basic ${this.auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "key": this.apiKey,
+        "tenant": tenant,
       },
-      body: formData.toString(),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Golfmanager API error: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  }
-
-  async getResources(tenant: string): Promise<any[]> {
-    const formData = new URLSearchParams();
-    formData.append("tenant", tenant);
-
-    const response = await fetch(`${this.baseUrl}/resources`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${this.auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: formData.toString(),
     });
 
     if (!response.ok) {
@@ -126,15 +88,13 @@ export class GolfmanagerProvider {
 }
 
 export function getGolfmanagerConfig(): GolfmanagerConfig | null {
-  const { GOLFMANAGER_URL, GOLFMANAGER_USER, GOLFMANAGER_PASSWORD } = process.env;
+  const { GOLFMANAGER_API_KEY } = process.env;
 
-  if (!GOLFMANAGER_URL || !GOLFMANAGER_USER || !GOLFMANAGER_PASSWORD) {
+  if (!GOLFMANAGER_API_KEY) {
     return null;
   }
 
   return {
-    baseUrl: GOLFMANAGER_URL,
-    username: GOLFMANAGER_USER,
-    password: GOLFMANAGER_PASSWORD,
+    apiKey: GOLFMANAGER_API_KEY,
   };
 }
