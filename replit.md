@@ -198,13 +198,23 @@ Preferred communication style: Simple, everyday language.
 - **Status**: Production-ready integration implemented
 - **Authentication**: API key via header (`key: YOUR_API_KEY`)
 - **Base URL**: https://eu.golfmanager.com/api
+- **Important Discovery**: iMaster.golf and teeone.golf use the same Golfmanager API!
 - **How to get API key**:
   1. Download authorization form: https://www.golfmanager.com/multicourse-api-authorization/
-  2. Email completed form to dsillari@golfmanager.com (API Integration Manager)
+  2. Email completed form to dsillari@golfmanager.com (Daniel Sillari - API Integration Manager)
   3. Request "Consumer API" access for tee-time availability
   4. Cost: €25/month per golf course tenant
 - **Environment Variable**: `GOLFMANAGER_API_KEY`
-- **Confirmed Golfmanager Courses**: La Reserva Club Sotogrande, Finca Cortesín, Real Club de Golf Sotogrande, San Roque Club
+- **Integrated Courses (10+ with provider links ready)**:
+  - La Reserva Club Sotogrande (tenant: lareserva)
+  - Finca Cortesín Golf Club (tenant: fincacortesin)
+  - Real Club de Golf Sotogrande (tenant: rcgsotogrande)
+  - San Roque Club (tenant: sanroque)
+  - El Paraíso Golf Club (tenant: paraiso) - via iMaster/teeone
+  - Marbella Golf & Country Club (tenant: marbella) - via iMaster/teeone
+  - Estepona Golf (tenant: estepona) - via iMaster/teeone
+  - Santa Clara Golf Marbella (tenant: santaclara) - via iMaster/teeone
+  - Mijas Golf Internacional (tenant: mijas) - via iMaster/teeone
 
 **Tee Time Provider Integration (Future):**
 - Provider type system supports:

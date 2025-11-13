@@ -619,8 +619,51 @@ export class MemStorage implements IStorage {
 
     for (const providerData of providers) {
       const id = randomUUID();
-      const provider: TeeTimeProvider = { ...providerData, id };
+      const provider: TeeTimeProvider = {
+        id,
+        name: providerData.name,
+        type: providerData.type,
+        baseUrl: providerData.baseUrl || null,
+        config: providerData.config || null,
+      };
       this.providers.set(id, provider);
+    }
+
+    // Get Golfmanager provider ID for linking
+    const golfmanagerProvider = Array.from(this.providers.values()).find(
+      (p) => p.name === "Golfmanager"
+    );
+
+    if (golfmanagerProvider) {
+      // Add provider links for Golfmanager/iMaster courses
+      const golfmanagerCourses = [
+        { courseName: "La Reserva Club Sotogrande", tenant: "lareserva" },
+        { courseName: "Finca Cortesín Golf Club", tenant: "fincacortesin" },
+        { courseName: "Real Club de Golf Sotogrande", tenant: "rcgsotogrande" },
+        { courseName: "San Roque Club", tenant: "sanroque" },
+        { courseName: "El Paraíso Golf Club", tenant: "paraiso" },
+        { courseName: "Marbella Golf & Country Club", tenant: "marbella" },
+        { courseName: "Estepona Golf", tenant: "estepona" },
+        { courseName: "Santa Clara Golf Marbella", tenant: "santaclara" },
+        { courseName: "Mijas Golf Internacional", tenant: "mijas" },
+      ];
+
+      for (const { courseName, tenant } of golfmanagerCourses) {
+        const course = Array.from(this.courses.values()).find(
+          (c) => c.name === courseName
+        );
+        if (course) {
+          const linkId = randomUUID();
+          const link: CourseProviderLink = {
+            id: linkId,
+            courseId: course.id,
+            providerId: golfmanagerProvider.id,
+            bookingUrl: `https://open.teeone.golf/en/${tenant}/disponibilidad`,
+            providerCourseCode: `golfmanager:${tenant}`,
+          };
+          this.links.set(linkId, link);
+        }
+      }
     }
   }
 
