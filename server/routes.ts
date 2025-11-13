@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .sort((a, b) => a.distance - b.distance);
 
         // Query Golfmanager for each course with provider links
-        for (const { course, distance } of coursesWithDistance.slice(0, 12)) {
+        for (const { course, distance } of coursesWithDistance) {
           const providerLinks = await storage.getLinksByCourseId(course.id);
           const golfmanagerLink = providerLinks.find((link) => 
             link.providerCourseCode && link.providerCourseCode.startsWith("golfmanager:")
@@ -165,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
           .sort((a, b) => a.distance - b.distance);
 
-        const mockSlots = coursesWithDistance.slice(0, 12).map(({ course, distance }) => ({
+        const mockSlots = coursesWithDistance.map(({ course, distance }) => ({
           courseId: course.id,
           courseName: course.name,
           distanceKm: Math.round(distance * 10) / 10,
