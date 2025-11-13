@@ -205,7 +205,7 @@ Preferred communication style: Simple, everyday language.
   3. Request "Consumer API" access for tee-time availability
   4. Cost: €25/month per golf course tenant
 - **Environment Variable**: `GOLFMANAGER_API_KEY`
-- **Integrated Courses (10+ with provider links ready)**:
+- **Integrated Courses (12 with provider links ready)**:
   - La Reserva Club Sotogrande (tenant: lareserva)
   - Finca Cortesín Golf Club (tenant: fincacortesin)
   - Real Club de Golf Sotogrande (tenant: rcgsotogrande)
@@ -213,8 +213,11 @@ Preferred communication style: Simple, everyday language.
   - El Paraíso Golf Club (tenant: paraiso) - via iMaster/teeone
   - Marbella Golf & Country Club (tenant: marbella) - via iMaster/teeone
   - Estepona Golf (tenant: estepona) - via iMaster/teeone
+  - Atalaya Golf & Country Club (tenant: atalaya) - via iMaster/teeone
   - Santa Clara Golf Marbella (tenant: santaclara) - via iMaster/teeone
-  - Mijas Golf Internacional (tenant: mijas) - via iMaster/teeone
+  - Los Naranjos Golf Club (tenant: naranjos) - via iMaster/teeone
+  - Mijas Golf (tenant: mijas) - via iMaster/teeone
+  - Torrequebrada Golf (tenant: torrequebrada) - via iMaster/teeone
 
 **Tee Time Provider Integration (Future):**
 - Provider type system supports:

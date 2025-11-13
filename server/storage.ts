@@ -187,7 +187,7 @@ export class MemStorage implements IStorage {
         lat: "36.4890",
         lng: "-5.0125",
         websiteUrl: "https://elparaisogolf.com",
-        bookingUrl: "https://elparaisogolf.com",
+        bookingUrl: "https://open.teeone.golf/en/paraiso/disponibilidad",
         email: "info@elparaisogolfclub.com",
         phone: "+34 952 88 38 46",
         notes: "Gary Player design",
@@ -200,10 +200,23 @@ export class MemStorage implements IStorage {
         lat: "36.4650",
         lng: "-5.0980",
         websiteUrl: "https://www.esteponagolf.com",
-        bookingUrl: "https://esteponagolf.com/en/online-booking",
+        bookingUrl: "https://open.teeone.golf/en/esteponagolf/disponibilidad",
         email: "information@esteponagolf.com",
         phone: "+34 952 11 30 82",
         notes: "Municipal course",
+      },
+      {
+        name: "Atalaya Golf & Country Club",
+        city: "Estepona",
+        province: "Málaga",
+        country: "Spain",
+        lat: "36.4595",
+        lng: "-5.0145",
+        websiteUrl: "https://www.atalaya-golf.com",
+        bookingUrl: "https://open.teeone.golf/en/atalaya/disponibilidad",
+        email: "info@atalaya-golf.com",
+        phone: "+34 952 88 20 89",
+        notes: "Old Course + New Course",
       },
       {
         name: "La Resina Golf & Country Club",
@@ -319,7 +332,7 @@ export class MemStorage implements IStorage {
         lat: "36.5135",
         lng: "-4.9465",
         websiteUrl: "https://www.losnaranjos.com",
-        bookingUrl: "https://www.losnaranjos.com/en/booking",
+        bookingUrl: "https://open.teeone.golf/en/naranjos/disponibilidad",
         email: "golfclub@losnaranjos.com",
         phone: "+34 952 81 52 06",
         notes: "Part of Golf Valley",
@@ -384,7 +397,7 @@ export class MemStorage implements IStorage {
         lat: "36.5245",
         lng: "-4.8785",
         websiteUrl: "https://www.santaclaragolfmarbella.com",
-        bookingUrl: "https://www.santaclaragolfmarbella.com/en/tee-times",
+        bookingUrl: "https://open.teeone.golf/en/santaclaramarbella/disponibilidad",
         email: "reservas@santaclaragolfmarbella.com",
         phone: "+34 952 85 09 11",
         notes: "Enrique Canales design",
@@ -410,7 +423,7 @@ export class MemStorage implements IStorage {
         lat: "36.5315",
         lng: "-4.8945",
         websiteUrl: "https://www.marbellagolf.com",
-        bookingUrl: "https://www.marbellagolf.com/online-bookings",
+        bookingUrl: "https://open.teeone.golf/en/marbella/disponibilidad",
         email: "reservas@marbellagolf.com",
         phone: "+34 952 83 05 00",
         notes: "Historic course established 1989",
@@ -451,7 +464,7 @@ export class MemStorage implements IStorage {
         lat: "36.5845",
         lng: "-4.6425",
         websiteUrl: "https://www.mijasgolf.org",
-        bookingUrl: "https://www.mijasgolf.org/teetimes",
+        bookingUrl: "https://open.teeone.golf/en/mijas/disponibilidad",
         email: "teetimes@mijasgolf.org",
         phone: "+34 952 47 68 43",
         notes: "Two courses: Los Lagos and Los Olivos",
@@ -555,7 +568,7 @@ export class MemStorage implements IStorage {
         lat: "36.5985",
         lng: "-4.5425",
         websiteUrl: "https://www.golftorrequebrada.com",
-        bookingUrl: "https://www.golftorrequebrada.com/en/book-online",
+        bookingUrl: "https://open.teeone.golf/en/torrequebrada/disponibilidad",
         email: "bookings@golftorrequebrada.com",
         phone: "+34 952 44 27 42",
         notes: "José María Olazábal design",
@@ -591,7 +604,20 @@ export class MemStorage implements IStorage {
     // Seed courses
     for (const courseData of seedCourses) {
       const id = randomUUID();
-      const course: GolfCourse = { ...courseData, id };
+      const course: GolfCourse = {
+        id,
+        name: courseData.name,
+        city: courseData.city,
+        province: courseData.province,
+        country: courseData.country || "Spain",
+        lat: courseData.lat || null,
+        lng: courseData.lng || null,
+        websiteUrl: courseData.websiteUrl || null,
+        bookingUrl: courseData.bookingUrl || null,
+        email: courseData.email || null,
+        phone: courseData.phone || null,
+        notes: courseData.notes || null,
+      };
       this.courses.set(id, course);
     }
 
@@ -635,7 +661,7 @@ export class MemStorage implements IStorage {
     );
 
     if (golfmanagerProvider) {
-      // Add provider links for Golfmanager/iMaster courses
+      // Add provider links for Golfmanager/iMaster/teeone courses
       const golfmanagerCourses = [
         { courseName: "La Reserva Club Sotogrande", tenant: "lareserva" },
         { courseName: "Finca Cortesín Golf Club", tenant: "fincacortesin" },
@@ -644,8 +670,11 @@ export class MemStorage implements IStorage {
         { courseName: "El Paraíso Golf Club", tenant: "paraiso" },
         { courseName: "Marbella Golf & Country Club", tenant: "marbella" },
         { courseName: "Estepona Golf", tenant: "estepona" },
+        { courseName: "Atalaya Golf & Country Club", tenant: "atalaya" },
         { courseName: "Santa Clara Golf Marbella", tenant: "santaclara" },
-        { courseName: "Mijas Golf Internacional", tenant: "mijas" },
+        { courseName: "Los Naranjos Golf Club", tenant: "naranjos" },
+        { courseName: "Mijas Golf", tenant: "mijas" },
+        { courseName: "Torrequebrada Golf", tenant: "torrequebrada" },
       ];
 
       for (const { courseName, tenant } of golfmanagerCourses) {
