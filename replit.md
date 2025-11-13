@@ -15,8 +15,9 @@ This is a production-ready golf tee-time finder for Costa del Sol, Spain, coveri
 
 **Current Status (November 2025):**
 - All core functionality implemented and tested
-- Using mock tee-time data (3-5 slots per course within search window)
-- Ready for real provider integration (Golfmanager, iMasterGolf, direct club sites)
+- ✅ **Golfmanager API integration ready** - Automatically switches from mock to real data when API key is configured
+- Mock tee-time fallback (3-5 slots per course within search window) when API key not set
+- Ready for additional providers (iMasterGolf, direct club sites)
 
 ## User Preferences
 
@@ -185,15 +186,27 @@ Preferred communication style: Simple, everyday language.
 
 ### API Integration Points
 
-**Tee Time Availability Search (NOW WORKING):**
-- User selects location (geolocation or manual city selection)
+**Tee Time Availability Search:**
+- User selects location (geolocation, manual city selection, or "All Costa del Sol")
 - Sets search criteria: date, number of players, time window (e.g., 10:00-12:00)
-- Backend generates mock tee times ONLY within the specified time window
-- Results displayed as clickable time slot cards with green fees
+- Backend queries Golfmanager API for real-time availability (if API key configured)
+- Falls back to mock data (3-5 slots per course) if Golfmanager API not configured
+- Results displayed as clickable time slot cards with green fees sorted by distance
 - User clicks specific time → Booking modal pre-fills with exact slot data
-- **Next Step**: Replace mock data with real provider integrations
 
-**Tee Time Provider Integration (Planned):**
+**Golfmanager API Integration:**
+- **Status**: Production-ready integration implemented
+- **Authentication**: API key via header (`key: YOUR_API_KEY`)
+- **Base URL**: https://eu.golfmanager.com/api
+- **How to get API key**:
+  1. Download authorization form: https://www.golfmanager.com/multicourse-api-authorization/
+  2. Email completed form to dsillari@golfmanager.com (API Integration Manager)
+  3. Request "Consumer API" access for tee-time availability
+  4. Cost: €25/month per golf course tenant
+- **Environment Variable**: `GOLFMANAGER_API_KEY`
+- **Confirmed Golfmanager Courses**: La Reserva Club Sotogrande, Finca Cortesín, Real Club de Golf Sotogrande, San Roque Club
+
+**Tee Time Provider Integration (Future):**
 - Provider type system supports:
   - Web scraping (SCRAPER type) - For courses without APIs
   - REST APIs (API type) - For Golfmanager, iMasterGolf, etc.

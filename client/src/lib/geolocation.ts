@@ -55,6 +55,7 @@ export function getCurrentLocation(): Promise<GeolocationResult> {
 
 // Predefined Costa del Sol cities with approximate coordinates
 export const COSTA_DEL_SOL_CITIES = [
+  { name: "All Costa del Sol", lat: 36.5095, lng: -4.8824 }, // Center point (Marbella)
   { name: "Sotogrande", lat: 36.2876, lng: -5.2872 },
   { name: "San Roque", lat: 36.2094, lng: -5.3836 },
   { name: "Estepona", lat: 36.4277, lng: -5.1479 },

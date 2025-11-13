@@ -48,9 +48,12 @@ export function LocationSearch({ onLocationSelected }: LocationSearchProps) {
     const city = COSTA_DEL_SOL_CITIES.find((c) => c.name === cityName);
     if (city) {
       onLocationSelected(city.lat, city.lng);
+      const isAll = cityName === "All Costa del Sol";
       toast({
-        title: "City Selected",
-        description: `Finding courses near ${city.name}`,
+        title: isAll ? "Showing All Courses" : "City Selected",
+        description: isAll 
+          ? "Showing all Costa del Sol courses sorted by distance"
+          : `Finding courses near ${city.name}`,
       });
     }
   };
