@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, InsertBookingRequest } from "@shared/schema";
-import heroImage from "@assets/generated_images/Owner_perspective_sunrise_golf_walk_05244202.png";
+import heroImage from "@assets/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.png";
 
 interface TeeTimeSlot {
   teeTime: string;
@@ -167,7 +167,7 @@ export default function Home() {
         <div className="absolute inset-0">
           <img
             src={heroImage}
-            alt="Owner's perspective walking across a pristine Costa del Sol golf course at sunrise, with Mediterranean views and morning mist over the fairways"
+            alt="Owner's perspective walking across a pristine Costa del Sol golf course on a sunny day, with vibrant green fairways, Mediterranean Sea views and coastal mountains"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
