@@ -7,12 +7,13 @@ Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain
 **Core Features:**
 - ✅ **Real-time tee time availability** - Shows actual available times within your search window (e.g., 10:00-12:00 tomorrow)
 - ✅ **Dual layout system** - TeeTimesBooking.com-style compact list for filtered results, traditional card grid for browsing all courses
-- ✅ **Time/price aggregation** - Shows time ranges (e.g., "8:00 - 14:00") and "from €XX" pricing using cheapest slot (in compact list)
+- ✅ **Expandable slots** - Click any course to expand and see ALL individual available tee times with specific prices
+- ✅ **Time/price aggregation** - Shows time ranges (e.g., "8:00 - 14:00") and "from €XX" pricing when collapsed (in compact list)
 - ✅ **Smart sorting** - 4-way sorting: Closer/Farther, Cheaper/More expensive with visual active states (in compact list)
 - ✅ **Provider type badges** - Visual indicators show "Direct" badge for courses using direct booking links (DEEP_LINK type only)
 - ✅ **Geolocation-based discovery** - Find nearest courses automatically or search by city
 - ✅ **Smart filtering** - Date, players, time windows with distance sorting
-- ✅ **Auto-cheapest booking** - Clicking "Book now" auto-selects cheapest slot and opens pre-filled form (in compact list)
+- ✅ **Flexible booking** - Select specific tee time from expanded view or quick-book cheapest option
 - ✅ **Affiliate email system** - Bulk email management for golf club partnership proposals (20% commission)
 - ✅ **Admin dashboard** - Manage bookings and track email campaigns
 - ✅ **Premium UI** - Golf-themed design (Playfair Display + Inter fonts, green accent colors)

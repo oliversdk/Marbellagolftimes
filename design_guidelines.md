@@ -111,14 +111,23 @@ The color system reflects the natural beauty of Costa del Sol golf—olive grove
 - TeeTimesBooking.com-style compact list for efficient tee time scanning
 - **Search filters** - Non-sticky filter section with date, players, time window selectors
 - **Sorting controls** - 4 buttons for distance and price (ascending/descending) with active state highlighting (bg-primary when selected)
-- **Compact single-column list**:
-  - Each row displays horizontally: Course name + badges, "TEE 1" info, time range, price "from €XX", distance badge, "Book now" button
-  - **Time aggregation**: Shows earliest-to-latest time range (e.g., "8:00 - 14:00") instead of individual slots
-  - **Price aggregation**: Shows "Prices from €XX.XX" using cheapest available slot (Intl.NumberFormat for proper currency formatting)
+- **Expandable course rows** - Click any course row to expand/collapse and see individual tee times:
+  - **Collapsed state** (default):
+    - Course name + badges, "TEE 1" info, time range, price "from €XX", distance badge, chevron icon
+    - Shows aggregated time range (e.g., "8:00 - 14:00") and cheapest price
+  - **Expanded state** (after clicking):
+    - Reveals ALL individual available tee times sorted chronologically
+    - Each slot displays: specific time (e.g., "14:30"), green fee, and individual "Book" button
+    - 2-column grid on desktop (sm:grid-cols-2), single column on mobile
+    - Click any slot's "Book" button to open pre-filled booking modal with that exact time
   - **Provider badges**: "Direct" outline badge appears ONLY for DEEP_LINK courses (intentionally absent for API-based courses)
-  - **Empty state**: Shows "No availability" text instead of disabled button when no slots
+  - **Empty state**: Shows "No availability" text when no slots
   - **Responsive design**: Stacks vertically on mobile, horizontal flex row on desktop
-- **Auto-cheapest booking** - Clicking "Book now" automatically selects cheapest slot and opens pre-filled modal
+  - **Visual feedback**: ChevronDown/ChevronUp icons indicate expand/collapse state
+- **Flexible booking flow**:
+  - Users can browse aggregated info when collapsed
+  - Expand to see ALL specific available times
+  - Click specific slot to book that exact time
 
 **When no location is selected (browsing all courses):**
 - Traditional 3-column grid layout (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`)

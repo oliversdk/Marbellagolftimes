@@ -8,7 +8,7 @@ import { BookingModal } from "@/components/BookingModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Clock } from "lucide-react";
+import { Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -92,6 +92,7 @@ export default function Home() {
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("distance-asc");
+  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Fetch all courses
@@ -192,12 +193,24 @@ export default function Home() {
     }
   };
 
-  const handleBookCourse = (courseSlot: CourseWithSlots) => {
+  const toggleExpanded = (courseId: string) => {
+    setExpandedCourses(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(courseId)) {
+        newSet.delete(courseId);
+      } else {
+        newSet.add(courseId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleBookCourse = (courseSlot: CourseWithSlots, specificSlot?: TeeTimeSlot) => {
     if (courseSlot.course) {
-      const cheapestSlot = getCheapestSlot(courseSlot.slots);
-      if (cheapestSlot) {
+      const slotToBook = specificSlot || getCheapestSlot(courseSlot.slots);
+      if (slotToBook) {
         setSelectedCourse(courseSlot.course);
-        setSelectedSlot(cheapestSlot);
+        setSelectedSlot(slotToBook);
         setBookingModalOpen(true);
       }
     }
@@ -331,14 +344,23 @@ export default function Home() {
                 {sortCourses(availableSlots, sortMode).map((courseSlot) => {
                   const timeRange = getTimeRange(courseSlot.slots);
                   const minPrice = getMinPrice(courseSlot.slots);
+                  const isExpanded = expandedCourses.has(courseSlot.courseId);
                   
                   return (
                     <Card 
                       key={courseSlot.courseId} 
-                      className="p-4 hover-elevate" 
+                      className="overflow-visible" 
                       data-testid={`card-slot-${courseSlot.courseId}`}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      {/* Clickable Header */}
+                      <button 
+                        className="w-full p-4 hover-elevate text-left flex flex-col sm:flex-row sm:items-center gap-4"
+                        onClick={() => toggleExpanded(courseSlot.courseId)}
+                        data-testid={`button-expand-${courseSlot.courseId}`}
+                        type="button"
+                        aria-expanded={isExpanded}
+                        aria-controls={`slots-panel-${courseSlot.courseId}`}
+                      >
                         {/* Course Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -379,25 +401,83 @@ export default function Home() {
                           </Badge>
                         </div>
 
-                        {/* Book Button */}
-                        {courseSlot.slots.length > 0 ? (
-                          <button
-                            onClick={() => handleBookCourse(courseSlot)}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium text-sm hover-elevate active-elevate-2"
-                            data-testid={`button-book-${courseSlot.courseId}`}
-                          >
-                            Book now
-                          </button>
-                        ) : (
-                          <span className="px-4 py-2 text-muted-foreground text-sm" data-testid={`text-no-availability-${courseSlot.courseId}`}>
-                            No availability
-                          </span>
-                        )}
-                      </div>
+                        {/* Expand/Collapse Icon */}
+                        <div className="flex-shrink-0">
+                          {isExpanded ? (
+                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Expanded: Individual Slots */}
+                      {isExpanded && courseSlot.slots.length > 0 && (
+                        <div 
+                          id={`slots-panel-${courseSlot.courseId}`}
+                          role="region"
+                          aria-label={`Available tee times for ${courseSlot.courseName}`}
+                          className="border-t px-4 pb-4 pt-3" 
+                          data-testid={`slots-expanded-${courseSlot.courseId}`}
+                        >
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Available Tee Times</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {courseSlot.slots
+                              .sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime())
+                              .map((slot, idx) => {
+                                const slotTime = new Date(slot.teeTime);
+                                const formattedTime = slotTime.toLocaleTimeString("en-US", { 
+                                  hour: "2-digit", 
+                                  minute: "2-digit", 
+                                  hour12: false 
+                                });
+                                const formattedPrice = new Intl.NumberFormat('en-US', { 
+                                  style: 'currency', 
+                                  currency: 'EUR' 
+                                }).format(slot.greenFee);
+                                const cheapestSlot = getCheapestSlot(courseSlot.slots);
+                                const isCheapest = cheapestSlot && slot.teeTime === cheapestSlot.teeTime && slot.greenFee === cheapestSlot.greenFee;
+                                
+                                return (
+                                  <div 
+                                    key={idx}
+                                    className={`flex items-center justify-between p-3 border rounded-md hover-elevate ${
+                                      isCheapest ? 'border-primary bg-primary/5' : ''
+                                    }`}
+                                    data-testid={`slot-${courseSlot.courseId}-${idx}`}
+                                  >
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <Clock className="h-4 w-4 text-muted-foreground" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium text-sm">{formattedTime}</p>
+                                          {isCheapest && (
+                                            <Badge variant="secondary" className="text-xs">Best price</Badge>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{formattedPrice}</p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleBookCourse(courseSlot, slot);
+                                      }}
+                                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md font-medium text-xs hover-elevate active-elevate-2 flex-shrink-0"
+                                      data-testid={`button-book-slot-${courseSlot.courseId}-${idx}`}
+                                    >
+                                      Book
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Optional: Note */}
                       {courseSlot.note && (
-                        <p className="text-xs text-muted-foreground italic mt-2" data-testid={`text-note-${courseSlot.courseId}`}>
+                        <p className="text-xs text-muted-foreground italic px-4 pb-4" data-testid={`text-note-${courseSlot.courseId}`}>
                           {courseSlot.note}
                         </p>
                       )}
