@@ -105,17 +105,25 @@ The color system reflects the natural beauty of Costa del Sol golf—olive grove
 7. **Call-to-Action** - "Let us find your perfect tee time"
 8. **Footer** - Course regions, quick links, contact, newsletter
 
-### Course Search/Discovery Page (TeeTimesBooking.com-Inspired Compact List)
-- **Sticky search bar** with refined filters (location, date, players, time)
-- **Sorting controls** - 4 buttons for distance and price (ascending/descending) with active state highlighting
-- **Compact single-column list** for efficient tee time scanning:
+### Course Search/Discovery Page (Dual Layout System)
+
+**When location is selected (filtered results):**
+- TeeTimesBooking.com-style compact list for efficient tee time scanning
+- **Search filters** - Non-sticky filter section with date, players, time window selectors
+- **Sorting controls** - 4 buttons for distance and price (ascending/descending) with active state highlighting (bg-primary when selected)
+- **Compact single-column list**:
   - Each row displays horizontally: Course name + badges, "TEE 1" info, time range, price "from €XX", distance badge, "Book now" button
   - **Time aggregation**: Shows earliest-to-latest time range (e.g., "8:00 - 14:00") instead of individual slots
-  - **Price aggregation**: Shows "Prices from €XX.XX" using cheapest available slot
-  - **Provider badges**: "Direct" outline badge for DEEP_LINK courses
+  - **Price aggregation**: Shows "Prices from €XX.XX" using cheapest available slot (Intl.NumberFormat for proper currency formatting)
+  - **Provider badges**: "Direct" outline badge appears ONLY for DEEP_LINK courses (intentionally absent for API-based courses)
   - **Empty state**: Shows "No availability" text instead of disabled button when no slots
   - **Responsive design**: Stacks vertically on mobile, horizontal flex row on desktop
 - **Auto-cheapest booking** - Clicking "Book now" automatically selects cheapest slot and opens pre-filled modal
+
+**When no location is selected (browsing all courses):**
+- Traditional 3-column grid layout (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`)
+- CourseCard components showing all 40+ Costa del Sol courses
+- No sorting controls or time aggregation (no tee time search yet)
 
 ### Course Detail Page
 - **Hero gallery** - Premium imagery showcasing the course
