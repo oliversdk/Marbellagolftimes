@@ -208,7 +208,7 @@ Preferred communication style: Simple, everyday language.
   3. Request "Consumer API" access for tee-time availability
   4. Cost: €25/month per golf course tenant
 - **Environment Variable**: `GOLFMANAGER_API_KEY`
-- **Integrated Courses (12 with provider links ready)**:
+- **Integrated Courses (16 with provider links ready)**:
   - La Reserva Club Sotogrande (tenant: lareserva)
   - Finca Cortesín Golf Club (tenant: fincacortesin)
   - Real Club de Golf Sotogrande (tenant: rcgsotogrande)
@@ -221,6 +221,10 @@ Preferred communication style: Simple, everyday language.
   - Los Naranjos Golf Club (tenant: naranjos) - via iMaster/teeone
   - Mijas Golf (tenant: mijas) - via iMaster/teeone
   - Torrequebrada Golf (tenant: torrequebrada) - via iMaster/teeone
+  - **Real Club Valderrama (tenant: valderrama)** - Premium €500, #1 Continental Europe, 1997 Ryder Cup host
+  - **Flamingos Golf / Villa Padierna (tenant: villapadierna)** - Luxury resort with 3 courses (Flamingos, Alferini, Tramores)
+  - **Los Arqueros Golf (tenant: arqueros)** - Seve Ballesteros design
+  - **La Quinta Golf (tenant: quinta)** - 27 holes, Manuel Piñero design
 
 **Tee Time Provider Integration (Future):**
 - Provider type system supports:
