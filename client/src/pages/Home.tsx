@@ -8,7 +8,8 @@ import { BookingModal } from "@/components/BookingModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, ChevronDown, ChevronUp, Mail, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -498,22 +499,120 @@ export default function Home() {
         </div>
       )}
 
-      {/* All Courses View (when no location selected) */}
-      {!userLocation && courses && courses.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="mb-8">
-            <h2 className="font-serif text-3xl font-bold mb-2">All Costa del Sol Courses</h2>
-            <p className="text-muted-foreground">
-              {courses.length} premium golf courses from Sotogrande to Málaga
-            </p>
+      {/* Landing Page Sections (when no location selected) */}
+      {!userLocation && (
+        <>
+          {/* Featured Courses */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center mb-12">
+              <h2 className="font-serif text-3xl md:text-4xl font-bold mb-4">Premier Costa del Sol Courses</h2>
+              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                Access {courses?.length || 40}+ premium golf courses from Sotogrande to Málaga
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+              {courses?.slice(0, 3).map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
+          {/* Our Service */}
+          <div className="bg-muted/30 py-16">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-12">
+                <h2 className="font-serif text-3xl md:text-4xl font-bold mb-4">Your Personal Golf Concierge</h2>
+                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                  We curate the finest tee times with the personal touch of a dedicated advisor
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      Real-Time Availability
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      See actual available tee times, not just booking forms. Know exactly what's available before you request.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-primary" />
+                      Personal Service
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      Boutique-quality service with local expertise. We handle the details so you can focus on your game.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      Curated Selection
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      Only the finest courses from Sotogrande to Málaga. Premium experiences, carefully selected.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
-        </div>
+
+          {/* Call to Action */}
+          <div className="py-16">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">
+                Ready to Find Your Perfect Tee Time?
+              </h2>
+              <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
+                Start your search above and discover real-time availability across Costa del Sol's premier courses.
+              </p>
+              <Button 
+                size="lg" 
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                data-testid="button-scroll-to-search"
+              >
+                Start Your Search
+              </Button>
+            </div>
+          </div>
+
+          {/* All Courses */}
+          {courses && courses.length > 0 && (
+            <div className="bg-muted/20 py-16">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="mb-8">
+                  <h2 className="font-serif text-3xl font-bold mb-2">All Courses</h2>
+                  <p className="text-muted-foreground">
+                    Browse our complete selection of {courses.length} premier golf courses
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {courses.map((course) => (
+                    <CourseCard key={course.id} course={course} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Booking Modal */}
