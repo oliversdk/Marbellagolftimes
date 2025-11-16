@@ -6,11 +6,13 @@ Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain
 
 **Core Features:**
 - ✅ **Real-time tee time availability** - Shows actual available times within your search window (e.g., 10:00-12:00 tomorrow)
-- ✅ **Expandable time slots** - Shows first 3 tee times by default with "Se flere tider" button to reveal all available times per course
+- ✅ **Compact list design** - TeeTimesBooking.com-style single-column list for efficient scanning and booking
+- ✅ **Time/price aggregation** - Shows time ranges (e.g., "8:00 - 14:00") and "from €XX" pricing using cheapest slot
+- ✅ **Smart sorting** - 4-way sorting: Closer/Farther, Cheaper/More expensive with visual active states
 - ✅ **Provider type badges** - Visual indicators show "Direct" badge for courses using direct booking links (deep-link only)
 - ✅ **Geolocation-based discovery** - Find nearest courses automatically or search by city
 - ✅ **Smart filtering** - Date, players, time windows with distance sorting
-- ✅ **Complete booking flow** - Click a time slot → Pre-filled booking form → Request submitted
+- ✅ **Auto-cheapest booking** - Clicking "Book now" auto-selects cheapest slot and opens pre-filled form
 - ✅ **Affiliate email system** - Bulk email management for golf club partnership proposals (20% commission)
 - ✅ **Admin dashboard** - Manage bookings and track email campaigns
 - ✅ **Premium UI** - Golf-themed design (Playfair Display + Inter fonts, green accent colors)
@@ -38,9 +40,9 @@ Preferred communication style: Simple, everyday language.
 
 **UI Component System:**
 - shadcn/ui component library (Radix UI primitives + Tailwind CSS)
-- Custom design system based on premium booking platforms (Booking.com structure + Airbnb aesthetics)
+- TeeTimesBooking.com-inspired compact list design for efficient tee time scanning
 - Typography: Inter (primary) and Playfair Display (accent serif for golf elegance)
-- Responsive grid layouts with Tailwind CSS utilities
+- Responsive single-column list layouts with flex utilities
 
 **State Management:**
 - TanStack Query (React Query) for server state and caching
@@ -48,7 +50,7 @@ Preferred communication style: Simple, everyday language.
 - Custom hooks for geolocation and toast notifications
 
 **Key Pages:**
-- Home: Hero section with location search, course cards, and tee time slots
+- Home: Hero section with location search, compact tee time list with aggregated pricing/times, and 4-way sorting controls
 - Admin: Two-tab interface for viewing booking requests and managing affiliate emails
 - Not Found: 404 error page
 

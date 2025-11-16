@@ -105,16 +105,17 @@ The color system reflects the natural beauty of Costa del Sol golf—olive grove
 7. **Call-to-Action** - "Let us find your perfect tee time"
 8. **Footer** - Course regions, quick links, contact, newsletter
 
-### Course Search/Discovery Page
+### Course Search/Discovery Page (TeeTimesBooking.com-Inspired Compact List)
 - **Sticky search bar** with refined filters (location, date, players, time)
-- **Curated results** presented with distance, availability, and personal recommendations
-- **Course cards** in 3-column grid:
-  - High-quality course image (16:9 aspect ratio)
-  - Course name (Playfair Display, elegant presentation)
-  - Location with distance indicator
-  - Quick stats (holes, par, features)
-  - "View Available Times" CTA
-  - Real-time availability indicator
+- **Sorting controls** - 4 buttons for distance and price (ascending/descending) with active state highlighting
+- **Compact single-column list** for efficient tee time scanning:
+  - Each row displays horizontally: Course name + badges, "TEE 1" info, time range, price "from €XX", distance badge, "Book now" button
+  - **Time aggregation**: Shows earliest-to-latest time range (e.g., "8:00 - 14:00") instead of individual slots
+  - **Price aggregation**: Shows "Prices from €XX.XX" using cheapest available slot
+  - **Provider badges**: "Direct" outline badge for DEEP_LINK courses
+  - **Empty state**: Shows "No availability" text instead of disabled button when no slots
+  - **Responsive design**: Stacks vertically on mobile, horizontal flex row on desktop
+- **Auto-cheapest booking** - Clicking "Book now" automatically selects cheapest slot and opens pre-filled modal
 
 ### Course Detail Page
 - **Hero gallery** - Premium imagery showcasing the course
