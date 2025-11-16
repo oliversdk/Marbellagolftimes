@@ -502,22 +502,6 @@ export default function Home() {
       {/* Landing Page Sections (when no location selected) */}
       {!userLocation && (
         <>
-          {/* Featured Courses */}
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <div className="text-center mb-12">
-              <h2 className="font-serif text-3xl md:text-4xl font-bold mb-4">Premier Costa del Sol Courses</h2>
-              <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Access {courses?.length || 40}+ premium golf courses from Sotogrande to Málaga
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-              {courses?.slice(0, 3).map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          </div>
-
           {/* Our Service */}
           <div className="bg-muted/30 py-16">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

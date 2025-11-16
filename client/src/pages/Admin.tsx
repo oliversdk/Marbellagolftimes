@@ -174,6 +174,7 @@ export default function Admin() {
           <TabsList>
             <TabsTrigger value="bookings" data-testid="tab-bookings">Booking Requests</TabsTrigger>
             <TabsTrigger value="courses" data-testid="tab-courses">Golf Courses</TabsTrigger>
+            <TabsTrigger value="featured" data-testid="tab-featured">Featured Courses</TabsTrigger>
             <TabsTrigger value="all-courses" data-testid="tab-all-courses">All Courses</TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">Affiliate Emails</TabsTrigger>
           </TabsList>
@@ -257,6 +258,30 @@ export default function Admin() {
                       ))}
                     </TableBody>
                   </Table>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    No courses in database
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="featured">
+            <Card>
+              <CardHeader>
+                <CardTitle>Premier Costa del Sol Courses</CardTitle>
+                <CardDescription>
+                  Featured premium golf courses from Sotogrande to Málaga
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {courses && courses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {courses.slice(0, 3).map((course) => (
+                      <CourseCard key={course.id} course={course} />
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     No courses in database
