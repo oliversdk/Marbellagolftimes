@@ -52,12 +52,17 @@ export class GolfmanagerProvider {
     url.searchParams.append("end", endDate);
     url.searchParams.append("slots", slots.toString());
 
+    const headers: Record<string, string> = {
+      "tenant": tenant,
+    };
+    
+    if (this.apiKey) {
+      headers["key"] = this.apiKey;
+    }
+
     const response = await fetch(url.toString(), {
       method: "GET",
-      headers: {
-        "key": this.apiKey,
-        "tenant": tenant,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -69,12 +74,17 @@ export class GolfmanagerProvider {
   }
 
   async getTenant(tenant: string): Promise<any> {
+    const headers: Record<string, string> = {
+      "tenant": tenant,
+    };
+    
+    if (this.apiKey) {
+      headers["key"] = this.apiKey;
+    }
+
     const response = await fetch(`${this.baseUrl}/model/tenant`, {
       method: "GET",
-      headers: {
-        "key": this.apiKey,
-        "tenant": tenant,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -118,10 +128,10 @@ export function getGolfmanagerConfig(): GolfmanagerConfig {
     };
   }
   
-  // Default to demo mode (no API key configured)
+  // Default to demo mode (no API key required)
   return {
     mode: "demo",
-    apiKey: "key",
+    apiKey: "",
     baseUrl: "https://mt.golfmanager.app/api",
   };
 }
