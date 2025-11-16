@@ -44,6 +44,7 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Fetch all courses
@@ -152,6 +153,18 @@ export default function Home() {
     }
   };
 
+  const toggleExpandedCourse = (courseId: string) => {
+    setExpandedCourses(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(courseId)) {
+        newSet.delete(courseId);
+      } else {
+        newSet.add(courseId);
+      }
+      return newSet;
+    });
+  };
+
   const handleBookingSubmit = (data: Omit<InsertBookingRequest, "status">) => {
     createBookingMutation.mutate({ ...data, status: "PENDING" });
   };
@@ -255,7 +268,10 @@ export default function Home() {
                     {courseSlot.slots.length > 0 ? (
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Available Times:</p>
-                        {courseSlot.slots.slice(0, 3).map((slot, idx) => (
+                        {(expandedCourses.has(courseSlot.courseId) 
+                          ? courseSlot.slots 
+                          : courseSlot.slots.slice(0, 3)
+                        ).map((slot, idx) => (
                           <div
                             key={idx}
                             className="flex items-center justify-between p-2 bg-accent/30 rounded-md hover-elevate cursor-pointer"
@@ -276,6 +292,17 @@ export default function Home() {
                             </div>
                           </div>
                         ))}
+                        {courseSlot.slots.length > 3 && (
+                          <button
+                            onClick={() => toggleExpandedCourse(courseSlot.courseId)}
+                            className="w-full text-sm text-primary hover:underline font-medium pt-1"
+                            data-testid={`button-toggle-slots-${courseSlot.courseId}`}
+                          >
+                            {expandedCourses.has(courseSlot.courseId) 
+                              ? "Se færre tider" 
+                              : `Se flere tider (${courseSlot.slots.length - 3} mere)`}
+                          </button>
+                        )}
                         {courseSlot.note && (
                           <p className="text-xs text-muted-foreground italic">{courseSlot.note}</p>
                         )}
