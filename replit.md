@@ -7,6 +7,7 @@ Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain
 **Core Features:**
 - ✅ **Real-time tee time availability** - Shows actual available times within your search window (e.g., 10:00-12:00 tomorrow)
 - ✅ **Expandable time slots** - Shows first 3 tee times by default with "Se flere tider" button to reveal all available times per course
+- ✅ **Provider type badges** - Visual indicators show "Direct" badge for courses using direct booking links (deep-link only)
 - ✅ **Geolocation-based discovery** - Find nearest courses automatically or search by city
 - ✅ **Smart filtering** - Date, players, time windows with distance sorting
 - ✅ **Complete booking flow** - Click a time slot → Pre-filled booking form → Request submitted
@@ -226,13 +227,24 @@ Preferred communication style: Simple, everyday language.
   - **Los Arqueros Golf (tenant: arqueros)** - Seve Ballesteros design
   - **La Quinta Golf (tenant: quinta)** - 27 holes, Manuel Piñero design
 
-**Tee Time Provider Integration (Future):**
+**Direct Booking Integration (DEEP_LINK_ONLY):**
+- **Status**: Active with 4 courses configured
+- **Courses with direct booking links**:
+  - Club de Golf La Cañada
+  - El Chaparral Golf Club
+  - Calanova Golf Club
+  - Baviera Golf
+- **UI Badge**: These courses display a "Direct" outline badge to indicate deep-link booking
+- **User Flow**: Clicking tee time opens booking modal, which links to club's direct booking page
+
+**Tee Time Provider Integration:**
 - Provider type system supports:
   - Web scraping (SCRAPER type) - For courses without APIs
   - REST APIs (API type) - For Golfmanager, iMasterGolf, etc.
   - Direct booking links (DEEP_LINK_ONLY type) - Deep links to club sites
 - Configuration stored as JSON in database
 - Adapter pattern ready for multiple provider implementations
+- **Total Coverage**: 16 API-integrated courses + 4 direct booking courses + 23 additional courses (43 total)
 
 **Geolocation Services:**
 - Browser-native Geolocation API (no external service required)

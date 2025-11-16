@@ -12,26 +12,8 @@ import { Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { GolfCourse, InsertBookingRequest } from "@shared/schema";
+import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
 import heroImage from "@assets/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.png";
-
-interface TeeTimeSlot {
-  teeTime: string;
-  greenFee: number;
-  currency: string;
-  players: number;
-  source: string;
-}
-
-interface CourseWithSlots {
-  courseId: string;
-  courseName: string;
-  distanceKm: number;
-  bookingUrl?: string;
-  slots: TeeTimeSlot[];
-  note?: string;
-  course?: GolfCourse;
-}
 
 export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -249,9 +231,16 @@ export default function Home() {
                   <CardHeader className="p-4 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
-                        <h3 className="font-serif font-semibold text-lg leading-tight">
-                          {courseSlot.courseName}
-                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-serif font-semibold text-lg leading-tight">
+                            {courseSlot.courseName}
+                          </h3>
+                          {courseSlot.providerType === "DEEP_LINK" && (
+                            <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
+                              Direct
+                            </Badge>
+                          )}
+                        </div>
                         {courseSlot.course && (
                           <p className="text-sm text-muted-foreground mt-1">
                             {courseSlot.course.city}, {courseSlot.course.province}

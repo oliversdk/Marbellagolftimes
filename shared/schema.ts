@@ -90,3 +90,23 @@ export const insertAffiliateEmailSchema = createInsertSchema(affiliateEmails).om
 
 export type InsertAffiliateEmail = z.infer<typeof insertAffiliateEmailSchema>;
 export type AffiliateEmail = typeof affiliateEmails.$inferSelect;
+
+// API Response Types
+export interface TeeTimeSlot {
+  teeTime: string;
+  greenFee: number;
+  currency: string;
+  players: number;
+  source: string;
+}
+
+export interface CourseWithSlots {
+  courseId: string;
+  courseName: string;
+  distanceKm: number;
+  bookingUrl?: string;
+  slots: TeeTimeSlot[];
+  note?: string;
+  course?: GolfCourse;
+  providerType: "API" | "DEEP_LINK" | "NONE";
+}

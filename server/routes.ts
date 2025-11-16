@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, type CourseWithSlots, type TeeTimeSlot } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -58,8 +58,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const golfmanagerConfig = getGolfmanagerConfig();
       
       // Helper function to generate mock slots
-      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number) => {
-        const slots = [];
+      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number): TeeTimeSlot[] => {
+        const slots: TeeTimeSlot[] = [];
         const [fromHour] = from.split(":").map(Number);
         const [toHour] = to.split(":").map(Number);
         const numSlots = Math.floor(Math.random() * 3) + 3;
@@ -101,25 +101,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (golfmanagerConfig.mode === "mock") {
         // Mock mode: Generate mock data for all courses
-        const mockSlots = coursesWithDistance.map(({ course, distance }) => ({
-          courseId: course.id,
-          courseName: course.name,
-          distanceKm: Math.round(distance * 10) / 10,
-          bookingUrl: course.bookingUrl || course.websiteUrl,
-          slots: generateMockSlots(
-            date as string || new Date().toISOString(),
-            fromTime as string || "07:00",
-            toTime as string || "20:00",
-            players ? parseInt(players as string) : 2
-          ),
-          note: "Mock data - Configure GOLFMANAGER_API_KEY for real availability",
+        const mockSlots: CourseWithSlots[] = await Promise.all(coursesWithDistance.map(async ({ course, distance }): Promise<CourseWithSlots> => {
+          const providerLinks = await storage.getLinksByCourseId(course.id);
+          const providerType: "API" | "DEEP_LINK" | "NONE" = providerLinks.length > 0 
+            ? (providerLinks.some(link => link.providerCourseCode?.startsWith("golfmanager:")) ? "API" : "DEEP_LINK")
+            : "NONE";
+
+          return {
+            courseId: course.id,
+            courseName: course.name,
+            distanceKm: Math.round(distance * 10) / 10,
+            bookingUrl: course.bookingUrl || course.websiteUrl,
+            slots: generateMockSlots(
+              date as string || new Date().toISOString(),
+              fromTime as string || "07:00",
+              toTime as string || "20:00",
+              players ? parseInt(players as string) : 2
+            ),
+            note: "Mock data - Configure GOLFMANAGER_API_KEY for real availability",
+            providerType,
+            course,
+          };
         }));
 
         res.json(mockSlots);
       } else if (golfmanagerConfig.mode === "demo") {
         // Demo mode: Use real API for one course, mock for others
         const golfmanager = new GolfmanagerProvider(golfmanagerConfig);
-        const results = [];
+        const results: CourseWithSlots[] = [];
         let demoCourseMapped = false;
 
         for (const { course, distance } of coursesWithDistance) {
@@ -154,12 +163,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 bookingUrl: course.bookingUrl || course.websiteUrl,
                 slots,
                 note: "Demo availability from Golfmanager sandbox - Configure GOLFMANAGER_API_KEY for production",
+                providerType: "API",
+                course,
               });
               
               demoCourseMapped = true;
             } catch (error) {
               console.error(`[Demo Mode] Error fetching demo data for ${course.name}:`, error);
               // Fall back to mock data for this course
+              const providerLinks = await storage.getLinksByCourseId(course.id);
+              const providerType = providerLinks.length > 0 
+                ? (providerLinks.some(link => link.providerCourseCode?.startsWith("golfmanager:")) ? "API" : "DEEP_LINK")
+                : "NONE";
+
               results.push({
                 courseId: course.id,
                 courseName: course.name,
@@ -172,10 +188,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   players ? parseInt(players as string) : 2
                 ),
                 note: "Mock data (demo API unavailable) - Configure GOLFMANAGER_API_KEY for production",
+                providerType,
+                course,
               });
             }
           } else {
             // Use mock data for all other courses
+            const providerLinks = await storage.getLinksByCourseId(course.id);
+            const providerType = providerLinks.length > 0 
+              ? (providerLinks.some(link => link.providerCourseCode?.startsWith("golfmanager:")) ? "API" : "DEEP_LINK")
+              : "NONE";
+
             results.push({
               courseId: course.id,
               courseName: course.name,
@@ -188,6 +211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 players ? parseInt(players as string) : 2
               ),
               note: "Mock data - Configure GOLFMANAGER_API_KEY for production",
+              providerType,
+              course,
             });
           }
         }
@@ -196,7 +221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Production mode: Use real API for all courses with provider links
         const golfmanager = new GolfmanagerProvider(golfmanagerConfig);
-        const results = [];
+        const results: CourseWithSlots[] = [];
 
         for (const { course, distance } of coursesWithDistance) {
           const providerLinks = await storage.getLinksByCourseId(course.id);
@@ -233,6 +258,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
                 slots,
                 note: "Live Golfmanager availability",
+                providerType: "API",
+                course,
               });
             } catch (error) {
               console.error(`Golfmanager error for course ${course.name}:`, error);

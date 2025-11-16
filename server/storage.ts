@@ -483,6 +483,19 @@ export class MemStorage implements IStorage {
         notes: "Hill course with views",
       },
       {
+        name: "Calanova Golf Club",
+        city: "La Cala de Mijas",
+        province: "Málaga",
+        country: "Spain",
+        lat: "36.5948",
+        lng: "-4.6325",
+        websiteUrl: "https://calanovagolf.es",
+        bookingUrl: "https://www.calanovagolf.es/web/en/reservas.php",
+        email: "reservas@calanovagolfclub.com",
+        phone: "+34 951 170 194",
+        notes: "Par 72 course with buggy included in green fee",
+      },
+      {
         name: "El Chaparral Golf Club",
         city: "Mijas Costa",
         province: "Málaga",
@@ -493,7 +506,7 @@ export class MemStorage implements IStorage {
         bookingUrl: "https://www.golfelchaparral.com/en/book-online",
         email: "reservas@golfelchaparral.com",
         phone: "+34 952 58 70 08",
-        notes: "Coastal location",
+        notes: "Coastal location - Pepe Gancedo design",
       },
       {
         name: "Miraflores Golf",
@@ -599,6 +612,19 @@ export class MemStorage implements IStorage {
         phone: "+34 952 38 12 55",
         notes: "Part of Parador hotel chain",
       },
+      {
+        name: "Baviera Golf",
+        city: "Caleta de Vélez",
+        province: "Málaga",
+        country: "Spain",
+        lat: "36.7397",
+        lng: "-4.0997",
+        websiteUrl: "https://www.bavieragolf.com",
+        bookingUrl: "https://www.bavieragolf.com",
+        email: "info@bavieragolf.com",
+        phone: "+34 952 555 015",
+        notes: "José María Cañizares design with TopTracer driving range",
+      },
     ];
 
     // Seed courses
@@ -693,6 +719,38 @@ export class MemStorage implements IStorage {
             providerId: golfmanagerProvider.id,
             bookingUrl: `https://open.teeone.golf/en/${tenant}/disponibilidad`,
             providerCourseCode: `golfmanager:${tenant}`,
+          };
+          this.links.set(linkId, link);
+        }
+      }
+    }
+
+    // Get Direct Club Site provider ID for linking
+    const directBookingProvider = Array.from(this.providers.values()).find(
+      (p) => p.name === "Direct Club Site"
+    );
+
+    if (directBookingProvider) {
+      // Add provider links for direct booking courses (deep-link only)
+      const directBookingCourses = [
+        "Club de Golf La Cañada",
+        "El Chaparral Golf Club",
+        "Calanova Golf Club",
+        "Baviera Golf",
+      ];
+
+      for (const courseName of directBookingCourses) {
+        const course = Array.from(this.courses.values()).find(
+          (c) => c.name === courseName
+        );
+        if (course) {
+          const linkId = randomUUID();
+          const link: CourseProviderLink = {
+            id: linkId,
+            courseId: course.id,
+            providerId: directBookingProvider.id,
+            bookingUrl: course.bookingUrl || course.websiteUrl || "",
+            providerCourseCode: `direct:${course.id}`,
           };
           this.links.set(linkId, link);
         }
