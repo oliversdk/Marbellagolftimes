@@ -129,13 +129,51 @@ Når du udfylder PDF'en, angiv:
 
 ---
 
+## 🧪 MENS DU VENTER: Demo Mode
+
+**Systemet har nu 3 modes:**
+
+1. **DEMO MODE** (Standard - ingen API key nødvendig)
+   - Automatisk aktiveret mens du venter på production API key
+   - Forsøger at kalde Golfmanager sandbox for "Marbella Golf & Country Club"
+   - **OBS:** Sandbox returnerer pt. 401 Unauthorized - systemet bruger derfor mock data
+   - Andre baner bruger også mock data (genereret tee-times)
+   - Se logs: `[Golfmanager] Initialized in DEMO mode`
+   - **Infrastrukturen er klar** - når du får production API key virker det med det samme!
+
+2. **PRODUCTION MODE** (Når du har API key)
+   - Tilføj `GOLFMANAGER_API_KEY` i Replit Secrets
+   - Systemet skifter automatisk til production mode
+   - Bruger rigtige tee-times fra eu.golfmanager.com
+   - Virker med alle 12 konfigurerede baner
+
+3. **MOCK MODE** (Kun test data)
+   - Tilføj secret: `GOLFMANAGER_MODE=mock`
+   - Genererer kun test data uden API kald
+
+**Hvordan ved jeg hvilken mode jeg er i?**
+
+**I logs (Tools → Shell):**
+- Demo: `[Golfmanager] Initialized in DEMO mode`
+- Production: `[Golfmanager] Initialized in PRODUCTION mode`
+
+**I UI'et (vises under tee-times):**
+- Demo success: "Demo availability from Golfmanager sandbox - Configure GOLFMANAGER_API_KEY for production"
+- Demo fallback: "Mock data (demo API unavailable) - Configure GOLFMANAGER_API_KEY for production"
+- Mock mode: "Mock data - Configure GOLFMANAGER_API_KEY for real availability"
+- Production: "Live Golfmanager availability"
+
+**Du behøver ikke gøre noget nu - infrastrukturen er klar til production API key!**
+
+---
+
 ## ✅ Trin 5: Når du modtager API key
 
 Tilføj den i Replit Secrets:
 - Secret navn: `GOLFMANAGER_API_KEY`
 - Secret værdi: Den API key du modtager
 
-Systemet vil automatisk skifte fra mock data til rigtige tee-times! 🎉
+Systemet vil automatisk skifte fra DEMO til PRODUCTION mode! 🎉
 
 ---
 

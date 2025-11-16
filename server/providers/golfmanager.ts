@@ -1,8 +1,11 @@
 import type { GolfCourse } from "@shared/schema";
 
+export type GolfmanagerMode = "production" | "demo" | "mock";
+
 export interface GolfmanagerConfig {
+  mode: GolfmanagerMode;
   apiKey: string;
-  baseUrl?: string;
+  baseUrl: string;
 }
 
 export interface GolfmanagerSlot {
@@ -27,10 +30,15 @@ export interface TeeTimeSlot {
 export class GolfmanagerProvider {
   private apiKey: string;
   private baseUrl: string;
+  private mode: GolfmanagerMode;
 
   constructor(config: GolfmanagerConfig) {
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || "https://eu.golfmanager.com/api";
+    this.baseUrl = config.baseUrl;
+    this.mode = config.mode;
+    
+    console.log(`[Golfmanager] Initialized in ${config.mode.toUpperCase()} mode`);
+    console.log(`[Golfmanager] Base URL: ${config.baseUrl}`);
   }
 
   async searchAvailability(
@@ -87,14 +95,33 @@ export class GolfmanagerProvider {
   }
 }
 
-export function getGolfmanagerConfig(): GolfmanagerConfig | null {
-  const { GOLFMANAGER_API_KEY } = process.env;
-
-  if (!GOLFMANAGER_API_KEY) {
-    return null;
+export function getGolfmanagerConfig(): GolfmanagerConfig {
+  const { GOLFMANAGER_API_KEY, GOLFMANAGER_MODE } = process.env;
+  
+  // Check if user explicitly set mode
+  const explicitMode = GOLFMANAGER_MODE?.toLowerCase();
+  
+  if (explicitMode === "mock") {
+    return {
+      mode: "mock",
+      apiKey: "",
+      baseUrl: "",
+    };
   }
-
+  
+  // If API key is set, use production mode
+  if (GOLFMANAGER_API_KEY) {
+    return {
+      mode: "production",
+      apiKey: GOLFMANAGER_API_KEY,
+      baseUrl: "https://eu.golfmanager.com/api",
+    };
+  }
+  
+  // Default to demo mode (no API key configured)
   return {
-    apiKey: GOLFMANAGER_API_KEY,
+    mode: "demo",
+    apiKey: "key",
+    baseUrl: "https://mt.golfmanager.app/api",
   };
 }

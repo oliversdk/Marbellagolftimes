@@ -54,31 +54,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return R * c;
       };
 
-      // Check if Golfmanager is configured
+      // Get Golfmanager configuration (always returns a config with mode)
       const golfmanagerConfig = getGolfmanagerConfig();
-      const useRealData = golfmanagerConfig !== null;
+      
+      // Helper function to generate mock slots
+      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number) => {
+        const slots = [];
+        const [fromHour] = from.split(":").map(Number);
+        const [toHour] = to.split(":").map(Number);
+        const numSlots = Math.floor(Math.random() * 3) + 3;
+        const baseDate = searchDate ? new Date(searchDate) : new Date();
+        baseDate.setHours(0, 0, 0, 0);
 
-      if (useRealData) {
-        // Real Golfmanager integration
+        for (let i = 0; i < numSlots; i++) {
+          const hour = fromHour + Math.floor(Math.random() * (toHour - fromHour));
+          const minute = Math.random() < 0.5 ? 0 : 30;
+          const slotDate = new Date(baseDate);
+          slotDate.setHours(hour, minute, 0, 0);
+
+          slots.push({
+            teeTime: slotDate.toISOString(),
+            greenFee: Math.floor(Math.random() * 80) + 40,
+            currency: "EUR",
+            players: numPlayers,
+            source: "mock-provider",
+          });
+        }
+
+        return slots.sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime());
+      };
+
+      // Filter and sort courses by distance
+      const coursesWithDistance = courses
+        .map((course) => {
+          if (!userLat || !userLng || !course.lat || !course.lng) return null;
+          const courseLat = parseFloat(course.lat);
+          const courseLng = parseFloat(course.lng);
+          if (isNaN(courseLat) || isNaN(courseLng)) return null;
+          const distance = calculateDistance(userLat, userLng, courseLat, courseLng);
+          return { course, distance };
+        })
+        .filter((item): item is { course: any; distance: number } => 
+          item !== null && !isNaN(item.distance)
+        )
+        .sort((a, b) => a.distance - b.distance);
+
+      if (golfmanagerConfig.mode === "mock") {
+        // Mock mode: Generate mock data for all courses
+        const mockSlots = coursesWithDistance.map(({ course, distance }) => ({
+          courseId: course.id,
+          courseName: course.name,
+          distanceKm: Math.round(distance * 10) / 10,
+          bookingUrl: course.bookingUrl || course.websiteUrl,
+          slots: generateMockSlots(
+            date as string || new Date().toISOString(),
+            fromTime as string || "07:00",
+            toTime as string || "20:00",
+            players ? parseInt(players as string) : 2
+          ),
+          note: "Mock data - Configure GOLFMANAGER_API_KEY for real availability",
+        }));
+
+        res.json(mockSlots);
+      } else if (golfmanagerConfig.mode === "demo") {
+        // Demo mode: Use real API for one course, mock for others
+        const golfmanager = new GolfmanagerProvider(golfmanagerConfig);
+        const results = [];
+        let demoCourseMapped = false;
+
+        for (const { course, distance } of coursesWithDistance) {
+          // Map the first "Marbella Golf & Country Club" to the demo tenant
+          if (!demoCourseMapped && course.name === "Marbella Golf & Country Club") {
+            try {
+              // Build date range for search
+              const searchDate = date ? new Date(date as string) : new Date();
+              const startTime = `${searchDate.toISOString().split("T")[0]}T${fromTime || "07:00"}:00`;
+              const endTime = `${searchDate.toISOString().split("T")[0]}T${toTime || "20:00"}:00`;
+              
+              console.log(`[Demo Mode] Fetching real availability for ${course.name} from demo tenant`);
+              
+              const gmSlots = await golfmanager.searchAvailability(
+                "demo",
+                startTime,
+                endTime,
+                players ? parseInt(players as string) : 2
+              );
+
+              const slots = golfmanager.convertSlotsToTeeTime(
+                gmSlots,
+                players ? parseInt(players as string) : 2
+              );
+
+              console.log(`[Demo Mode] Retrieved ${slots.length} slots from demo API`);
+
+              results.push({
+                courseId: course.id,
+                courseName: course.name,
+                distanceKm: Math.round(distance * 10) / 10,
+                bookingUrl: course.bookingUrl || course.websiteUrl,
+                slots,
+                note: "Demo availability from Golfmanager sandbox - Configure GOLFMANAGER_API_KEY for production",
+              });
+              
+              demoCourseMapped = true;
+            } catch (error) {
+              console.error(`[Demo Mode] Error fetching demo data for ${course.name}:`, error);
+              // Fall back to mock data for this course
+              results.push({
+                courseId: course.id,
+                courseName: course.name,
+                distanceKm: Math.round(distance * 10) / 10,
+                bookingUrl: course.bookingUrl || course.websiteUrl,
+                slots: generateMockSlots(
+                  date as string || new Date().toISOString(),
+                  fromTime as string || "07:00",
+                  toTime as string || "20:00",
+                  players ? parseInt(players as string) : 2
+                ),
+                note: "Mock data (demo API unavailable) - Configure GOLFMANAGER_API_KEY for production",
+              });
+            }
+          } else {
+            // Use mock data for all other courses
+            results.push({
+              courseId: course.id,
+              courseName: course.name,
+              distanceKm: Math.round(distance * 10) / 10,
+              bookingUrl: course.bookingUrl || course.websiteUrl,
+              slots: generateMockSlots(
+                date as string || new Date().toISOString(),
+                fromTime as string || "07:00",
+                toTime as string || "20:00",
+                players ? parseInt(players as string) : 2
+              ),
+              note: "Mock data - Configure GOLFMANAGER_API_KEY for production",
+            });
+          }
+        }
+
+        res.json(results);
+      } else {
+        // Production mode: Use real API for all courses with provider links
         const golfmanager = new GolfmanagerProvider(golfmanagerConfig);
         const results = [];
 
-        // Filter and sort courses by distance
-        const coursesWithDistance = courses
-          .map((course) => {
-            if (!userLat || !userLng || !course.lat || !course.lng) return null;
-            const courseLat = parseFloat(course.lat);
-            const courseLng = parseFloat(course.lng);
-            if (isNaN(courseLat) || isNaN(courseLng)) return null;
-            const distance = calculateDistance(userLat, userLng, courseLat, courseLng);
-            return { course, distance };
-          })
-          .filter((item): item is { course: any; distance: number } => 
-            item !== null && !isNaN(item.distance)
-          )
-          .sort((a, b) => a.distance - b.distance);
-
-        // Query Golfmanager for each course with provider links
         for (const { course, distance } of coursesWithDistance) {
           const providerLinks = await storage.getLinksByCourseId(course.id);
           const golfmanagerLink = providerLinks.find((link) => 
@@ -123,63 +242,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         res.json(results);
-      } else {
-        // Fallback to mock data when Golfmanager is not configured
-        const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number) => {
-          const slots = [];
-          const [fromHour] = from.split(":").map(Number);
-          const [toHour] = to.split(":").map(Number);
-          const numSlots = Math.floor(Math.random() * 3) + 3;
-          const baseDate = searchDate ? new Date(searchDate) : new Date();
-          baseDate.setHours(0, 0, 0, 0);
-
-          for (let i = 0; i < numSlots; i++) {
-            const hour = fromHour + Math.floor(Math.random() * (toHour - fromHour));
-            const minute = Math.random() < 0.5 ? 0 : 30;
-            const slotDate = new Date(baseDate);
-            slotDate.setHours(hour, minute, 0, 0);
-
-            slots.push({
-              teeTime: slotDate.toISOString(),
-              greenFee: Math.floor(Math.random() * 80) + 40,
-              currency: "EUR",
-              players: numPlayers,
-              source: "mock-provider",
-            });
-          }
-
-          return slots.sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime());
-        };
-
-        const coursesWithDistance = courses
-          .map((course) => {
-            if (!userLat || !userLng || !course.lat || !course.lng) return null;
-            const courseLat = parseFloat(course.lat);
-            const courseLng = parseFloat(course.lng);
-            if (isNaN(courseLat) || isNaN(courseLng)) return null;
-            const distance = calculateDistance(userLat, userLng, courseLat, courseLng);
-            return { course, distance };
-          })
-          .filter((item): item is { course: any; distance: number } => 
-            item !== null && !isNaN(item.distance)
-          )
-          .sort((a, b) => a.distance - b.distance);
-
-        const mockSlots = coursesWithDistance.map(({ course, distance }) => ({
-          courseId: course.id,
-          courseName: course.name,
-          distanceKm: Math.round(distance * 10) / 10,
-          bookingUrl: course.bookingUrl || course.websiteUrl,
-          slots: generateMockSlots(
-            date as string || new Date().toISOString(),
-            fromTime as string || "07:00",
-            toTime as string || "20:00",
-            players ? parseInt(players as string) : 2
-          ),
-          note: "Mock data - Configure GOLFMANAGER_URL, GOLFMANAGER_USER, GOLFMANAGER_PASSWORD for real availability",
-        }));
-
-        res.json(mockSlots);
       }
     } catch (error) {
       console.error("Slot search error:", error);

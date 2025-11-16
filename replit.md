@@ -15,8 +15,10 @@ Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain
 
 **Current Status (November 2025):**
 - All core functionality implemented and tested
-- ✅ **Golfmanager API integration ready** - Automatically switches from mock to real data when API key is configured
-- Mock tee-time fallback (3-5 slots per course within search window) when API key not set
+- ✅ **Golfmanager API integration with 3 modes:**
+  - **DEMO mode** (default): Attempts sandbox API calls for Marbella Golf, falls back to mock data (current: sandbox returns 401, uses mock)
+  - **PRODUCTION mode**: Real tee-times when GOLFMANAGER_API_KEY is configured - infrastructure ready
+  - **MOCK mode**: Test data only (explicit GOLFMANAGER_MODE=mock)
 - Ready for additional providers (iMasterGolf, direct club sites)
 
 ## User Preferences
