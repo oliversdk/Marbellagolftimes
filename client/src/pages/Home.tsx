@@ -15,6 +15,71 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
 import heroImage from "@assets/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.png";
 
+type SortMode = "distance-asc" | "distance-desc" | "price-asc" | "price-desc";
+
+// Utility: Get time range from slots
+function getTimeRange(slots: TeeTimeSlot[]): { from: string; to: string } | null {
+  if (slots.length === 0) return null;
+  
+  const times = slots.map(s => new Date(s.teeTime)).sort((a, b) => a.getTime() - b.getTime());
+  const earliest = times[0];
+  const latest = times[times.length - 1];
+  
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  };
+  
+  return { from: formatTime(earliest), to: formatTime(latest) };
+}
+
+// Utility: Get minimum price from slots
+function getMinPrice(slots: TeeTimeSlot[]): number | null {
+  if (slots.length === 0) return null;
+  return Math.min(...slots.map(s => s.greenFee));
+}
+
+// Utility: Get cheapest slot from course
+function getCheapestSlot(slots: TeeTimeSlot[]): TeeTimeSlot | null {
+  if (slots.length === 0) return null;
+  return slots.reduce((cheapest, current) => 
+    current.greenFee < cheapest.greenFee ? current : cheapest
+  );
+}
+
+// Utility: Sort courses by selected mode
+function sortCourses(courses: CourseWithSlots[], mode: SortMode): CourseWithSlots[] {
+  const sorted = [...courses];
+  
+  switch (mode) {
+    case "distance-asc":
+      return sorted.sort((a, b) => {
+        const distA = a.distanceKm ?? Infinity;
+        const distB = b.distanceKm ?? Infinity;
+        return distA - distB;
+      });
+    case "distance-desc":
+      return sorted.sort((a, b) => {
+        const distA = a.distanceKm ?? -Infinity;
+        const distB = b.distanceKm ?? -Infinity;
+        return distB - distA;
+      });
+    case "price-asc":
+      return sorted.sort((a, b) => {
+        const priceA = getMinPrice(a.slots) ?? Infinity;
+        const priceB = getMinPrice(b.slots) ?? Infinity;
+        return priceA - priceB;
+      });
+    case "price-desc":
+      return sorted.sort((a, b) => {
+        const priceA = getMinPrice(a.slots) ?? -Infinity;
+        const priceB = getMinPrice(b.slots) ?? -Infinity;
+        return priceB - priceA;
+      });
+    default:
+      return sorted;
+  }
+}
+
 export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [searchFilters, setSearchFilters] = useState<{
@@ -26,7 +91,7 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  const [sortMode, setSortMode] = useState<SortMode>("distance-asc");
   const { toast } = useToast();
 
   // Fetch all courses
@@ -127,24 +192,15 @@ export default function Home() {
     }
   };
 
-  const handleBookSlot = (courseSlot: CourseWithSlots, slot: TeeTimeSlot) => {
+  const handleBookCourse = (courseSlot: CourseWithSlots) => {
     if (courseSlot.course) {
-      setSelectedCourse(courseSlot.course);
-      setSelectedSlot(slot);
-      setBookingModalOpen(true);
-    }
-  };
-
-  const toggleExpandedCourse = (courseId: string) => {
-    setExpandedCourses(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(courseId)) {
-        newSet.delete(courseId);
-      } else {
-        newSet.add(courseId);
+      const cheapestSlot = getCheapestSlot(courseSlot.slots);
+      if (cheapestSlot) {
+        setSelectedCourse(courseSlot.course);
+        setSelectedSlot(cheapestSlot);
+        setBookingModalOpen(true);
       }
-      return newSet;
-    });
+    }
   };
 
   const handleBookingSubmit = (data: Omit<InsertBookingRequest, "status">) => {
@@ -202,119 +258,154 @@ export default function Home() {
       {/* Available Tee Times */}
       {userLocation && availableSlots && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="mb-8">
-            <h2 className="font-serif text-3xl font-bold mb-2">Available Tee Times</h2>
-            <p className="text-muted-foreground">
-              {availableSlots.length} courses with availability in your search window
+          <div className="mb-6">
+            <h2 className="font-serif text-3xl font-bold mb-2">costa del sol</h2>
+            <p className="text-muted-foreground font-semibold">
+              {availableSlots.length} results
             </p>
           </div>
 
           {isSearching ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <Skeleton className="h-6 w-3/4 mb-2" />
-                    <Skeleton className="h-4 w-1/2" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-4 w-full mb-2" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </CardContent>
+                <Card key={i} className="p-4">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-12 w-3/5" />
+                    <Skeleton className="h-8 w-1/5" />
+                  </div>
                 </Card>
               ))}
             </div>
           ) : availableSlots.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="available-slots-list">
-              {availableSlots.map((courseSlot) => (
-                <Card key={courseSlot.courseId} className="overflow-hidden hover-elevate" data-testid={`card-slot-${courseSlot.courseId}`}>
-                  <CardHeader className="p-4 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-serif font-semibold text-lg leading-tight">
-                            {courseSlot.courseName}
-                          </h3>
-                          {courseSlot.providerType === "DEEP_LINK" && (
-                            <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
-                              Direct
-                            </Badge>
-                          )}
-                        </div>
-                        {courseSlot.course && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {courseSlot.course.city}, {courseSlot.course.province}
-                          </p>
-                        )}
-                      </div>
-                      <Badge variant="secondary" data-testid={`badge-distance-${courseSlot.courseId}`}>
-                        {courseSlot.distanceKm.toFixed(1)} km
-                      </Badge>
-                    </div>
-                  </CardHeader>
+            <>
+              {/* Sorting Controls */}
+              <div className="flex flex-wrap gap-2 mb-6" data-testid="sort-controls">
+                <button
+                  onClick={() => setSortMode("distance-asc")}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                    sortMode === "distance-asc"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover-elevate"
+                  }`}
+                  data-testid="button-sort-closer"
+                >
+                  Closer
+                </button>
+                <button
+                  onClick={() => setSortMode("distance-desc")}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                    sortMode === "distance-desc"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover-elevate"
+                  }`}
+                  data-testid="button-sort-farther"
+                >
+                  Farther away
+                </button>
+                <button
+                  onClick={() => setSortMode("price-asc")}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                    sortMode === "price-asc"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover-elevate"
+                  }`}
+                  data-testid="button-sort-cheaper"
+                >
+                  Cheaper
+                </button>
+                <button
+                  onClick={() => setSortMode("price-desc")}
+                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                    sortMode === "price-desc"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover-elevate"
+                  }`}
+                  data-testid="button-sort-expensive"
+                >
+                  More expensive
+                </button>
+              </div>
 
-                  <CardContent className="px-4 pb-4 space-y-3">
-                    {courseSlot.slots.length > 0 ? (
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Available Times:</p>
-                        {(expandedCourses.has(courseSlot.courseId) 
-                          ? courseSlot.slots 
-                          : courseSlot.slots.slice(0, 3)
-                        ).map((slot, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between p-2 bg-accent/30 rounded-md hover-elevate cursor-pointer"
-                            onClick={() => handleBookSlot(courseSlot, slot)}
-                            data-testid={`slot-time-${courseSlot.courseId}-${idx}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">
-                                {new Date(slot.teeTime).toLocaleTimeString("en-US", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                            <div className="text-sm font-semibold text-primary">
-                              €{slot.greenFee}
-                            </div>
+              {/* Compact List */}
+              <div className="space-y-3" data-testid="available-slots-list">
+                {sortCourses(availableSlots, sortMode).map((courseSlot) => {
+                  const timeRange = getTimeRange(courseSlot.slots);
+                  const minPrice = getMinPrice(courseSlot.slots);
+                  
+                  return (
+                    <Card 
+                      key={courseSlot.courseId} 
+                      className="p-4 hover-elevate" 
+                      data-testid={`card-slot-${courseSlot.courseId}`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        {/* Course Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h3 className="font-semibold text-base" data-testid={`text-course-name-${courseSlot.courseId}`}>
+                              {courseSlot.courseName}
+                            </h3>
+                            {courseSlot.providerType === "DEEP_LINK" && (
+                              <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
+                                Direct
+                              </Badge>
+                            )}
                           </div>
-                        ))}
-                        {courseSlot.slots.length > 3 && (
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide" data-testid={`text-tee-info-${courseSlot.courseId}`}>
+                            TEE 1
+                          </p>
+                        </div>
+
+                        {/* Time Range */}
+                        <div className="flex-shrink-0">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tee times</p>
+                          <p className="text-sm font-medium" data-testid={`text-time-range-${courseSlot.courseId}`}>
+                            {timeRange ? `${timeRange.from} - ${timeRange.to}` : "--"}
+                          </p>
+                        </div>
+
+                        {/* Price */}
+                        <div className="flex-shrink-0">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Prices from</p>
+                          <p className="text-sm font-semibold text-primary" data-testid={`text-price-from-${courseSlot.courseId}`}>
+                            {minPrice !== null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(minPrice) : "--"}
+                          </p>
+                        </div>
+
+                        {/* Distance Badge */}
+                        <div className="flex-shrink-0">
+                          <Badge variant="secondary" data-testid={`badge-distance-${courseSlot.courseId}`}>
+                            {courseSlot.distanceKm != null ? `${courseSlot.distanceKm.toFixed(1)} km` : "--"}
+                          </Badge>
+                        </div>
+
+                        {/* Book Button */}
+                        {courseSlot.slots.length > 0 ? (
                           <button
-                            onClick={() => toggleExpandedCourse(courseSlot.courseId)}
-                            className="w-full text-sm text-primary hover:underline font-medium pt-1"
-                            data-testid={`button-toggle-slots-${courseSlot.courseId}`}
+                            onClick={() => handleBookCourse(courseSlot)}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium text-sm hover-elevate active-elevate-2"
+                            data-testid={`button-book-${courseSlot.courseId}`}
                           >
-                            {expandedCourses.has(courseSlot.courseId) 
-                              ? "Se færre tider" 
-                              : `Se flere tider (${courseSlot.slots.length - 3} mere)`}
+                            Book now
                           </button>
-                        )}
-                        {courseSlot.note && (
-                          <p className="text-xs text-muted-foreground italic">{courseSlot.note}</p>
+                        ) : (
+                          <span className="px-4 py-2 text-muted-foreground text-sm" data-testid={`text-no-availability-${courseSlot.courseId}`}>
+                            No availability
+                          </span>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        No availability in selected time window
-                      </p>
-                    )}
 
-                    {courseSlot.bookingUrl && (
-                      <button
-                        onClick={() => window.open(courseSlot.bookingUrl, "_blank")}
-                        className="w-full text-sm text-primary hover:underline"
-                        data-testid={`link-booking-site-${courseSlot.courseId}`}
-                      >
-                        View on club website →
-                      </button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      {/* Optional: Note */}
+                      {courseSlot.note && (
+                        <p className="text-xs text-muted-foreground italic mt-2" data-testid={`text-note-${courseSlot.courseId}`}>
+                          {courseSlot.note}
+                        </p>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
