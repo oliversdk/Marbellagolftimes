@@ -68,10 +68,10 @@ export class MemStorage implements IStorage {
         lat: "36.2950",
         lng: "-5.2870",
         websiteUrl: "https://www.valderrama.com",
-        bookingUrl: "https://www.valderrama.com",
+        bookingUrl: "https://open.imaster.golf/en/valderrama/disponibilidad",
         email: "greenfees@valderrama.com",
         phone: "+34 956 79 12 00",
-        notes: "Host of 1997 Ryder Cup",
+        notes: "Host of 1997 Ryder Cup - €500 green fee",
       },
       {
         name: "Real Club de Golf Sotogrande",
@@ -239,10 +239,10 @@ export class MemStorage implements IStorage {
         lat: "36.4920",
         lng: "-4.9850",
         websiteUrl: "https://www.villapadiernagolfclub.com",
-        bookingUrl: "https://www.villapadiernagolfclub.com/en/teetimes",
+        bookingUrl: "https://open.imaster.golf/en/villapadierna/disponibilidad",
         email: "info@villapadiernagolfclub.com",
         phone: "+34 952 88 97 91",
-        notes: "Part of luxury hotel resort",
+        notes: "Part of luxury hotel resort - 3 courses: Flamingos, Alferini, Tramores",
       },
 
       // Benahavís / Marbella area
@@ -254,7 +254,7 @@ export class MemStorage implements IStorage {
         lat: "36.5125",
         lng: "-4.9625",
         websiteUrl: "https://www.losarquerosgolf.com",
-        bookingUrl: "https://www.losarquerosgolf.com/en/tee-times",
+        bookingUrl: "https://open.imaster.golf/en/arqueros/disponibilidad",
         email: "caddiemaster@es.taylorwimpey.com",
         phone: "+34 952 78 46 00",
         notes: "Seve Ballesteros design",
@@ -319,10 +319,10 @@ export class MemStorage implements IStorage {
         lat: "36.5215",
         lng: "-4.9545",
         websiteUrl: "https://www.laquintagolf.com",
-        bookingUrl: "https://www.laquintagolf.com/en/tee-times",
+        bookingUrl: "https://open.imaster.golf/en/quinta/disponibilidad",
         email: "reservas@laquintagolf.com",
         phone: "+34 952 76 24 90",
-        notes: "27 holes with lake features",
+        notes: "27 holes with lake features - Manuel Piñero design",
       },
       {
         name: "Los Naranjos Golf Club",
@@ -675,6 +675,10 @@ export class MemStorage implements IStorage {
         { courseName: "Los Naranjos Golf Club", tenant: "naranjos" },
         { courseName: "Mijas Golf", tenant: "mijas" },
         { courseName: "Torrequebrada Golf", tenant: "torrequebrada" },
+        { courseName: "Real Club Valderrama", tenant: "valderrama" },
+        { courseName: "Flamingos Golf (Villa Padierna)", tenant: "villapadierna" },
+        { courseName: "Los Arqueros Golf & Country Club", tenant: "arqueros" },
+        { courseName: "La Quinta Golf & Country Club", tenant: "quinta" },
       ];
 
       for (const { courseName, tenant } of golfmanagerCourses) {
