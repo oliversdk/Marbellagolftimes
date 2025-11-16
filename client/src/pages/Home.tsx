@@ -592,26 +592,6 @@ export default function Home() {
               </Button>
             </div>
           </div>
-
-          {/* All Courses */}
-          {courses && courses.length > 0 && (
-            <div className="bg-muted/20 py-16">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="mb-8">
-                  <h2 className="font-serif text-3xl font-bold mb-2">All Courses</h2>
-                  <p className="text-muted-foreground">
-                    Browse our complete selection of {courses.length} premier golf courses
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {courses.map((course) => (
-                    <CourseCard key={course.id} course={course} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
 

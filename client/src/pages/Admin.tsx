@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
+import { CourseCard } from "@/components/CourseCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -173,6 +174,7 @@ export default function Admin() {
           <TabsList>
             <TabsTrigger value="bookings" data-testid="tab-bookings">Booking Requests</TabsTrigger>
             <TabsTrigger value="courses" data-testid="tab-courses">Golf Courses</TabsTrigger>
+            <TabsTrigger value="all-courses" data-testid="tab-all-courses">All Courses</TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">Affiliate Emails</TabsTrigger>
           </TabsList>
 
@@ -255,6 +257,30 @@ export default function Admin() {
                       ))}
                     </TableBody>
                   </Table>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    No courses in database
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="all-courses">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Courses</CardTitle>
+                <CardDescription>
+                  Browse our complete selection of {courses?.length || 0} premier golf courses
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {courses && courses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {courses.map((course) => (
+                      <CourseCard key={course.id} course={course} />
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     No courses in database
