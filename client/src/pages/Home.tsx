@@ -7,6 +7,7 @@ import { SearchFilters } from "@/components/SearchFilters";
 import { CourseCard } from "@/components/CourseCard";
 import { BookingModal } from "@/components/BookingModal";
 import { CoursesMap } from "@/components/CoursesMap";
+import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -272,27 +273,49 @@ export default function Home() {
       )}
 
       {/* Available Tee Times */}
-      {userLocation && availableSlots && (
+      {userLocation && (availableSlots || slotsLoading) && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="mb-6">
             <h2 className="font-serif text-3xl font-bold mb-2">{t('home.resultsTitle')}</h2>
-            <p className="text-muted-foreground font-semibold">
-              {t('home.resultsCount', { count: availableSlots.length })}
-            </p>
+            {availableSlots && (
+              <p className="text-muted-foreground font-semibold">
+                {t('home.resultsCount', { count: availableSlots.length })}
+              </p>
+            )}
           </div>
 
           {isSearching ? (
-            <div className="space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i} className="p-4">
-                  <div className="flex items-center gap-4">
-                    <Skeleton className="h-12 w-3/5" />
-                    <Skeleton className="h-8 w-1/5" />
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : availableSlots.length > 0 ? (
+            <>
+              {/* Show view toggle even during loading */}
+              <div className="mb-6">
+                <div className="flex gap-2 mb-4">
+                  <Button 
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    onClick={() => setViewMode("list")}
+                    data-testid="button-view-list"
+                  >
+                    <LayoutGrid className="mr-2 h-4 w-4" />
+                    {t('search.viewList')}
+                  </Button>
+                  <Button 
+                    variant={viewMode === "map" ? "default" : "outline"}
+                    onClick={() => setViewMode("map")}
+                    data-testid="button-view-map"
+                  >
+                    <Map className="mr-2 h-4 w-4" />
+                    {t('search.viewMap')}
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Show appropriate skeleton based on view mode */}
+              {viewMode === "list" ? (
+                <CourseCardSkeletonGrid />
+              ) : (
+                <MapLoadingSkeleton />
+              )}
+            </>
+          ) : availableSlots && availableSlots.length > 0 ? (
             <>
               {/* View Toggle + Sorting Controls */}
               <div className="mb-6">
