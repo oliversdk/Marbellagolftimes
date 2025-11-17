@@ -9,11 +9,14 @@ import type { GolfCourse } from "@shared/schema";
 interface CourseCardProps {
   course: GolfCourse;
   distance?: number;
+  price?: number;
+  priceRange?: { min: number; max: number };
+  isBestDeal?: boolean;
   onBook?: () => void;
   onViewDetails?: () => void;
 }
 
-export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCardProps) {
+export function CourseCard({ course, distance, price, priceRange, isBestDeal, onBook, onViewDetails }: CourseCardProps) {
   const { t } = useI18n();
   
   return (
@@ -21,9 +24,16 @@ export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCa
       <CardHeader className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <h3 className="font-serif font-semibold text-lg leading-tight" data-testid={`text-course-name-${course.id}`}>
-              {course.name}
-            </h3>
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <h3 className="font-serif font-semibold text-lg leading-tight" data-testid={`text-course-name-${course.id}`}>
+                {course.name}
+              </h3>
+              {isBestDeal && (
+                <Badge variant="default" data-testid={`badge-best-deal-${course.id}`}>
+                  {t('course.bestDeal')}
+                </Badge>
+              )}
+            </div>
             <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
               <MapPin className="h-3.5 w-3.5" />
               <span data-testid={`text-course-location-${course.id}`}>
@@ -31,11 +41,27 @@ export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCa
               </span>
             </div>
           </div>
-          {distance !== undefined && (
-            <Badge variant="secondary" data-testid={`badge-distance-${course.id}`}>
-              {t('course.distance', { distance: distance.toFixed(1) })}
-            </Badge>
-          )}
+          <div className="flex flex-col items-end gap-1">
+            {distance !== undefined && (
+              <Badge variant="secondary" data-testid={`badge-distance-${course.id}`}>
+                {t('course.distance', { distance: distance.toFixed(1) })}
+              </Badge>
+            )}
+            {(price !== undefined || priceRange) && (
+              <div className="text-right" data-testid={`text-price-${course.id}`}>
+                {priceRange ? (
+                  <div className="text-xl font-bold">
+                    {t('course.priceRange', { min: priceRange.min, max: priceRange.max })}
+                  </div>
+                ) : price !== undefined ? (
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">{t('course.from')}</div>
+                    <div className="text-xl font-bold">€{price}</div>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
       </CardHeader>
 

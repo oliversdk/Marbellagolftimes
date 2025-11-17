@@ -82,6 +82,8 @@ const translations: Record<Language, Translations> = {
       facilityCartRental: 'Cart Rental',
       facilityLockerRooms: 'Locker Rooms',
       facilityPracticeFacilities: 'Practice Facilities',
+      bestDeal: 'Best Deal',
+      priceRange: '€{min}–{max}',
     },
     courseDetail: {
       overview: 'Overview',
@@ -335,6 +337,8 @@ const translations: Record<Language, Translations> = {
       facilityCartRental: 'Alquiler de Carritos',
       facilityLockerRooms: 'Vestuarios',
       facilityPracticeFacilities: 'Instalaciones de Práctica',
+      bestDeal: 'Mejor Oferta',
+      priceRange: '€{min}–{max}',
     },
     courseDetail: {
       overview: 'Descripción General',
@@ -588,6 +592,8 @@ const translations: Record<Language, Translations> = {
       facilityCartRental: 'Vogn Leje',
       facilityLockerRooms: 'Omklædningsrum',
       facilityPracticeFacilities: 'Træningsfaciliteter',
+      bestDeal: 'Bedste Tilbud',
+      priceRange: '€{min}–{max}',
     },
     courseDetail: {
       overview: 'Oversigt',
@@ -841,6 +847,8 @@ const translations: Record<Language, Translations> = {
       facilityCartRental: 'Vagnuthyrning',
       facilityLockerRooms: 'Omklädningsrum',
       facilityPracticeFacilities: 'Träningsanläggningar',
+      bestDeal: 'Bästa Erbjudande',
+      priceRange: '€{min}–{max}',
     },
     courseDetail: {
       overview: 'Översikt',
@@ -1094,6 +1102,8 @@ const translations: Record<Language, Translations> = {
       facilityCartRental: 'Аренда Багги',
       facilityLockerRooms: 'Раздевалки',
       facilityPracticeFacilities: 'Тренировочные Площадки',
+      bestDeal: 'Лучшее Предложение',
+      priceRange: '€{min}–{max}',
     },
     courseDetail: {
       overview: 'Обзор',

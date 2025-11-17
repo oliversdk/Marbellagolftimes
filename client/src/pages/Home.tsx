@@ -395,6 +395,13 @@ export default function Home() {
                 const sortedCourses = sortCourses(availableSlots, sortMode);
                 const visibleCourses = viewMode === 'list' ? sortedCourses.slice(0, visibleCount) : sortedCourses;
                 
+                // Calculate minimum price across all visible courses for Best Deal badge
+                const bestDealPrice = visibleCourses.reduce((min, courseSlot) => {
+                  const courseMinPrice = getMinPrice(courseSlot.slots);
+                  return courseMinPrice !== null && courseMinPrice < min ? courseMinPrice : min;
+                }, Infinity);
+                const hasBestDeal = bestDealPrice !== Infinity;
+                
                 return viewMode === "list" ? (
                   <>
                     {/* Showing X of Y Counter */}
@@ -411,6 +418,7 @@ export default function Home() {
                       {visibleCourses.map((courseSlot) => {
                         const minPrice = getMinPrice(courseSlot.slots);
                         const courseImage = courseSlot.course?.imageUrl || placeholderImage;
+                        const isBestDeal = hasBestDeal && minPrice !== null && minPrice === bestDealPrice;
                         
                         return (
                           <Card 
@@ -438,6 +446,11 @@ export default function Home() {
                                       <h3 className="font-semibold text-lg" data-testid={`text-course-name-${courseSlot.courseId}`}>
                                         {courseSlot.courseName}
                                       </h3>
+                                      {isBestDeal && (
+                                        <Badge variant="default" data-testid={`badge-best-deal-${courseSlot.courseId}`}>
+                                          {t('course.bestDeal')}
+                                        </Badge>
+                                      )}
                                       {courseSlot.providerType === "DEEP_LINK" && (
                                         <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
                                           {t('home.directBadge')}
@@ -455,10 +468,13 @@ export default function Home() {
                                       {courseSlot.distanceKm != null ? `${courseSlot.distanceKm.toFixed(1)} km` : "--"}
                                     </Badge>
                                     
-                                    {/* Price Badge */}
-                                    <Badge className="text-sm font-semibold" data-testid={`badge-price-${courseSlot.courseId}`}>
-                                      {minPrice !== null ? `€${minPrice}` : "--"}
-                                    </Badge>
+                                    {/* Price Display - Enhanced */}
+                                    {minPrice !== null && (
+                                      <div className="text-right" data-testid={`text-price-${courseSlot.courseId}`}>
+                                        <div className="text-xs text-muted-foreground">{t('course.from')}</div>
+                                        <div className="text-xl font-bold">€{minPrice}</div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
