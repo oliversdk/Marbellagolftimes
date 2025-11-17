@@ -12,7 +12,7 @@ Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain
 - ✅ **Smart sorting** - 4-way sorting: Closer/Farther, Cheaper/More expensive with visual active states (in compact list)
 - ✅ **Provider type badges** - Visual indicators show "Direct" badge for courses using direct booking links (DEEP_LINK type only)
 - ✅ **Geolocation-based discovery** - Find nearest courses automatically or search by city
-- ✅ **Smart filtering** - Date, players, time windows with distance sorting
+- ✅ **Smart filtering** - Date, players, time windows, **holes (9 or 18)** with distance sorting
 - ✅ **Flexible booking** - Select specific tee time from expanded view or quick-book cheapest option
 - ✅ **Affiliate email system** - Bulk email management for golf club partnership proposals (20% commission)
 - ✅ **Admin dashboard** - Manage bookings and track email campaigns
@@ -77,11 +77,15 @@ Preferred communication style: Simple, everyday language.
 **Core Routes:**
 - `GET /api/courses` - List all golf courses
 - `GET /api/courses/:id` - Get single course details
-- `GET /api/slots/search?lat=X&lng=Y&date=ISO&players=N&fromTime=HH:MM&toTime=HH:MM` - Search tee times with filters
+- `GET /api/slots/search?lat=X&lng=Y&date=ISO&players=N&fromTime=HH:MM&toTime=HH:MM&holes=9|18` - Search tee times with filters
   - **NOW FUNCTIONAL**: Returns available tee times within specified time window (e.g., 10:00-12:00)
   - Sorts courses by distance from user location using Haversine formula
-  - Generates 3-5 mock slots per course within requested time window
-  - Returns: `[{ courseId, courseName, distanceKm, slots: [{ teeTime, greenFee, players }], note }]`
+  - **Holes filter**: 9 or 18 holes (default: 18)
+    - Mock mode: Generates different schedules and pricing based on holes selection
+      - 9 holes: 20-minute intervals, €22-66 (~55% of 18-hole price), morning/evening preference
+      - 18 holes: 45-minute intervals, €40-120, evenly distributed throughout day
+    - Demo/Production mode: Tags returned slots with user's selection (API doesn't support holes filtering)
+  - Returns: `[{ courseId, courseName, distanceKm, slots: [{ teeTime, greenFee, players, holes }], note }]`
 - `POST /api/bookings` - Create booking request
 - `GET /api/bookings` - List all booking requests (admin view)
 - `POST /api/affiliate-emails/send` - Send bulk affiliate partnership emails
