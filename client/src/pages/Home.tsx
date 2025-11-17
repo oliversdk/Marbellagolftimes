@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { useI18n } from "@/lib/i18n";
 import { SEO } from "@/components/SEO";
 import { Header } from "@/components/Header";
@@ -494,14 +495,14 @@ export default function Home() {
                           >
                             <div className="flex flex-col md:flex-row gap-4 p-4">
                               {/* Left: Course Image */}
-                              <div className="w-full md:w-48 flex-shrink-0">
+                              <Link href={`/course/${courseSlot.courseId}`} className="w-full md:w-48 flex-shrink-0">
                                 <img 
                                   src={courseImage}
                                   alt={`${courseSlot.courseName} golf course`}
-                                  className="w-full h-32 object-cover rounded-md"
+                                  className="w-full h-32 object-cover rounded-md hover-elevate cursor-pointer"
                                   data-testid={`img-course-${courseSlot.courseId}`}
                                 />
-                              </div>
+                              </Link>
 
                               {/* Right: Course Info + Inline Tee Times */}
                               <div className="flex-1 min-w-0 flex flex-col gap-3">
@@ -509,9 +510,11 @@ export default function Home() {
                                 <div className="flex items-start justify-between gap-4 flex-wrap">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                                      <h3 className="font-semibold text-lg" data-testid={`text-course-name-${courseSlot.courseId}`}>
-                                        {courseSlot.courseName}
-                                      </h3>
+                                      <Link href={`/course/${courseSlot.courseId}`}>
+                                        <h3 className="font-semibold text-lg hover:underline cursor-pointer" data-testid={`text-course-name-${courseSlot.courseId}`}>
+                                          {courseSlot.courseName}
+                                        </h3>
+                                      </Link>
                                       {isBestDeal && (
                                         <Badge variant="default" data-testid={`badge-best-deal-${courseSlot.courseId}`}>
                                           {t('course.bestDeal')}
