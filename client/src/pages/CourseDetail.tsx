@@ -132,16 +132,12 @@ export default function CourseDetail() {
     );
   }
 
-  const stubFacilities = [
-    t('courseDetail.facilityClubhouse'),
-    t('courseDetail.facilityProShop'),
-    t('courseDetail.facilityDrivingRange'),
-    t('courseDetail.facilityRestaurant'),
-    t('courseDetail.facilityPuttingGreen'),
-    t('courseDetail.facilityCartRental'),
-    t('courseDetail.facilityLockerRooms'),
-    t('courseDetail.facilityPracticeFacilities'),
-  ];
+// Map facility names from database to translation keys
+  const getFacilityTranslation = (facility: string) => {
+    // Convert "Pro Shop" to "ProShop" then to "facilityProShop"
+    const key = 'facility' + facility.replace(/\s+/g, '');
+    return t(`course.${key}` as any) || facility;
+  };
 
   // LocalBusiness structured data for course
   const courseSchema = {
@@ -338,14 +334,14 @@ export default function CourseDetail() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {stubFacilities.map((facility, index) => (
+                      {(course.facilities || []).map((facility, index) => (
                         <Badge
                           key={index}
                           variant="secondary"
                           className="justify-center py-2"
                           data-testid={`badge-facility-${index}`}
                         >
-                          {facility}
+                          {getFacilityTranslation(facility)}
                         </Badge>
                       ))}
                     </div>
