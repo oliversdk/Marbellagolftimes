@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { BookingModal } from "@/components/BookingModal";
 import { ShareMenu } from "@/components/ShareMenu";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { MapPin, Phone, Mail, Globe, Star, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -173,7 +174,7 @@ export default function CourseDetail() {
       {/* Hero Section */}
       <div className="relative h-[40vh] md:h-[50vh] overflow-hidden bg-muted">
         {course.imageUrl ? (
-          <img
+          <OptimizedImage
             src={course.imageUrl}
             alt={course.name}
             className="w-full h-full object-cover"
@@ -319,7 +320,7 @@ export default function CourseDetail() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {course.imageUrl && (
-                      <img
+                      <OptimizedImage
                         src={course.imageUrl}
                         alt={course.name}
                         className="w-full rounded-md object-cover aspect-video"

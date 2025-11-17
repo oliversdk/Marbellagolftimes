@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Header } from "@/components/Header";
 import { CourseCard } from "@/components/CourseCard";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -476,7 +477,7 @@ export default function Admin() {
                             {course.imageUrl ? (
                               <div className="space-y-2">
                                 <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
-                                  <img
+                                  <OptimizedImage
                                     src={course.imageUrl}
                                     alt={course.name}
                                     className="w-full h-full object-cover"

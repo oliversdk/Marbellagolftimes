@@ -13,6 +13,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { CalendarIcon, Search, X, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -150,14 +151,11 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
                           data-testid={`recent-search-${recent.courseId}`}
                         >
                           <Clock className="h-4 w-4 shrink-0 opacity-50" />
-                          <img
-                            src={recent.imageUrl || placeholderImage}
+                          <OptimizedImage
+                            src={recent.imageUrl}
                             alt={recent.courseName}
                             className="h-12 w-12 rounded-md object-cover shrink-0"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = placeholderImage;
-                            }}
+                            fallbackSrc={placeholderImage}
                           />
                           <div className="flex flex-col flex-1 min-w-0">
                             <span className="font-medium truncate">{recent.courseName}</span>
@@ -199,14 +197,11 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
                           className="gap-2"
                           data-testid={`course-search-result-${course.id}`}
                         >
-                          <img
-                            src={course.imageUrl || placeholderImage}
+                          <OptimizedImage
+                            src={course.imageUrl}
                             alt={course.name}
                             className="h-12 w-12 rounded-md object-cover shrink-0"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = placeholderImage;
-                            }}
+                            fallbackSrc={placeholderImage}
                           />
                           <div className="flex flex-col flex-1 min-w-0">
                             <span className="font-medium truncate">{course.name}</span>

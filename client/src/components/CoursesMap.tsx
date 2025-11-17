@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,7 @@ export function CoursesMap({ courses, center, onCourseSelect }: CoursesMapProps)
               <Popup>
                 <div className="min-w-[250px]" data-testid={`map-popup-${course.courseId}`}>
                   {course.course?.imageUrl && (
-                    <img
+                    <OptimizedImage
                       src={course.course.imageUrl}
                       alt={course.courseName}
                       className="w-full h-32 object-cover rounded-md mb-2"

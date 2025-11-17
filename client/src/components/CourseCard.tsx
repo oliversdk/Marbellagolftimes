@@ -8,6 +8,8 @@ import { Link } from "wouter";
 import { useFavorites } from "@/hooks/useFavorites";
 import { motion, PanInfo } from "framer-motion";
 import type { GolfCourse } from "@shared/schema";
+import { OptimizedImage } from "./OptimizedImage";
+import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
 
 interface CourseCardProps {
   course: GolfCourse;
@@ -59,6 +61,12 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
             <Heart className={`h-6 w-6 ${isFav ? 'fill-white text-white' : 'text-white'}`} />
           </div>
         )}
+        <OptimizedImage
+          src={course.imageUrl || placeholderImage}
+          alt={course.name}
+          className="w-full h-48 object-cover rounded-t-lg"
+          data-testid={`img-course-${course.id}`}
+        />
       <CardHeader className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
