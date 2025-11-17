@@ -25,6 +25,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  stripeCustomerId: varchar("stripe_customer_id"), // For future Stripe integration
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -83,6 +84,7 @@ export type CourseProviderLink = typeof courseProviderLinks.$inferSelect;
 // Booking Requests
 export const bookingRequests = pgTable("booking_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id), // Nullable for guest bookings
   courseId: varchar("course_id").notNull().references(() => golfCourses.id),
   teeTime: timestamp("tee_time").notNull(),
   players: integer("players").notNull(),
