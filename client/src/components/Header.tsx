@@ -51,12 +51,18 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <Link href="/profile">
                 <Button variant="ghost" size="icon" data-testid="link-profile">
                   <User className="h-5 w-5" />
                 </Button>
               </Link>
+            ) : (
+              <a href="/api/login">
+                <Button variant="outline" size="default" data-testid="button-login">
+                  {t('header.login')}
+                </Button>
+              </a>
             )}
             <Link href="/">
               <Button size="default" data-testid="button-search-tee-times">
