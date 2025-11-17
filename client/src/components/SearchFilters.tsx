@@ -19,6 +19,7 @@ interface SearchFiltersProps {
     players: number;
     fromTime: string;
     toTime: string;
+    holes: number;
   }) => void;
 }
 
@@ -27,6 +28,7 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
   const [players, setPlayers] = useState<string>("2");
   const [fromTime, setFromTime] = useState<string>("07:00");
   const [toTime, setToTime] = useState<string>("20:00");
+  const [holes, setHoles] = useState<string>("18");
 
   const handleSearch = () => {
     onSearch({
@@ -34,12 +36,13 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
       players: parseInt(players),
       fromTime,
       toTime,
+      holes: parseInt(holes),
     });
   };
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="space-y-2">
           <Label htmlFor="filter-date">Date</Label>
           <Popover>
@@ -78,6 +81,19 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
                   {num} {num === 1 ? "Player" : "Players"}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="filter-holes">Holes</Label>
+          <Select value={holes} onValueChange={setHoles}>
+            <SelectTrigger id="filter-holes" data-testid="select-filter-holes">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="9">9 Holes</SelectItem>
+              <SelectItem value="18">18 Holes</SelectItem>
             </SelectContent>
           </Select>
         </div>

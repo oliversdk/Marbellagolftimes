@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/slots/search - Tee-time availability search
   app.get("/api/slots/search", async (req, res) => {
     try {
-      const { lat, lng, radiusKm, date, players, fromTime, toTime } = req.query;
+      const { lat, lng, radiusKm, date, players, fromTime, toTime, holes } = req.query;
 
       const courses = await storage.getAllCourses();
       const userLat = lat ? parseFloat(lat as string) : null;
@@ -58,25 +58,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const golfmanagerConfig = getGolfmanagerConfig();
       
       // Helper function to generate mock slots
-      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number): TeeTimeSlot[] => {
+      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number, numHoles: number): TeeTimeSlot[] => {
         const slots: TeeTimeSlot[] = [];
         const [fromHour] = from.split(":").map(Number);
         const [toHour] = to.split(":").map(Number);
-        const numSlots = Math.floor(Math.random() * 3) + 3;
         const baseDate = searchDate ? new Date(searchDate) : new Date();
         baseDate.setHours(0, 0, 0, 0);
 
-        for (let i = 0; i < numSlots; i++) {
-          const hour = fromHour + Math.floor(Math.random() * (toHour - fromHour));
-          const minute = Math.random() < 0.5 ? 0 : 30;
+        // Price multiplier based on holes (9 holes typically cost ~50-60% of 18 holes)
+        const priceMultiplier = numHoles === 9 ? 0.55 : 1;
+
+        // Generate different tee times based on holes selection
+        // 9 holes: More frequent slots (every 20-30 min), earlier/later times preferred
+        // 18 holes: Less frequent slots (every 40-60 min), full day coverage
+        const slotInterval = numHoles === 9 ? 20 : 45; // minutes between slots
+        const numSlots = Math.floor((toHour - fromHour) * 60 / slotInterval);
+
+        // For 9 holes, add some randomness to prefer morning/afternoon
+        // For 18 holes, distribute evenly throughout the day
+        const useSeed = numHoles === 9;
+        
+        for (let i = 0; i < numSlots && i < 8; i++) { // Max 8 slots per course
+          let hour: number;
+          let minute: number;
+          
+          if (useSeed) {
+            // 9 holes: Prefer earlier or later times
+            const preferEarly = Math.random() < 0.6;
+            if (preferEarly) {
+              hour = fromHour + Math.floor(Math.random() * Math.min(3, toHour - fromHour));
+            } else {
+              hour = Math.max(fromHour, toHour - 3) + Math.floor(Math.random() * 3);
+            }
+            minute = (i * slotInterval) % 60;
+          } else {
+            // 18 holes: Even distribution
+            const totalMinutes = i * slotInterval;
+            hour = fromHour + Math.floor(totalMinutes / 60);
+            minute = totalMinutes % 60;
+          }
+          
+          if (hour >= toHour) break;
+          
           const slotDate = new Date(baseDate);
           slotDate.setHours(hour, minute, 0, 0);
 
+          const basePrice = Math.floor(Math.random() * 80) + 40;
+          const adjustedPrice = Math.round(basePrice * priceMultiplier);
+
           slots.push({
             teeTime: slotDate.toISOString(),
-            greenFee: Math.floor(Math.random() * 80) + 40,
+            greenFee: adjustedPrice,
             currency: "EUR",
             players: numPlayers,
+            holes: numHoles,
             source: "mock-provider",
           });
         }
@@ -116,7 +151,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               date as string || new Date().toISOString(),
               fromTime as string || "07:00",
               toTime as string || "20:00",
-              players ? parseInt(players as string) : 2
+              players ? parseInt(players as string) : 2,
+              holes ? parseInt(holes as string) : 18
             ),
             note: "Mock data - Configure GOLFMANAGER_API_KEY for real availability",
             providerType,
@@ -151,7 +187,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               const slots = golfmanager.convertSlotsToTeeTime(
                 gmSlots,
-                players ? parseInt(players as string) : 2
+                players ? parseInt(players as string) : 2,
+                holes ? parseInt(holes as string) : 18
               );
 
               console.log(`[Demo Mode] Retrieved ${slots.length} slots from demo API`);
@@ -185,7 +222,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   date as string || new Date().toISOString(),
                   fromTime as string || "07:00",
                   toTime as string || "20:00",
-                  players ? parseInt(players as string) : 2
+                  players ? parseInt(players as string) : 2,
+                  holes ? parseInt(holes as string) : 18
                 ),
                 note: "Mock data (demo API unavailable) - Configure GOLFMANAGER_API_KEY for production",
                 providerType,
@@ -208,7 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 date as string || new Date().toISOString(),
                 fromTime as string || "07:00",
                 toTime as string || "20:00",
-                players ? parseInt(players as string) : 2
+                players ? parseInt(players as string) : 2,
+                holes ? parseInt(holes as string) : 18
               ),
               note: "Mock data - Configure GOLFMANAGER_API_KEY for production",
               providerType,
@@ -248,7 +287,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               const slots = golfmanager.convertSlotsToTeeTime(
                 gmSlots,
-                players ? parseInt(players as string) : 2
+                players ? parseInt(players as string) : 2,
+                holes ? parseInt(holes as string) : 18
               );
 
               results.push({

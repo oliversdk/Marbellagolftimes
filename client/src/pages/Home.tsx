@@ -88,7 +88,8 @@ export default function Home() {
     players: number;
     fromTime: string;
     toTime: string;
-  }>({ players: 2, fromTime: "07:00", toTime: "20:00" });
+    holes: number;
+  }>({ players: 2, fromTime: "07:00", toTime: "20:00", holes: 18 });
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -111,6 +112,7 @@ export default function Home() {
       searchFilters.players,
       searchFilters.fromTime,
       searchFilters.toTime,
+      searchFilters.holes,
     ],
     enabled: userLocation !== null,
     queryFn: async () => {
@@ -126,6 +128,7 @@ export default function Home() {
       params.append("players", searchFilters.players.toString());
       params.append("fromTime", searchFilters.fromTime);
       params.append("toTime", searchFilters.toTime);
+      params.append("holes", searchFilters.holes.toString());
 
       const response = await fetch(`/api/slots/search?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch slots");
@@ -456,7 +459,7 @@ export default function Home() {
                                             <Badge variant="secondary" className="text-xs">Best price</Badge>
                                           )}
                                         </div>
-                                        <p className="text-xs text-muted-foreground">{formattedPrice}</p>
+                                        <p className="text-xs text-muted-foreground">{formattedPrice} • {slot.holes} holes</p>
                                       </div>
                                     </div>
                                     <button

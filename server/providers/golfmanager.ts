@@ -24,6 +24,7 @@ export interface TeeTimeSlot {
   greenFee: number;
   currency: string;
   players: number;
+  holes: number;
   source: string;
 }
 
@@ -94,12 +95,13 @@ export class GolfmanagerProvider {
     return await response.json();
   }
 
-  convertSlotsToTeeTime(golfmanagerSlots: GolfmanagerSlot[], players: number): TeeTimeSlot[] {
+  convertSlotsToTeeTime(golfmanagerSlots: GolfmanagerSlot[], players: number, holes: number = 18): TeeTimeSlot[] {
     return golfmanagerSlots.map((slot) => ({
       teeTime: slot.start,
       greenFee: slot.price,
       currency: "EUR",
       players: players,
+      holes: holes,
       source: "golfmanager",
     }));
   }

@@ -97,6 +97,7 @@ export interface TeeTimeSlot {
   greenFee: number;
   currency: string;
   players: number;
+  holes: number;
   source: string;
 }
 
