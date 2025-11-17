@@ -133,10 +133,29 @@ export default function CourseDetail() {
   }
 
 // Map facility names from database to translation keys
+  const facilityKeyMap: Record<string, string> = {
+    'Clubhouse': 'facilityClubhouse',
+    'Pro Shop': 'facilityProShop',
+    'Driving Range': 'facilityDrivingRange',
+    'Restaurant': 'facilityRestaurant',
+    'Bar': 'facilityBar',
+    'Café': 'facilityCafe',
+    'Putting Green': 'facilityPuttingGreen',
+    'Cart Rental': 'facilityCartRental',
+    'Locker Rooms': 'facilityLockerRooms',
+    'Practice Facilities': 'facilityPracticeFacilities',
+    'Golf Academy': 'facilityGolfAcademy',
+    'Spa': 'facilitySpa',
+    'Conference Rooms': 'facilityConferenceRooms',
+  };
+
   const getFacilityTranslation = (facility: string) => {
-    // Convert "Pro Shop" to "ProShop" then to "facilityProShop"
-    const key = 'facility' + facility.replace(/\s+/g, '');
-    return t(`course.${key}` as any) || facility;
+    const key = facilityKeyMap[facility];
+    if (!key) {
+      // Fallback to raw facility name if no mapping exists
+      return facility;
+    }
+    return t(`course.${key}` as any);
   };
 
   // LocalBusiness structured data for course
