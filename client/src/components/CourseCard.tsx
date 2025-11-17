@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Phone, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { Link } from "wouter";
 import type { GolfCourse } from "@shared/schema";
 
 interface CourseCardProps {
@@ -70,23 +71,23 @@ export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCa
       </CardContent>
 
       <CardFooter className="p-4 pt-0 flex gap-2">
-        {onBook && (
-          <Button
-            variant="default"
-            className="flex-1"
-            onClick={onBook}
-            data-testid={`button-book-course-${course.id}`}
-          >
-            {t('booking.title')}
-          </Button>
-        )}
+        <Button
+          variant="default"
+          className="flex-1"
+          asChild
+          data-testid={`button-view-details-${course.id}`}
+        >
+          <Link href={`/course/${course.id}`}>
+            {t('course.viewDetails')}
+          </Link>
+        </Button>
         {course.bookingUrl && (
           <Button
             variant="outline"
             onClick={() => window.open(course.bookingUrl || course.websiteUrl || "", "_blank")}
             data-testid={`button-club-site-${course.id}`}
           >
-            {t('course.viewDetails')}
+            {t('course.bookNow')}
           </Button>
         )}
       </CardFooter>

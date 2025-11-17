@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-The frontend is built with React 18 and TypeScript, using Vite for fast development and production builds. Wouter is used for client-side routing. The UI leverages `shadcn/ui` (Radix UI + Tailwind CSS) for components, inspired by `TeeTimesBooking.com` for a compact layout. Typography includes Inter (primary) and Playfair Display (accent). State management is handled by TanStack Query for server state and local React state for UI interactions. Key features include a Golfee-inspired course listing with inline tee times, a list/map view toggle (Leaflet), 4-way sorting, and smart filtering (date, players, time, holes, course name). An Admin dashboard provides tools for managing bookings, courses, images, and affiliate emails.
+The frontend is built with React 18 and TypeScript, using Vite for fast development and production builds. Wouter is used for client-side routing. The UI leverages `shadcn/ui` (Radix UI + Tailwind CSS) for components, inspired by `TeeTimesBooking.com` for a compact layout. Typography includes Inter (primary) and Playfair Display (accent). State management is handled by TanStack Query for server state and local React state for UI interactions. Key features include a Golfee-inspired course listing with inline tee times, a list/map view toggle (Leaflet), 4-way sorting, and smart filtering (date, players, time, holes, course name). An Admin dashboard provides tools for managing bookings, courses, images, and affiliate emails. The platform supports full internationalization (i18n) with English, Spanish, and Danish languages, including locale-aware placeholders and proper pluralization.
 
 ### Backend Architecture
 
