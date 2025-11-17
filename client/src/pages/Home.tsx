@@ -5,16 +5,18 @@ import { LocationSearch } from "@/components/LocationSearch";
 import { SearchFilters } from "@/components/SearchFilters";
 import { CourseCard } from "@/components/CourseCard";
 import { BookingModal } from "@/components/BookingModal";
+import { CoursesMap } from "@/components/CoursesMap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, ChevronDown, ChevronUp, Mail, CheckCircle2 } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LayoutGrid, Map } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
 import heroImage from "@assets/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.png";
+import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
 
 type SortMode = "distance-asc" | "distance-desc" | "price-asc" | "price-desc";
 
@@ -95,7 +97,7 @@ export default function Home() {
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("distance-asc");
-  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const { toast } = useToast();
 
   // Fetch all courses
@@ -209,18 +211,6 @@ export default function Home() {
     }
   };
 
-  const toggleExpanded = (courseId: string) => {
-    setExpandedCourses(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(courseId)) {
-        newSet.delete(courseId);
-      } else {
-        newSet.add(courseId);
-      }
-      return newSet;
-    });
-  };
-
   const handleBookCourse = (courseSlot: CourseWithSlots, specificSlot?: TeeTimeSlot) => {
     if (courseSlot.course) {
       const slotToBook = specificSlot || getCheapestSlot(courseSlot.slots);
@@ -307,200 +297,195 @@ export default function Home() {
             </div>
           ) : availableSlots.length > 0 ? (
             <>
-              {/* Sorting Controls */}
-              <div className="flex flex-wrap gap-2 mb-6" data-testid="sort-controls">
-                <button
-                  onClick={() => setSortMode("distance-asc")}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                    sortMode === "distance-asc"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background hover-elevate"
-                  }`}
-                  data-testid="button-sort-closer"
-                >
-                  Closer
-                </button>
-                <button
-                  onClick={() => setSortMode("distance-desc")}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                    sortMode === "distance-desc"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background hover-elevate"
-                  }`}
-                  data-testid="button-sort-farther"
-                >
-                  Farther away
-                </button>
-                <button
-                  onClick={() => setSortMode("price-asc")}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                    sortMode === "price-asc"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background hover-elevate"
-                  }`}
-                  data-testid="button-sort-cheaper"
-                >
-                  Cheaper
-                </button>
-                <button
-                  onClick={() => setSortMode("price-desc")}
-                  className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                    sortMode === "price-desc"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background hover-elevate"
-                  }`}
-                  data-testid="button-sort-expensive"
-                >
-                  More expensive
-                </button>
+              {/* View Toggle + Sorting Controls */}
+              <div className="mb-6">
+                {/* View Mode Toggle */}
+                <div className="flex gap-2 mb-4">
+                  <Button 
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    onClick={() => setViewMode("list")}
+                    data-testid="button-view-list"
+                  >
+                    <LayoutGrid className="mr-2 h-4 w-4" />
+                    List View
+                  </Button>
+                  <Button 
+                    variant={viewMode === "map" ? "default" : "outline"}
+                    onClick={() => setViewMode("map")}
+                    data-testid="button-view-map"
+                  >
+                    <Map className="mr-2 h-4 w-4" />
+                    Map View
+                  </Button>
+                </div>
+                
+                {/* Sorting Controls - Only for List View */}
+                {viewMode === "list" && (
+                  <div className="flex flex-wrap gap-2" data-testid="sort-controls">
+                    <button
+                      onClick={() => setSortMode("distance-asc")}
+                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                        sortMode === "distance-asc"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background hover-elevate"
+                      }`}
+                      data-testid="button-sort-closer"
+                    >
+                      Closer
+                    </button>
+                    <button
+                      onClick={() => setSortMode("distance-desc")}
+                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                        sortMode === "distance-desc"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background hover-elevate"
+                      }`}
+                      data-testid="button-sort-farther"
+                    >
+                      Farther away
+                    </button>
+                    <button
+                      onClick={() => setSortMode("price-asc")}
+                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                        sortMode === "price-asc"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background hover-elevate"
+                      }`}
+                      data-testid="button-sort-cheaper"
+                    >
+                      Cheaper
+                    </button>
+                    <button
+                      onClick={() => setSortMode("price-desc")}
+                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                        sortMode === "price-desc"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background hover-elevate"
+                      }`}
+                      data-testid="button-sort-expensive"
+                    >
+                      More expensive
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Compact List */}
-              <div className="space-y-3" data-testid="available-slots-list">
+              {/* Results */}
+              {viewMode === "list" ? (
+                <div className="space-y-4" data-testid="available-slots-list">
                 {sortCourses(availableSlots, sortMode).map((courseSlot) => {
-                  const timeRange = getTimeRange(courseSlot.slots);
                   const minPrice = getMinPrice(courseSlot.slots);
-                  const isExpanded = expandedCourses.has(courseSlot.courseId);
+                  const courseImage = courseSlot.course?.imageUrl || placeholderImage;
                   
                   return (
                     <Card 
                       key={courseSlot.courseId} 
-                      className="overflow-visible" 
+                      className="overflow-hidden" 
                       data-testid={`card-slot-${courseSlot.courseId}`}
                     >
-                      {/* Clickable Header */}
-                      <button 
-                        className="w-full p-4 hover-elevate text-left flex flex-col sm:flex-row sm:items-center gap-4"
-                        onClick={() => toggleExpanded(courseSlot.courseId)}
-                        data-testid={`button-expand-${courseSlot.courseId}`}
-                        type="button"
-                        aria-expanded={isExpanded}
-                        aria-controls={`slots-panel-${courseSlot.courseId}`}
-                      >
-                        {/* Course Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h3 className="font-semibold text-base" data-testid={`text-course-name-${courseSlot.courseId}`}>
-                              {courseSlot.courseName}
-                            </h3>
-                            {courseSlot.providerType === "DEEP_LINK" && (
-                              <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
-                                Direct
+                      <div className="flex flex-col md:flex-row gap-4 p-4">
+                        {/* Left: Course Image */}
+                        <div className="w-full md:w-48 flex-shrink-0">
+                          <img 
+                            src={courseImage}
+                            alt={`${courseSlot.courseName} golf course`}
+                            className="w-full h-32 object-cover rounded-md"
+                            data-testid={`img-course-${courseSlot.courseId}`}
+                          />
+                        </div>
+
+                        {/* Right: Course Info + Inline Tee Times */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-3">
+                          {/* Header: Name + Location + Price + Distance */}
+                          <div className="flex items-start justify-between gap-4 flex-wrap">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <h3 className="font-semibold text-lg" data-testid={`text-course-name-${courseSlot.courseId}`}>
+                                  {courseSlot.courseName}
+                                </h3>
+                                {courseSlot.providerType === "DEEP_LINK" && (
+                                  <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
+                                    Direct
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground" data-testid={`text-location-${courseSlot.courseId}`}>
+                                {courseSlot.course?.city || "Costa del Sol"}, {courseSlot.course?.province || "Spain"}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {/* Distance Badge */}
+                              <Badge variant="secondary" data-testid={`badge-distance-${courseSlot.courseId}`}>
+                                {courseSlot.distanceKm != null ? `${courseSlot.distanceKm.toFixed(1)} km` : "--"}
                               </Badge>
-                            )}
+                              
+                              {/* Price Badge */}
+                              <Badge className="text-sm font-semibold" data-testid={`badge-price-${courseSlot.courseId}`}>
+                                {minPrice !== null ? `€${minPrice}` : "--"}
+                              </Badge>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide" data-testid={`text-tee-info-${courseSlot.courseId}`}>
-                            TEE 1
-                          </p>
-                        </div>
 
-                        {/* Time Range */}
-                        <div className="flex-shrink-0">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tee times</p>
-                          <p className="text-sm font-medium" data-testid={`text-time-range-${courseSlot.courseId}`}>
-                            {timeRange ? `${timeRange.from} - ${timeRange.to}` : "--"}
-                          </p>
-                        </div>
+                          {/* Inline Tee Times - Horizontal Scroll */}
+                          <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
+                              Available Tee Times
+                            </p>
+                            <div className="overflow-x-auto pb-2" data-testid={`slots-container-${courseSlot.courseId}`}>
+                              <div className="flex gap-2">
+                                {courseSlot.slots
+                                  .sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime())
+                                  .map((slot, idx) => {
+                                    const slotTime = new Date(slot.teeTime);
+                                    const formattedTime = slotTime.toLocaleTimeString("en-US", { 
+                                      hour: "2-digit", 
+                                      minute: "2-digit", 
+                                      hour12: false 
+                                    });
+                                    const formattedPrice = new Intl.NumberFormat('en-US', { 
+                                      style: 'currency', 
+                                      currency: 'EUR',
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0
+                                    }).format(slot.greenFee);
+                                    
+                                    return (
+                                      <Button
+                                        key={idx}
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleBookCourse(courseSlot, slot)}
+                                        className="flex-shrink-0 flex flex-col items-start px-3 py-2 h-auto"
+                                        data-testid={`button-slot-${courseSlot.courseId}-${idx}`}
+                                      >
+                                        <span className="font-semibold text-sm">{formattedTime}</span>
+                                        <span className="text-xs text-muted-foreground">{formattedPrice}</span>
+                                      </Button>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          </div>
 
-                        {/* Price */}
-                        <div className="flex-shrink-0">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Prices from</p>
-                          <p className="text-sm font-semibold text-primary" data-testid={`text-price-from-${courseSlot.courseId}`}>
-                            {minPrice !== null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(minPrice) : "--"}
-                          </p>
-                        </div>
-
-                        {/* Distance Badge */}
-                        <div className="flex-shrink-0">
-                          <Badge variant="secondary" data-testid={`badge-distance-${courseSlot.courseId}`}>
-                            {courseSlot.distanceKm != null ? `${courseSlot.distanceKm.toFixed(1)} km` : "--"}
-                          </Badge>
-                        </div>
-
-                        {/* Expand/Collapse Icon */}
-                        <div className="flex-shrink-0">
-                          {isExpanded ? (
-                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          {/* Optional: Note */}
+                          {courseSlot.note && (
+                            <p className="text-xs text-muted-foreground italic" data-testid={`text-note-${courseSlot.courseId}`}>
+                              {courseSlot.note}
+                            </p>
                           )}
                         </div>
-                      </button>
-
-                      {/* Expanded: Individual Slots */}
-                      {isExpanded && courseSlot.slots.length > 0 && (
-                        <div 
-                          id={`slots-panel-${courseSlot.courseId}`}
-                          role="region"
-                          aria-label={`Available tee times for ${courseSlot.courseName}`}
-                          className="border-t px-4 pb-4 pt-3" 
-                          data-testid={`slots-expanded-${courseSlot.courseId}`}
-                        >
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Available Tee Times</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {courseSlot.slots
-                              .sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime())
-                              .map((slot, idx) => {
-                                const slotTime = new Date(slot.teeTime);
-                                const formattedTime = slotTime.toLocaleTimeString("en-US", { 
-                                  hour: "2-digit", 
-                                  minute: "2-digit", 
-                                  hour12: false 
-                                });
-                                const formattedPrice = new Intl.NumberFormat('en-US', { 
-                                  style: 'currency', 
-                                  currency: 'EUR' 
-                                }).format(slot.greenFee);
-                                const cheapestSlot = getCheapestSlot(courseSlot.slots);
-                                const isCheapest = cheapestSlot && slot.teeTime === cheapestSlot.teeTime && slot.greenFee === cheapestSlot.greenFee;
-                                
-                                return (
-                                  <div 
-                                    key={idx}
-                                    className={`flex items-center justify-between p-3 border rounded-md hover-elevate ${
-                                      isCheapest ? 'border-primary bg-primary/5' : ''
-                                    }`}
-                                    data-testid={`slot-${courseSlot.courseId}-${idx}`}
-                                  >
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                      <Clock className="h-4 w-4 text-muted-foreground" />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                          <p className="font-medium text-sm">{formattedTime}</p>
-                                          {isCheapest && (
-                                            <Badge variant="secondary" className="text-xs">Best price</Badge>
-                                          )}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">{formattedPrice} • {slot.holes} holes</p>
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleBookCourse(courseSlot, slot);
-                                      }}
-                                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md font-medium text-xs hover-elevate active-elevate-2 flex-shrink-0"
-                                      data-testid={`button-book-slot-${courseSlot.courseId}-${idx}`}
-                                    >
-                                      Book
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Optional: Note */}
-                      {courseSlot.note && (
-                        <p className="text-xs text-muted-foreground italic px-4 pb-4" data-testid={`text-note-${courseSlot.courseId}`}>
-                          {courseSlot.note}
-                        </p>
-                      )}
+                      </div>
                     </Card>
                   );
                 })}
-              </div>
+                </div>
+              ) : (
+                <CoursesMap 
+                  courses={sortCourses(availableSlots, sortMode)}
+                  center={userLocation}
+                />
+              )}
             </>
           ) : (
             <Card>
