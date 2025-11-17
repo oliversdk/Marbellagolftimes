@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
 import { SEO } from "@/components/SEO";
@@ -158,26 +158,28 @@ export default function Home() {
     },
   });
 
-  // Calculate distances for all courses if we have location
-  const coursesWithDistance = courses
-    ?.map((course) => {
-      if (!userLocation || !course.lat || !course.lng) {
-        return { course, distance: undefined };
-      }
-      const distance = calculateDistance(
-        userLocation.lat,
-        userLocation.lng,
-        parseFloat(course.lat),
-        parseFloat(course.lng)
-      );
-      return { course, distance };
-    })
-    .filter(({ distance }) => !isNaN(distance || 0))
-    .sort((a, b) => {
-      if (a.distance === undefined) return 1;
-      if (b.distance === undefined) return -1;
-      return a.distance - b.distance;
-    });
+  // Calculate distances for all courses if we have location (memoized)
+  const coursesWithDistance = useMemo(() => {
+    return courses
+      ?.map((course) => {
+        if (!userLocation || !course.lat || !course.lng) {
+          return { course, distance: undefined };
+        }
+        const distance = calculateDistance(
+          userLocation.lat,
+          userLocation.lng,
+          parseFloat(course.lat),
+          parseFloat(course.lng)
+        );
+        return { course, distance };
+      })
+      .filter(({ distance }) => !isNaN(distance || 0))
+      .sort((a, b) => {
+        if (a.distance === undefined) return 1;
+        if (b.distance === undefined) return -1;
+        return a.distance - b.distance;
+      });
+  }, [courses, userLocation]);
 
   // Create booking request mutation
   const createBookingMutation = useMutation({

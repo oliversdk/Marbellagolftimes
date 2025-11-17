@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -65,7 +65,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
     setShowFavoritesOnly(currentFilters?.showFavoritesOnly ?? false);
   }, [currentFilters?.showFavoritesOnly]);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     onSearch({
       date,
       players: parseInt(players),
@@ -75,41 +75,45 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
       courseSearch: courseSearch.trim() || undefined,
       showFavoritesOnly,
     });
-  };
+  }, [date, players, fromTime, toTime, holes, courseSearch, showFavoritesOnly, onSearch]);
 
-  const handleSelectCourse = (course: GolfCourse) => {
+  const handleSelectCourse = useCallback((course: GolfCourse) => {
     setCourseSearch(course.name);
     addRecentSearch(course.id, course.name, course.imageUrl || undefined);
     setAutocompleteOpen(false);
-  };
+  }, [addRecentSearch]);
 
-  const handleSelectRecentSearch = (courseId: string, courseName: string, imageUrl?: string) => {
+  const handleSelectRecentSearch = useCallback((courseId: string, courseName: string, imageUrl?: string) => {
     addRecentSearch(courseId, courseName, imageUrl);
     setCourseSearch(courseName);
     setAutocompleteOpen(false);
-  };
+  }, [addRecentSearch]);
 
-  // Filter courses based on search input
-  const filteredCourses = courses
-    ?.filter((course) =>
-      course.name.toLowerCase().includes(courseSearch.toLowerCase()) ||
-      course.city.toLowerCase().includes(courseSearch.toLowerCase()) ||
-      course.province.toLowerCase().includes(courseSearch.toLowerCase())
-    )
-    .slice(0, 10) || [];
+  // Filter courses based on search input (memoized)
+  const filteredCourses = useMemo(() => {
+    return courses
+      ?.filter((course) =>
+        course.name.toLowerCase().includes(courseSearch.toLowerCase()) ||
+        course.city.toLowerCase().includes(courseSearch.toLowerCase()) ||
+        course.province.toLowerCase().includes(courseSearch.toLowerCase())
+      )
+      .slice(0, 10) || [];
+  }, [courses, courseSearch]);
 
   // Show recent searches when input is empty or focused
   const showRecentSearches = courseSearch.trim() === "" && recentSearches.length > 0;
 
-  // Enrich recent searches with city/province if available in courses
-  const recentSearchesWithData = recentSearches.map((recent) => {
-    const course = courses?.find((c) => c.id === recent.courseId);
-    return {
-      ...recent,
-      city: course?.city,
-      province: course?.province,
-    };
-  });
+  // Enrich recent searches with city/province if available in courses (memoized)
+  const recentSearchesWithData = useMemo(() => {
+    return recentSearches.map((recent) => {
+      const course = courses?.find((c) => c.id === recent.courseId);
+      return {
+        ...recent,
+        city: course?.city,
+        province: course?.province,
+      };
+    });
+  }, [recentSearches, courses]);
 
   return (
     <div className="space-y-4 touch-manipulation">

@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import express from "express";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
@@ -51,6 +52,23 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Static asset caching for images
+  app.use('/generated_images', express.static(path.join(__dirname, '../client/public/generated_images'), {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }));
+
+  app.use('/stock_images', express.static(path.join(__dirname, '../client/public/stock_images'), {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }));
+
   // Auth middleware - Code from blueprint:javascript_log_in_with_replit
   await setupAuth(app);
 
@@ -70,6 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/courses", async (req, res) => {
     try {
       const courses = await storage.getAllCourses();
+      res.setHeader('Cache-Control', 'public, max-age=300');
       res.json(courses);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch courses" });
@@ -83,6 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!course) {
         return res.status(404).json({ error: "Course not found" });
       }
+      res.setHeader('Cache-Control', 'public, max-age=300');
       res.json(course);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch course" });

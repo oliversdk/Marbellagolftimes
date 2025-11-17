@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,14 +21,14 @@ interface CourseCardProps {
   onViewDetails?: () => void;
 }
 
-export function CourseCard({ course, distance, price, priceRange, isBestDeal, onBook, onViewDetails }: CourseCardProps) {
+export const CourseCard = memo(function CourseCard({ course, distance, price, priceRange, isBestDeal, onBook, onViewDetails }: CourseCardProps) {
   const { t } = useI18n();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [swipePosition, setSwipePosition] = useState(0);
   
   const isFav = isFavorite(course.id.toString());
 
-  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDragEnd = useCallback((_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const swipeThreshold = 100;
     
     if (Math.abs(info.offset.x) > swipeThreshold) {
@@ -36,7 +36,12 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
     }
     
     setSwipePosition(0);
-  };
+  }, [course.id, toggleFavorite]);
+
+  const handleFavoriteClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    toggleFavorite(course.id.toString());
+  }, [course.id, toggleFavorite]);
   
   return (
     <motion.div
@@ -91,10 +96,7 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
             <Button
               size="icon"
               variant="ghost"
-              onClick={(e) => {
-                e.preventDefault();
-                toggleFavorite(course.id.toString());
-              }}
+              onClick={handleFavoriteClick}
               className="min-h-11 min-w-11 p-0"
               data-testid={`button-favorite-${course.id}`}
               aria-label={isFav ? t('course.removeFromFavorites') : t('course.addToFavorites')}
@@ -182,4 +184,4 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
     </Card>
     </motion.div>
   );
-}
+});
