@@ -2,32 +2,7 @@
 
 ## Overview
 
-Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain, covering 40+ premier courses from Sotogrande to Málaga. The platform provides **real tee-time availability checking** (not just booking forms), curated course selection, geolocation-based search, and a complete booking flow with personal concierge-quality service.
-
-**Core Features:**
-- ✅ **Real-time tee time availability** - Shows actual available times within your search window (e.g., 10:00-12:00 tomorrow)
-- ✅ **Golfee-inspired UI redesign** - Modern, compact card layout with course images and inline tee times (no expand/collapse needed)
-- ✅ **Course imagery** - All 43 courses feature 100% unique professional golf course photos verified by MD5 checksum (zero duplicates)
-- ✅ **Inline tee times** - All available slots visible immediately with horizontal scrolling for efficient browsing
-- ✅ **List/Map view toggle** - Switch between course list and interactive Leaflet map with location markers
-- ✅ **Smart sorting** - 4-way sorting: Closer/Farther, Cheaper/More expensive with visual active states
-- ✅ **Provider type badges** - Visual indicators show "Direct" badge for courses using direct booking links (DEEP_LINK type only)
-- ✅ **Geolocation-based discovery** - Find nearest courses automatically or search by city
-- ✅ **Smart filtering** - Date, players, time windows, **holes (9 or 18)**, **course name search** with distance sorting
-- ✅ **Course search** - Free text search field to find specific golf courses by name (case-insensitive, partial matching)
-- ✅ **Flexible booking** - Click any inline tee time to book instantly via modal
-- ✅ **Affiliate email system** - Bulk email management for golf club partnership proposals (20% commission)
-- ✅ **Admin dashboard** - Manage bookings, track email campaigns, and update course images
-- ✅ **Course image management** - Admin can change golf course images via dedicated Course Images tab
-- ✅ **Premium UI** - Golf-themed design (Playfair Display + Inter fonts, green accent colors)
-
-**Current Status (November 2025):**
-- All core functionality implemented and tested
-- ✅ **Golfmanager API integration with 3 modes:**
-  - **DEMO mode** (default): Attempts sandbox API calls for Marbella Golf, falls back to mock data (current: sandbox returns 401, uses mock)
-  - **PRODUCTION mode**: Real tee-times when GOLFMANAGER_API_KEY is configured - infrastructure ready
-  - **MOCK mode**: Test data only (explicit GOLFMANAGER_MODE=mock)
-- Ready for additional providers (iMasterGolf, direct club sites)
+Fridas Golf is a boutique-premium golf tee-time service for the Costa del Sol, Spain. It offers real tee-time availability checking across 40+ premier courses from Sotogrande to Málaga, a curated course selection, geolocation-based search, and a complete booking flow with personal concierge-quality service. The platform aims to provide a modern, efficient, and user-friendly experience for booking golf tee times.
 
 ## User Preferences
 
@@ -37,241 +12,45 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-**Framework & Build System:**
-- React 18 with TypeScript
-- Vite for development and production builds
-- Wouter for client-side routing (lightweight alternative to React Router)
-
-**UI Component System:**
-- shadcn/ui component library (Radix UI primitives + Tailwind CSS)
-- TeeTimesBooking.com-inspired compact list design for efficient tee time scanning
-- Typography: Inter (primary) and Playfair Display (accent serif for golf elegance)
-- Responsive single-column list layouts with flex utilities
-
-**State Management:**
-- TanStack Query (React Query) for server state and caching
-- Local React state for UI interactions
-- Custom hooks for geolocation and toast notifications
-
-**Key Pages:**
-- Home: Hero section with location search. Shows Golfee-inspired compact card layout with:
-  - **Golf course images**: Professional photos for all 43 courses
-  - **Inline tee times**: All slots visible directly with horizontal scroll (no expand/collapse)
-  - **List/Map toggle**: Switch between card list and interactive Leaflet map view
-  - **4-way sorting**: Closer/Farther, Cheaper/More expensive (visible in list view only)
-  - **Smart filtering**: Date, players, time window, holes (9/18), course name search
-- Admin: Multi-tab interface for:
-  - **Booking Requests**: View all customer tee time booking requests
-  - **Golf Courses**: Directory of all 43 courses with contact information
-  - **Featured Courses**: Preview of top 3 premium courses
-  - **All Courses**: Complete visual gallery of all 43 courses
-  - **Affiliate Emails**: Bulk email system for partnership proposals
-  - **Course Images**: Manage and update golf course images (admin can change imageUrl for any course)
-- Not Found: 404 error page
+The frontend is built with React 18 and TypeScript, using Vite for fast development and production builds. Wouter is used for client-side routing. The UI leverages `shadcn/ui` (Radix UI + Tailwind CSS) for components, inspired by `TeeTimesBooking.com` for a compact layout. Typography includes Inter (primary) and Playfair Display (accent). State management is handled by TanStack Query for server state and local React state for UI interactions. Key features include a Golfee-inspired course listing with inline tee times, a list/map view toggle (Leaflet), 4-way sorting, and smart filtering (date, players, time, holes, course name). An Admin dashboard provides tools for managing bookings, courses, images, and affiliate emails.
 
 ### Backend Architecture
 
-**Server Framework:**
-- Node.js with Express
-- TypeScript with ESM modules
-- Custom Vite middleware integration for development HMR
-
-**API Design:**
-- RESTful endpoints under `/api` prefix
-- JSON request/response format
-- Error handling with appropriate HTTP status codes
-
-**Data Layer:**
-- In-memory storage implementation (MemStorage class) for development
-- Drizzle ORM schema defined for PostgreSQL (production-ready)
-- UUID-based primary keys for all entities
-
-**Core Routes:**
-- `GET /api/courses` - List all golf courses
-- `GET /api/courses/:id` - Get single course details
-- `PATCH /api/courses/:id/image` - Update course image (admin only)
-  - Request body: `{ imageUrl: string }`
-  - Validates imageUrl format: must start with `/stock_images/` and end with `.jpg`
-  - Returns updated course object
-- `GET /api/slots/search?lat=X&lng=Y&date=ISO&players=N&fromTime=HH:MM&toTime=HH:MM&holes=9|18` - Search tee times with filters
-  - **NOW FUNCTIONAL**: Returns available tee times within specified time window (e.g., 10:00-12:00)
-  - Sorts courses by distance from user location using Haversine formula
-  - **Holes filter**: 9 or 18 holes (default: 18)
-    - Mock mode: Generates different schedules and pricing based on holes selection
-      - 9 holes: 20-minute intervals, €22-66 (~55% of 18-hole price), morning/evening preference
-      - 18 holes: 45-minute intervals, €40-120, evenly distributed throughout day
-    - Demo/Production mode: Tags returned slots with user's selection (API doesn't support holes filtering)
-  - Returns: `[{ courseId, courseName, distanceKm, slots: [{ teeTime, greenFee, players, holes }], note }]`
-- `POST /api/bookings` - Create booking request
-- `GET /api/bookings` - List all booking requests (admin view)
-- `POST /api/affiliate-emails/send` - Send bulk affiliate partnership emails
-- `GET /api/affiliate-emails` - List all sent affiliate emails
+The backend is developed with Node.js and Express in TypeScript, using ESM modules. It provides RESTful APIs under the `/api` prefix, handling JSON requests/responses and error handling. Data storage in development uses an in-memory solution, while production uses Drizzle ORM with PostgreSQL. The core API routes manage golf courses, tee time searches (including a functional `holes` filter), booking requests, and affiliate email campaigns. An admin endpoint allows updating course images with validation and secure file deletion.
 
 ### Data Storage Solutions
 
-**Schema Design (Drizzle ORM + PostgreSQL):**
-
-1. **golf_courses** - Core course directory
-   - Location data (lat/lng, city, province)
-   - Contact information (email, phone, website)
-   - Booking URLs and notes
-   - **imageUrl** - Unique professional golf course photos (each of the 43 courses has its own exclusive image)
-
-2. **tee_time_providers** - External booking systems
-   - Provider types: SCRAPER, API, DEEP_LINK_ONLY
-   - Base URLs and JSON configuration storage
-
-3. **course_provider_links** - Many-to-many relationships
-   - Links courses to their booking providers
-   - Stores provider-specific course codes
-
-4. **booking_requests** - User booking submissions
-   - Customer details and tee time selections
-   - Status tracking (PENDING, CONFIRMED, CANCELLED)
-
-5. **affiliate_emails** - Email campaign tracking
-   - Subject/body templates
-   - Delivery status and timestamps
-   - Course-specific targeting
-
-**Implementation Strategy:**
-- Development: In-memory Map-based storage for rapid iteration
-- Production: PostgreSQL via Neon serverless driver
-- Migration path: Drizzle Kit for schema management
+The schema, defined using Drizzle ORM for PostgreSQL, includes tables for `golf_courses`, `tee_time_providers`, `course_provider_links`, `booking_requests`, and `affiliate_emails`. Each golf course has a unique `imageUrl`. UUIDs are used for primary keys.
 
 ### Authentication and Authorization
 
-**Current Implementation:**
-- No authentication system implemented
-- Admin panel is publicly accessible
-- Session management configured via `connect-pg-simple` (prepared for future use)
-
-**Future Considerations:**
-- Cookie-based sessions ready for integration
-- SMTP credentials stored in environment variables
-- Email sending capabilities already implemented via Nodemailer
+Currently, no authentication is implemented, making the admin panel publicly accessible. Session management is configured for future integration.
 
 ### Email System
 
-**Architecture:**
-- Nodemailer with SMTP transport
-- Environment-based configuration (host, port, credentials)
-- Template system with placeholder replacement:
-  - `[COURSE_NAME]` - Golf course name
-  - `[SENDER_NAME]` - Email sender identity
-
-**Use Cases:**
-- Bulk affiliate partnership proposals (20% commission model)
-- Individual course outreach
-- Bilingual templates (English/Spanish) for Costa del Sol market
-
-**Error Handling:**
-- Validates course email addresses before sending
-- Returns success/error status to client
-- Transactional email pattern (one email per API call)
+The email system uses Nodemailer with SMTP transport for sending bulk affiliate partnership proposals and individual course outreach. It supports environment-based configuration and uses templates with placeholders.
 
 ### Geolocation System
 
-**Client-Side Implementation:**
-- Browser Geolocation API with permission handling
-- Haversine formula for distance calculations
-- Predefined city coordinates for manual selection
-
-**Features:**
-- Current location detection with 10-second timeout
-- Fallback to manual city selection (Marbella, Málaga, Sotogrande, etc.)
-- Distance calculation in kilometers
-- Course sorting by proximity to user
+Client-side geolocation uses the Browser Geolocation API, with Haversine formula for distance calculations. It provides current location detection, fallback to manual city selection, and course sorting by proximity.
 
 ## External Dependencies
 
 ### Third-Party Services
 
-**Email Service (SMTP):**
-- Configurable SMTP server (credentials via environment variables)
-- Required variables: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`
-
-**Database:**
-- Neon Serverless PostgreSQL (via `@neondatabase/serverless`)
-- Connection string: `DATABASE_URL` environment variable
-- WebSocket-based driver for serverless compatibility
+-   **Email Service (SMTP)**: Configurable via environment variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`).
+-   **Database**: Neon Serverless PostgreSQL, connected via `@neondatabase/serverless` using the `DATABASE_URL` environment variable.
 
 ### Core Libraries
 
-**UI & Styling:**
-- Tailwind CSS v3 with custom design tokens
-- Radix UI primitives (20+ component packages)
-- class-variance-authority for component variants
-- Lucide React for iconography
-
-**Data & Forms:**
-- Drizzle ORM v0.39 with Zod schema validation
-- React Hook Form with Zod resolvers
-- date-fns for date manipulation
-
-**Development Tools:**
-- Vite plugins: runtime error overlay, cartographer (Replit integration)
-- tsx for TypeScript execution
-- esbuild for server bundling
+-   **UI & Styling**: Tailwind CSS, Radix UI primitives, `class-variance-authority`, Lucide React.
+-   **Data & Forms**: Drizzle ORM, Zod, React Hook Form, `date-fns`.
+-   **Development Tools**: Vite, `tsx`, `esbuild`.
 
 ### API Integration Points
 
-**Tee Time Availability Search:**
-- User selects location (geolocation, manual city selection, or "All Costa del Sol")
-- Sets search criteria: date, number of players, time window (e.g., 10:00-12:00)
-- Backend queries Golfmanager API for real-time availability (if API key configured)
-- Falls back to mock data (3-5 slots per course) if Golfmanager API not configured
-- Results displayed as clickable time slot cards with green fees sorted by distance
-- User clicks specific time → Booking modal pre-fills with exact slot data
-
-**Golfmanager API Integration:**
-- **Status**: Production-ready integration implemented
-- **Authentication**: API key via header (`key: YOUR_API_KEY`)
-- **Base URL**: https://eu.golfmanager.com/api
-- **Important Discovery**: iMaster.golf and teeone.golf use the same Golfmanager API!
-- **How to get API key**:
-  1. Download authorization form: https://www.golfmanager.com/multicourse-api-authorization/
-  2. Email completed form to dsillari@golfmanager.com (Daniel Sillari - API Integration Manager)
-  3. Request "Consumer API" access for tee-time availability
-  4. Cost: €25/month per golf course tenant
-- **Environment Variable**: `GOLFMANAGER_API_KEY`
-- **Integrated Courses (16 with provider links ready)**:
-  - La Reserva Club Sotogrande (tenant: lareserva)
-  - Finca Cortesín Golf Club (tenant: fincacortesin)
-  - Real Club de Golf Sotogrande (tenant: rcgsotogrande)
-  - San Roque Club (tenant: sanroque)
-  - El Paraíso Golf Club (tenant: paraiso) - via iMaster/teeone
-  - Marbella Golf & Country Club (tenant: marbella) - via iMaster/teeone
-  - Estepona Golf (tenant: estepona) - via iMaster/teeone
-  - Atalaya Golf & Country Club (tenant: atalaya) - via iMaster/teeone
-  - Santa Clara Golf Marbella (tenant: santaclara) - via iMaster/teeone
-  - Los Naranjos Golf Club (tenant: naranjos) - via iMaster/teeone
-  - Mijas Golf (tenant: mijas) - via iMaster/teeone
-  - Torrequebrada Golf (tenant: torrequebrada) - via iMaster/teeone
-  - **Real Club Valderrama (tenant: valderrama)** - Premium €500, #1 Continental Europe, 1997 Ryder Cup host
-  - **Flamingos Golf / Villa Padierna (tenant: villapadierna)** - Luxury resort with 3 courses (Flamingos, Alferini, Tramores)
-  - **Los Arqueros Golf (tenant: arqueros)** - Seve Ballesteros design
-  - **La Quinta Golf (tenant: quinta)** - 27 holes, Manuel Piñero design
-
-**Direct Booking Integration (DEEP_LINK_ONLY):**
-- **Status**: Active with 4 courses configured
-- **Courses with direct booking links**:
-  - Club de Golf La Cañada
-  - El Chaparral Golf Club
-  - Calanova Golf Club
-  - Baviera Golf
-- **UI Badge**: These courses display a "Direct" outline badge to indicate deep-link booking
-- **User Flow**: Clicking tee time opens booking modal, which links to club's direct booking page
-
-**Tee Time Provider Integration:**
-- Provider type system supports:
-  - Web scraping (SCRAPER type) - For courses without APIs
-  - REST APIs (API type) - For Golfmanager, iMasterGolf, etc.
-  - Direct booking links (DEEP_LINK_ONLY type) - Deep links to club sites
-- Configuration stored as JSON in database
-- Adapter pattern ready for multiple provider implementations
-- **Total Coverage**: 16 API-integrated courses + 4 direct booking courses + 23 additional courses (43 total)
-
-**Geolocation Services:**
-- Browser-native Geolocation API (no external service required)
-- Costa del Sol city coordinates hardcoded in application
+-   **Tee Time Availability Search**: Integrates with external APIs to fetch real-time tee times based on user criteria.
+-   **Golfmanager API**: Production-ready integration for real-time tee-time availability, with support for `DEMO` (falls back to mock), `PRODUCTION`, and `MOCK` modes. Authentication uses an API key. Integrated with 16 courses, including premium ones like Real Club Valderrama.
+-   **Direct Booking Integration (DEEP_LINK_ONLY)**: Active for 4 courses (e.g., Club de Golf La Cañada), allowing users to book directly on the club's website. These courses display a "Direct" badge.
+-   **Tee Time Provider Integration**: A flexible system supporting web scraping (`SCRAPER`), REST APIs (`API`), and direct booking links (`DEEP_LINK_ONLY`) for various providers.
+-   **Geolocation Services**: Utilizes the browser's native Geolocation API; no external service required.
