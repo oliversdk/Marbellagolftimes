@@ -17,7 +17,8 @@ Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain
 - ✅ **Course search** - Free text search field to find specific golf courses by name (case-insensitive, partial matching)
 - ✅ **Flexible booking** - Click any inline tee time to book instantly via modal
 - ✅ **Affiliate email system** - Bulk email management for golf club partnership proposals (20% commission)
-- ✅ **Admin dashboard** - Manage bookings and track email campaigns
+- ✅ **Admin dashboard** - Manage bookings, track email campaigns, and update course images
+- ✅ **Course image management** - Admin can change golf course images via dedicated Course Images tab
 - ✅ **Premium UI** - Golf-themed design (Playfair Display + Inter fonts, green accent colors)
 
 **Current Status (November 2025):**
@@ -59,7 +60,13 @@ Preferred communication style: Simple, everyday language.
   - **List/Map toggle**: Switch between card list and interactive Leaflet map view
   - **4-way sorting**: Closer/Farther, Cheaper/More expensive (visible in list view only)
   - **Smart filtering**: Date, players, time window, holes (9/18), course name search
-- Admin: Two-tab interface for viewing booking requests and managing affiliate emails
+- Admin: Multi-tab interface for:
+  - **Booking Requests**: View all customer tee time booking requests
+  - **Golf Courses**: Directory of all 43 courses with contact information
+  - **Featured Courses**: Preview of top 3 premium courses
+  - **All Courses**: Complete visual gallery of all 43 courses
+  - **Affiliate Emails**: Bulk email system for partnership proposals
+  - **Course Images**: Manage and update golf course images (admin can change imageUrl for any course)
 - Not Found: 404 error page
 
 ### Backend Architecture
@@ -82,6 +89,10 @@ Preferred communication style: Simple, everyday language.
 **Core Routes:**
 - `GET /api/courses` - List all golf courses
 - `GET /api/courses/:id` - Get single course details
+- `PATCH /api/courses/:id/image` - Update course image (admin only)
+  - Request body: `{ imageUrl: string }`
+  - Validates imageUrl format: must start with `/stock_images/` and end with `.jpg`
+  - Returns updated course object
 - `GET /api/slots/search?lat=X&lng=Y&date=ISO&players=N&fromTime=HH:MM&toTime=HH:MM&holes=9|18` - Search tee times with filters
   - **NOW FUNCTIONAL**: Returns available tee times within specified time window (e.g., 10:00-12:00)
   - Sorts courses by distance from user location using Haversine formula
