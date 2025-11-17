@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, type CourseWithSlots, type TeeTimeSlot } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -47,6 +48,21 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Auth middleware - Code from blueprint:javascript_log_in_with_replit
+  await setupAuth(app);
+
+  // Auth routes - Code from blueprint:javascript_log_in_with_replit
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   // GET /api/courses - Get all golf courses
   app.get("/api/courses", async (req, res) => {
     try {
@@ -70,8 +86,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PATCH /api/courses/:id/image - Update course image
-  app.patch("/api/courses/:id/image", async (req, res) => {
+  // PATCH /api/courses/:id/image - Update course image (Admin only)
+  app.patch("/api/courses/:id/image", isAuthenticated, async (req, res) => {
     try {
       const { imageUrl } = req.body;
 
@@ -112,8 +128,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/upload/course-image - Upload a course image
-  app.post("/api/upload/course-image", upload.single("image"), async (req, res) => {
+  // POST /api/upload/course-image - Upload a course image (Admin only)
+  app.post("/api/upload/course-image", isAuthenticated, upload.single("image"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -132,8 +148,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DELETE /api/images/:filename - Delete an image file
-  app.delete("/api/images/:filename", async (req, res) => {
+  // DELETE /api/images/:filename - Delete an image file (Admin only)
+  app.delete("/api/images/:filename", isAuthenticated, async (req, res) => {
     try {
       const { filename } = req.params; // Already URL-decoded by Express
       const { courseId, directory } = req.query;
@@ -482,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/bookings - Create booking request
+  // POST /api/bookings - Create booking request (Public endpoint)
   app.post("/api/bookings", async (req, res) => {
     try {
       const validatedData = insertBookingRequestSchema.parse(req.body);
@@ -496,8 +512,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/bookings - Get all booking requests
-  app.get("/api/bookings", async (req, res) => {
+  // GET /api/bookings - Get all booking requests (Admin only)
+  app.get("/api/bookings", isAuthenticated, async (req, res) => {
     try {
       const bookings = await storage.getAllBookings();
       res.json(bookings);
@@ -506,8 +522,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/bookings/:id - Get booking by ID
-  app.get("/api/bookings/:id", async (req, res) => {
+  // GET /api/bookings/:id - Get booking by ID (Admin only)
+  app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
       const booking = await storage.getBookingById(req.params.id);
       if (!booking) {
@@ -519,8 +535,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/affiliate-emails/send - Send affiliate partnership emails
-  app.post("/api/affiliate-emails/send", async (req, res) => {
+  // POST /api/affiliate-emails/send - Send affiliate partnership emails (Admin only)
+  app.post("/api/affiliate-emails/send", isAuthenticated, async (req, res) => {
     try {
       const { courseIds, subject, body, senderName } = req.body;
 
@@ -600,8 +616,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/affiliate-emails - Get all affiliate email records
-  app.get("/api/affiliate-emails", async (req, res) => {
+  // GET /api/affiliate-emails - Get all affiliate email records (Admin only)
+  app.get("/api/affiliate-emails", isAuthenticated, async (req, res) => {
     try {
       const emails = await storage.getAllAffiliateEmails();
       res.json(emails);

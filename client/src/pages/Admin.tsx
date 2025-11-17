@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
 import { CourseCard } from "@/components/CourseCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,15 +71,17 @@ export default function Admin() {
   const [senderName, setSenderName] = useState("");
   const [courseImageUrls, setCourseImageUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  // Fetch courses
+  // Fetch courses (public endpoint)
   const { data: courses } = useQuery<GolfCourse[]>({
     queryKey: ["/api/courses"],
   });
 
-  // Fetch bookings
+  // Fetch bookings - only if authenticated
   const { data: bookings } = useQuery<BookingRequest[]>({
     queryKey: ["/api/bookings"],
+    enabled: isAuthenticated,
   });
 
   // Send affiliate emails mutation
@@ -186,6 +189,43 @@ export default function Admin() {
       });
     },
   });
+
+  // Page-level auth protection - Code from blueprint:javascript_log_in_with_replit
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        // Preserve return path for post-login redirect
+        const returnTo = encodeURIComponent(window.location.pathname);
+        window.location.href = `/api/login?returnTo=${returnTo}`;
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, isLoading, toast]);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render admin content if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const handleToggleCourse = (courseId: string) => {
     setSelectedCourseIds((prev) =>
