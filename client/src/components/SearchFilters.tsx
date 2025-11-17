@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { CalendarIcon, Search, Check } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
+import { CalendarIcon, Search, X, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { useRecentSearches } from "@/hooks/useRecentSearches";
 import type { GolfCourse } from "@shared/schema";
+import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
 
 interface SearchFiltersProps {
   currentFilters?: {
@@ -50,6 +52,8 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
   const [courseSearch, setCourseSearch] = useState<string>(currentFilters?.courseSearch || "");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(currentFilters?.showFavoritesOnly ?? false);
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
+  
+  const { recentSearches, addRecentSearch, clearRecentSearches } = useRecentSearches();
 
   const { data: courses } = useQuery<GolfCourse[]>({
     queryKey: ["/api/courses"],
@@ -72,15 +76,44 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
     });
   };
 
-  const handleSelectCourse = (courseName: string) => {
+  const handleSelectCourse = (course: GolfCourse) => {
+    setCourseSearch(course.name);
+    addRecentSearch(course.id, course.name, course.imageUrl || undefined);
+    setAutocompleteOpen(false);
+  };
+
+  const handleSelectRecentSearch = (courseId: string, courseName: string, imageUrl?: string) => {
+    addRecentSearch(courseId, courseName, imageUrl);
     setCourseSearch(courseName);
     setAutocompleteOpen(false);
   };
 
+  // Filter courses based on search input
+  const filteredCourses = courses
+    ?.filter((course) =>
+      course.name.toLowerCase().includes(courseSearch.toLowerCase()) ||
+      course.city.toLowerCase().includes(courseSearch.toLowerCase()) ||
+      course.province.toLowerCase().includes(courseSearch.toLowerCase())
+    )
+    .slice(0, 10) || [];
+
+  // Show recent searches when input is empty or focused
+  const showRecentSearches = courseSearch.trim() === "" && recentSearches.length > 0;
+
+  // Enrich recent searches with city/province if available in courses
+  const recentSearchesWithData = recentSearches.map((recent) => {
+    const course = courses?.find((c) => c.id === recent.courseId);
+    return {
+      ...recent,
+      city: course?.city,
+      province: course?.province,
+    };
+  });
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="course-search">{t('search.placeholder')}</Label>
+        <Label htmlFor="course-search">{t('search.searchCourses')}</Label>
         <Popover open={autocompleteOpen} onOpenChange={setAutocompleteOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -90,45 +123,102 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
               className="w-full justify-start text-left font-normal"
               data-testid="input-course-search"
             >
-              {courseSearch || t('search.placeholder')}
+              <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+              <span className={cn(!courseSearch && "text-muted-foreground")}>
+                {courseSearch || t('search.searchCourses')}
+              </span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-full p-0" align="start">
+          <PopoverContent className="w-[400px] p-0" align="start">
             <Command>
               <CommandInput
-                placeholder={t('search.placeholder')}
+                placeholder={t('search.searchCourses')}
                 value={courseSearch}
                 onValueChange={setCourseSearch}
+                data-testid="input-course-search-field"
               />
               <CommandList>
-                <CommandEmpty>{t('search.noResults')}</CommandEmpty>
-                <CommandGroup>
-                  {courses
-                    ?.filter((course) =>
-                      course.name.toLowerCase().includes(courseSearch.toLowerCase())
-                    )
-                    .slice(0, 10)
-                    .map((course) => (
-                      <CommandItem
-                        key={course.id}
-                        value={course.name}
-                        onSelect={handleSelectCourse}
+                {showRecentSearches && (
+                  <>
+                    <CommandGroup heading={t('search.recentSearches')}>
+                      {recentSearchesWithData.map((recent) => (
+                        <CommandItem
+                          key={recent.courseId}
+                          value={recent.courseName}
+                          onSelect={() => handleSelectRecentSearch(recent.courseId, recent.courseName, recent.imageUrl)}
+                          className="gap-2"
+                          data-testid={`recent-search-${recent.courseId}`}
+                        >
+                          <Clock className="h-4 w-4 shrink-0 opacity-50" />
+                          <img
+                            src={recent.imageUrl || placeholderImage}
+                            alt={recent.courseName}
+                            className="h-12 w-12 rounded-md object-cover shrink-0"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = placeholderImage;
+                            }}
+                          />
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="font-medium truncate">{recent.courseName}</span>
+                            {recent.city && recent.province && (
+                              <span className="text-xs text-muted-foreground truncate">
+                                {recent.city}, {recent.province}
+                              </span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                    <div className="flex items-center justify-between px-2 py-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          clearRecentSearches();
+                        }}
+                        className="h-8 text-xs"
+                        data-testid="button-clear-recent"
                       >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            courseSearch === course.name ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        <div className="flex flex-col">
-                          <span>{course.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {course.city}, {course.province}
-                          </span>
-                        </div>
-                      </CommandItem>
-                    ))}
-                </CommandGroup>
+                        <X className="mr-1 h-3 w-3" />
+                        {t('search.clearRecent')}
+                      </Button>
+                    </div>
+                    <CommandSeparator />
+                  </>
+                )}
+                {!showRecentSearches && (
+                  <>
+                    <CommandEmpty>{t('search.noResults')}</CommandEmpty>
+                    <CommandGroup>
+                      {filteredCourses.map((course) => (
+                        <CommandItem
+                          key={course.id}
+                          value={course.name}
+                          onSelect={() => handleSelectCourse(course)}
+                          className="gap-2"
+                          data-testid={`course-search-result-${course.id}`}
+                        >
+                          <img
+                            src={course.imageUrl || placeholderImage}
+                            alt={course.name}
+                            className="h-12 w-12 rounded-md object-cover shrink-0"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = placeholderImage;
+                            }}
+                          />
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="font-medium truncate">{course.name}</span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {course.city}, {course.province}
+                            </span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
               </CommandList>
             </Command>
           </PopoverContent>

@@ -36,6 +36,9 @@ const translations: Record<Language, Translations> = {
     },
     search: {
       placeholder: 'Search courses...',
+      searchCourses: 'Search courses...',
+      recentSearches: 'Recent searches',
+      clearRecent: 'Clear recent',
       date: 'Date',
       player: 'Player',
       players: 'Players',
@@ -296,6 +299,9 @@ const translations: Record<Language, Translations> = {
     },
     search: {
       placeholder: 'Buscar campos...',
+      searchCourses: 'Buscar campos...',
+      recentSearches: 'Búsquedas recientes',
+      clearRecent: 'Limpiar recientes',
       date: 'Fecha',
       player: 'Jugador',
       players: 'Jugadores',
@@ -556,6 +562,9 @@ const translations: Record<Language, Translations> = {
     },
     search: {
       placeholder: 'Søg baner...',
+      searchCourses: 'Søg baner...',
+      recentSearches: 'Seneste søgninger',
+      clearRecent: 'Ryd seneste',
       date: 'Dato',
       player: 'Spiller',
       players: 'Spillere',
@@ -816,6 +825,9 @@ const translations: Record<Language, Translations> = {
     },
     search: {
       placeholder: 'Sök banor...',
+      searchCourses: 'Sök banor...',
+      recentSearches: 'Senaste sökningar',
+      clearRecent: 'Rensa senaste',
       date: 'Datum',
       player: 'Spelare',
       players: 'Spelare',
@@ -1076,6 +1088,9 @@ const translations: Record<Language, Translations> = {
     },
     search: {
       placeholder: 'Поиск полей...',
+      searchCourses: 'Поиск полей...',
+      recentSearches: 'Недавние поиски',
+      clearRecent: 'Очистить недавние',
       date: 'Дата',
       player: 'Игрок',
       players: 'Игроки',
