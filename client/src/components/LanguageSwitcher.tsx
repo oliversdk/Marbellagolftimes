@@ -12,6 +12,8 @@ const languages = [
   { code: 'en' as Language, name: 'English', shortName: 'EN' },
   { code: 'es' as Language, name: 'Español', shortName: 'ES' },
   { code: 'da' as Language, name: 'Dansk', shortName: 'DA' },
+  { code: 'sv' as Language, name: 'Svenska', shortName: 'SV' },
+  { code: 'ru' as Language, name: 'Русский', shortName: 'RU' },
 ];
 
 export function LanguageSwitcher() {
