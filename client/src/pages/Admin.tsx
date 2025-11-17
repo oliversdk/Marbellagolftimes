@@ -167,9 +167,9 @@ export default function Admin() {
 
   // Delete course image mutation
   const deleteImageMutation = useMutation({
-    mutationFn: async ({ filename, courseId }: { filename: string; courseId: string }) => {
+    mutationFn: async ({ filename, courseId, directory }: { filename: string; courseId: string; directory: string }) => {
       const encodedFilename = encodeURIComponent(filename);
-      return await apiRequest("DELETE", `/api/images/${encodedFilename}?courseId=${encodeURIComponent(courseId)}`, undefined);
+      return await apiRequest("DELETE", `/api/images/${encodedFilename}?courseId=${encodeURIComponent(courseId)}&directory=${encodeURIComponent(directory)}`, undefined);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
@@ -435,37 +435,42 @@ export default function Admin() {
                             <div className="space-y-2">
                               <Label className="text-xs text-muted-foreground">Current Image</Label>
                               {course.imageUrl ? (
-                                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted group">
-                                  <img
-                                    src={course.imageUrl}
-                                    alt={course.name}
-                                    className="w-full h-full object-cover"
-                                    data-testid={`img-course-${course.id}`}
-                                  />
+                                <div className="space-y-2">
+                                  <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
+                                    <img
+                                      src={course.imageUrl}
+                                      alt={course.name}
+                                      className="w-full h-full object-cover"
+                                      data-testid={`img-course-${course.id}`}
+                                    />
+                                  </div>
                                   <Button
                                     size="sm"
                                     variant="destructive"
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="w-full"
                                     onClick={() => {
                                       if (!course.imageUrl) return;
-                                      const filename = course.imageUrl.split("/").pop();
+                                      const parts = course.imageUrl.split("/");
+                                      const filename = parts.pop();
+                                      const directory = parts[parts.length - 1]; // "stock_images" or "generated_images"
                                       if (filename && window.confirm(`Delete ${filename}? This cannot be undone.`)) {
-                                        deleteImageMutation.mutate({ filename, courseId: course.id });
+                                        deleteImageMutation.mutate({ filename, courseId: course.id, directory });
                                       }
                                     }}
                                     data-testid={`button-delete-image-${course.id}`}
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Trash2 className="h-3 w-3 mr-2" />
+                                    Delete Image
                                   </Button>
+                                  <div className="text-xs text-muted-foreground break-all">
+                                    {course.imageUrl}
+                                  </div>
                                 </div>
                               ) : (
                                 <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
                                   <span className="text-xs text-muted-foreground">No image</span>
                                 </div>
                               )}
-                              <div className="text-xs text-muted-foreground break-all">
-                                {course.imageUrl || "None"}
-                              </div>
                             </div>
                           </div>
 
@@ -483,12 +488,12 @@ export default function Admin() {
                                     [course.id]: e.target.value,
                                   }))
                                 }
-                                placeholder="/stock_images/filename.jpg"
+                                placeholder="/stock_images/filename.jpg or /generated_images/filename.png"
                                 className="font-mono text-sm"
                                 data-testid={`input-image-url-${course.id}`}
                               />
                               <p className="text-xs text-muted-foreground">
-                                Upload or enter path (formats: .jpg, .jpeg, .png, .webp)
+                                Path format: /stock_images/ or /generated_images/ + filename (.jpg, .jpeg, .png, .webp)
                               </p>
                             </div>
                           </div>
@@ -533,10 +538,11 @@ export default function Admin() {
                                   const hasValidExtension = validExtensions.some(ext => 
                                     newImageUrl.toLowerCase().endsWith(ext)
                                   );
-                                  if (!newImageUrl.startsWith("/stock_images/") || !hasValidExtension) {
+                                  const startsWithValidDirectory = newImageUrl.startsWith("/stock_images/") || newImageUrl.startsWith("/generated_images/");
+                                  if (!startsWithValidDirectory || !hasValidExtension) {
                                     toast({
                                       title: "Invalid Format",
-                                      description: "URL must start with /stock_images/ and end with .jpg, .jpeg, .png, or .webp",
+                                      description: "URL must start with /stock_images/ or /generated_images/ and end with .jpg, .jpeg, .png, or .webp",
                                       variant: "destructive",
                                     });
                                     return;

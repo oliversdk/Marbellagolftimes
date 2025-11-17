@@ -89,13 +89,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "imageUrl must be a string or null" });
       }
 
-      // Validate that imageUrl starts with /stock_images/ and ends with valid image extension
+      // Validate that imageUrl starts with allowed directory and ends with valid image extension
       const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
       const hasValidExtension = validExtensions.some(ext => imageUrl.toLowerCase().endsWith(ext));
+      const startsWithValidDirectory = imageUrl.startsWith("/stock_images/") || imageUrl.startsWith("/generated_images/");
       
-      if (!imageUrl.startsWith("/stock_images/") || !hasValidExtension) {
+      if (!startsWithValidDirectory || !hasValidExtension) {
         return res.status(400).json({ 
-          error: "Invalid imageUrl format. Must start with /stock_images/ and end with .jpg, .jpeg, .png, or .webp" 
+          error: "Invalid imageUrl format. Must start with /stock_images/ or /generated_images/ and end with .jpg, .jpeg, .png, or .webp" 
         });
       }
 
@@ -135,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/images/:filename", async (req, res) => {
     try {
       const { filename } = req.params; // Already URL-decoded by Express
-      const { courseId } = req.query;
+      const { courseId, directory } = req.query;
       
       // CRITICAL SECURITY: Validate decoded filename with strict whitelist regex
       // Only allow alphanumeric characters, dots, underscores, and hyphens
@@ -152,7 +153,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid filename" });
       }
 
-      const filePath = path.join(__dirname, "../client/public/stock_images", filename);
+      // Determine which directory to delete from
+      const allowedDirectories = ["stock_images", "generated_images"];
+      let targetDirectory = "stock_images"; // default
+      
+      if (directory && typeof directory === "string" && allowedDirectories.includes(directory)) {
+        targetDirectory = directory;
+      }
+
+      const filePath = path.join(__dirname, `../client/public/${targetDirectory}`, filename);
       
       // Check if file exists
       try {
