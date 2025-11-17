@@ -111,7 +111,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 touch-manipulation">
       <div className="space-y-2">
         <Label htmlFor="course-search">{t('search.searchCourses')}</Label>
         <Popover open={autocompleteOpen} onOpenChange={setAutocompleteOpen}>
@@ -120,7 +120,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
               variant="outline"
               role="combobox"
               aria-expanded={autocompleteOpen}
-              className="w-full justify-start text-left font-normal"
+              className="w-full justify-start text-left font-normal min-h-11"
               data-testid="input-course-search"
             >
               <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -225,7 +225,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         </Popover>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="space-y-2">
           <Label htmlFor="filter-date">{t('search.date')}</Label>
           <Popover>
@@ -233,7 +233,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
               <Button
                 id="filter-date"
                 variant="outline"
-                className="w-full justify-start text-left font-normal"
+                className="w-full justify-start text-left font-normal min-h-11"
                 data-testid="button-filter-date"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -255,7 +255,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         <div className="space-y-2">
           <Label htmlFor="filter-players">{t('search.players')}</Label>
           <Select value={players} onValueChange={setPlayers}>
-            <SelectTrigger id="filter-players" data-testid="select-filter-players">
+            <SelectTrigger id="filter-players" data-testid="select-filter-players" className="min-h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -271,7 +271,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         <div className="space-y-2">
           <Label htmlFor="filter-holes">{t('search.holes')}</Label>
           <Select value={holes} onValueChange={setHoles}>
-            <SelectTrigger id="filter-holes" data-testid="select-filter-holes">
+            <SelectTrigger id="filter-holes" data-testid="select-filter-holes" className="min-h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -284,7 +284,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         <div className="space-y-2">
           <Label htmlFor="filter-from-time">{t('search.timeRange')}</Label>
           <Select value={fromTime} onValueChange={setFromTime}>
-            <SelectTrigger id="filter-from-time" data-testid="select-from-time">
+            <SelectTrigger id="filter-from-time" data-testid="select-from-time" className="min-h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -300,7 +300,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         <div className="space-y-2">
           <Label htmlFor="filter-to-time">{t('search.timeRange')}</Label>
           <Select value={toTime} onValueChange={setToTime}>
-            <SelectTrigger id="filter-to-time" data-testid="select-to-time">
+            <SelectTrigger id="filter-to-time" data-testid="select-to-time" className="min-h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -314,12 +314,13 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 min-h-11">
         <Checkbox
           id="filter-favorites"
           checked={showFavoritesOnly}
           onCheckedChange={(checked) => setShowFavoritesOnly(checked === true)}
           data-testid="checkbox-show-favorites"
+          className="h-5 w-5"
         />
         <Label
           htmlFor="filter-favorites"
@@ -329,7 +330,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         </Label>
       </div>
 
-      <Button onClick={handleSearch} className="w-full" size="lg" data-testid="button-apply-filters">
+      <Button onClick={handleSearch} className="w-full min-h-11" size="lg" data-testid="button-apply-filters">
         <Search className="mr-2 h-4 w-4" />
         {t('common.apply')}
       </Button>

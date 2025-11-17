@@ -267,8 +267,8 @@ export default function Home() {
 
       {/* Search Filters */}
       {userLocation && (
-        <div className="border-b bg-card">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="border-b bg-card lg:relative lg:z-auto sticky top-0 z-50 lg:shadow-none shadow-md">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 touch-manipulation">
             <SearchFilters currentFilters={searchFilters} onSearch={handleFiltersApplied} />
           </div>
         </div>
@@ -320,13 +320,14 @@ export default function Home() {
           ) : availableSlots && availableSlots.length > 0 ? (
             <>
               {/* View Toggle + Sorting Controls */}
-              <div className="mb-6">
+              <div className="mb-6 touch-manipulation">
                 {/* View Mode Toggle */}
-                <div className="flex gap-2 mb-4">
+                <div className="flex gap-2 mb-4 flex-wrap">
                   <Button 
                     variant={viewMode === "list" ? "default" : "outline"}
                     onClick={() => setViewMode("list")}
                     data-testid="button-view-list"
+                    className="min-h-11"
                   >
                     <LayoutGrid className="mr-2 h-4 w-4" />
                     {t('search.viewList')}
@@ -335,6 +336,7 @@ export default function Home() {
                     variant={viewMode === "map" ? "default" : "outline"}
                     onClick={() => setViewMode("map")}
                     data-testid="button-view-map"
+                    className="min-h-11"
                   >
                     <Map className="mr-2 h-4 w-4" />
                     {t('search.viewMap')}
@@ -346,7 +348,7 @@ export default function Home() {
                   <div className="flex flex-wrap gap-2" data-testid="sort-controls">
                     <button
                       onClick={() => setSortMode("distance-asc")}
-                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
                         sortMode === "distance-asc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -357,7 +359,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("distance-desc")}
-                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
                         sortMode === "distance-desc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -368,7 +370,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("price-asc")}
-                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
                         sortMode === "price-asc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -379,7 +381,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("price-desc")}
-                      className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
                         sortMode === "price-desc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"

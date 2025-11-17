@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -5,6 +6,7 @@ import { MapPin, Phone, Globe, Mail, Heart } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "wouter";
 import { useFavorites } from "@/hooks/useFavorites";
+import { motion, PanInfo } from "framer-motion";
 import type { GolfCourse } from "@shared/schema";
 
 interface CourseCardProps {
@@ -20,11 +22,43 @@ interface CourseCardProps {
 export function CourseCard({ course, distance, price, priceRange, isBestDeal, onBook, onViewDetails }: CourseCardProps) {
   const { t } = useI18n();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const [swipePosition, setSwipePosition] = useState(0);
   
   const isFav = isFavorite(course.id.toString());
+
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const swipeThreshold = 100;
+    
+    if (Math.abs(info.offset.x) > swipeThreshold) {
+      toggleFavorite(course.id.toString());
+    }
+    
+    setSwipePosition(0);
+  };
   
   return (
-    <Card className="overflow-hidden hover-elevate" data-testid={`card-course-${course.id}`}>
+    <motion.div
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.2}
+      onDrag={(_event, info) => setSwipePosition(info.offset.x)}
+      onDragEnd={handleDragEnd}
+      style={{ touchAction: 'none' }}
+      data-testid={`card-course-wrapper-${course.id}`}
+    >
+      <Card className="overflow-visible hover-elevate relative" data-testid={`card-course-${course.id}`}>
+        {swipePosition !== 0 && (
+          <div
+            className={`absolute inset-y-0 ${swipePosition > 0 ? 'left-0' : 'right-0'} w-16 flex items-center justify-center z-0 ${
+              isFav ? 'bg-destructive' : 'bg-primary'
+            } transition-colors`}
+            style={{
+              opacity: Math.min(Math.abs(swipePosition) / 100, 1),
+            }}
+          >
+            <Heart className={`h-6 w-6 ${isFav ? 'fill-white text-white' : 'text-white'}`} />
+          </div>
+        )}
       <CardHeader className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
@@ -53,12 +87,12 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
                 e.preventDefault();
                 toggleFavorite(course.id.toString());
               }}
-              className="h-8 w-8"
+              className="min-h-11 min-w-11 p-0"
               data-testid={`button-favorite-${course.id}`}
               aria-label={isFav ? t('course.removeFromFavorites') : t('course.addToFavorites')}
             >
               <Heart
-                className={`h-5 w-5 ${isFav ? 'fill-current text-red-500' : 'text-muted-foreground'}`}
+                className={`h-6 w-6 ${isFav ? 'fill-current text-red-500' : 'text-muted-foreground'}`}
               />
             </Button>
             {distance !== undefined && (
@@ -115,10 +149,10 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 pt-0 flex gap-2">
+      <CardFooter className="p-4 pt-0 flex flex-col sm:flex-row gap-2">
         <Button
           variant="default"
-          className="flex-1"
+          className="flex-1 w-full sm:w-auto min-h-11"
           asChild
           data-testid={`button-view-details-${course.id}`}
         >
@@ -129,6 +163,7 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
         {course.bookingUrl && (
           <Button
             variant="outline"
+            className="w-full sm:w-auto min-h-11"
             onClick={() => window.open(course.bookingUrl || course.websiteUrl || "", "_blank")}
             data-testid={`button-club-site-${course.id}`}
           >
@@ -137,5 +172,6 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
         )}
       </CardFooter>
     </Card>
+    </motion.div>
   );
 }
