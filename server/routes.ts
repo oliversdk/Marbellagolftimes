@@ -5,11 +5,14 @@ import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, type CourseWithSlots, type TeeTimeSlot } from "@shared/schema";
+import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
+import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
+import nodemailer from "nodemailer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -498,22 +501,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/bookings - Create booking request (Public endpoint)
-  app.post("/api/bookings", async (req, res) => {
+  // POST /api/booking-requests - Create booking request (Public endpoint)
+  app.post("/api/booking-requests", async (req, res) => {
     try {
       const validatedData = insertBookingRequestSchema.parse(req.body);
       const booking = await storage.createBooking(validatedData);
+      
+      // Get course details for email
+      const course = await storage.getCourseById(booking.courseId);
+      
+      if (course) {
+        // Send confirmation email to customer (non-blocking, handle gracefully if SMTP not configured)
+        try {
+          const emailConfig = getEmailConfig();
+          
+          if (emailConfig) {
+            const bookingDetails: BookingDetails = {
+              id: booking.id,
+              courseName: course.name,
+              courseCity: course.city,
+              customerName: booking.customerName,
+              teeTime: new Date(booking.teeTime),
+              players: booking.players
+            };
+            
+            const emailContent = bookingConfirmationEmail(bookingDetails);
+            
+            const transporter = nodemailer.createTransport({
+              host: emailConfig.host,
+              port: emailConfig.port,
+              secure: emailConfig.port === 465,
+              auth: {
+                user: emailConfig.user,
+                pass: emailConfig.pass,
+              },
+            });
+            
+            await transporter.sendMail({
+              from: emailConfig.from,
+              to: booking.customerEmail,
+              subject: emailContent.subject,
+              html: emailContent.html,
+              text: emailContent.text,
+            });
+            
+            console.log(`✓ Booking confirmation email sent to ${booking.customerEmail}`);
+          } else {
+            console.warn('⚠ SMTP not configured - skipping confirmation email. Set SMTP environment variables to enable email notifications.');
+          }
+        } catch (emailError) {
+          // Log error but don't fail the booking
+          console.error('Email sending failed:', emailError instanceof Error ? emailError.message : emailError);
+          console.warn('⚠ Booking created successfully but confirmation email could not be sent');
+        }
+      }
+      
       res.status(201).json(booking);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid booking data", details: error.errors });
       }
+      console.error('Booking creation error:', error);
       res.status(500).json({ error: "Failed to create booking" });
     }
   });
 
-  // GET /api/bookings - Get all booking requests (Admin only)
-  app.get("/api/bookings", isAuthenticated, async (req, res) => {
+  // GET /api/booking-requests - Get all booking requests (Admin only)
+  app.get("/api/booking-requests", isAuthenticated, async (req, res) => {
     try {
       const bookings = await storage.getAllBookings();
       res.json(bookings);
@@ -522,8 +576,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/bookings/:id - Get booking by ID (Admin only)
-  app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
+  // GET /api/booking-requests/:id - Get booking by ID (Admin only)
+  app.get("/api/booking-requests/:id", isAuthenticated, async (req, res) => {
     try {
       const booking = await storage.getBookingById(req.params.id);
       if (!booking) {
@@ -532,6 +586,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(booking);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch booking" });
+    }
+  });
+
+  // GET /api/booking-requests/:id/calendar/download - Download iCal file for booking (Public endpoint)
+  app.get("/api/booking-requests/:id/calendar/download", async (req, res) => {
+    try {
+      const booking = await storage.getBookingById(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      const course = await storage.getCourseById(booking.courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Calculate end time (4 hours after start)
+      const startTime = new Date(booking.teeTime);
+      const endTime = new Date(startTime);
+      endTime.setHours(endTime.getHours() + 4);
+
+      const eventDetails: CalendarEventDetails = {
+        summary: `Golf at ${course.name}`,
+        description: `Tee time booking for ${booking.players} ${booking.players === 1 ? 'player' : 'players'} at ${course.name}.\\n\\nBooking Reference: ${booking.id}\\n\\nBooked via Fridas Golf - Your Personal Guide to Costa del Sol Golf`,
+        location: `${course.name}, ${course.city}, ${course.province}, Spain`,
+        startTime: startTime,
+        endTime: endTime,
+        organizer: 'mailto:bookings@fridasgolf.com'
+      };
+
+      const icsContent = generateICalendar(eventDetails);
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="golf-${course.name.replace(/\s+/g, '-').toLowerCase()}-${booking.id.substring(0, 8)}.ics"`);
+      res.send(icsContent);
+    } catch (error) {
+      console.error('Calendar generation error:', error);
+      res.status(500).json({ error: "Failed to generate calendar file" });
+    }
+  });
+
+  // GET /api/booking-requests/:id/calendar/google - Get Google Calendar URL for booking (Public endpoint)
+  app.get("/api/booking-requests/:id/calendar/google", async (req, res) => {
+    try {
+      const booking = await storage.getBookingById(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      const course = await storage.getCourseById(booking.courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Calculate end time (4 hours after start)
+      const startTime = new Date(booking.teeTime);
+      const endTime = new Date(startTime);
+      endTime.setHours(endTime.getHours() + 4);
+
+      const eventDetails: CalendarEventDetails = {
+        summary: `Golf at ${course.name}`,
+        description: `Tee time booking for ${booking.players} ${booking.players === 1 ? 'player' : 'players'} at ${course.name}.\n\nBooking Reference: ${booking.id}\n\nBooked via Fridas Golf - Your Personal Guide to Costa del Sol Golf`,
+        location: `${course.name}, ${course.city}, ${course.province}, Spain`,
+        startTime: startTime,
+        endTime: endTime,
+      };
+
+      const googleCalendarUrl = generateGoogleCalendarUrl(eventDetails);
+
+      res.json({ url: googleCalendarUrl });
+    } catch (error) {
+      console.error('Google calendar URL generation error:', error);
+      res.status(500).json({ error: "Failed to generate Google Calendar URL" });
     }
   });
 

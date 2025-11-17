@@ -15,10 +15,19 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BookingModal } from "@/components/BookingModal";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
-import { MapPin, Phone, Mail, Globe, Star, Home } from "lucide-react";
+import { MapPin, Phone, Mail, Globe, Star, Home, Calendar, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { GolfCourse } from "@shared/schema";
@@ -28,6 +37,8 @@ export default function CourseDetail() {
   const { t } = useI18n();
   const { toast } = useToast();
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successBookingId, setSuccessBookingId] = useState<string | null>(null);
 
   const { data: course, isLoading } = useQuery<GolfCourse>({
     queryKey: ['/api/courses', id],
@@ -51,12 +62,10 @@ export default function CourseDetail() {
     }) => {
       return await apiRequest('POST', '/api/booking-requests', data);
     },
-    onSuccess: () => {
-      toast({
-        title: t('home.bookingSuccessTitle'),
-        description: t('home.bookingSuccessDescription'),
-      });
+    onSuccess: (booking) => {
       setBookingModalOpen(false);
+      setSuccessBookingId(booking.id);
+      setSuccessDialogOpen(true);
       queryClient.invalidateQueries({ queryKey: ['/api/booking-requests'] });
     },
     onError: () => {
@@ -67,6 +76,26 @@ export default function CourseDetail() {
       });
     },
   });
+
+  const handleDownloadICS = () => {
+    if (successBookingId) {
+      window.open(`/api/booking-requests/${successBookingId}/calendar/download`, '_blank');
+    }
+  };
+
+  const handleAddToGoogleCalendar = async () => {
+    if (successBookingId) {
+      try {
+        const res = await fetch(`/api/booking-requests/${successBookingId}/calendar/google`);
+        const data = await res.json();
+        if (data.url) {
+          window.open(data.url, '_blank');
+        }
+      } catch (error) {
+        console.error('Failed to get Google Calendar URL:', error);
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -444,6 +473,70 @@ export default function CourseDetail() {
         onSubmit={(data) => bookingMutation.mutate(data)}
         isPending={bookingMutation.isPending}
       />
+
+      {/* Success Dialog with Calendar Options */}
+      <AlertDialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
+        <AlertDialogContent className="sm:max-w-[500px]" data-testid="dialog-booking-success">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif text-2xl text-center">
+              {t('home.bookingSuccessTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-3 pt-2">
+              <div className="text-base">
+                {t('home.bookingSuccessDescription')}
+              </div>
+              <div className="bg-muted p-4 rounded-md">
+                <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  {t('booking.emailConfirmationSent')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('booking.checkEmailForDetails')}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-3 py-4">
+            <p className="text-sm font-medium text-center text-muted-foreground">
+              {t('booking.addToCalendar')}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                onClick={handleAddToGoogleCalendar}
+                data-testid="button-add-google-calendar"
+                className="w-full"
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                Google Calendar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDownloadICS}
+                data-testid="button-download-ics"
+                className="w-full"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {t('booking.downloadICS')}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              {t('booking.calendarDescription')}
+            </p>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setSuccessDialogOpen(false)}
+              data-testid="button-close-success"
+              className="w-full"
+            >
+              {t('common.close')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

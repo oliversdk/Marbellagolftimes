@@ -182,10 +182,10 @@ export default function Home() {
   // Create booking request mutation
   const createBookingMutation = useMutation({
     mutationFn: async (data: InsertBookingRequest) => {
-      return await apiRequest("POST", "/api/bookings", data);
+      return await apiRequest("POST", "/api/booking-requests", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/booking-requests"] });
       setBookingModalOpen(false);
       setSelectedSlot(null);
       toast({

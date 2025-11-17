@@ -83,7 +83,7 @@ export default function Admin() {
 
   // Fetch bookings - only if authenticated
   const { data: bookings } = useQuery<BookingRequest[]>({
-    queryKey: ["/api/bookings"],
+    queryKey: ["/api/booking-requests"],
     enabled: isAuthenticated,
   });
 
