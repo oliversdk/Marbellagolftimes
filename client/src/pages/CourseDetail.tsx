@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
+import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -100,8 +101,44 @@ export default function CourseDetail() {
     t('courseDetail.facilityPracticeFacilities'),
   ];
 
+  // LocalBusiness structured data for course
+  const courseSchema = {
+    "@context": "https://schema.org",
+    "@type": ["LocalBusiness", "GolfCourse"],
+    "name": course.name,
+    "description": course.notes || t('courseDetail.defaultDescription'),
+    "image": course.imageUrl || "https://fridasgolf.com/favicon.png",
+    "url": `https://fridasgolf.com/course/${course.id}`,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": course.city,
+      "addressRegion": course.province,
+      "addressCountry": "ES"
+    },
+    "geo": course.lat && course.lng ? {
+      "@type": "GeoCoordinates",
+      "latitude": course.lat,
+      "longitude": course.lng
+    } : undefined,
+    "priceRange": "€€-€€€",
+    "telephone": course.phone || undefined,
+    "email": course.email || undefined
+  };
+
+  const courseDescription = course.notes 
+    ? `${course.name} in ${course.city}, ${course.province}. ${course.notes}. Book your tee time today.`
+    : `${course.name} in ${course.city}, ${course.province}. Experience premier golf at this exceptional Costa del Sol course. Book your tee time today.`;
+
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title={`${course.name} - Golf Tee Times | Fridas Golf`}
+        description={courseDescription}
+        image={course.imageUrl}
+        url={`https://fridasgolf.com/course/${course.id}`}
+        type="article"
+        structuredData={courseSchema}
+      />
       {/* Breadcrumb */}
       <div className="border-b">
         <div className="max-w-7xl mx-auto px-4 py-4">

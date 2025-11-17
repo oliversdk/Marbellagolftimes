@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
+import { SEO } from "@/components/SEO";
 import { Header } from "@/components/Header";
 import { LocationSearch } from "@/components/LocationSearch";
 import { SearchFilters } from "@/components/SearchFilters";
@@ -229,8 +230,44 @@ export default function Home() {
 
   const isSearching = slotsLoading || coursesLoading;
 
+  // Organization structured data for homepage
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Fridas Golf",
+    "url": "https://fridasgolf.com",
+    "logo": "https://fridasgolf.com/favicon.png",
+    "description": "Premium golf tee time booking service for Costa del Sol. Curated selection of 40+ premier golf courses from Sotogrande to Málaga with real-time availability and personal concierge service.",
+    "address": {
+      "@type": "PostalAddress",
+      "addressRegion": "Costa del Sol",
+      "addressCountry": "ES"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": "36.5201",
+      "longitude": "-4.8844"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "Customer Service",
+      "areaServed": "ES"
+    },
+    "sameAs": [
+      "https://fridasgolf.com"
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Fridas Golf - Premium Golf Tee Times Costa del Sol"
+        description="Book tee times at 40+ premier golf courses from Sotogrande to Málaga. Real availability, curated selection, concierge service."
+        image={heroImage}
+        url="https://fridasgolf.com"
+        type="website"
+        structuredData={organizationSchema}
+      />
       <Header />
 
       {/* Hero Section */}
