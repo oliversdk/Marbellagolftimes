@@ -421,85 +421,76 @@ export default function Admin() {
                         className="border rounded-md p-4 hover-elevate"
                         data-testid={`card-course-image-${course.id}`}
                       >
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-                          <div className="md:col-span-3">
-                            <div className="space-y-2">
-                              <div className="font-medium">{course.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {course.city}, {course.province}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                          <div className="space-y-2">
+                            <div className="font-medium">{course.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {course.city}, {course.province}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Current Image</Label>
+                            {course.imageUrl ? (
+                              <div className="space-y-2">
+                                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
+                                  <img
+                                    src={course.imageUrl}
+                                    alt={course.name}
+                                    className="w-full h-full object-cover"
+                                    data-testid={`img-course-${course.id}`}
+                                  />
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="w-full"
+                                  onClick={() => {
+                                    if (!course.imageUrl) return;
+                                    const parts = course.imageUrl.split("/");
+                                    const filename = parts.pop();
+                                    const directory = parts[parts.length - 1];
+                                    if (filename && window.confirm(`Delete ${filename}? This cannot be undone.`)) {
+                                      deleteImageMutation.mutate({ filename, courseId: course.id, directory });
+                                    }
+                                  }}
+                                  data-testid={`button-delete-image-${course.id}`}
+                                >
+                                  <Trash2 className="h-3 w-3 mr-2" />
+                                  Delete Image
+                                </Button>
+                                <div className="text-xs text-muted-foreground break-all">
+                                  {course.imageUrl}
+                                </div>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
+                                <span className="text-xs text-muted-foreground">No image</span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="md:col-span-3">
-                            <div className="space-y-2">
-                              <Label className="text-xs text-muted-foreground">Current Image</Label>
-                              {course.imageUrl ? (
-                                <div className="space-y-2">
-                                  <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
-                                    <img
-                                      src={course.imageUrl}
-                                      alt={course.name}
-                                      className="w-full h-full object-cover"
-                                      data-testid={`img-course-${course.id}`}
-                                    />
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    className="w-full"
-                                    onClick={() => {
-                                      if (!course.imageUrl) return;
-                                      const parts = course.imageUrl.split("/");
-                                      const filename = parts.pop();
-                                      const directory = parts[parts.length - 1]; // "stock_images" or "generated_images"
-                                      if (filename && window.confirm(`Delete ${filename}? This cannot be undone.`)) {
-                                        deleteImageMutation.mutate({ filename, courseId: course.id, directory });
-                                      }
-                                    }}
-                                    data-testid={`button-delete-image-${course.id}`}
-                                  >
-                                    <Trash2 className="h-3 w-3 mr-2" />
-                                    Delete Image
-                                  </Button>
-                                  <div className="text-xs text-muted-foreground break-all">
-                                    {course.imageUrl}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
-                                  <span className="text-xs text-muted-foreground">No image</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="md:col-span-4">
-                            <div className="space-y-2">
-                              <Label htmlFor={`image-url-${course.id}`} className="text-xs text-muted-foreground">
-                                New Image URL or Upload
-                              </Label>
-                              <Input
-                                id={`image-url-${course.id}`}
-                                value={courseImageUrls[course.id] || ""}
-                                onChange={(e) => 
-                                  setCourseImageUrls((prev) => ({
-                                    ...prev,
-                                    [course.id]: e.target.value,
-                                  }))
-                                }
-                                placeholder="/stock_images/filename.jpg or /generated_images/filename.png"
-                                className="font-mono text-sm"
-                                data-testid={`input-image-url-${course.id}`}
-                              />
-                              <p className="text-xs text-muted-foreground">
-                                Path format: /stock_images/ or /generated_images/ + filename (.jpg, .jpeg, .png, .webp)
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="md:col-span-2 flex flex-col gap-2 items-end justify-end">
-                            <div className="flex gap-2 w-full">
+                          <div className="space-y-2">
+                            <Label htmlFor={`image-url-${course.id}`} className="text-xs text-muted-foreground">
+                              New Image URL or Upload
+                            </Label>
+                            <Input
+                              id={`image-url-${course.id}`}
+                              value={courseImageUrls[course.id] || ""}
+                              onChange={(e) => 
+                                setCourseImageUrls((prev) => ({
+                                  ...prev,
+                                  [course.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="/stock_images/filename.jpg"
+                              className="font-mono text-sm"
+                              data-testid={`input-image-url-${course.id}`}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Path: /stock_images/ or /generated_images/ + filename
+                            </p>
+                            <div className="flex gap-2 pt-1">
                               <Button
                                 size="sm"
                                 variant="outline"
