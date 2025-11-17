@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -14,21 +15,31 @@ import { CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 
 interface SearchFiltersProps {
+  currentFilters?: {
+    date?: Date;
+    players: number;
+    fromTime: string;
+    toTime: string;
+    holes: number;
+    courseSearch?: string;
+  };
   onSearch: (filters: {
     date?: Date;
     players: number;
     fromTime: string;
     toTime: string;
     holes: number;
+    courseSearch?: string;
   }) => void;
 }
 
-export function SearchFilters({ onSearch }: SearchFiltersProps) {
-  const [date, setDate] = useState<Date>();
-  const [players, setPlayers] = useState<string>("2");
-  const [fromTime, setFromTime] = useState<string>("07:00");
-  const [toTime, setToTime] = useState<string>("20:00");
-  const [holes, setHoles] = useState<string>("18");
+export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) {
+  const [date, setDate] = useState<Date | undefined>(currentFilters?.date);
+  const [players, setPlayers] = useState<string>(currentFilters?.players.toString() || "2");
+  const [fromTime, setFromTime] = useState<string>(currentFilters?.fromTime || "07:00");
+  const [toTime, setToTime] = useState<string>(currentFilters?.toTime || "20:00");
+  const [holes, setHoles] = useState<string>(currentFilters?.holes.toString() || "18");
+  const [courseSearch, setCourseSearch] = useState<string>(currentFilters?.courseSearch || "");
 
   const handleSearch = () => {
     onSearch({
@@ -37,11 +48,24 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
       fromTime,
       toTime,
       holes: parseInt(holes),
+      courseSearch: courseSearch.trim() || undefined,
     });
   };
 
   return (
     <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="course-search">Search Golf Course</Label>
+        <Input
+          id="course-search"
+          type="text"
+          placeholder="Search by course name..."
+          value={courseSearch}
+          onChange={(e) => setCourseSearch(e.target.value)}
+          data-testid="input-course-search"
+        />
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="space-y-2">
           <Label htmlFor="filter-date">Date</Label>

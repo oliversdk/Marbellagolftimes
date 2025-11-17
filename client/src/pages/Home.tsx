@@ -89,6 +89,7 @@ export default function Home() {
     fromTime: string;
     toTime: string;
     holes: number;
+    courseSearch?: string;
   }>({ players: 2, fromTime: "07:00", toTime: "20:00", holes: 18 });
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
@@ -113,6 +114,7 @@ export default function Home() {
       searchFilters.fromTime,
       searchFilters.toTime,
       searchFilters.holes,
+      searchFilters.courseSearch,
     ],
     enabled: userLocation !== null,
     queryFn: async () => {
@@ -135,10 +137,20 @@ export default function Home() {
       const data = await response.json();
 
       // Enrich with course data
-      return data.map((slot: CourseWithSlots) => {
+      let enrichedData = data.map((slot: CourseWithSlots) => {
         const course = courses?.find((c) => c.id === slot.courseId);
         return { ...slot, course };
       });
+
+      // Filter by course name if courseSearch is provided
+      if (searchFilters.courseSearch) {
+        const searchTerm = searchFilters.courseSearch.toLowerCase();
+        enrichedData = enrichedData.filter((slot: CourseWithSlots) =>
+          slot.courseName.toLowerCase().includes(searchTerm)
+        );
+      }
+
+      return enrichedData;
     },
   });
 
@@ -267,7 +279,7 @@ export default function Home() {
       {userLocation && (
         <div className="border-b bg-card">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <SearchFilters onSearch={handleFiltersApplied} />
+            <SearchFilters currentFilters={searchFilters} onSearch={handleFiltersApplied} />
           </div>
         </div>
       )}
