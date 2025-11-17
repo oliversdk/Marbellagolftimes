@@ -84,6 +84,7 @@ export class MemStorage implements IStorage {
         phone: "+34 956 79 12 00",
         notes: "Host of 1997 Ryder Cup - €500 green fee",
         imageUrl: "/generated_images/Valderrama_aerial_sunset_view_d9530718.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "Real Club de Golf Sotogrande",
@@ -98,6 +99,7 @@ export class MemStorage implements IStorage {
         phone: "+34 956 78 50 14",
         notes: "Robert Trent Jones design",
         imageUrl: "/generated_images/Coastal_bunker_ocean_view_a3735d23.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "La Reserva Club Sotogrande",
@@ -112,6 +114,7 @@ export class MemStorage implements IStorage {
         phone: "+34 956 78 52 52",
         notes: "Modern parkland course",
         imageUrl: "/generated_images/Modern_clubhouse_mountain_view_2032acdf.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "San Roque Club",
@@ -126,6 +129,7 @@ export class MemStorage implements IStorage {
         phone: "+34 956 61 30 30",
         notes: "Two courses: Old and New",
         imageUrl: "/generated_images/Olive_tree_lined_fairway_35bef37a.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "Club de Golf La Cañada",
@@ -140,6 +144,7 @@ export class MemStorage implements IStorage {
         phone: "+34 956 79 41 00",
         notes: "Family-friendly course",
         imageUrl: "/generated_images/Island_green_water_feature_cba96746.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
 
       // Casares / Estepona area
@@ -156,6 +161,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 93 78 84",
         notes: "Hosted Volvo World Match Play",
         imageUrl: "/generated_images/Misty_sunrise_fairway_f4daefff.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "Casares Costa Golf",
@@ -170,6 +176,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 89 50 00",
         notes: "Coastal views",
         imageUrl: "/generated_images/Elevated_tee_valley_vista_9d043485.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Doña Julia Golf Club",
@@ -184,6 +191,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 93 77 53",
         notes: "Mountain and sea views",
         imageUrl: "/generated_images/Dunes_green_grass_bunkers_598731ad.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Valle Romano Golf & Resort",
@@ -198,6 +206,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 80 99 00",
         notes: "Resort with hotel",
         imageUrl: "/generated_images/Resort_pool_golf_view_4e3e8823.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "El Paraíso Golf Club",
@@ -212,6 +221,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 88 38 46",
         notes: "Gary Player design",
         imageUrl: "/generated_images/Pine_forest_tree_lined_b311e285.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Estepona Golf",
@@ -226,6 +236,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 11 30 82",
         notes: "Municipal course",
         imageUrl: "/generated_images/Cascading_waterfall_feature_35d05b82.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
       {
         name: "Atalaya Golf & Country Club",
@@ -240,6 +251,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 88 20 89",
         notes: "Old Course + New Course",
         imageUrl: "/generated_images/Narrow_strategic_fairway_c329dbbf.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "La Resina Golf & Country Club",
@@ -254,6 +266,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 11 43 81",
         notes: "Challenging layout",
         imageUrl: "/generated_images/Practice_putting_green_0a4cc6df.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Flamingos Golf (Villa Padierna)",
@@ -268,6 +281,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 88 97 91",
         notes: "Part of luxury hotel resort - 3 courses: Flamingos, Alferini, Tramores",
         imageUrl: "/generated_images/Dogleg_par_5_aerial_f691a2d3.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
 
       // Benahavís / Marbella area
@@ -284,6 +298,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 78 46 00",
         notes: "Seve Ballesteros design",
         imageUrl: "/generated_images/Vineyard_hillside_course_726f3cbf.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "El Higueral Golf",
@@ -298,6 +313,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 88 64 45",
         notes: "Compact 9-hole course",
         imageUrl: "/generated_images/Dramatic_seaside_cliffs_f029f091.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
       {
         name: "Monte Mayor Golf & Country Club",
@@ -312,6 +328,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 93 70 12",
         notes: "Mountain course",
         imageUrl: "/generated_images/Stone_bridge_stream_crossing_ed5e3c5e.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
       {
         name: "Marbella Club Golf Resort",
@@ -326,6 +343,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 85 09 00",
         notes: "Dave Thomas design",
         imageUrl: "/generated_images/Desert_rock_formations_f69c5d18.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "Real Club de Golf Guadalmina",
@@ -340,6 +358,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 88 33 75",
         notes: "Two courses: North and South",
         imageUrl: "/generated_images/Rainbow_after_storm_green_68eec4eb.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "La Quinta Golf & Country Club",
@@ -354,6 +373,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 76 24 90",
         notes: "27 holes with lake features - Manuel Piñero design",
         imageUrl: "/generated_images/Lavender_field_cart_path_e4bc5d25.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Los Naranjos Golf Club",
@@ -368,6 +388,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 81 52 06",
         notes: "Part of Golf Valley",
         imageUrl: "/generated_images/Lake_fountain_signature_hole_8bf0b968.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Real Club de Golf Las Brisas",
@@ -382,6 +403,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 81 08 75",
         notes: "Robert Trent Jones Sr. design",
         imageUrl: "/generated_images/Red_rock_canyon_course_377bc8ce.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "Aloha Golf Club",
@@ -396,6 +418,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 90 70 85",
         notes: "Championship course in Nueva Andalucía",
         imageUrl: "/generated_images/Scottish_links_pot_bunkers_6cfb95d6.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Magna Marbella Golf",
@@ -410,6 +433,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 83 08 00",
         notes: "Executive 9-hole course",
         imageUrl: "/generated_images/Snow_mountains_alpine_vista_185e1bfc.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
       {
         name: "Rio Real Golf & Hotel",
@@ -424,6 +448,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 76 57 33",
         notes: "Javier Arana design",
         imageUrl: "/generated_images/Twilight_moonlit_evening_07522490.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Santa Clara Golf Marbella",
@@ -438,6 +463,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 85 09 11",
         notes: "Enrique Canales design",
         imageUrl: "/generated_images/Japanese_garden_zen_elements_bc1d6523.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Santa Maria Golf & Country Club",
@@ -452,6 +478,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 83 10 36",
         notes: "In Elviria area",
         imageUrl: "/generated_images/Windswept_coastal_links_3c1fac7e.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Marbella Golf & Country Club",
@@ -466,6 +493,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 83 05 00",
         notes: "Historic course established 1989",
         imageUrl: "/generated_images/Cypress_shadows_Tuscan_hills_3f3e9d43.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Greenlife Golf",
@@ -480,6 +508,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 83 41 43",
         notes: "Pitch & putt and par-3",
         imageUrl: "/generated_images/Wetlands_boardwalk_par_3_ae8169db.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
 
       // Mijas / Fuengirola / Benalmádena / Málaga
@@ -496,6 +525,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 66 90 33",
         notes: "Three courses: America, Asia, Europa",
         imageUrl: "/generated_images/Red_sand_bunker_feature_30f83d4b.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
       },
       {
         name: "Mijas Golf",
@@ -510,6 +540,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 47 68 43",
         notes: "Two courses: Los Lagos and Los Olivos",
         imageUrl: "/generated_images/Golf_academy_driving_range_4506e503.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Santana Golf & Country Club",
@@ -524,6 +555,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 93 33 38",
         notes: "Hill course with views",
         imageUrl: "/generated_images/Championship_tournament_grandstand_cf147fe9.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Calanova Golf Club",
@@ -538,6 +570,7 @@ export class MemStorage implements IStorage {
         phone: "+34 951 170 194",
         notes: "Par 72 course with buggy included in green fee",
         imageUrl: "/generated_images/Orange_grove_fairway_2750cd17.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "El Chaparral Golf Club",
@@ -552,6 +585,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 58 70 08",
         notes: "Coastal location - Pepe Gancedo design",
         imageUrl: "/generated_images/Sunset_silhouette_putting_6142b7a3.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Miraflores Golf",
@@ -566,6 +600,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 93 19 60",
         notes: "Family-friendly",
         imageUrl: "/generated_images/Clubhouse_veranda_mountain_a00733a5.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "La Noria Golf & Resort",
@@ -580,6 +615,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 58 96 92",
         notes: "Resort facilities",
         imageUrl: "/generated_images/Eucalyptus_forest_corridor_791aa351.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "La Siesta Golf",
@@ -594,6 +630,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 93 31 51",
         notes: "Short course",
         imageUrl: "/generated_images/Flamingos_water_hazard_504cdf6e.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
       {
         name: "Cerrado del Águila Golf",
@@ -608,6 +645,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 58 96 00",
         notes: "Mountain views",
         imageUrl: "/generated_images/Night_golf_dramatic_lighting_1f4a3df9.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Lauro Golf",
@@ -622,6 +660,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 41 27 67",
         notes: "27 holes",
         imageUrl: "/generated_images/Terrace_panoramic_coastline_4558abef.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Torrequebrada Golf",
@@ -636,6 +675,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 44 27 42",
         notes: "José María Olazábal design",
         imageUrl: "/generated_images/Castle_historic_background_1a975ee0.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Guadalhorce Club de Golf",
@@ -650,6 +690,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 17 93 78",
         notes: "Municipal course near Málaga",
         imageUrl: "/generated_images/Wildflower_meadow_borders_0d5abb75.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
       },
       {
         name: "Parador de Málaga Golf",
@@ -664,6 +705,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 38 12 55",
         notes: "Part of Parador hotel chain",
         imageUrl: "/generated_images/Minimalist_modern_architecture_a6f85524.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
       {
         name: "Baviera Golf",
@@ -678,6 +720,7 @@ export class MemStorage implements IStorage {
         phone: "+34 952 555 015",
         notes: "José María Cañizares design with TopTracer driving range",
         imageUrl: "/generated_images/Island_par_3_bridge_63fb85b9.png",
+        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
       },
     ];
 
@@ -1088,6 +1131,7 @@ export async function seedDatabase() {
       phone: "+34 956 79 12 00",
       notes: "Host of 1997 Ryder Cup - €500 green fee",
       imageUrl: "/generated_images/Valderrama_aerial_sunset_view_d9530718.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "Real Club de Golf Sotogrande",
@@ -1102,6 +1146,7 @@ export async function seedDatabase() {
       phone: "+34 956 78 50 14",
       notes: "Robert Trent Jones design",
       imageUrl: "/generated_images/Coastal_bunker_ocean_view_a3735d23.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "La Reserva Club Sotogrande",
@@ -1116,6 +1161,7 @@ export async function seedDatabase() {
       phone: "+34 956 78 52 52",
       notes: "Modern parkland course",
       imageUrl: "/generated_images/Modern_clubhouse_mountain_view_2032acdf.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "San Roque Club",
@@ -1130,6 +1176,7 @@ export async function seedDatabase() {
       phone: "+34 956 61 30 30",
       notes: "Two courses: Old and New",
       imageUrl: "/generated_images/Olive_tree_lined_fairway_35bef37a.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "Club de Golf La Cañada",
@@ -1144,6 +1191,7 @@ export async function seedDatabase() {
       phone: "+34 956 79 41 00",
       notes: "Family-friendly course",
       imageUrl: "/generated_images/Island_green_water_feature_cba96746.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
 
     // Casares / Estepona area
@@ -1160,6 +1208,7 @@ export async function seedDatabase() {
       phone: "+34 952 93 78 84",
       notes: "Hosted Volvo World Match Play",
       imageUrl: "/generated_images/Misty_sunrise_fairway_f4daefff.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "Casares Costa Golf",
@@ -1174,6 +1223,7 @@ export async function seedDatabase() {
       phone: "+34 952 89 50 00",
       notes: "Coastal views",
       imageUrl: "/generated_images/Elevated_tee_valley_vista_9d043485.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Doña Julia Golf Club",
@@ -1188,6 +1238,7 @@ export async function seedDatabase() {
       phone: "+34 952 93 77 53",
       notes: "Mountain and sea views",
       imageUrl: "/generated_images/Dunes_green_grass_bunkers_598731ad.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Valle Romano Golf & Resort",
@@ -1202,6 +1253,7 @@ export async function seedDatabase() {
       phone: "+34 952 80 99 00",
       notes: "Resort with hotel",
       imageUrl: "/generated_images/Resort_pool_golf_view_4e3e8823.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "El Paraíso Golf Club",
@@ -1216,6 +1268,7 @@ export async function seedDatabase() {
       phone: "+34 952 88 38 46",
       notes: "Gary Player design",
       imageUrl: "/generated_images/Pine_forest_tree_lined_b311e285.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Estepona Golf",
@@ -1230,6 +1283,7 @@ export async function seedDatabase() {
       phone: "+34 952 11 30 82",
       notes: "Municipal course",
       imageUrl: "/generated_images/Cascading_waterfall_feature_35d05b82.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
     },
     {
       name: "Atalaya Golf & Country Club",
@@ -1244,6 +1298,7 @@ export async function seedDatabase() {
       phone: "+34 952 88 20 89",
       notes: "Old Course + New Course",
       imageUrl: "/generated_images/Narrow_strategic_fairway_c329dbbf.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "La Resina Golf & Country Club",
@@ -1258,6 +1313,7 @@ export async function seedDatabase() {
       phone: "+34 952 11 43 81",
       notes: "Challenging layout",
       imageUrl: "/generated_images/Practice_putting_green_0a4cc6df.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Flamingos Golf (Villa Padierna)",
@@ -1272,6 +1328,7 @@ export async function seedDatabase() {
       phone: "+34 952 88 97 91",
       notes: "Part of luxury hotel resort - 3 courses: Flamingos, Alferini, Tramores",
       imageUrl: "/generated_images/Dogleg_par_5_aerial_f691a2d3.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
 
     // Benahavís / Marbella area
@@ -1288,6 +1345,7 @@ export async function seedDatabase() {
       phone: "+34 952 78 46 00",
       notes: "Seve Ballesteros design",
       imageUrl: "/generated_images/Vineyard_hillside_course_726f3cbf.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "El Higueral Golf",
@@ -1302,6 +1360,7 @@ export async function seedDatabase() {
       phone: "+34 952 88 64 45",
       notes: "Compact 9-hole course",
       imageUrl: "/generated_images/Dramatic_seaside_cliffs_f029f091.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
     },
     {
       name: "Monte Mayor Golf & Country Club",
@@ -1316,6 +1375,7 @@ export async function seedDatabase() {
       phone: "+34 952 93 70 12",
       notes: "Mountain course",
       imageUrl: "/generated_images/Stone_bridge_stream_crossing_ed5e3c5e.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Marbella Club Golf Resort",
@@ -1330,6 +1390,7 @@ export async function seedDatabase() {
       phone: "+34 952 85 09 00",
       notes: "Dave Thomas design",
       imageUrl: "/generated_images/Desert_rock_formations_f69c5d18.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "Real Club de Golf Guadalmina",
@@ -1344,6 +1405,7 @@ export async function seedDatabase() {
       phone: "+34 952 88 33 75",
       notes: "Two courses: North and South",
       imageUrl: "/generated_images/Rainbow_after_storm_green_68eec4eb.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "La Quinta Golf & Country Club",
@@ -1358,6 +1420,7 @@ export async function seedDatabase() {
       phone: "+34 952 76 24 90",
       notes: "27 holes with lake features - Manuel Piñero design",
       imageUrl: "/generated_images/Lavender_field_cart_path_e4bc5d25.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Los Naranjos Golf Club",
@@ -1372,6 +1435,7 @@ export async function seedDatabase() {
       phone: "+34 952 81 52 06",
       notes: "Part of Golf Valley",
       imageUrl: "/generated_images/Lake_fountain_signature_hole_8bf0b968.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Real Club de Golf Las Brisas",
@@ -1386,6 +1450,7 @@ export async function seedDatabase() {
       phone: "+34 952 81 08 75",
       notes: "Robert Trent Jones Sr. design",
       imageUrl: "/generated_images/Red_rock_canyon_course_377bc8ce.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "Aloha Golf Club",
@@ -1400,6 +1465,7 @@ export async function seedDatabase() {
       phone: "+34 952 90 70 85",
       notes: "Championship course in Nueva Andalucía",
       imageUrl: "/generated_images/Scottish_links_pot_bunkers_6cfb95d6.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Magna Marbella Golf",
@@ -1414,6 +1480,7 @@ export async function seedDatabase() {
       phone: "+34 952 83 08 00",
       notes: "Executive 9-hole course",
       imageUrl: "/generated_images/Snow_mountains_alpine_vista_185e1bfc.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
     },
     {
       name: "Rio Real Golf & Hotel",
@@ -1428,6 +1495,7 @@ export async function seedDatabase() {
       phone: "+34 952 76 57 33",
       notes: "Javier Arana design",
       imageUrl: "/generated_images/Twilight_moonlit_evening_07522490.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Santa Clara Golf Marbella",
@@ -1442,6 +1510,7 @@ export async function seedDatabase() {
       phone: "+34 952 85 09 11",
       notes: "Enrique Canales design",
       imageUrl: "/generated_images/Japanese_garden_zen_elements_bc1d6523.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Santa Maria Golf & Country Club",
@@ -1456,6 +1525,7 @@ export async function seedDatabase() {
       phone: "+34 952 83 10 36",
       notes: "In Elviria area",
       imageUrl: "/generated_images/Windswept_coastal_links_3c1fac7e.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Marbella Golf & Country Club",
@@ -1470,6 +1540,7 @@ export async function seedDatabase() {
       phone: "+34 952 83 05 00",
       notes: "Historic course established 1989",
       imageUrl: "/generated_images/Cypress_shadows_Tuscan_hills_3f3e9d43.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Greenlife Golf",
@@ -1484,6 +1555,7 @@ export async function seedDatabase() {
       phone: "+34 952 83 41 43",
       notes: "Pitch & putt and par-3",
       imageUrl: "/generated_images/Wetlands_boardwalk_par_3_ae8169db.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
     },
 
     // Mijas / Fuengirola / Benalmádena / Málaga
@@ -1500,6 +1572,7 @@ export async function seedDatabase() {
       phone: "+34 952 66 90 33",
       notes: "Three courses: America, Asia, Europa",
       imageUrl: "/generated_images/Red_sand_bunker_feature_30f83d4b.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Conference Rooms"],
     },
     {
       name: "Mijas Golf",
@@ -1514,6 +1587,7 @@ export async function seedDatabase() {
       phone: "+34 952 47 68 43",
       notes: "Two courses: Los Lagos and Los Olivos",
       imageUrl: "/generated_images/Golf_academy_driving_range_4506e503.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Santana Golf & Country Club",
@@ -1528,6 +1602,7 @@ export async function seedDatabase() {
       phone: "+34 952 93 33 38",
       notes: "Hill course with views",
       imageUrl: "/generated_images/Championship_tournament_grandstand_cf147fe9.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Calanova Golf Club",
@@ -1542,6 +1617,7 @@ export async function seedDatabase() {
       phone: "+34 951 170 194",
       notes: "Par 72 course with buggy included in green fee",
       imageUrl: "/generated_images/Orange_grove_fairway_2750cd17.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "El Chaparral Golf Club",
@@ -1556,6 +1632,7 @@ export async function seedDatabase() {
       phone: "+34 952 58 70 08",
       notes: "Coastal location - Pepe Gancedo design",
       imageUrl: "/generated_images/Sunset_silhouette_putting_6142b7a3.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Miraflores Golf",
@@ -1570,6 +1647,7 @@ export async function seedDatabase() {
       phone: "+34 952 93 19 60",
       notes: "Family-friendly",
       imageUrl: "/generated_images/Clubhouse_veranda_mountain_a00733a5.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "La Noria Golf & Resort",
@@ -1584,6 +1662,7 @@ export async function seedDatabase() {
       phone: "+34 952 58 96 92",
       notes: "Resort facilities",
       imageUrl: "/generated_images/Eucalyptus_forest_corridor_791aa351.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "La Siesta Golf",
@@ -1598,6 +1677,7 @@ export async function seedDatabase() {
       phone: "+34 952 93 31 51",
       notes: "Short course",
       imageUrl: "/generated_images/Flamingos_water_hazard_504cdf6e.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
     },
     {
       name: "Cerrado del Águila Golf",
@@ -1612,6 +1692,7 @@ export async function seedDatabase() {
       phone: "+34 952 58 96 00",
       notes: "Mountain views",
       imageUrl: "/generated_images/Night_golf_dramatic_lighting_1f4a3df9.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Lauro Golf",
@@ -1626,6 +1707,7 @@ export async function seedDatabase() {
       phone: "+34 952 41 27 67",
       notes: "27 holes",
       imageUrl: "/generated_images/Terrace_panoramic_coastline_4558abef.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Torrequebrada Golf",
@@ -1640,6 +1722,7 @@ export async function seedDatabase() {
       phone: "+34 952 44 27 42",
       notes: "José María Olazábal design",
       imageUrl: "/generated_images/Castle_historic_background_1a975ee0.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Guadalhorce Club de Golf",
@@ -1654,6 +1737,7 @@ export async function seedDatabase() {
       phone: "+34 952 17 93 78",
       notes: "Municipal course near Málaga",
       imageUrl: "/generated_images/Wildflower_meadow_borders_0d5abb75.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Bar", "Cart Rental", "Putting Green"],
     },
     {
       name: "Parador de Málaga Golf",
@@ -1668,6 +1752,7 @@ export async function seedDatabase() {
       phone: "+34 952 38 12 55",
       notes: "Part of Parador hotel chain",
       imageUrl: "/generated_images/Minimalist_modern_architecture_a6f85524.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
     {
       name: "Baviera Golf",
@@ -1682,6 +1767,7 @@ export async function seedDatabase() {
       phone: "+34 952 555 015",
       notes: "José María Cañizares design with TopTracer driving range",
       imageUrl: "/generated_images/Island_par_3_bridge_63fb85b9.png",
+      facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
     },
   ];
 
