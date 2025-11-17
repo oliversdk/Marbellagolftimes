@@ -26,6 +26,8 @@ const translations: Record<Language, Translations> = {
       confirm: 'Confirm',
       back: 'Back',
       next: 'Next',
+      today: 'Today',
+      tomorrow: 'Tomorrow',
     },
     header: {
       title: 'Fridas Golf',
@@ -151,6 +153,7 @@ const translations: Record<Language, Translations> = {
       addToCalendar: 'Add to your calendar',
       downloadICS: 'Download .ICS',
       calendarDescription: 'Add this tee time to your calendar so you never miss it.',
+      availableTimes: 'Available Times',
     },
     admin: {
       title: 'Admin Dashboard',
@@ -310,6 +313,8 @@ const translations: Record<Language, Translations> = {
       confirm: 'Confirmar',
       back: 'Atrás',
       next: 'Siguiente',
+      today: 'Hoy',
+      tomorrow: 'Mañana',
     },
     header: {
       title: 'Fridas Golf',
@@ -435,6 +440,7 @@ const translations: Record<Language, Translations> = {
       addToCalendar: 'Agregar a su calendario',
       downloadICS: 'Descargar .ICS',
       calendarDescription: 'Agregue este horario a su calendario para no perderlo.',
+      availableTimes: 'Horarios Disponibles',
     },
     admin: {
       title: 'Panel de Administración',
@@ -594,6 +600,8 @@ const translations: Record<Language, Translations> = {
       confirm: 'Bekræft',
       back: 'Tilbage',
       next: 'Næste',
+      today: 'I dag',
+      tomorrow: 'I morgen',
     },
     header: {
       title: 'Fridas Golf',
@@ -719,6 +727,7 @@ const translations: Record<Language, Translations> = {
       addToCalendar: 'Tilføj til din kalender',
       downloadICS: 'Download .ICS',
       calendarDescription: 'Tilføj denne tee time til din kalender så du ikke glemmer det.',
+      availableTimes: 'Ledige Tider',
     },
     admin: {
       title: 'Admin Dashboard',
@@ -878,6 +887,8 @@ const translations: Record<Language, Translations> = {
       confirm: 'Bekräfta',
       back: 'Tillbaka',
       next: 'Nästa',
+      today: 'Idag',
+      tomorrow: 'Imorgon',
     },
     header: {
       title: 'Fridas Golf',
@@ -1003,6 +1014,7 @@ const translations: Record<Language, Translations> = {
       addToCalendar: 'Lägg till i din kalender',
       downloadICS: 'Ladda ner .ICS',
       calendarDescription: 'Lägg till denna tee time i din kalender så att du inte missar den.',
+      availableTimes: 'Tillgängliga Tider',
     },
     admin: {
       title: 'Administratörspanel',
@@ -1162,6 +1174,8 @@ const translations: Record<Language, Translations> = {
       confirm: 'Подтвердить',
       back: 'Назад',
       next: 'Далее',
+      today: 'Сегодня',
+      tomorrow: 'Завтра',
     },
     header: {
       title: 'Fridas Golf',
@@ -1287,6 +1301,7 @@ const translations: Record<Language, Translations> = {
       addToCalendar: 'Добавить в календарь',
       downloadICS: 'Скачать .ICS',
       calendarDescription: 'Добавьте это время в свой календарь, чтобы не пропустить его.',
+      availableTimes: 'Доступное Время',
     },
     admin: {
       title: 'Панель Администратора',
