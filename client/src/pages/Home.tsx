@@ -12,8 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Mail, CheckCircle2, LayoutGrid, Map } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFavorites } from "@/hooks/useFavorites";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
@@ -93,6 +94,7 @@ export default function Home() {
   const [visibleCount, setVisibleCount] = useState(12);
   const { toast } = useToast();
   const { t } = useI18n();
+  const { favorites } = useFavorites();
 
   // Reset visible count when filters or sort mode changes
   useEffect(() => {
@@ -392,7 +394,15 @@ export default function Home() {
 
               {/* Results */}
               {(() => {
-                const sortedCourses = sortCourses(availableSlots, sortMode);
+                // Filter by favorites if showFavoritesOnly is enabled
+                let filteredCourses = availableSlots;
+                if (searchFilters.showFavoritesOnly) {
+                  filteredCourses = availableSlots.filter(courseSlot => 
+                    favorites.has(courseSlot.courseId.toString())
+                  );
+                }
+                
+                const sortedCourses = sortCourses(filteredCourses, sortMode);
                 const visibleCourses = viewMode === 'list' ? sortedCourses.slice(0, visibleCount) : sortedCourses;
                 
                 // Calculate minimum price across all visible courses for Best Deal badge
@@ -402,14 +412,29 @@ export default function Home() {
                 }, Infinity);
                 const hasBestDeal = bestDealPrice !== Infinity;
                 
+                // Empty state when favorites filter is active but no favorites exist
+                if (searchFilters.showFavoritesOnly && filteredCourses.length === 0) {
+                  return (
+                    <Card className="text-center" data-testid="empty-state-favorites">
+                      <CardContent className="space-y-4">
+                        <Heart className="h-16 w-16 mx-auto text-muted-foreground opacity-50" />
+                        <h3 className="text-xl font-semibold">{t('course.noFavorites')}</h3>
+                        <p className="text-muted-foreground max-w-md mx-auto">
+                          {t('course.noFavoritesDescription')}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                
                 return viewMode === "list" ? (
                   <>
                     {/* Showing X of Y Counter */}
                     <div className="mb-4 text-center">
                       <p className="text-sm text-muted-foreground" data-testid="text-showing-count">
                         {t('home.showingCourses', { 
-                          visible: Math.min(visibleCount, availableSlots.length), 
-                          total: availableSlots.length 
+                          visible: Math.min(visibleCount, filteredCourses.length), 
+                          total: filteredCourses.length 
                         })}
                       </p>
                     </div>
@@ -533,7 +558,7 @@ export default function Home() {
                     </div>
 
                     {/* Load More Button */}
-                    {availableSlots.length > visibleCount && (
+                    {filteredCourses.length > visibleCount && (
                       <div className="mt-8 text-center" data-testid="load-more-container">
                         <Button
                           variant="outline"
@@ -541,13 +566,13 @@ export default function Home() {
                           onClick={() => setVisibleCount(prev => prev + 12)}
                           data-testid="button-load-more"
                         >
-                          {t('home.loadMore', { count: Math.min(12, availableSlots.length - visibleCount) })}
+                          {t('home.loadMore', { count: Math.min(12, filteredCourses.length - visibleCount) })}
                         </Button>
                       </div>
                     )}
 
                     {/* All Courses Shown Message */}
-                    {availableSlots.length > 0 && availableSlots.length <= visibleCount && (
+                    {filteredCourses.length > 0 && filteredCourses.length <= visibleCount && (
                       <div className="mt-4 text-center" data-testid="all-courses-shown">
                         <p className="text-sm text-muted-foreground">
                           {t('home.allCoursesShown')}

@@ -7,6 +7,7 @@ export type SearchFilters = {
   toTime: string;
   holes: number;
   courseSearch?: string;
+  showFavoritesOnly?: boolean;
 };
 
 export type SortMode = "distance-asc" | "distance-desc" | "price-asc" | "price-desc";
@@ -19,6 +20,7 @@ const DEFAULT_FILTERS: SearchFilters = {
   fromTime: "07:00",
   toTime: "20:00",
   holes: 18,
+  showFavoritesOnly: false,
 };
 
 const DEFAULT_SORT_MODE: SortMode = "distance-asc";
@@ -67,6 +69,7 @@ function loadFromStorage(): {
           holes: parsed.searchFilters.holes ?? DEFAULT_FILTERS.holes,
           date: dateValue,
           courseSearch: parsed.searchFilters.courseSearch,
+          showFavoritesOnly: parsed.searchFilters.showFavoritesOnly ?? DEFAULT_FILTERS.showFavoritesOnly,
         },
         sortMode,
         viewMode,
@@ -92,6 +95,7 @@ export function useFilterPersistence() {
         searchFilters: {
           ...state.searchFilters,
           date: state.searchFilters.date?.toISOString(),
+          showFavoritesOnly: state.searchFilters.showFavoritesOnly,
         },
         sortMode: state.sortMode,
         viewMode: state.viewMode,
@@ -144,6 +148,7 @@ export function useFilterPersistence() {
       state.searchFilters.toTime,
       state.searchFilters.holes,
       state.searchFilters.courseSearch,
+      state.searchFilters.showFavoritesOnly,
     ]
   );
 

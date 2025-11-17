@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ interface SearchFiltersProps {
     toTime: string;
     holes: number;
     courseSearch?: string;
+    showFavoritesOnly?: boolean;
   };
   onSearch: (filters: {
     date?: Date;
@@ -34,6 +36,7 @@ interface SearchFiltersProps {
     toTime: string;
     holes: number;
     courseSearch?: string;
+    showFavoritesOnly?: boolean;
   }) => void;
 }
 
@@ -45,11 +48,17 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
   const [toTime, setToTime] = useState<string>(currentFilters?.toTime || "20:00");
   const [holes, setHoles] = useState<string>(currentFilters?.holes.toString() || "18");
   const [courseSearch, setCourseSearch] = useState<string>(currentFilters?.courseSearch || "");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(currentFilters?.showFavoritesOnly ?? false);
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
 
   const { data: courses } = useQuery<GolfCourse[]>({
     queryKey: ["/api/courses"],
   });
+
+  // Sync local showFavoritesOnly state when currentFilters changes
+  useEffect(() => {
+    setShowFavoritesOnly(currentFilters?.showFavoritesOnly ?? false);
+  }, [currentFilters?.showFavoritesOnly]);
 
   const handleSearch = () => {
     onSearch({
@@ -59,6 +68,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
       toTime,
       holes: parseInt(holes),
       courseSearch: courseSearch.trim() || undefined,
+      showFavoritesOnly,
     });
   };
 
@@ -212,6 +222,21 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="filter-favorites"
+          checked={showFavoritesOnly}
+          onCheckedChange={(checked) => setShowFavoritesOnly(checked === true)}
+          data-testid="checkbox-show-favorites"
+        />
+        <Label
+          htmlFor="filter-favorites"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+        >
+          {t('search.showFavoritesOnly')}
+        </Label>
       </div>
 
       <Button onClick={handleSearch} className="w-full" size="lg" data-testid="button-apply-filters">

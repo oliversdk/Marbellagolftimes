@@ -59,6 +59,7 @@ const translations: Record<Language, Translations> = {
       noResults: 'No courses found',
       coursesFound: '{count} courses found',
       clearFilters: 'Clear all filters',
+      showFavoritesOnly: 'Show favorites only',
     },
     course: {
       bookNow: 'Book Now',
@@ -84,6 +85,10 @@ const translations: Record<Language, Translations> = {
       facilityPracticeFacilities: 'Practice Facilities',
       bestDeal: 'Best Deal',
       priceRange: '€{min}–{max}',
+      addToFavorites: 'Add to favorites',
+      removeFromFavorites: 'Remove from favorites',
+      noFavorites: 'No favorite courses yet',
+      noFavoritesDescription: 'Start exploring courses and save your favorites for quick access',
     },
     courseDetail: {
       overview: 'Overview',
@@ -314,6 +319,7 @@ const translations: Record<Language, Translations> = {
       noResults: 'No se encontraron campos',
       coursesFound: '{count} campos encontrados',
       clearFilters: 'Limpiar filtros',
+      showFavoritesOnly: 'Mostrar solo favoritos',
     },
     course: {
       bookNow: 'Reservar',
@@ -339,6 +345,10 @@ const translations: Record<Language, Translations> = {
       facilityPracticeFacilities: 'Instalaciones de Práctica',
       bestDeal: 'Mejor Oferta',
       priceRange: '€{min}–{max}',
+      addToFavorites: 'Añadir a favoritos',
+      removeFromFavorites: 'Quitar de favoritos',
+      noFavorites: 'Aún no hay campos favoritos',
+      noFavoritesDescription: 'Comienza a explorar campos y guarda tus favoritos para acceso rápido',
     },
     courseDetail: {
       overview: 'Descripción General',
@@ -569,6 +579,7 @@ const translations: Record<Language, Translations> = {
       noResults: 'Ingen baner fundet',
       coursesFound: '{count} baner fundet',
       clearFilters: 'Ryd filtre',
+      showFavoritesOnly: 'Vis kun favoritter',
     },
     course: {
       bookNow: 'Book Nu',
@@ -594,6 +605,10 @@ const translations: Record<Language, Translations> = {
       facilityPracticeFacilities: 'Træningsfaciliteter',
       bestDeal: 'Bedste Tilbud',
       priceRange: '€{min}–{max}',
+      addToFavorites: 'Tilføj til favoritter',
+      removeFromFavorites: 'Fjern fra favoritter',
+      noFavorites: 'Ingen favoritbaner endnu',
+      noFavoritesDescription: 'Begynd at udforske baner og gem dine favoritter for hurtig adgang',
     },
     courseDetail: {
       overview: 'Oversigt',
@@ -824,6 +839,7 @@ const translations: Record<Language, Translations> = {
       noResults: 'Inga banor hittades',
       coursesFound: '{count} banor hittades',
       clearFilters: 'Rensa filter',
+      showFavoritesOnly: 'Visa endast favoriter',
     },
     course: {
       bookNow: 'Boka Nu',
@@ -849,6 +865,10 @@ const translations: Record<Language, Translations> = {
       facilityPracticeFacilities: 'Träningsanläggningar',
       bestDeal: 'Bästa Erbjudande',
       priceRange: '€{min}–{max}',
+      addToFavorites: 'Lägg till favoriter',
+      removeFromFavorites: 'Ta bort från favoriter',
+      noFavorites: 'Inga favoritbanor än',
+      noFavoritesDescription: 'Börja utforska banor och spara dina favoriter för snabb åtkomst',
     },
     courseDetail: {
       overview: 'Översikt',
@@ -1079,6 +1099,7 @@ const translations: Record<Language, Translations> = {
       noResults: 'Поля не найдены',
       coursesFound: 'Найдено полей: {count}',
       clearFilters: 'Очистить фильтры',
+      showFavoritesOnly: 'Показать только избранное',
     },
     course: {
       bookNow: 'Забронировать',
@@ -1104,6 +1125,10 @@ const translations: Record<Language, Translations> = {
       facilityPracticeFacilities: 'Тренировочные Площадки',
       bestDeal: 'Лучшее Предложение',
       priceRange: '€{min}–{max}',
+      addToFavorites: 'Добавить в избранное',
+      removeFromFavorites: 'Удалить из избранного',
+      noFavorites: 'Пока нет избранных полей',
+      noFavoritesDescription: 'Начните исследовать поля и сохраните избранное для быстрого доступа',
     },
     courseDetail: {
       overview: 'Обзор',

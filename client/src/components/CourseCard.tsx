@@ -1,9 +1,10 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Phone, Globe, Mail } from "lucide-react";
+import { MapPin, Phone, Globe, Mail, Heart } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "wouter";
+import { useFavorites } from "@/hooks/useFavorites";
 import type { GolfCourse } from "@shared/schema";
 
 interface CourseCardProps {
@@ -18,6 +19,9 @@ interface CourseCardProps {
 
 export function CourseCard({ course, distance, price, priceRange, isBestDeal, onBook, onViewDetails }: CourseCardProps) {
   const { t } = useI18n();
+  const { isFavorite, toggleFavorite } = useFavorites();
+  
+  const isFav = isFavorite(course.id.toString());
   
   return (
     <Card className="overflow-hidden hover-elevate" data-testid={`card-course-${course.id}`}>
@@ -42,6 +46,21 @@ export function CourseCard({ course, distance, price, priceRange, isBestDeal, on
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={(e) => {
+                e.preventDefault();
+                toggleFavorite(course.id.toString());
+              }}
+              className="h-8 w-8"
+              data-testid={`button-favorite-${course.id}`}
+              aria-label={isFav ? t('course.removeFromFavorites') : t('course.addToFavorites')}
+            >
+              <Heart
+                className={`h-5 w-5 ${isFav ? 'fill-current text-red-500' : 'text-muted-foreground'}`}
+              />
+            </Button>
             {distance !== undefined && (
               <Badge variant="secondary" data-testid={`badge-distance-${course.id}`}>
                 {t('course.distance', { distance: distance.toFixed(1) })}
