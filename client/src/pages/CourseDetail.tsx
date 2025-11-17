@@ -27,6 +27,7 @@ import {
 import { BookingModal } from "@/components/BookingModal";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import { MapPin, Phone, Mail, Globe, Star, Home, Calendar, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -447,6 +448,10 @@ export default function CourseDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {course.lat && course.lng && (
+              <WeatherWidget lat={course.lat} lng={course.lng} />
+            )}
 
             <Card>
               <CardContent className="pt-6 space-y-2">

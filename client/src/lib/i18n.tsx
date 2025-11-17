@@ -125,6 +125,14 @@ const translations: Record<Language, Translations> = {
       visitWebsite: 'Visit website',
       location: 'Location',
     },
+    weather: {
+      title: 'Weather',
+      temperature: 'Temperature',
+      conditions: 'Conditions',
+      wind: 'Wind',
+      humidity: 'Humidity',
+      notAvailable: 'Weather data not available',
+    },
     booking: {
       title: 'Book Tee Time',
       selectDate: 'Select Date',
@@ -399,6 +407,14 @@ const translations: Record<Language, Translations> = {
       website: 'Sitio Web',
       visitWebsite: 'Visitar sitio web',
       location: 'Ubicación',
+    },
+    weather: {
+      title: 'Clima',
+      temperature: 'Temperatura',
+      conditions: 'Condiciones',
+      wind: 'Viento',
+      humidity: 'Humedad',
+      notAvailable: 'Datos meteorológicos no disponibles',
     },
     booking: {
       title: 'Reservar Horario',
@@ -675,6 +691,14 @@ const translations: Record<Language, Translations> = {
       visitWebsite: 'Besøg hjemmeside',
       location: 'Placering',
     },
+    weather: {
+      title: 'Vejr',
+      temperature: 'Temperatur',
+      conditions: 'Forhold',
+      wind: 'Vind',
+      humidity: 'Fugtighed',
+      notAvailable: 'Vejrdata ikke tilgængelig',
+    },
     booking: {
       title: 'Book Tee Time',
       selectDate: 'Vælg Dato',
@@ -950,6 +974,14 @@ const translations: Record<Language, Translations> = {
       visitWebsite: 'Besök webbplats',
       location: 'Plats',
     },
+    weather: {
+      title: 'Väder',
+      temperature: 'Temperatur',
+      conditions: 'Förhållanden',
+      wind: 'Vind',
+      humidity: 'Luftfuktighet',
+      notAvailable: 'Väderdata inte tillgänglig',
+    },
     booking: {
       title: 'Boka Tee Time',
       selectDate: 'Välj Datum',
@@ -1224,6 +1256,14 @@ const translations: Record<Language, Translations> = {
       website: 'Веб-сайт',
       visitWebsite: 'Посетить сайт',
       location: 'Местоположение',
+    },
+    weather: {
+      title: 'Погода',
+      temperature: 'Температура',
+      conditions: 'Условия',
+      wind: 'Ветер',
+      humidity: 'Влажность',
+      notAvailable: 'Данные о погоде недоступны',
     },
     booking: {
       title: 'Забронировать Время',

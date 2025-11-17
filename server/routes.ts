@@ -109,6 +109,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/weather/:lat/:lng - Get weather data for location
+  app.get("/api/weather/:lat/:lng", async (req, res) => {
+    try {
+      const apiKey = process.env.WEATHER_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(503).json({ 
+          error: "Weather API not configured",
+          message: "Weather data is temporarily unavailable" 
+        });
+      }
+
+      const { lat, lng } = req.params;
+      
+      // Validate lat/lng parameters
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lng);
+      
+      if (isNaN(latitude) || isNaN(longitude)) {
+        return res.status(400).json({ error: "Invalid coordinates" });
+      }
+
+      // Call OpenWeatherMap API
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`Weather API error: ${response.status} ${response.statusText}`);
+        return res.status(response.status).json({ 
+          error: "Failed to fetch weather data",
+          message: "Weather service temporarily unavailable" 
+        });
+      }
+
+      const data = await response.json();
+      
+      // Return formatted weather data
+      res.setHeader('Cache-Control', 'public, max-age=1800'); // Cache for 30 minutes
+      res.json({
+        temp: data.main.temp,
+        conditions: data.weather[0].description,
+        wind: data.wind.speed,
+        humidity: data.main.humidity,
+        icon: data.weather[0].icon
+      });
+    } catch (error) {
+      console.error("Weather API error:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch weather data",
+        message: "Weather service temporarily unavailable" 
+      });
+    }
+  });
+
   // PATCH /api/courses/:id/image - Update course image (Admin only)
   app.patch("/api/courses/:id/image", isAuthenticated, async (req, res) => {
     try {
