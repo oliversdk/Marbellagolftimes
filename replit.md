@@ -16,7 +16,7 @@ The frontend is built with React 18 and TypeScript, using Vite for fast developm
 
 ### Backend Architecture
 
-The backend is developed with Node.js and Express in TypeScript, using ESM modules. It provides RESTful APIs under the `/api` prefix, handling JSON requests/responses and error handling. Data storage in development uses an in-memory solution, while production uses Drizzle ORM with PostgreSQL. The core API routes manage golf courses, tee time searches (including a functional `holes` filter), booking requests, and affiliate email campaigns. An admin endpoint allows updating course images with validation and secure file deletion.
+The backend is developed with Node.js and Express in TypeScript, using ESM modules. It provides RESTful APIs under the `/api` prefix, handling JSON requests/responses and error handling. Data storage uses Drizzle ORM with PostgreSQL for both development and production environments via the `DatabaseStorage` class. The core API routes manage golf courses, tee time searches (including a functional `holes` filter), booking requests, and affiliate email campaigns. An admin endpoint allows updating course images with validation and secure file deletion. Database seeding runs automatically on startup with 43 Costa del Sol golf courses.
 
 ### Data Storage Solutions
 
@@ -24,7 +24,7 @@ The schema, defined using Drizzle ORM for PostgreSQL, includes tables for `golf_
 
 ### Authentication and Authorization
 
-Currently, no authentication is implemented, making the admin panel publicly accessible. Session management is configured for future integration.
+The application uses Replit Auth (OpenID Connect) for authentication with sessions stored in PostgreSQL. Admin routes (bookings management, course editing, affiliate emails) are protected with the `isAuthenticated` middleware, while public endpoints (course browsing, tee-time search, booking requests) remain accessible without authentication. The auth system includes automatic token refresh, return path preservation for post-login redirects, and conditional secure cookie flags for production deployment.
 
 ### Email System
 
@@ -40,6 +40,7 @@ Client-side geolocation uses the Browser Geolocation API, with Haversine formula
 
 -   **Email Service (SMTP)**: Configurable via environment variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `FROM_EMAIL`).
 -   **Database**: Neon Serverless PostgreSQL, connected via `@neondatabase/serverless` using the `DATABASE_URL` environment variable.
+-   **Authentication**: Replit Auth (OpenID Connect) using `ISSUER_URL` and `REPL_ID` environment variables, with `SESSION_SECRET` for session encryption.
 
 ### Core Libraries
 

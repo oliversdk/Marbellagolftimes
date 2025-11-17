@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { useI18n } from "@/lib/i18n";
 import type { GolfCourse } from "@shared/schema";
 
 interface TeeTimeSlot {
@@ -53,6 +54,7 @@ export function BookingModal({
   onSubmit,
   isPending,
 }: BookingModalProps) {
+  const { t } = useI18n();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState<string>("09:00");
   const [players, setPlayers] = useState<string>("2");
@@ -110,7 +112,7 @@ export function BookingModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]" data-testid="dialog-booking">
         <DialogHeader>
-          <DialogTitle className="font-serif">Book Tee Time</DialogTitle>
+          <DialogTitle className="font-serif">{t('booking.title')}</DialogTitle>
           <DialogDescription>
             {course && (
               <>
@@ -119,7 +121,7 @@ export function BookingModal({
                 </span>
                 {selectedSlot && (
                   <span className="text-sm text-primary mt-1 block">
-                    Selected: {format(new Date(selectedSlot.teeTime), "PPp")} • €{selectedSlot.greenFee}
+                    {format(new Date(selectedSlot.teeTime), "PPp")} • €{selectedSlot.greenFee}
                   </span>
                 )}
               </>
@@ -130,7 +132,7 @@ export function BookingModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="booking-date">Date</Label>
+              <Label htmlFor="booking-date">{t('search.date')}</Label>
               <Button
                 id="booking-date"
                 variant="outline"
@@ -139,12 +141,12 @@ export function BookingModal({
                 disabled
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, "PPP") : "Select date"}
+                {date ? format(date, "PPP") : t('booking.selectDate')}
               </Button>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="booking-time">Time</Label>
+              <Label htmlFor="booking-time">{t('admin.time')}</Label>
               <Button
                 id="booking-time"
                 variant="outline"
@@ -159,7 +161,7 @@ export function BookingModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="booking-players">Number of Players</Label>
+            <Label htmlFor="booking-players">{t('booking.numberOfPlayers')}</Label>
             <Select value={players} onValueChange={setPlayers}>
               <SelectTrigger id="booking-players" data-testid="select-players">
                 <SelectValue />
@@ -167,7 +169,7 @@ export function BookingModal({
               <SelectContent>
                 {[1, 2, 3, 4].map((num) => (
                   <SelectItem key={num} value={num.toString()}>
-                    {num} {num === 1 ? "Player" : "Players"}
+                    {num} {num === 1 ? t('search.player') : t('search.players')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -175,38 +177,38 @@ export function BookingModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customer-name">Your Name</Label>
+            <Label htmlFor="customer-name">{t('booking.name')}</Label>
             <Input
               id="customer-name"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="John Doe"
+              placeholder={t('placeholders.name')}
               required
               data-testid="input-customer-name"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customer-email">Email</Label>
+            <Label htmlFor="customer-email">{t('booking.email')}</Label>
             <Input
               id="customer-email"
               type="email"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder="john@example.com"
+              placeholder={t('placeholders.email')}
               required
               data-testid="input-customer-email"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customer-phone">Phone (Optional)</Label>
+            <Label htmlFor="customer-phone">{t('booking.phone')}</Label>
             <Input
               id="customer-phone"
               type="tel"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="+34 600 000 000"
+              placeholder={t('placeholders.phone')}
               data-testid="input-customer-phone"
             />
           </div>
@@ -219,14 +221,14 @@ export function BookingModal({
               disabled={isPending}
               data-testid="button-cancel-booking"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
               disabled={(!date && !selectedSlot) || isPending}
               data-testid="button-submit-booking"
             >
-              {isPending ? "Submitting..." : "Confirm Booking Request"}
+              {isPending ? t('common.loading') : t('booking.submitBooking')}
             </Button>
           </DialogFooter>
         </form>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useI18n } from "@/lib/i18n";
 import { Header } from "@/components/Header";
 import { LocationSearch } from "@/components/LocationSearch";
 import { SearchFilters } from "@/components/SearchFilters";
@@ -99,6 +100,7 @@ export default function Home() {
   const [sortMode, setSortMode] = useState<SortMode>("distance-asc");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const { toast } = useToast();
+  const { t } = useI18n();
 
   // Fetch all courses
   const { data: courses, isLoading: coursesLoading } = useQuery<GolfCourse[]>({
@@ -187,14 +189,14 @@ export default function Home() {
       setBookingModalOpen(false);
       setSelectedSlot(null);
       toast({
-        title: "Booking Request Submitted!",
-        description: "Your tee time request has been sent. You will receive a confirmation email shortly.",
+        title: t('home.bookingSuccessTitle'),
+        description: t('home.bookingSuccessDescription'),
       });
     },
     onError: () => {
       toast({
-        title: "Booking Failed",
-        description: "Could not submit your booking request. Please try again.",
+        title: t('home.bookingFailedTitle'),
+        description: t('home.bookingFailedDescription'),
         variant: "destructive",
       });
     },
@@ -246,16 +248,15 @@ export default function Home() {
         <div className="relative h-full flex items-center justify-center px-4">
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
-              Your Personal Guide to Costa del Sol Golf
+              {t('home.heroTitle')}
             </h1>
             <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto">
-              Welcome to Fridas Golf. We curate the finest tee times across Costa del Sol's premier courses, 
-              from Sotogrande to Málaga, with real-time availability and personal service.
+              {t('home.heroDescription')}
             </p>
 
             <Card className="bg-white/95 backdrop-blur-md border-0 shadow-xl max-w-xl mx-auto">
               <CardHeader>
-                <CardTitle className="text-center">Start Your Search</CardTitle>
+                <CardTitle className="text-center">{t('home.startSearchTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <LocationSearch onLocationSelected={handleLocationSelected} />
@@ -278,9 +279,9 @@ export default function Home() {
       {userLocation && availableSlots && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="mb-6">
-            <h2 className="font-serif text-3xl font-bold mb-2">costa del sol</h2>
+            <h2 className="font-serif text-3xl font-bold mb-2">{t('home.resultsTitle')}</h2>
             <p className="text-muted-foreground font-semibold">
-              {availableSlots.length} results
+              {t('home.resultsCount', { count: availableSlots.length })}
             </p>
           </div>
 
@@ -307,7 +308,7 @@ export default function Home() {
                     data-testid="button-view-list"
                   >
                     <LayoutGrid className="mr-2 h-4 w-4" />
-                    List View
+                    {t('search.viewList')}
                   </Button>
                   <Button 
                     variant={viewMode === "map" ? "default" : "outline"}
@@ -315,7 +316,7 @@ export default function Home() {
                     data-testid="button-view-map"
                   >
                     <Map className="mr-2 h-4 w-4" />
-                    Map View
+                    {t('search.viewMap')}
                   </Button>
                 </div>
                 
@@ -331,7 +332,7 @@ export default function Home() {
                       }`}
                       data-testid="button-sort-closer"
                     >
-                      Closer
+                      {t('home.closer')}
                     </button>
                     <button
                       onClick={() => setSortMode("distance-desc")}
@@ -342,7 +343,7 @@ export default function Home() {
                       }`}
                       data-testid="button-sort-farther"
                     >
-                      Farther away
+                      {t('home.fartherAway')}
                     </button>
                     <button
                       onClick={() => setSortMode("price-asc")}
@@ -353,7 +354,7 @@ export default function Home() {
                       }`}
                       data-testid="button-sort-cheaper"
                     >
-                      Cheaper
+                      {t('home.cheaper')}
                     </button>
                     <button
                       onClick={() => setSortMode("price-desc")}
@@ -364,7 +365,7 @@ export default function Home() {
                       }`}
                       data-testid="button-sort-expensive"
                     >
-                      More expensive
+                      {t('home.moreExpensive')}
                     </button>
                   </div>
                 )}
@@ -405,7 +406,7 @@ export default function Home() {
                                 </h3>
                                 {courseSlot.providerType === "DEEP_LINK" && (
                                   <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
-                                    Direct
+                                    {t('home.directBadge')}
                                   </Badge>
                                 )}
                               </div>
@@ -430,7 +431,7 @@ export default function Home() {
                           {/* Inline Tee Times - Horizontal Scroll */}
                           <div>
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
-                              Available Tee Times
+                              {t('home.availableTeeTimes')}
                             </p>
                             <div className="overflow-x-auto pb-2" data-testid={`slots-container-${courseSlot.courseId}`}>
                               <div className="flex gap-2">
@@ -491,7 +492,7 @@ export default function Home() {
             <Card>
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">
-                  No available tee times found in your search window. Try adjusting your filters.
+                  {t('home.noTeeTimesMessage')}
                 </p>
               </CardContent>
             </Card>
@@ -506,9 +507,9 @@ export default function Home() {
           <div className="bg-muted/30 py-16">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center mb-12">
-                <h2 className="font-serif text-3xl md:text-4xl font-bold mb-4">Your Personal Golf Concierge</h2>
+                <h2 className="font-serif text-3xl md:text-4xl font-bold mb-4">{t('home.personalConciergeTitle')}</h2>
                 <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                  We curate the finest tee times with the personal touch of a dedicated advisor
+                  {t('home.personalConciergeDescription')}
                 </p>
               </div>
 
@@ -517,12 +518,12 @@ export default function Home() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
-                      Real-Time Availability
+                      {t('home.realTimeTitle')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground">
-                      See actual available tee times, not just booking forms. Know exactly what's available before you request.
+                      {t('home.realTimeDescription')}
                     </p>
                   </CardContent>
                 </Card>
@@ -531,12 +532,12 @@ export default function Home() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Mail className="h-5 w-5 text-primary" />
-                      Personal Service
+                      {t('home.personalServiceTitle')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground">
-                      Boutique-quality service with local expertise. We handle the details so you can focus on your game.
+                      {t('home.personalServiceDescription')}
                     </p>
                   </CardContent>
                 </Card>
@@ -545,12 +546,12 @@ export default function Home() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-primary" />
-                      Curated Selection
+                      {t('home.premiumCoursesTitle')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-muted-foreground">
-                      Only the finest courses from Sotogrande to Málaga. Premium experiences, carefully selected.
+                      {t('home.premiumCoursesDescription')}
                     </p>
                   </CardContent>
                 </Card>

@@ -15,6 +15,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { CalendarIcon, Search, Check } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import type { GolfCourse } from "@shared/schema";
 
 interface SearchFiltersProps {
@@ -37,6 +38,7 @@ interface SearchFiltersProps {
 }
 
 export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) {
+  const { t } = useI18n();
   const [date, setDate] = useState<Date | undefined>(currentFilters?.date);
   const [players, setPlayers] = useState<string>(currentFilters?.players.toString() || "2");
   const [fromTime, setFromTime] = useState<string>(currentFilters?.fromTime || "07:00");
@@ -68,7 +70,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="course-search">Search Golf Course</Label>
+        <Label htmlFor="course-search">{t('search.placeholder')}</Label>
         <Popover open={autocompleteOpen} onOpenChange={setAutocompleteOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -78,18 +80,18 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
               className="w-full justify-start text-left font-normal"
               data-testid="input-course-search"
             >
-              {courseSearch || "Search by course name..."}
+              {courseSearch || t('search.placeholder')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-full p-0" align="start">
             <Command>
               <CommandInput
-                placeholder="Search golf courses..."
+                placeholder={t('search.placeholder')}
                 value={courseSearch}
                 onValueChange={setCourseSearch}
               />
               <CommandList>
-                <CommandEmpty>No golf course found.</CommandEmpty>
+                <CommandEmpty>{t('search.noResults')}</CommandEmpty>
                 <CommandGroup>
                   {courses
                     ?.filter((course) =>
@@ -125,7 +127,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="filter-date">Date</Label>
+          <Label htmlFor="filter-date">{t('search.date')}</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -135,7 +137,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
                 data-testid="button-filter-date"
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {date ? format(date, "PPP") : "Any date"}
+                {date ? format(date, "PPP") : t('search.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
@@ -151,7 +153,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="filter-players">Players</Label>
+          <Label htmlFor="filter-players">{t('search.players')}</Label>
           <Select value={players} onValueChange={setPlayers}>
             <SelectTrigger id="filter-players" data-testid="select-filter-players">
               <SelectValue />
@@ -159,7 +161,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
             <SelectContent>
               {[1, 2, 3, 4].map((num) => (
                 <SelectItem key={num} value={num.toString()}>
-                  {num} {num === 1 ? "Player" : "Players"}
+                  {num} {num === 1 ? t('search.player') : t('search.players')}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -167,20 +169,20 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="filter-holes">Holes</Label>
+          <Label htmlFor="filter-holes">{t('search.holes')}</Label>
           <Select value={holes} onValueChange={setHoles}>
             <SelectTrigger id="filter-holes" data-testid="select-filter-holes">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="9">9 Holes</SelectItem>
-              <SelectItem value="18">18 Holes</SelectItem>
+              <SelectItem value="9">{t('search.holes9')}</SelectItem>
+              <SelectItem value="18">{t('search.holes18')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="filter-from-time">From Time</Label>
+          <Label htmlFor="filter-from-time">{t('search.timeRange')}</Label>
           <Select value={fromTime} onValueChange={setFromTime}>
             <SelectTrigger id="filter-from-time" data-testid="select-from-time">
               <SelectValue />
@@ -196,7 +198,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="filter-to-time">To Time</Label>
+          <Label htmlFor="filter-to-time">{t('search.timeRange')}</Label>
           <Select value={toTime} onValueChange={setToTime}>
             <SelectTrigger id="filter-to-time" data-testid="select-to-time">
               <SelectValue />
@@ -214,7 +216,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
 
       <Button onClick={handleSearch} className="w-full" size="lg" data-testid="button-apply-filters">
         <Search className="mr-2 h-4 w-4" />
-        Apply Filters
+        {t('common.apply')}
       </Button>
     </div>
   );

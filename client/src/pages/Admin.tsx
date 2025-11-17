@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useI18n } from "@/lib/i18n";
 import { Header } from "@/components/Header";
 import { CourseCard } from "@/components/CourseCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +73,7 @@ export default function Admin() {
   const [courseImageUrls, setCourseImageUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useI18n();
 
   // Fetch courses (public endpoint)
   const { data: courses } = useQuery<GolfCourse[]>({
@@ -92,15 +94,15 @@ export default function Admin() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/affiliate-emails"] });
       toast({
-        title: "Emails Sent Successfully",
-        description: `Sent ${data.sent || selectedCourseIds.length} affiliate partnership emails.`,
+        title: t('admin.emailsSentTitle'),
+        description: t('admin.emailsSentDescription', { count: data.sent || selectedCourseIds.length }),
       });
       setSelectedCourseIds([]);
     },
     onError: () => {
       toast({
-        title: "Email Send Failed",
-        description: "Could not send emails. Please check your SMTP configuration.",
+        title: t('admin.emailSendFailedTitle'),
+        description: t('admin.emailSendFailedDescription'),
         variant: "destructive",
       });
     },
@@ -115,8 +117,8 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       const courseName = courses?.find(c => c.id === variables.courseId)?.name || "course";
       toast({
-        title: "Image Updated",
-        description: `Successfully updated image for ${courseName}`,
+        title: t('admin.imageUpdatedTitle'),
+        description: t('admin.imageUpdatedDescription', { courseName }),
       });
       // Clear the input for this course
       setCourseImageUrls((prev) => {
@@ -127,8 +129,8 @@ export default function Admin() {
     },
     onError: (error: any) => {
       toast({
-        title: "Update Failed",
-        description: error.message || "Could not update course image. Please check the URL format.",
+        title: t('admin.updateFailedTitle'),
+        description: error.message || t('admin.updateFailedDescription'),
         variant: "destructive",
       });
     },
@@ -161,8 +163,8 @@ export default function Admin() {
     },
     onError: (error: any) => {
       toast({
-        title: "Upload Failed",
-        description: error.message || "Could not upload image. Please try again.",
+        title: t('admin.uploadFailedTitle'),
+        description: error.message || t('admin.uploadFailedDescription'),
         variant: "destructive",
       });
     },
@@ -177,14 +179,14 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       toast({
-        title: "Image Deleted",
-        description: "Image file deleted successfully and course updated",
+        title: t('admin.imageDeletedTitle'),
+        description: t('admin.imageDeletedDescription'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Delete Failed",
-        description: error.message || "Could not delete image. Please try again.",
+        title: t('admin.deleteFailedTitle'),
+        description: error.message || t('admin.deleteFailedDescription'),
         variant: "destructive",
       });
     },
@@ -194,8 +196,8 @@ export default function Admin() {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: t('admin.unauthorizedTitle'),
+        description: t('admin.unauthorizedDescription'),
         variant: "destructive",
       });
       setTimeout(() => {
@@ -205,7 +207,7 @@ export default function Admin() {
       }, 500);
       return;
     }
-  }, [isAuthenticated, isLoading, toast]);
+  }, [isAuthenticated, isLoading, toast, t]);
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -215,7 +217,7 @@ export default function Admin() {
         <div className="flex items-center justify-center h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
+            <p className="text-muted-foreground">{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -246,8 +248,8 @@ export default function Admin() {
   const handleSendEmails = () => {
     if (selectedCourseIds.length === 0) {
       toast({
-        title: "No Courses Selected",
-        description: "Please select at least one course to send emails.",
+        title: t('admin.noCourseSelectedTitle'),
+        description: t('admin.noCourseSelectedDescription'),
         variant: "destructive",
       });
       return;
@@ -255,8 +257,8 @@ export default function Admin() {
 
     if (!senderName.trim()) {
       toast({
-        title: "Sender Name Required",
-        description: "Please enter your name for the email template.",
+        title: t('admin.senderNameRequiredTitle'),
+        description: t('admin.senderNameRequiredDescription'),
         variant: "destructive",
       });
       return;
@@ -273,11 +275,11 @@ export default function Admin() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":
-        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />{t('admin.statusPending')}</Badge>;
       case "CONFIRMED":
-        return <Badge variant="default"><CheckCircle2 className="h-3 w-3 mr-1" />Confirmed</Badge>;
+        return <Badge variant="default"><CheckCircle2 className="h-3 w-3 mr-1" />{t('admin.statusConfirmed')}</Badge>;
       case "CANCELLED":
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />{t('admin.statusCancelled')}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -289,28 +291,28 @@ export default function Admin() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="font-serif text-4xl font-bold mb-2">Admin Dashboard</h1>
+          <h1 className="font-serif text-4xl font-bold mb-2">{t('admin.dashboardTitle')}</h1>
           <p className="text-muted-foreground">
-            Manage courses, bookings, and affiliate partnerships
+            {t('admin.dashboardDescription')}
           </p>
         </div>
 
         <Tabs defaultValue="bookings" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="bookings" data-testid="tab-bookings">Booking Requests</TabsTrigger>
-            <TabsTrigger value="courses" data-testid="tab-courses">Golf Courses</TabsTrigger>
-            <TabsTrigger value="featured" data-testid="tab-featured">Featured Courses</TabsTrigger>
-            <TabsTrigger value="all-courses" data-testid="tab-all-courses">All Courses</TabsTrigger>
-            <TabsTrigger value="course-images" data-testid="tab-course-images">Course Images</TabsTrigger>
-            <TabsTrigger value="emails" data-testid="tab-emails">Affiliate Emails</TabsTrigger>
+            <TabsTrigger value="bookings" data-testid="tab-bookings">{t('admin.tabBookingRequests')}</TabsTrigger>
+            <TabsTrigger value="courses" data-testid="tab-courses">{t('admin.tabGolfCourses')}</TabsTrigger>
+            <TabsTrigger value="featured" data-testid="tab-featured">{t('admin.tabFeaturedCourses')}</TabsTrigger>
+            <TabsTrigger value="all-courses" data-testid="tab-all-courses">{t('admin.tabAllCourses')}</TabsTrigger>
+            <TabsTrigger value="course-images" data-testid="tab-course-images">{t('admin.tabCourseImages')}</TabsTrigger>
+            <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Booking Requests</CardTitle>
+                <CardTitle>{t('admin.recentBookingRequests')}</CardTitle>
                 <CardDescription>
-                  All tee time booking requests from customers
+                  {t('admin.bookingRequestsDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -318,12 +320,12 @@ export default function Admin() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Course</TableHead>
-                        <TableHead>Tee Time</TableHead>
-                        <TableHead>Players</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Contact</TableHead>
+                        <TableHead>{t('admin.tableHeaderCustomer')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderCourse')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderTeeTime')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderPlayers')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderStatus')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderContact')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -345,7 +347,7 @@ export default function Admin() {
                   </Table>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
-                    No booking requests yet
+                    {t('admin.noBookings')}
                   </div>
                 )}
               </CardContent>
@@ -355,9 +357,9 @@ export default function Admin() {
           <TabsContent value="courses">
             <Card>
               <CardHeader>
-                <CardTitle>Golf Courses Directory</CardTitle>
+                <CardTitle>{t('admin.courseDirectory')}</CardTitle>
                 <CardDescription>
-                  {courses?.length || 0} courses from Sotogrande to Málaga
+                  {t('admin.coursesFromRegion', { count: courses?.length || 0 })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -365,11 +367,11 @@ export default function Admin() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>City</TableHead>
-                        <TableHead>Province</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
+                        <TableHead>{t('admin.tableHeaderName')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderCity')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderProvince')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderEmail')}</TableHead>
+                        <TableHead>{t('admin.tableHeaderPhone')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -386,7 +388,7 @@ export default function Admin() {
                   </Table>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
-                    No courses in database
+                    {t('admin.noCourses')}
                   </div>
                 )}
               </CardContent>
@@ -396,9 +398,9 @@ export default function Admin() {
           <TabsContent value="featured">
             <Card>
               <CardHeader>
-                <CardTitle>Premier Costa del Sol Courses</CardTitle>
+                <CardTitle>{t('admin.featuredTitle')}</CardTitle>
                 <CardDescription>
-                  Featured premium golf courses from Sotogrande to Málaga
+                  {t('admin.featuredDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -410,7 +412,7 @@ export default function Admin() {
                   </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
-                    No courses in database
+                    {t('admin.noCourses')}
                   </div>
                 )}
               </CardContent>
@@ -420,9 +422,9 @@ export default function Admin() {
           <TabsContent value="all-courses">
             <Card>
               <CardHeader>
-                <CardTitle>All Courses</CardTitle>
+                <CardTitle>{t('admin.allCoursesTitle')}</CardTitle>
                 <CardDescription>
-                  Browse our complete selection of {courses?.length || 0} premier golf courses
+                  {t('admin.allCoursesDescription', { count: courses?.length || 0 })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -434,7 +436,7 @@ export default function Admin() {
                   </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
-                    No courses in database
+                    {t('admin.noCourses')}
                   </div>
                 )}
               </CardContent>
@@ -446,10 +448,10 @@ export default function Admin() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Image className="h-5 w-5" />
-                  Course Image Manager
+                  {t('admin.courseImageManager')}
                 </CardTitle>
                 <CardDescription>
-                  Update golf course images - {courses?.length || 0} total courses
+                  {t('admin.updateImagesDescription', { count: courses?.length || 0 })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -470,7 +472,7 @@ export default function Admin() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">Current Image</Label>
+                            <Label className="text-xs text-muted-foreground">{t('admin.currentImage')}</Label>
                             {course.imageUrl ? (
                               <div className="space-y-2">
                                 <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
@@ -497,7 +499,7 @@ export default function Admin() {
                                   data-testid={`button-delete-image-${course.id}`}
                                 >
                                   <Trash2 className="h-3 w-3 mr-2" />
-                                  Delete Image
+                                  {t('admin.deleteImage')}
                                 </Button>
                                 <div className="text-xs text-muted-foreground break-all">
                                   {course.imageUrl}
@@ -505,14 +507,14 @@ export default function Admin() {
                               </div>
                             ) : (
                               <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
-                                <span className="text-xs text-muted-foreground">No image</span>
+                                <span className="text-xs text-muted-foreground">{t('admin.noImage')}</span>
                               </div>
                             )}
                           </div>
 
                           <div className="space-y-2">
                             <Label htmlFor={`image-url-${course.id}`} className="text-xs text-muted-foreground">
-                              New Image URL or Upload
+                              {t('admin.newImageUrlOrUpload')}
                             </Label>
                             <Input
                               id={`image-url-${course.id}`}
@@ -523,12 +525,12 @@ export default function Admin() {
                                   [course.id]: e.target.value,
                                 }))
                               }
-                              placeholder="/stock_images/filename.jpg"
+                              placeholder={t('admin.pathPlaceholder')}
                               className="font-mono text-sm"
                               data-testid={`input-image-url-${course.id}`}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Path: /stock_images/ or /generated_images/ + filename
+                              {t('admin.pathHint')}
                             </p>
                             <div className="flex gap-2 pt-1">
                               <Button
@@ -551,7 +553,7 @@ export default function Admin() {
                                 data-testid={`button-upload-image-${course.id}`}
                               >
                                 <Upload className="h-4 w-4 mr-2" />
-                                {uploadImageMutation.isPending ? "Uploading..." : "Upload"}
+                                {uploadImageMutation.isPending ? t('admin.uploading') : t('admin.upload')}
                               </Button>
                               <Button
                                 size="sm"
@@ -591,7 +593,7 @@ export default function Admin() {
                                 data-testid={`button-save-image-${course.id}`}
                               >
                                 <Save className="h-4 w-4 mr-2" />
-                                {updateCourseImageMutation.isPending ? "Saving..." : "Save URL"}
+                                {updateCourseImageMutation.isPending ? t('common.saving') : t('admin.setImageUrl')}
                               </Button>
                             </div>
                           </div>
@@ -601,7 +603,7 @@ export default function Admin() {
                   </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
-                    No courses in database
+                    {t('admin.noCourses')}
                   </div>
                 )}
               </CardContent>
@@ -667,9 +669,7 @@ export default function Admin() {
                         onClick={handleToggleAll}
                         data-testid="button-toggle-all-courses"
                       >
-                        {selectedCourseIds.length === courses?.length
-                          ? "Deselect All"
-                          : "Select All"}
+                        {t('admin.selectAll', { count: selectedCourseIds.length === courses?.length ? courses?.length || 0 : courses?.length || 0 })}
                       </Button>
                     </div>
 

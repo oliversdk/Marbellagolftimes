@@ -1,9 +1,12 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MapPin } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useI18n } from "@/lib/i18n";
 
 export function Header() {
   const [location] = useLocation();
+  const { t } = useI18n();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -15,9 +18,9 @@ export function Header() {
             </Link>
             <Link href="/" className="flex flex-col">
               <span className="font-serif font-semibold text-lg leading-none">
-                Fridas Golf
+                {t('header.title')}
               </span>
-              <span className="text-xs text-muted-foreground">Costa del Sol</span>
+              <span className="text-xs text-muted-foreground">{t('header.subtitle')}</span>
             </Link>
           </div>
 
@@ -29,7 +32,7 @@ export function Header() {
                 }`}
                 data-testid="link-find-courses"
               >
-                Find Courses
+                {t('search.searchButton')}
               </span>
             </Link>
             <Link href="/admin">
@@ -39,16 +42,19 @@ export function Header() {
                 }`}
                 data-testid="link-admin"
               >
-                Admin
+                {t('header.admin')}
               </span>
             </Link>
           </nav>
 
-          <Link href="/">
-            <Button size="default" data-testid="button-search-tee-times">
-              Search Tee Times
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <Link href="/">
+              <Button size="default" data-testid="button-search-tee-times">
+                {t('search.searchButton')}
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </header>

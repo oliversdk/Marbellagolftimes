@@ -2,6 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Phone, Globe, Mail } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 import type { GolfCourse } from "@shared/schema";
 
 interface CourseCardProps {
@@ -12,6 +13,8 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCardProps) {
+  const { t } = useI18n();
+  
   return (
     <Card className="overflow-hidden hover-elevate" data-testid={`card-course-${course.id}`}>
       <CardHeader className="p-4 space-y-2">
@@ -29,7 +32,7 @@ export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCa
           </div>
           {distance !== undefined && (
             <Badge variant="secondary" data-testid={`badge-distance-${course.id}`}>
-              {distance.toFixed(1)} km
+              {t('course.distance', { distance: distance.toFixed(1) })}
             </Badge>
           )}
         </div>
@@ -59,7 +62,7 @@ export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCa
                 className="truncate hover:text-primary transition-colors"
                 data-testid={`link-course-website-${course.id}`}
               >
-                Visit Website
+                {t('course.viewDetails')}
               </a>
             </div>
           )}
@@ -74,7 +77,7 @@ export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCa
             onClick={onBook}
             data-testid={`button-book-course-${course.id}`}
           >
-            Book Tee Time
+            {t('booking.title')}
           </Button>
         )}
         {course.bookingUrl && (
@@ -83,7 +86,7 @@ export function CourseCard({ course, distance, onBook, onViewDetails }: CourseCa
             onClick={() => window.open(course.bookingUrl || course.websiteUrl || "", "_blank")}
             data-testid={`button-club-site-${course.id}`}
           >
-            Club Site
+            {t('course.viewDetails')}
           </Button>
         )}
       </CardFooter>
