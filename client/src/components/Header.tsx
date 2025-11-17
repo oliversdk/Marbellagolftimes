@@ -1,12 +1,14 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin } from "lucide-react";
+import { MapPin, User } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
   const [location] = useLocation();
   const { t } = useI18n();
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -49,6 +51,13 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
+            {isAuthenticated && (
+              <Link href="/profile">
+                <Button variant="ghost" size="icon" data-testid="link-profile">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+            )}
             <Link href="/">
               <Button size="default" data-testid="button-search-tee-times">
                 {t('search.searchButton')}

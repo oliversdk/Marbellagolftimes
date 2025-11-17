@@ -41,6 +41,7 @@ export interface IStorage {
   // Booking Requests
   getAllBookings(): Promise<BookingRequest[]>;
   getBookingById(id: string): Promise<BookingRequest | undefined>;
+  getBookingsByUserId(userId: string): Promise<(BookingRequest & { courseName?: string })[]>;
   createBooking(booking: InsertBookingRequest): Promise<BookingRequest>;
 
   // Affiliate Emails
@@ -947,10 +948,25 @@ export class MemStorage implements IStorage {
     return this.bookings.get(id);
   }
 
+  async getBookingsByUserId(userId: string): Promise<(BookingRequest & { courseName?: string })[]> {
+    const userBookings = Array.from(this.bookings.values())
+      .filter(booking => booking.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    return userBookings.map(booking => {
+      const course = this.courses.get(booking.courseId);
+      return {
+        ...booking,
+        courseName: course?.name,
+      };
+    });
+  }
+
   async createBooking(insertBooking: InsertBookingRequest): Promise<BookingRequest> {
     const id = randomUUID();
     const booking: BookingRequest = {
       id,
+      userId: insertBooking.userId || null,
       courseId: insertBooking.courseId,
       teeTime: new Date(insertBooking.teeTime),
       players: insertBooking.players,
@@ -1052,6 +1068,29 @@ export class DatabaseStorage implements IStorage {
   async getBookingById(id: string): Promise<BookingRequest | undefined> {
     const results = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id));
     return results[0];
+  }
+
+  async getBookingsByUserId(userId: string): Promise<(BookingRequest & { courseName?: string })[]> {
+    const results = await db
+      .select({
+        id: bookingRequests.id,
+        userId: bookingRequests.userId,
+        courseId: bookingRequests.courseId,
+        teeTime: bookingRequests.teeTime,
+        players: bookingRequests.players,
+        customerName: bookingRequests.customerName,
+        customerEmail: bookingRequests.customerEmail,
+        customerPhone: bookingRequests.customerPhone,
+        status: bookingRequests.status,
+        createdAt: bookingRequests.createdAt,
+        courseName: golfCourses.name,
+      })
+      .from(bookingRequests)
+      .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
+      .where(eq(bookingRequests.userId, userId))
+      .orderBy(desc(bookingRequests.createdAt));
+    
+    return results;
   }
 
   async createBooking(booking: InsertBookingRequest): Promise<BookingRequest> {

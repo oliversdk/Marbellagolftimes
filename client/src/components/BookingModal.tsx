@@ -23,7 +23,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarIcon, Clock, ChevronRight } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { useI18n } from "@/lib/i18n";
-import type { GolfCourse, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
+import type { GolfCourse, CourseWithSlots, TeeTimeSlot, User } from "@shared/schema";
 
 interface BookingModalProps {
   course: GolfCourse | null;
@@ -50,6 +51,7 @@ export function BookingModal({
   isPending,
 }: BookingModalProps) {
   const { t } = useI18n();
+  const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState<'select-time' | 'fill-details'>('select-time');
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [searchDate, setSearchDate] = useState<Date>(new Date());
@@ -69,6 +71,15 @@ export function BookingModal({
       setSelectedSlot(null);
     }
   }, [preSelectedSlot, open]);
+
+  // Auto-fill name/email for logged-in users when modal opens (only if no preSelectedSlot)
+  useEffect(() => {
+    if (open && isAuthenticated && user && !preSelectedSlot) {
+      const typedUser = user as User;
+      setCustomerName(`${typedUser.firstName} ${typedUser.lastName}`);
+      setCustomerEmail(typedUser.email || "");
+    }
+  }, [open, isAuthenticated, user, preSelectedSlot]);
 
   // Reset when modal closes
   useEffect(() => {

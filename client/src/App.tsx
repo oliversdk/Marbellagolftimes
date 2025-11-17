@@ -12,6 +12,7 @@ import NotFound from "@/pages/not-found";
 
 const CourseDetail = lazy(() => import("@/pages/CourseDetail"));
 const Admin = lazy(() => import("@/pages/Admin"));
+const Profile = lazy(() => import("@/pages/Profile"));
 
 function LoadingFallback() {
   return (
@@ -36,6 +37,11 @@ function Router() {
       <Route path="/course/:id">
         <Suspense fallback={<LoadingFallback />}>
           <CourseDetail />
+        </Suspense>
+      </Route>
+      <Route path="/profile">
+        <Suspense fallback={<LoadingFallback />}>
+          <Profile />
         </Suspense>
       </Route>
       <Route component={NotFound} />

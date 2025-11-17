@@ -597,10 +597,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/booking-requests - Create booking request (Public endpoint)
-  app.post("/api/booking-requests", async (req, res) => {
+  // GET /api/bookings - Get current user's bookings (Authenticated endpoint)
+  app.get("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
-      const validatedData = insertBookingRequestSchema.parse(req.body);
+      const userId = req.user.claims.sub;
+      const bookings = await storage.getBookingsByUserId(userId);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching user bookings:", error);
+      res.status(500).json({ error: "Failed to fetch bookings" });
+    }
+  });
+
+  // POST /api/booking-requests - Create booking request (Public endpoint)
+  app.post("/api/booking-requests", async (req: any, res) => {
+    try {
+      // Add userId if user is authenticated
+      const bookingData = {
+        ...req.body,
+        userId: req.user?.claims?.sub || null,
+      };
+      
+      const validatedData = insertBookingRequestSchema.parse(bookingData);
       const booking = await storage.createBooking(validatedData);
       
       // Get course details for email
