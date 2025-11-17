@@ -72,7 +72,7 @@ export class MemStorage implements IStorage {
         email: "greenfees@valderrama.com",
         phone: "+34 956 79 12 00",
         notes: "Host of 1997 Ryder Cup - €500 green fee",
-        imageUrl: "/stock_images/real_club_valderrama_90e44e8b.jpg",
+        imageUrl: "/stock_images/exclusive_valderrama_5aac4faa.jpg",
       },
       {
         name: "Real Club de Golf Sotogrande",
@@ -86,7 +86,7 @@ export class MemStorage implements IStorage {
         email: "info@golfsotogrande.com",
         phone: "+34 956 78 50 14",
         notes: "Robert Trent Jones design",
-        imageUrl: "/stock_images/sotogrande_golf_cour_15242157.jpg",
+        imageUrl: "/stock_images/exclusive_sotogrande_4e73d22f.jpg",
       },
       {
         name: "La Reserva Club Sotogrande",
@@ -100,7 +100,7 @@ export class MemStorage implements IStorage {
         email: "lareserva@sotogrande.com",
         phone: "+34 956 78 52 52",
         notes: "Modern parkland course",
-        imageUrl: "/stock_images/la_reserva_club_golf_fe48ccc3.jpg",
+        imageUrl: "/stock_images/exclusive_la_reserva_a6d3734f.jpg",
       },
       {
         name: "San Roque Club",
@@ -114,7 +114,7 @@ export class MemStorage implements IStorage {
         email: "info@sanroqueclub.com",
         phone: "+34 956 61 30 30",
         notes: "Two courses: Old and New",
-        imageUrl: "/stock_images/san_roque_golf_club__401f2f5c.jpg",
+        imageUrl: "/stock_images/exclusive_san_roque__9f3b00fb.jpg",
       },
       {
         name: "Club de Golf La Cañada",
@@ -128,7 +128,7 @@ export class MemStorage implements IStorage {
         email: "reservas@lacanadagolf.com",
         phone: "+34 956 79 41 00",
         notes: "Family-friendly course",
-        imageUrl: "/stock_images/la_canada_golf_club__6998615c.jpg",
+        imageUrl: "/stock_images/exclusive_la_canada__7ab4a159.jpg",
       },
 
       // Casares / Estepona area
@@ -144,7 +144,7 @@ export class MemStorage implements IStorage {
         email: "proshop@golfcortesin.es",
         phone: "+34 952 93 78 84",
         notes: "Hosted Volvo World Match Play",
-        imageUrl: "/stock_images/finca_cortesin_golf__eb609d30.jpg",
+        imageUrl: "/stock_images/exclusive_finca_cort_9c10a5f0.jpg",
       },
       {
         name: "Casares Costa Golf",
@@ -158,7 +158,7 @@ export class MemStorage implements IStorage {
         email: "info@casarescostagolf.com",
         phone: "+34 952 89 50 00",
         notes: "Coastal views",
-        imageUrl: "/stock_images/casares_costa_golf_s_eb745a28.jpg",
+        imageUrl: "/stock_images/exclusive_casares_co_80632923.jpg",
       },
       {
         name: "Doña Julia Golf Club",
@@ -172,7 +172,7 @@ export class MemStorage implements IStorage {
         email: "reservas@donajuliagolf.es",
         phone: "+34 952 93 77 53",
         notes: "Mountain and sea views",
-        imageUrl: "/stock_images/dona_julia_golf_club_44e2a2c5.jpg",
+        imageUrl: "/stock_images/exclusive_dona_julia_f4533f84.jpg",
       },
       {
         name: "Valle Romano Golf & Resort",
@@ -186,7 +186,7 @@ export class MemStorage implements IStorage {
         email: "reservasgolf@valleromano.es",
         phone: "+34 952 80 99 00",
         notes: "Resort with hotel",
-        imageUrl: "/stock_images/valle_romano_golf_es_248e0c28.jpg",
+        imageUrl: "/stock_images/exclusive_valle_roma_5aa28d08.jpg",
       },
       {
         name: "El Paraíso Golf Club",
@@ -200,7 +200,7 @@ export class MemStorage implements IStorage {
         email: "info@elparaisogolfclub.com",
         phone: "+34 952 88 38 46",
         notes: "Gary Player design",
-        imageUrl: "/stock_images/el_paraiso_golf_club_77adf959.jpg",
+        imageUrl: "/stock_images/exclusive_el_paraiso_76cbef72.jpg",
       },
       {
         name: "Estepona Golf",
@@ -214,7 +214,7 @@ export class MemStorage implements IStorage {
         email: "information@esteponagolf.com",
         phone: "+34 952 11 30 82",
         notes: "Municipal course",
-        imageUrl: "/stock_images/estepona_golf_course_30d473a0.jpg",
+        imageUrl: "/stock_images/exclusive_estepona_g_908ec3ba.jpg",
       },
       {
         name: "Atalaya Golf & Country Club",
@@ -228,7 +228,7 @@ export class MemStorage implements IStorage {
         email: "info@atalaya-golf.com",
         phone: "+34 952 88 20 89",
         notes: "Old Course + New Course",
-        imageUrl: "/stock_images/atalaya_golf_marbell_195cb624.jpg",
+        imageUrl: "/stock_images/exclusive_luxury_ata_216556e4.jpg",
       },
       {
         name: "La Resina Golf & Country Club",
@@ -242,7 +242,7 @@ export class MemStorage implements IStorage {
         email: "laresinagolf@hotmail.com",
         phone: "+34 952 11 43 81",
         notes: "Challenging layout",
-        imageUrl: "/stock_images/la_resina_golf_estep_c74e213c.jpg",
+        imageUrl: "/stock_images/exclusive_la_resina__a690dc27.jpg",
       },
       {
         name: "Flamingos Golf (Villa Padierna)",
@@ -256,7 +256,7 @@ export class MemStorage implements IStorage {
         email: "info@villapadiernagolfclub.com",
         phone: "+34 952 88 97 91",
         notes: "Part of luxury hotel resort - 3 courses: Flamingos, Alferini, Tramores",
-        imageUrl: "/stock_images/flamingos_golf_villa_eeebd655.jpg",
+        imageUrl: "/stock_images/exclusive_flamingos__0c5d476b.jpg",
       },
 
       // Benahavís / Marbella area
@@ -272,7 +272,7 @@ export class MemStorage implements IStorage {
         email: "caddiemaster@es.taylorwimpey.com",
         phone: "+34 952 78 46 00",
         notes: "Seve Ballesteros design",
-        imageUrl: "/stock_images/los_arqueros_golf_ma_cc9147a1.jpg",
+        imageUrl: "/stock_images/exclusive_los_arquer_ed3fadfd.jpg",
       },
       {
         name: "El Higueral Golf",
@@ -286,7 +286,7 @@ export class MemStorage implements IStorage {
         email: "reservas@elhigueralgolf.com",
         phone: "+34 952 88 64 45",
         notes: "Compact 9-hole course",
-        imageUrl: "/stock_images/el_higueral_golf_ben_c8e5756b.jpg",
+        imageUrl: "/stock_images/exclusive_el_higuera_15794e23.jpg",
       },
       {
         name: "Monte Mayor Golf & Country Club",
@@ -300,7 +300,7 @@ export class MemStorage implements IStorage {
         email: "reservations@montemayorspain.com",
         phone: "+34 952 93 70 12",
         notes: "Mountain course",
-        imageUrl: "/stock_images/monte_mayor_golf_ben_d9226b7c.jpg",
+        imageUrl: "/stock_images/exclusive_monte_mayo_d132396e.jpg",
       },
       {
         name: "Marbella Club Golf Resort",
@@ -314,7 +314,7 @@ export class MemStorage implements IStorage {
         email: "info@marbellaclubgolf.com",
         phone: "+34 952 85 09 00",
         notes: "Dave Thomas design",
-        imageUrl: "/stock_images/marbella_club_golf_r_3bc96aa4.jpg",
+        imageUrl: "/stock_images/exclusive_marbella_c_1a93dd6b.jpg",
       },
       {
         name: "Real Club de Golf Guadalmina",
@@ -328,7 +328,7 @@ export class MemStorage implements IStorage {
         email: "reservas@guadalminagolf.com",
         phone: "+34 952 88 33 75",
         notes: "Two courses: North and South",
-        imageUrl: "/stock_images/guadalmina_golf_marb_df3703d6.jpg",
+        imageUrl: "/stock_images/exclusive_guadalmina_8b9134b3.jpg",
       },
       {
         name: "La Quinta Golf & Country Club",
@@ -342,7 +342,7 @@ export class MemStorage implements IStorage {
         email: "reservas@laquintagolf.com",
         phone: "+34 952 76 24 90",
         notes: "27 holes with lake features - Manuel Piñero design",
-        imageUrl: "/stock_images/la_quinta_golf_marbe_4f81bfd6.jpg",
+        imageUrl: "/stock_images/exclusive_la_quinta__af8b17ad.jpg",
       },
       {
         name: "Los Naranjos Golf Club",
@@ -356,7 +356,7 @@ export class MemStorage implements IStorage {
         email: "golfclub@losnaranjos.com",
         phone: "+34 952 81 52 06",
         notes: "Part of Golf Valley",
-        imageUrl: "/stock_images/los_naranjos_golf_cl_09d75f75.jpg",
+        imageUrl: "/stock_images/exclusive_los_naranj_149b2fd1.jpg",
       },
       {
         name: "Real Club de Golf Las Brisas",
@@ -370,7 +370,7 @@ export class MemStorage implements IStorage {
         email: "info@realclubdegolflasbrisas.com",
         phone: "+34 952 81 08 75",
         notes: "Robert Trent Jones Sr. design",
-        imageUrl: "/stock_images/las_brisas_golf_club_ff68ab1d.jpg",
+        imageUrl: "/stock_images/exclusive_las_brisas_fb0f580e.jpg",
       },
       {
         name: "Aloha Golf Club",
@@ -384,7 +384,7 @@ export class MemStorage implements IStorage {
         email: "info@clubdegolfaloha.com",
         phone: "+34 952 90 70 85",
         notes: "Championship course in Nueva Andalucía",
-        imageUrl: "/stock_images/aloha_golf_club_marb_ce0d580d.jpg",
+        imageUrl: "/stock_images/exclusive_aloha_golf_d9c88cd4.jpg",
       },
       {
         name: "Magna Marbella Golf",
@@ -398,7 +398,7 @@ export class MemStorage implements IStorage {
         email: "info@magnamarbellagolf.com",
         phone: "+34 952 83 08 00",
         notes: "Executive 9-hole course",
-        imageUrl: "/stock_images/magna_marbella_golf__52de3370.jpg",
+        imageUrl: "/stock_images/exclusive_magna_marb_49bb3b03.jpg",
       },
       {
         name: "Rio Real Golf & Hotel",
@@ -412,7 +412,7 @@ export class MemStorage implements IStorage {
         email: "reservas@rioreal.com",
         phone: "+34 952 76 57 33",
         notes: "Javier Arana design",
-        imageUrl: "/stock_images/rio_real_golf_hotel__9629ab8b.jpg",
+        imageUrl: "/stock_images/exclusive_rio_real_g_dca7f81d.jpg",
       },
       {
         name: "Santa Clara Golf Marbella",
@@ -426,7 +426,7 @@ export class MemStorage implements IStorage {
         email: "reservas@santaclaragolfmarbella.com",
         phone: "+34 952 85 09 11",
         notes: "Enrique Canales design",
-        imageUrl: "/stock_images/santa_clara_golf_mar_60573e25.jpg",
+        imageUrl: "/stock_images/exclusive_santa_clar_7855fa8a.jpg",
       },
       {
         name: "Santa Maria Golf & Country Club",
@@ -440,7 +440,7 @@ export class MemStorage implements IStorage {
         email: "caddymaster@santamariagolfclub.com",
         phone: "+34 952 83 10 36",
         notes: "In Elviria area",
-        imageUrl: "/stock_images/santa_maria_golf_mar_a7aeb6a7.jpg",
+        imageUrl: "/stock_images/exclusive_santa_mari_c790a6bd.jpg",
       },
       {
         name: "Marbella Golf & Country Club",
@@ -454,7 +454,7 @@ export class MemStorage implements IStorage {
         email: "reservas@marbellagolf.com",
         phone: "+34 952 83 05 00",
         notes: "Historic course established 1989",
-        imageUrl: "/stock_images/marbella_golf_course_d4b8f339.jpg",
+        imageUrl: "/stock_images/exclusive_marbella_g_67d1c124.jpg",
       },
       {
         name: "Greenlife Golf",
@@ -468,7 +468,7 @@ export class MemStorage implements IStorage {
         email: "golf@greenlife-golf.com",
         phone: "+34 952 83 41 43",
         notes: "Pitch & putt and par-3",
-        imageUrl: "/stock_images/greenlife_golf_marbe_72287948.jpg",
+        imageUrl: "/stock_images/exclusive_greenlife__74a96ac8.jpg",
       },
 
       // Mijas / Fuengirola / Benalmádena / Málaga
@@ -484,7 +484,7 @@ export class MemStorage implements IStorage {
         email: "golf@lacala.com",
         phone: "+34 952 66 90 33",
         notes: "Three courses: America, Asia, Europa",
-        imageUrl: "/stock_images/la_cala_resort_golf__625624b5.jpg",
+        imageUrl: "/stock_images/exclusive_la_cala_re_2864dc04.jpg",
       },
       {
         name: "Mijas Golf",
@@ -498,7 +498,7 @@ export class MemStorage implements IStorage {
         email: "teetimes@mijasgolf.org",
         phone: "+34 952 47 68 43",
         notes: "Two courses: Los Lagos and Los Olivos",
-        imageUrl: "/stock_images/mijas_golf_course_co_e0905a30.jpg",
+        imageUrl: "/stock_images/exclusive_mijas_golf_f3136b63.jpg",
       },
       {
         name: "Santana Golf & Country Club",
@@ -512,7 +512,7 @@ export class MemStorage implements IStorage {
         email: "info@santanagolf.com",
         phone: "+34 952 93 33 38",
         notes: "Hill course with views",
-        imageUrl: "/stock_images/santana_golf_mijas_s_73e7ba99.jpg",
+        imageUrl: "/stock_images/exclusive_santana_go_d4cf5ea9.jpg",
       },
       {
         name: "Calanova Golf Club",
@@ -526,7 +526,7 @@ export class MemStorage implements IStorage {
         email: "reservas@calanovagolfclub.com",
         phone: "+34 951 170 194",
         notes: "Par 72 course with buggy included in green fee",
-        imageUrl: "/stock_images/calanova_golf_club_m_1d19105b.jpg",
+        imageUrl: "/stock_images/exclusive_calanova_g_11457d46.jpg",
       },
       {
         name: "El Chaparral Golf Club",
@@ -540,7 +540,7 @@ export class MemStorage implements IStorage {
         email: "reservas@golfelchaparral.com",
         phone: "+34 952 58 70 08",
         notes: "Coastal location - Pepe Gancedo design",
-        imageUrl: "/stock_images/el_chaparral_golf_mi_2cdf1c0f.jpg",
+        imageUrl: "/stock_images/exclusive_el_chaparr_301cfd55.jpg",
       },
       {
         name: "Miraflores Golf",
@@ -554,7 +554,7 @@ export class MemStorage implements IStorage {
         email: "info@miraflores-golf.com",
         phone: "+34 952 93 19 60",
         notes: "Family-friendly",
-        imageUrl: "/stock_images/miraflores_golf_mija_f3bfd6ec.jpg",
+        imageUrl: "/stock_images/exclusive_miraflores_c1b33528.jpg",
       },
       {
         name: "La Noria Golf & Resort",
@@ -568,7 +568,7 @@ export class MemStorage implements IStorage {
         email: "info@lanoriagolf.net",
         phone: "+34 952 58 96 92",
         notes: "Resort facilities",
-        imageUrl: "/stock_images/la_noria_golf_fuengi_5a724763.jpg",
+        imageUrl: "/stock_images/exclusive_la_noria_g_b2630ffd.jpg",
       },
       {
         name: "La Siesta Golf",
@@ -582,7 +582,7 @@ export class MemStorage implements IStorage {
         email: "lasiestagolf@gmail.com",
         phone: "+34 952 93 31 51",
         notes: "Short course",
-        imageUrl: "/stock_images/la_siesta_golf_mijas_78deb58a.jpg",
+        imageUrl: "/stock_images/exclusive_la_siesta__da49d8a2.jpg",
       },
       {
         name: "Cerrado del Águila Golf",
@@ -596,7 +596,7 @@ export class MemStorage implements IStorage {
         email: "info@cerradodelaguila.com",
         phone: "+34 952 58 96 00",
         notes: "Mountain views",
-        imageUrl: "/stock_images/cerrado_del_aguila_g_6df436f1.jpg",
+        imageUrl: "/stock_images/exclusive_cerrado_ag_d56a4de4.jpg",
       },
       {
         name: "Lauro Golf",
@@ -610,7 +610,7 @@ export class MemStorage implements IStorage {
         email: "info@laurogolf.com",
         phone: "+34 952 41 27 67",
         notes: "27 holes",
-        imageUrl: "/stock_images/lauro_golf_alhaurin__83341bac.jpg",
+        imageUrl: "/stock_images/exclusive_lauro_golf_3aec18fa.jpg",
       },
       {
         name: "Torrequebrada Golf",
@@ -624,7 +624,7 @@ export class MemStorage implements IStorage {
         email: "bookings@golftorrequebrada.com",
         phone: "+34 952 44 27 42",
         notes: "José María Olazábal design",
-        imageUrl: "/stock_images/torrequebrada_golf_b_8a155122.jpg",
+        imageUrl: "/stock_images/exclusive_torrequebr_622562ec.jpg",
       },
       {
         name: "Guadalhorce Club de Golf",
@@ -638,7 +638,7 @@ export class MemStorage implements IStorage {
         email: "reservas@guadalhorce.com",
         phone: "+34 952 17 93 78",
         notes: "Municipal course near Málaga",
-        imageUrl: "/stock_images/guadalhorce_golf_mal_a7a25cfe.jpg",
+        imageUrl: "/stock_images/exclusive_guadalhorc_8a7c7b2a.jpg",
       },
       {
         name: "Parador de Málaga Golf",
@@ -652,7 +652,7 @@ export class MemStorage implements IStorage {
         email: "malaga@parador.es",
         phone: "+34 952 38 12 55",
         notes: "Part of Parador hotel chain",
-        imageUrl: "/stock_images/parador_malaga_golf__d1237c83.jpg",
+        imageUrl: "/stock_images/exclusive_parador_ma_a4eb061b.jpg",
       },
       {
         name: "Baviera Golf",
@@ -666,7 +666,7 @@ export class MemStorage implements IStorage {
         email: "info@bavieragolf.com",
         phone: "+34 952 555 015",
         notes: "José María Cañizares design with TopTracer driving range",
-        imageUrl: "/stock_images/baviera_golf_caleta__d499ad74.jpg",
+        imageUrl: "/stock_images/exclusive_baviera_go_6c016591.jpg",
       },
     ];
 
