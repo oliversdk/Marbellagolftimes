@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { BookingModal } from "@/components/BookingModal";
+import { ShareMenu } from "@/components/ShareMenu";
 import { MapPin, Phone, Mail, Globe, Star, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -164,13 +165,16 @@ export default function CourseDetail() {
                 {course.city}, {course.province}
               </span>
             </div>
-            <Button
-              size="lg"
-              onClick={() => setBookingModalOpen(true)}
-              data-testid="button-book-tee-time"
-            >
-              {t('courseDetail.bookTeeTime')}
-            </Button>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                size="lg"
+                onClick={() => setBookingModalOpen(true)}
+                data-testid="button-book-tee-time"
+              >
+                {t('courseDetail.bookTeeTime')}
+              </Button>
+              <ShareMenu course={course} size="lg" variant="outline" />
+            </div>
           </div>
         </div>
       </div>
@@ -378,7 +382,7 @@ export default function CourseDetail() {
             </Card>
 
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="pt-6 space-y-2">
                 <Button
                   className="w-full"
                   size="lg"
@@ -387,6 +391,7 @@ export default function CourseDetail() {
                 >
                   {t('courseDetail.bookTeeTime')}
                 </Button>
+                <ShareMenu course={course} size="lg" variant="outline" className="w-full" />
               </CardContent>
             </Card>
           </div>
