@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, BookingRequest } from "@shared/schema";
@@ -126,6 +126,62 @@ export default function Admin() {
       toast({
         title: "Update Failed",
         description: error.message || "Could not update course image. Please check the URL format.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Upload course image mutation
+  const uploadImageMutation = useMutation({
+    mutationFn: async ({ courseId, file }: { courseId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      
+      const response = await fetch("/api/upload/course-image", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+      
+      return response.json();
+    },
+    onSuccess: async (data: { imageUrl: string }, variables) => {
+      // Update the course with the new image URL
+      await updateCourseImageMutation.mutateAsync({
+        courseId: variables.courseId,
+        imageUrl: data.imageUrl,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Could not upload image. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete course image mutation
+  const deleteImageMutation = useMutation({
+    mutationFn: async ({ filename, courseId }: { filename: string; courseId: string }) => {
+      const encodedFilename = encodeURIComponent(filename);
+      return await apiRequest("DELETE", `/api/images/${encodedFilename}?courseId=${encodeURIComponent(courseId)}`, undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      toast({
+        title: "Image Deleted",
+        description: "Image file deleted successfully and course updated",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Could not delete image. Please try again.",
         variant: "destructive",
       });
     },
@@ -379,13 +435,28 @@ export default function Admin() {
                             <div className="space-y-2">
                               <Label className="text-xs text-muted-foreground">Current Image</Label>
                               {course.imageUrl ? (
-                                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
+                                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted group">
                                   <img
                                     src={course.imageUrl}
                                     alt={course.name}
                                     className="w-full h-full object-cover"
                                     data-testid={`img-course-${course.id}`}
                                   />
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => {
+                                      if (!course.imageUrl) return;
+                                      const filename = course.imageUrl.split("/").pop();
+                                      if (filename && window.confirm(`Delete ${filename}? This cannot be undone.`)) {
+                                        deleteImageMutation.mutate({ filename, courseId: course.id });
+                                      }
+                                    }}
+                                    data-testid={`button-delete-image-${course.id}`}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
                                 </div>
                               ) : (
                                 <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
@@ -401,7 +472,7 @@ export default function Admin() {
                           <div className="md:col-span-4">
                             <div className="space-y-2">
                               <Label htmlFor={`image-url-${course.id}`} className="text-xs text-muted-foreground">
-                                New Image URL
+                                New Image URL or Upload
                               </Label>
                               <Input
                                 id={`image-url-${course.id}`}
@@ -417,46 +488,75 @@ export default function Admin() {
                                 data-testid={`input-image-url-${course.id}`}
                               />
                               <p className="text-xs text-muted-foreground">
-                                Must start with /stock_images/ and end with .jpg
+                                Upload or enter path (formats: .jpg, .jpeg, .png, .webp)
                               </p>
                             </div>
                           </div>
 
-                          <div className="md:col-span-2 flex items-end">
-                            <Button
-                              onClick={() => {
-                                const newImageUrl = courseImageUrls[course.id];
-                                if (!newImageUrl || !newImageUrl.trim()) {
-                                  toast({
-                                    title: "Invalid Input",
-                                    description: "Please enter an image URL",
-                                    variant: "destructive",
+                          <div className="md:col-span-2 flex flex-col gap-2 items-end justify-end">
+                            <div className="flex gap-2 w-full">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const input = document.createElement("input");
+                                  input.type = "file";
+                                  input.accept = "image/jpeg,image/jpg,image/png,image/webp";
+                                  input.onchange = (e) => {
+                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                    if (file) {
+                                      uploadImageMutation.mutate({ courseId: course.id, file });
+                                    }
+                                  };
+                                  input.click();
+                                }}
+                                disabled={uploadImageMutation.isPending}
+                                className="flex-1"
+                                data-testid={`button-upload-image-${course.id}`}
+                              >
+                                <Upload className="h-4 w-4 mr-2" />
+                                {uploadImageMutation.isPending ? "Uploading..." : "Upload"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const newImageUrl = courseImageUrls[course.id];
+                                  if (!newImageUrl || !newImageUrl.trim()) {
+                                    toast({
+                                      title: "Invalid Input",
+                                      description: "Please enter an image URL",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+                                  const hasValidExtension = validExtensions.some(ext => 
+                                    newImageUrl.toLowerCase().endsWith(ext)
+                                  );
+                                  if (!newImageUrl.startsWith("/stock_images/") || !hasValidExtension) {
+                                    toast({
+                                      title: "Invalid Format",
+                                      description: "URL must start with /stock_images/ and end with .jpg, .jpeg, .png, or .webp",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  updateCourseImageMutation.mutate({
+                                    courseId: course.id,
+                                    imageUrl: newImageUrl,
                                   });
-                                  return;
+                                }}
+                                disabled={
+                                  !courseImageUrls[course.id] || 
+                                  updateCourseImageMutation.isPending
                                 }
-                                if (!newImageUrl.startsWith("/stock_images/") || !newImageUrl.endsWith(".jpg")) {
-                                  toast({
-                                    title: "Invalid Format",
-                                    description: "URL must start with /stock_images/ and end with .jpg",
-                                    variant: "destructive",
-                                  });
-                                  return;
-                                }
-                                updateCourseImageMutation.mutate({
-                                  courseId: course.id,
-                                  imageUrl: newImageUrl,
-                                });
-                              }}
-                              disabled={
-                                !courseImageUrls[course.id] || 
-                                updateCourseImageMutation.isPending
-                              }
-                              className="w-full"
-                              data-testid={`button-save-image-${course.id}`}
-                            >
-                              <Save className="h-4 w-4 mr-2" />
-                              {updateCourseImageMutation.isPending ? "Saving..." : "Save"}
-                            </Button>
+                                className="flex-1"
+                                data-testid={`button-save-image-${course.id}`}
+                              >
+                                <Save className="h-4 w-4 mr-2" />
+                                {updateCourseImageMutation.isPending ? "Saving..." : "Save URL"}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -5,6 +5,46 @@ import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, type CourseWithSlots, type TeeTimeSlot } from "@shared/schema";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Configure multer for image uploads
+const imageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, "../client/public/stock_images");
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename: original name with timestamp
+    const uniqueSuffix = Date.now() + "_" + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    // Sanitize filename: remove spaces and special characters
+    const sanitizedName = basename.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+    cb(null, sanitizedName + "_" + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({
+  storage: imageStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Accept only image files
+    const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files (JPEG, PNG, WEBP) are allowed"));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/courses - Get all golf courses
@@ -35,15 +75,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { imageUrl } = req.body;
 
-      // Validate imageUrl format
-      if (!imageUrl || typeof imageUrl !== "string") {
-        return res.status(400).json({ error: "imageUrl is required and must be a string" });
+      // Allow null to clear the image
+      if (imageUrl === null) {
+        const updatedCourse = await storage.updateCourseImage(req.params.id, null);
+        if (!updatedCourse) {
+          return res.status(404).json({ error: "Course not found" });
+        }
+        return res.json(updatedCourse);
       }
 
-      // Validate that imageUrl starts with /stock_images/ and ends with .jpg
-      if (!imageUrl.startsWith("/stock_images/") || !imageUrl.endsWith(".jpg")) {
+      // Validate imageUrl is a string
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return res.status(400).json({ error: "imageUrl must be a string or null" });
+      }
+
+      // Validate that imageUrl starts with /stock_images/ and ends with valid image extension
+      const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+      const hasValidExtension = validExtensions.some(ext => imageUrl.toLowerCase().endsWith(ext));
+      
+      if (!imageUrl.startsWith("/stock_images/") || !hasValidExtension) {
         return res.status(400).json({ 
-          error: "Invalid imageUrl format. Must start with /stock_images/ and end with .jpg" 
+          error: "Invalid imageUrl format. Must start with /stock_images/ and end with .jpg, .jpeg, .png, or .webp" 
         });
       }
 
@@ -56,6 +108,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedCourse);
     } catch (error) {
       res.status(500).json({ error: "Failed to update course image" });
+    }
+  });
+
+  // POST /api/upload/course-image - Upload a course image
+  app.post("/api/upload/course-image", upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Return the URL path for the uploaded image
+      const imageUrl = `/stock_images/${req.file.filename}`;
+      
+      res.json({ 
+        imageUrl,
+        filename: req.file.filename,
+        size: req.file.size
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to upload image" });
+    }
+  });
+
+  // DELETE /api/images/:filename - Delete an image file
+  app.delete("/api/images/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params; // Already URL-decoded by Express
+      const { courseId } = req.query;
+      
+      // CRITICAL SECURITY: Validate decoded filename with strict whitelist regex
+      // Only allow alphanumeric characters, dots, underscores, and hyphens
+      const safeFilenameRegex = /^[A-Za-z0-9._-]+$/;
+      if (!safeFilenameRegex.test(filename)) {
+        return res.status(400).json({ 
+          error: "Invalid filename. Only alphanumeric characters, dots, underscores, and hyphens are allowed." 
+        });
+      }
+      
+      // Defense in depth: Explicitly reject path traversal attempts
+      // This catches any edge cases that might bypass the regex
+      if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+        return res.status(400).json({ error: "Invalid filename" });
+      }
+
+      const filePath = path.join(__dirname, "../client/public/stock_images", filename);
+      
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+      } catch {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      // If courseId is provided, verify the course exists BEFORE deleting the file
+      if (courseId && typeof courseId === "string") {
+        const course = await storage.getCourseById(courseId);
+        if (!course) {
+          return res.status(404).json({ error: "Course not found" });
+        }
+      }
+
+      // Delete the file
+      await fs.unlink(filePath);
+      
+      // Update course if courseId provided
+      if (courseId && typeof courseId === "string") {
+        const updatedCourse = await storage.updateCourseImage(courseId, null);
+        if (!updatedCourse) {
+          // This shouldn't happen if we checked above, but handle it anyway
+          return res.status(500).json({ error: "Failed to update course after deleting file" });
+        }
+      }
+      
+      res.json({ success: true, message: "Image deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to delete image" });
     }
   });
 

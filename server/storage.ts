@@ -17,7 +17,7 @@ export interface IStorage {
   getAllCourses(): Promise<GolfCourse[]>;
   getCourseById(id: string): Promise<GolfCourse | undefined>;
   createCourse(course: InsertGolfCourse): Promise<GolfCourse>;
-  updateCourseImage(courseId: string, imageUrl: string): Promise<GolfCourse | undefined>;
+  updateCourseImage(courseId: string, imageUrl: string | null): Promise<GolfCourse | undefined>;
 
   // Tee Time Providers
   getAllProviders(): Promise<TeeTimeProvider[]>;
@@ -833,7 +833,7 @@ export class MemStorage implements IStorage {
     return course;
   }
 
-  async updateCourseImage(courseId: string, imageUrl: string): Promise<GolfCourse | undefined> {
+  async updateCourseImage(courseId: string, imageUrl: string | null): Promise<GolfCourse | undefined> {
     const course = this.courses.get(courseId);
     if (!course) return undefined;
 
