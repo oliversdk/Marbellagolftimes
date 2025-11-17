@@ -17,8 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
 import type { GolfCourse } from "@shared/schema";
@@ -133,45 +131,30 @@ export function BookingModal({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="booking-date">Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="booking-date"
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                    data-testid="button-select-date"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Button
+                id="booking-date"
+                variant="outline"
+                className="w-full justify-start text-left font-normal"
+                data-testid="button-select-date"
+                disabled
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, "PPP") : "Select date"}
+              </Button>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="booking-time">Time</Label>
-              <Select value={time} onValueChange={setTime}>
-                <SelectTrigger id="booking-time" data-testid="select-time">
-                  <Clock className="mr-2 h-4 w-4" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 14 }, (_, i) => i + 7).map((hour) => (
-                    <SelectItem key={hour} value={`${hour.toString().padStart(2, "0")}:00`}>
-                      {hour.toString().padStart(2, "0")}:00
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Button
+                id="booking-time"
+                variant="outline"
+                className="w-full justify-start text-left font-normal"
+                data-testid="select-time"
+                disabled
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                {time}
+              </Button>
             </div>
           </div>
 
