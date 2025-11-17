@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export type SearchFilters = {
   date?: Date;
@@ -135,8 +135,20 @@ export function useFilterPersistence() {
     }));
   };
 
+  const searchFilters = useMemo(
+    () => state.searchFilters,
+    [
+      state.searchFilters.date?.toISOString(),
+      state.searchFilters.players,
+      state.searchFilters.fromTime,
+      state.searchFilters.toTime,
+      state.searchFilters.holes,
+      state.searchFilters.courseSearch,
+    ]
+  );
+
   return {
-    searchFilters: state.searchFilters,
+    searchFilters,
     setSearchFilters,
     sortMode: state.sortMode,
     setSortMode,

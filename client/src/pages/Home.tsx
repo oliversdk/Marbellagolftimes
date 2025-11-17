@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
 import { Header } from "@/components/Header";
@@ -89,8 +89,14 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(12);
   const { toast } = useToast();
   const { t } = useI18n();
+
+  // Reset visible count when filters or sort mode changes
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [searchFilters, sortMode]);
 
   // Fetch all courses
   const { data: courses, isLoading: coursesLoading } = useQuery<GolfCourse[]>({
@@ -362,121 +368,161 @@ export default function Home() {
               </div>
 
               {/* Results */}
-              {viewMode === "list" ? (
-                <div className="space-y-4" data-testid="available-slots-list">
-                {sortCourses(availableSlots, sortMode).map((courseSlot) => {
-                  const minPrice = getMinPrice(courseSlot.slots);
-                  const courseImage = courseSlot.course?.imageUrl || placeholderImage;
-                  
-                  return (
-                    <Card 
-                      key={courseSlot.courseId} 
-                      className="overflow-hidden" 
-                      data-testid={`card-slot-${courseSlot.courseId}`}
-                    >
-                      <div className="flex flex-col md:flex-row gap-4 p-4">
-                        {/* Left: Course Image */}
-                        <div className="w-full md:w-48 flex-shrink-0">
-                          <img 
-                            src={courseImage}
-                            alt={`${courseSlot.courseName} golf course`}
-                            className="w-full h-32 object-cover rounded-md"
-                            data-testid={`img-course-${courseSlot.courseId}`}
-                          />
-                        </div>
+              {(() => {
+                const sortedCourses = sortCourses(availableSlots, sortMode);
+                const visibleCourses = viewMode === 'list' ? sortedCourses.slice(0, visibleCount) : sortedCourses;
+                
+                return viewMode === "list" ? (
+                  <>
+                    {/* Showing X of Y Counter */}
+                    <div className="mb-4 text-center">
+                      <p className="text-sm text-muted-foreground" data-testid="text-showing-count">
+                        {t('home.showingCourses', { 
+                          visible: Math.min(visibleCount, availableSlots.length), 
+                          total: availableSlots.length 
+                        })}
+                      </p>
+                    </div>
 
-                        {/* Right: Course Info + Inline Tee Times */}
-                        <div className="flex-1 min-w-0 flex flex-col gap-3">
-                          {/* Header: Name + Location + Price + Distance */}
-                          <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <h3 className="font-semibold text-lg" data-testid={`text-course-name-${courseSlot.courseId}`}>
-                                  {courseSlot.courseName}
-                                </h3>
-                                {courseSlot.providerType === "DEEP_LINK" && (
-                                  <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
-                                    {t('home.directBadge')}
-                                  </Badge>
+                    <div className="space-y-4" data-testid="available-slots-list">
+                      {visibleCourses.map((courseSlot) => {
+                        const minPrice = getMinPrice(courseSlot.slots);
+                        const courseImage = courseSlot.course?.imageUrl || placeholderImage;
+                        
+                        return (
+                          <Card 
+                            key={courseSlot.courseId} 
+                            className="overflow-hidden" 
+                            data-testid={`card-slot-${courseSlot.courseId}`}
+                          >
+                            <div className="flex flex-col md:flex-row gap-4 p-4">
+                              {/* Left: Course Image */}
+                              <div className="w-full md:w-48 flex-shrink-0">
+                                <img 
+                                  src={courseImage}
+                                  alt={`${courseSlot.courseName} golf course`}
+                                  className="w-full h-32 object-cover rounded-md"
+                                  data-testid={`img-course-${courseSlot.courseId}`}
+                                />
+                              </div>
+
+                              {/* Right: Course Info + Inline Tee Times */}
+                              <div className="flex-1 min-w-0 flex flex-col gap-3">
+                                {/* Header: Name + Location + Price + Distance */}
+                                <div className="flex items-start justify-between gap-4 flex-wrap">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                                      <h3 className="font-semibold text-lg" data-testid={`text-course-name-${courseSlot.courseId}`}>
+                                        {courseSlot.courseName}
+                                      </h3>
+                                      {courseSlot.providerType === "DEEP_LINK" && (
+                                        <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
+                                          {t('home.directBadge')}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground" data-testid={`text-location-${courseSlot.courseId}`}>
+                                      {courseSlot.course?.city || "Costa del Sol"}, {courseSlot.course?.province || "Spain"}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {/* Distance Badge */}
+                                    <Badge variant="secondary" data-testid={`badge-distance-${courseSlot.courseId}`}>
+                                      {courseSlot.distanceKm != null ? `${courseSlot.distanceKm.toFixed(1)} km` : "--"}
+                                    </Badge>
+                                    
+                                    {/* Price Badge */}
+                                    <Badge className="text-sm font-semibold" data-testid={`badge-price-${courseSlot.courseId}`}>
+                                      {minPrice !== null ? `€${minPrice}` : "--"}
+                                    </Badge>
+                                  </div>
+                                </div>
+
+                                {/* Inline Tee Times - Horizontal Scroll */}
+                                <div>
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
+                                    {t('home.availableTeeTimes')}
+                                  </p>
+                                  <div className="overflow-x-auto pb-2" data-testid={`slots-container-${courseSlot.courseId}`}>
+                                    <div className="flex gap-2">
+                                      {courseSlot.slots
+                                        .sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime())
+                                        .map((slot, idx) => {
+                                          const slotTime = new Date(slot.teeTime);
+                                          const formattedTime = slotTime.toLocaleTimeString("en-US", { 
+                                            hour: "2-digit", 
+                                            minute: "2-digit", 
+                                            hour12: false 
+                                          });
+                                          const formattedPrice = new Intl.NumberFormat('en-US', { 
+                                            style: 'currency', 
+                                            currency: 'EUR',
+                                            minimumFractionDigits: 0,
+                                            maximumFractionDigits: 0
+                                          }).format(slot.greenFee);
+                                          
+                                          return (
+                                            <Button
+                                              key={idx}
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => handleBookCourse(courseSlot, slot)}
+                                              className="flex-shrink-0 flex flex-col items-start px-3 py-2 h-auto"
+                                              data-testid={`button-slot-${courseSlot.courseId}-${idx}`}
+                                            >
+                                              <span className="font-semibold text-sm">{formattedTime}</span>
+                                              <span className="text-xs text-muted-foreground">{formattedPrice}</span>
+                                            </Button>
+                                          );
+                                        })}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Optional: Note */}
+                                {courseSlot.note && (
+                                  <p className="text-xs text-muted-foreground italic" data-testid={`text-note-${courseSlot.courseId}`}>
+                                    {courseSlot.note}
+                                  </p>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground" data-testid={`text-location-${courseSlot.courseId}`}>
-                                {courseSlot.course?.city || "Costa del Sol"}, {courseSlot.course?.province || "Spain"}
-                              </p>
                             </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
 
-                            <div className="flex items-center gap-2">
-                              {/* Distance Badge */}
-                              <Badge variant="secondary" data-testid={`badge-distance-${courseSlot.courseId}`}>
-                                {courseSlot.distanceKm != null ? `${courseSlot.distanceKm.toFixed(1)} km` : "--"}
-                              </Badge>
-                              
-                              {/* Price Badge */}
-                              <Badge className="text-sm font-semibold" data-testid={`badge-price-${courseSlot.courseId}`}>
-                                {minPrice !== null ? `€${minPrice}` : "--"}
-                              </Badge>
-                            </div>
-                          </div>
-
-                          {/* Inline Tee Times - Horizontal Scroll */}
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
-                              {t('home.availableTeeTimes')}
-                            </p>
-                            <div className="overflow-x-auto pb-2" data-testid={`slots-container-${courseSlot.courseId}`}>
-                              <div className="flex gap-2">
-                                {courseSlot.slots
-                                  .sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime())
-                                  .map((slot, idx) => {
-                                    const slotTime = new Date(slot.teeTime);
-                                    const formattedTime = slotTime.toLocaleTimeString("en-US", { 
-                                      hour: "2-digit", 
-                                      minute: "2-digit", 
-                                      hour12: false 
-                                    });
-                                    const formattedPrice = new Intl.NumberFormat('en-US', { 
-                                      style: 'currency', 
-                                      currency: 'EUR',
-                                      minimumFractionDigits: 0,
-                                      maximumFractionDigits: 0
-                                    }).format(slot.greenFee);
-                                    
-                                    return (
-                                      <Button
-                                        key={idx}
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleBookCourse(courseSlot, slot)}
-                                        className="flex-shrink-0 flex flex-col items-start px-3 py-2 h-auto"
-                                        data-testid={`button-slot-${courseSlot.courseId}-${idx}`}
-                                      >
-                                        <span className="font-semibold text-sm">{formattedTime}</span>
-                                        <span className="text-xs text-muted-foreground">{formattedPrice}</span>
-                                      </Button>
-                                    );
-                                  })}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Optional: Note */}
-                          {courseSlot.note && (
-                            <p className="text-xs text-muted-foreground italic" data-testid={`text-note-${courseSlot.courseId}`}>
-                              {courseSlot.note}
-                            </p>
-                          )}
-                        </div>
+                    {/* Load More Button */}
+                    {availableSlots.length > visibleCount && (
+                      <div className="mt-8 text-center" data-testid="load-more-container">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => setVisibleCount(prev => prev + 12)}
+                          data-testid="button-load-more"
+                        >
+                          {t('home.loadMore', { count: Math.min(12, availableSlots.length - visibleCount) })}
+                        </Button>
                       </div>
-                    </Card>
-                  );
-                })}
-                </div>
-              ) : (
-                <CoursesMap 
-                  courses={sortCourses(availableSlots, sortMode)}
-                  center={userLocation}
-                />
-              )}
+                    )}
+
+                    {/* All Courses Shown Message */}
+                    {availableSlots.length > 0 && availableSlots.length <= visibleCount && (
+                      <div className="mt-4 text-center" data-testid="all-courses-shown">
+                        <p className="text-sm text-muted-foreground">
+                          {t('home.allCoursesShown')}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <CoursesMap 
+                    courses={sortedCourses}
+                    center={userLocation}
+                  />
+                );
+              })()}
             </>
           ) : (
             <Card>

@@ -239,6 +239,9 @@ const translations: Record<Language, Translations> = {
       bookingSuccessDescription: 'Your tee time request has been sent. You will receive a confirmation email shortly.',
       bookingFailedTitle: 'Booking Failed',
       bookingFailedDescription: 'Could not submit your booking request. Please try again.',
+      loadMore: 'Load More ({count} more)',
+      showingCourses: 'Showing {visible} of {total} courses',
+      allCoursesShown: 'All courses shown',
     },
     placeholders: {
       name: 'John Doe',
@@ -489,6 +492,9 @@ const translations: Record<Language, Translations> = {
       bookingSuccessDescription: 'Su solicitud de horario ha sido enviada. Recibirá un correo electrónico de confirmación en breve.',
       bookingFailedTitle: 'Error en la Reserva',
       bookingFailedDescription: 'No se pudo enviar su solicitud de reserva. Por favor, inténtelo de nuevo.',
+      loadMore: 'Cargar Más ({count} más)',
+      showingCourses: 'Mostrando {visible} de {total} campos',
+      allCoursesShown: 'Todos los campos mostrados',
     },
     placeholders: {
       name: 'Juan García',
@@ -739,6 +745,9 @@ const translations: Record<Language, Translations> = {
       bookingSuccessDescription: 'Din tee time anmodning er sendt. Du vil modtage en bekræftelses email snart.',
       bookingFailedTitle: 'Booking Fejlede',
       bookingFailedDescription: 'Kunne ikke sende din booking anmodning. Prøv venligst igen.',
+      loadMore: 'Indlæs Mere ({count} flere)',
+      showingCourses: 'Viser {visible} af {total} baner',
+      allCoursesShown: 'Alle baner vist',
     },
     placeholders: {
       name: 'Lars Jensen',
@@ -989,6 +998,9 @@ const translations: Record<Language, Translations> = {
       bookingSuccessDescription: 'Din tee time-förfrågan har skickats. Du kommer att få ett bekräftelsemail inom kort.',
       bookingFailedTitle: 'Bokning Misslyckades',
       bookingFailedDescription: 'Kunde inte skicka din bokningsförfrågan. Försök igen.',
+      loadMore: 'Ladda Mer ({count} fler)',
+      showingCourses: 'Visar {visible} av {total} banor',
+      allCoursesShown: 'Alla banor visas',
     },
     placeholders: {
       name: 'Erik Andersson',
@@ -1239,6 +1251,9 @@ const translations: Record<Language, Translations> = {
       bookingSuccessDescription: 'Ваш запрос на время игры отправлен. Вы получите подтверждение по электронной почте в ближайшее время.',
       bookingFailedTitle: 'Бронирование Не Удалось',
       bookingFailedDescription: 'Не удалось отправить ваш запрос на бронирование. Пожалуйста, попробуйте снова.',
+      loadMore: 'Загрузить Ещё ({count} ещё)',
+      showingCourses: 'Показано {visible} из {total} полей',
+      allCoursesShown: 'Все поля показаны',
     },
     placeholders: {
       name: 'Иван Петров',
