@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -11,8 +11,11 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Search } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { CalendarIcon, Search, Check } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import type { GolfCourse } from "@shared/schema";
 
 interface SearchFiltersProps {
   currentFilters?: {
@@ -40,6 +43,11 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
   const [toTime, setToTime] = useState<string>(currentFilters?.toTime || "20:00");
   const [holes, setHoles] = useState<string>(currentFilters?.holes.toString() || "18");
   const [courseSearch, setCourseSearch] = useState<string>(currentFilters?.courseSearch || "");
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
+
+  const { data: courses } = useQuery<GolfCourse[]>({
+    queryKey: ["/api/courses"],
+  });
 
   const handleSearch = () => {
     onSearch({
@@ -52,18 +60,67 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
     });
   };
 
+  const handleSelectCourse = (courseName: string) => {
+    setCourseSearch(courseName);
+    setAutocompleteOpen(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="course-search">Search Golf Course</Label>
-        <Input
-          id="course-search"
-          type="text"
-          placeholder="Search by course name..."
-          value={courseSearch}
-          onChange={(e) => setCourseSearch(e.target.value)}
-          data-testid="input-course-search"
-        />
+        <Popover open={autocompleteOpen} onOpenChange={setAutocompleteOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={autocompleteOpen}
+              className="w-full justify-start text-left font-normal"
+              data-testid="input-course-search"
+            >
+              {courseSearch || "Search by course name..."}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-full p-0" align="start">
+            <Command>
+              <CommandInput
+                placeholder="Search golf courses..."
+                value={courseSearch}
+                onValueChange={setCourseSearch}
+              />
+              <CommandList>
+                <CommandEmpty>No golf course found.</CommandEmpty>
+                <CommandGroup>
+                  {courses
+                    ?.filter((course) =>
+                      course.name.toLowerCase().includes(courseSearch.toLowerCase())
+                    )
+                    .slice(0, 10)
+                    .map((course) => (
+                      <CommandItem
+                        key={course.id}
+                        value={course.name}
+                        onSelect={handleSelectCourse}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            courseSearch === course.name ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <div className="flex flex-col">
+                          <span>{course.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {course.city}, {course.province}
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
