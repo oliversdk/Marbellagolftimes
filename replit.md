@@ -6,15 +6,16 @@ Fridas Golf is a boutique-premium golf tee-time service for Costa del Sol, Spain
 
 **Core Features:**
 - ✅ **Real-time tee time availability** - Shows actual available times within your search window (e.g., 10:00-12:00 tomorrow)
-- ✅ **Dual layout system** - TeeTimesBooking.com-style compact list for filtered results, traditional card grid for browsing all courses
-- ✅ **Expandable slots** - Click any course to expand and see ALL individual available tee times with specific prices
-- ✅ **Time/price aggregation** - Shows time ranges (e.g., "8:00 - 14:00") and "from €XX" pricing when collapsed (in compact list)
-- ✅ **Smart sorting** - 4-way sorting: Closer/Farther, Cheaper/More expensive with visual active states (in compact list)
+- ✅ **Golfee-inspired UI redesign** - Modern, compact card layout with course images and inline tee times (no expand/collapse needed)
+- ✅ **Course imagery** - All 43 courses feature professional golf course photos (10 stock images rotated across catalog)
+- ✅ **Inline tee times** - All available slots visible immediately with horizontal scrolling for efficient browsing
+- ✅ **List/Map view toggle** - Switch between course list and interactive Leaflet map with location markers
+- ✅ **Smart sorting** - 4-way sorting: Closer/Farther, Cheaper/More expensive with visual active states
 - ✅ **Provider type badges** - Visual indicators show "Direct" badge for courses using direct booking links (DEEP_LINK type only)
 - ✅ **Geolocation-based discovery** - Find nearest courses automatically or search by city
 - ✅ **Smart filtering** - Date, players, time windows, **holes (9 or 18)**, **course name search** with distance sorting
 - ✅ **Course search** - Free text search field to find specific golf courses by name (case-insensitive, partial matching)
-- ✅ **Flexible booking** - Select specific tee time from expanded view or quick-book cheapest option
+- ✅ **Flexible booking** - Click any inline tee time to book instantly via modal
 - ✅ **Affiliate email system** - Bulk email management for golf club partnership proposals (20% commission)
 - ✅ **Admin dashboard** - Manage bookings and track email campaigns
 - ✅ **Premium UI** - Golf-themed design (Playfair Display + Inter fonts, green accent colors)
@@ -52,9 +53,12 @@ Preferred communication style: Simple, everyday language.
 - Custom hooks for geolocation and toast notifications
 
 **Key Pages:**
-- Home: Hero section with location search. Shows dual layouts:
-  - **With location selected**: TeeTimesBooking.com-style compact list with aggregated time/price, 4-way sorting controls, and "Book now" auto-selection
-  - **Without location**: Traditional 3-column card grid for browsing all 40+ Costa del Sol courses
+- Home: Hero section with location search. Shows Golfee-inspired compact card layout with:
+  - **Golf course images**: Professional photos for all 43 courses
+  - **Inline tee times**: All slots visible directly with horizontal scroll (no expand/collapse)
+  - **List/Map toggle**: Switch between card list and interactive Leaflet map view
+  - **4-way sorting**: Closer/Farther, Cheaper/More expensive (visible in list view only)
+  - **Smart filtering**: Date, players, time window, holes (9/18), course name search
 - Admin: Two-tab interface for viewing booking requests and managing affiliate emails
 - Not Found: 404 error page
 
@@ -100,6 +104,7 @@ Preferred communication style: Simple, everyday language.
    - Location data (lat/lng, city, province)
    - Contact information (email, phone, website)
    - Booking URLs and notes
+   - **imageUrl** - Professional golf course photos (10 stock images rotated across 43 courses)
 
 2. **tee_time_providers** - External booking systems
    - Provider types: SCRAPER, API, DEEP_LINK_ONLY
