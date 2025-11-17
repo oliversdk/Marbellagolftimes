@@ -54,4 +54,5 @@ Client-side geolocation uses the Browser Geolocation API, with Haversine formula
 -   **Golfmanager API**: Production-ready integration for real-time tee-time availability, with support for `DEMO` (falls back to mock), `PRODUCTION`, and `MOCK` modes. Authentication uses an API key. Integrated with 16 courses, including premium ones like Real Club Valderrama.
 -   **Direct Booking Integration (DEEP_LINK_ONLY)**: Active for 4 courses (e.g., Club de Golf La Cañada), allowing users to book directly on the club's website. These courses display a "Direct" badge.
 -   **Tee Time Provider Integration**: A flexible system supporting web scraping (`SCRAPER`), REST APIs (`API`), and direct booking links (`DEEP_LINK_ONLY`) for various providers.
+-   **Weather Integration (Open-Meteo)**: Real-time weather data displayed on course detail pages using Open-Meteo's free API. Shows temperature, conditions, wind speed, and humidity. No API key required - fully functional out of the box.
 -   **Geolocation Services**: Utilizes the browser's native Geolocation API; no external service required.

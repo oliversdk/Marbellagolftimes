@@ -109,18 +109,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/weather/:lat/:lng - Get weather data for location
+  // GET /api/weather/:lat/:lng - Get weather data for location (Open-Meteo API - Free, no API key required)
   app.get("/api/weather/:lat/:lng", async (req, res) => {
     try {
-      const apiKey = process.env.WEATHER_API_KEY;
-      
-      if (!apiKey) {
-        return res.status(503).json({ 
-          error: "Weather API not configured",
-          message: "Weather data is temporarily unavailable" 
-        });
-      }
-
       const { lat, lng } = req.params;
       
       // Validate lat/lng parameters
@@ -131,8 +122,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid coordinates" });
       }
 
-      // Call OpenWeatherMap API
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
+      // Call Open-Meteo API (Free, no API key required)
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weathercode,windspeed_10m&timezone=auto`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -145,14 +136,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const data = await response.json();
       
+      // Map Open-Meteo weather codes to descriptions and icon codes
+      const weatherCodeMap: Record<number, { description: string; icon: string }> = {
+        0: { description: "clear sky", icon: "01d" },
+        1: { description: "mainly clear", icon: "02d" },
+        2: { description: "partly cloudy", icon: "03d" },
+        3: { description: "overcast", icon: "04d" },
+        45: { description: "foggy", icon: "50d" },
+        48: { description: "depositing rime fog", icon: "50d" },
+        51: { description: "light drizzle", icon: "09d" },
+        53: { description: "moderate drizzle", icon: "09d" },
+        55: { description: "dense drizzle", icon: "09d" },
+        61: { description: "slight rain", icon: "10d" },
+        63: { description: "moderate rain", icon: "10d" },
+        65: { description: "heavy rain", icon: "10d" },
+        71: { description: "slight snow", icon: "13d" },
+        73: { description: "moderate snow", icon: "13d" },
+        75: { description: "heavy snow", icon: "13d" },
+        80: { description: "slight rain showers", icon: "09d" },
+        81: { description: "moderate rain showers", icon: "09d" },
+        82: { description: "violent rain showers", icon: "09d" },
+        95: { description: "thunderstorm", icon: "11d" },
+        96: { description: "thunderstorm with slight hail", icon: "11d" },
+        99: { description: "thunderstorm with heavy hail", icon: "11d" }
+      };
+
+      const weatherCode = data.current.weathercode || 0;
+      const weatherInfo = weatherCodeMap[weatherCode] || { description: "unknown", icon: "01d" };
+      
+      // Open-Meteo returns wind speed in km/h by default (no conversion needed)
+      const windKmh = data.current.windspeed_10m;
+      
       // Return formatted weather data
       res.setHeader('Cache-Control', 'public, max-age=1800'); // Cache for 30 minutes
       res.json({
-        temp: data.main.temp,
-        conditions: data.weather[0].description,
-        wind: data.wind.speed,
-        humidity: data.main.humidity,
-        icon: data.weather[0].icon
+        temp: data.current.temperature_2m,
+        conditions: weatherInfo.description,
+        wind: windKmh,
+        humidity: data.current.relative_humidity_2m,
+        icon: weatherInfo.icon
       });
     } catch (error) {
       console.error("Weather API error:", error);
