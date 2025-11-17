@@ -9,6 +9,7 @@ import { SearchFilters } from "@/components/SearchFilters";
 import { CourseCard } from "@/components/CourseCard";
 import { BookingModal } from "@/components/BookingModal";
 import { CoursesMap } from "@/components/CoursesMap";
+import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -526,7 +527,17 @@ export default function Home() {
                                         </Badge>
                                       )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground" data-testid={`text-location-${courseSlot.courseId}`}>
+                                    
+                                    {/* Compact Weather Display */}
+                                    {courseSlot.course?.lat && courseSlot.course?.lng && (
+                                      <CompactWeather 
+                                        lat={courseSlot.course.lat} 
+                                        lng={courseSlot.course.lng}
+                                        courseId={courseSlot.courseId}
+                                      />
+                                    )}
+                                    
+                                    <p className="text-xs text-muted-foreground mt-1" data-testid={`text-location-${courseSlot.courseId}`}>
                                       {courseSlot.course?.city || "Costa del Sol"}, {courseSlot.course?.province || "Spain"}
                                     </p>
                                   </div>
@@ -549,9 +560,21 @@ export default function Home() {
 
                                 {/* Inline Tee Times - Horizontal Scroll */}
                                 <div>
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
-                                    {t('home.availableTeeTimes')}
-                                  </p>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                      {t('home.availableTeeTimes')}
+                                    </p>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      asChild
+                                      data-testid={`button-details-${courseSlot.courseId}`}
+                                    >
+                                      <Link href={`/course/${courseSlot.courseId}`}>
+                                        {t('home.viewDetails')}
+                                      </Link>
+                                    </Button>
+                                  </div>
                                   <div className="overflow-x-auto pb-2" data-testid={`slots-container-${courseSlot.courseId}`}>
                                     <div className="flex gap-2">
                                       {courseSlot.slots

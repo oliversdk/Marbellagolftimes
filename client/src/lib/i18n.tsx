@@ -272,6 +272,7 @@ const translations: Record<Language, Translations> = {
       loadMore: 'Load More ({count} more)',
       showingCourses: 'Showing {visible} of {total} courses',
       allCoursesShown: 'All courses shown',
+      viewDetails: 'View Details',
     },
     placeholders: {
       name: 'John Doe',
@@ -555,6 +556,7 @@ const translations: Record<Language, Translations> = {
       loadMore: 'Cargar Más ({count} más)',
       showingCourses: 'Mostrando {visible} de {total} campos',
       allCoursesShown: 'Todos los campos mostrados',
+      viewDetails: 'Ver Detalles',
     },
     placeholders: {
       name: 'Juan García',
@@ -838,6 +840,7 @@ const translations: Record<Language, Translations> = {
       loadMore: 'Indlæs Mere ({count} flere)',
       showingCourses: 'Viser {visible} af {total} baner',
       allCoursesShown: 'Alle baner vist',
+      viewDetails: 'Se Detaljer',
     },
     placeholders: {
       name: 'Lars Jensen',
@@ -1121,6 +1124,7 @@ const translations: Record<Language, Translations> = {
       loadMore: 'Ladda Mer ({count} fler)',
       showingCourses: 'Visar {visible} av {total} banor',
       allCoursesShown: 'Alla banor visas',
+      viewDetails: 'Visa Detaljer',
     },
     placeholders: {
       name: 'Erik Andersson',
@@ -1404,6 +1408,7 @@ const translations: Record<Language, Translations> = {
       loadMore: 'Загрузить Ещё ({count} ещё)',
       showingCourses: 'Показано {visible} из {total} полей',
       allCoursesShown: 'Все поля показаны',
+      viewDetails: 'Показать Детали',
     },
     placeholders: {
       name: 'Иван Петров',
