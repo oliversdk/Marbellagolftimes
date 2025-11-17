@@ -24,6 +24,9 @@ const DEFAULT_FILTERS: SearchFilters = {
 const DEFAULT_SORT_MODE: SortMode = "distance-asc";
 const DEFAULT_VIEW_MODE: ViewMode = "list";
 
+const VALID_SORT_MODES: SortMode[] = ['distance-asc', 'distance-desc', 'price-asc', 'price-desc'];
+const VALID_VIEW_MODES: ViewMode[] = ['list', 'map'];
+
 type StoredFilters = {
   searchFilters: Omit<SearchFilters, "date"> & { date?: string };
   sortMode: SortMode;
@@ -39,17 +42,34 @@ function loadFromStorage(): {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed: StoredFilters = JSON.parse(stored);
+      
+      let dateValue: Date | undefined = undefined;
+      if (parsed.searchFilters?.date) {
+        const loadedDate = new Date(parsed.searchFilters.date);
+        if (!isNaN(loadedDate.getTime())) {
+          dateValue = loadedDate;
+        }
+      }
+      
+      const sortMode = VALID_SORT_MODES.includes(parsed.sortMode)
+        ? parsed.sortMode
+        : DEFAULT_SORT_MODE;
+
+      const viewMode = VALID_VIEW_MODES.includes(parsed.viewMode)
+        ? parsed.viewMode
+        : DEFAULT_VIEW_MODE;
+
       return {
         searchFilters: {
           players: parsed.searchFilters.players ?? DEFAULT_FILTERS.players,
           fromTime: parsed.searchFilters.fromTime ?? DEFAULT_FILTERS.fromTime,
           toTime: parsed.searchFilters.toTime ?? DEFAULT_FILTERS.toTime,
           holes: parsed.searchFilters.holes ?? DEFAULT_FILTERS.holes,
-          date: parsed.searchFilters.date ? new Date(parsed.searchFilters.date) : undefined,
+          date: dateValue,
           courseSearch: parsed.searchFilters.courseSearch,
         },
-        sortMode: parsed.sortMode || DEFAULT_SORT_MODE,
-        viewMode: parsed.viewMode || DEFAULT_VIEW_MODE,
+        sortMode,
+        viewMode,
       };
     }
   } catch (error) {
@@ -83,15 +103,22 @@ export function useFilterPersistence() {
   }, [state]);
 
   const setSearchFilters = (
-    filters: Partial<SearchFilters> | ((prev: SearchFilters) => Partial<SearchFilters>)
+    updates: Partial<SearchFilters> | ((prev: SearchFilters) => Partial<SearchFilters>)
   ) => {
-    setState(prev => ({
-      ...prev,
-      searchFilters: {
-        ...prev.searchFilters,
-        ...(typeof filters === "function" ? filters(prev.searchFilters) : filters),
-      },
-    }));
+    setState(prev => {
+      // Get the partial updates from either function or object
+      const partial = typeof updates === "function" ? updates(prev.searchFilters) : updates;
+      
+      // Apply all keys that exist in the partial object, even if their value is undefined
+      // This allows explicitly clearing optional fields by setting them to undefined
+      return {
+        ...prev,
+        searchFilters: {
+          ...prev.searchFilters,
+          ...partial,
+        },
+      };
+    });
   };
 
   const setSortMode = (mode: SortMode | ((prev: SortMode) => SortMode)) => {
