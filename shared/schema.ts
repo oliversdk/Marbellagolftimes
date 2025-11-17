@@ -47,6 +47,7 @@ export const golfCourses = pgTable("golf_courses", {
   phone: text("phone"),
   notes: text("notes"),
   imageUrl: text("image_url"),
+  facilities: text("facilities").array(),
 });
 
 export const insertGolfCourseSchema = createInsertSchema(golfCourses).omit({ id: true });
