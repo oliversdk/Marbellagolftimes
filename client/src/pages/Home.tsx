@@ -16,10 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
+import { useFilterPersistence, type SortMode } from "@/hooks/useFilterPersistence";
 import heroImage from "@assets/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.png";
 import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
-
-type SortMode = "distance-asc" | "distance-desc" | "price-asc" | "price-desc";
 
 // Utility: Get time range from slots
 function getTimeRange(slots: TeeTimeSlot[]): { from: string; to: string } | null {
@@ -86,19 +85,10 @@ function sortCourses(courses: CourseWithSlots[], mode: SortMode): CourseWithSlot
 
 export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [searchFilters, setSearchFilters] = useState<{
-    date?: Date;
-    players: number;
-    fromTime: string;
-    toTime: string;
-    holes: number;
-    courseSearch?: string;
-  }>({ players: 2, fromTime: "07:00", toTime: "20:00", holes: 18 });
+  const { searchFilters, setSearchFilters, sortMode, setSortMode, viewMode, setViewMode } = useFilterPersistence();
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>("distance-asc");
-  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const { toast } = useToast();
   const { t } = useI18n();
 
