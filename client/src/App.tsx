@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
 
@@ -47,10 +48,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <FavoritesProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <AnalyticsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </AnalyticsProvider>
         </FavoritesProvider>
       </I18nProvider>
     </QueryClientProvider>

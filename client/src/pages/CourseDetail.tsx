@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
   const { toast } = useToast();
+  const { trackEvent } = useAnalytics();
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successBookingId, setSuccessBookingId] = useState<string | null>(null);
@@ -64,12 +66,14 @@ export default function CourseDetail() {
       return await apiRequest('POST', '/api/booking-requests', data);
     },
     onSuccess: (booking) => {
+      trackEvent('booking_request_submitted', 'booking', course?.name);
       setBookingModalOpen(false);
       setSuccessBookingId(booking.id);
       setSuccessDialogOpen(true);
       queryClient.invalidateQueries({ queryKey: ['/api/booking-requests'] });
     },
     onError: () => {
+      trackEvent('booking_request_failed', 'booking', course?.name);
       toast({
         title: t('home.bookingFailedTitle'),
         description: t('home.bookingFailedDescription'),
@@ -80,12 +84,14 @@ export default function CourseDetail() {
 
   const handleDownloadICS = () => {
     if (successBookingId) {
+      trackEvent('calendar_download', 'booking', 'ics_file');
       window.open(`/api/booking-requests/${successBookingId}/calendar/download`, '_blank');
     }
   };
 
   const handleAddToGoogleCalendar = async () => {
     if (successBookingId) {
+      trackEvent('calendar_add', 'booking', 'google_calendar');
       try {
         const res = await fetch(`/api/booking-requests/${successBookingId}/calendar/google`);
         const data = await res.json();
@@ -96,6 +102,11 @@ export default function CourseDetail() {
         console.error('Failed to get Google Calendar URL:', error);
       }
     }
+  };
+
+  const handleBookingModalOpen = () => {
+    trackEvent('booking_modal_opened', 'booking', course?.name);
+    setBookingModalOpen(true);
   };
 
   if (isLoading) {
@@ -236,7 +247,7 @@ export default function CourseDetail() {
             <div className="flex gap-2 flex-wrap">
               <Button
                 size="lg"
-                onClick={() => setBookingModalOpen(true)}
+                onClick={handleBookingModalOpen}
                 data-testid="button-book-tee-time"
               >
                 {t('courseDetail.bookTeeTime')}
@@ -458,7 +469,7 @@ export default function CourseDetail() {
                 <Button
                   className="w-full"
                   size="lg"
-                  onClick={() => setBookingModalOpen(true)}
+                  onClick={handleBookingModalOpen}
                   data-testid="button-book-sidebar"
                 >
                   {t('courseDetail.bookTeeTime')}
