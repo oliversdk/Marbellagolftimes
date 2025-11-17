@@ -30,6 +30,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/courses/:id/image - Update course image
+  app.patch("/api/courses/:id/image", async (req, res) => {
+    try {
+      const { imageUrl } = req.body;
+
+      // Validate imageUrl format
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return res.status(400).json({ error: "imageUrl is required and must be a string" });
+      }
+
+      // Validate that imageUrl starts with /stock_images/ and ends with .jpg
+      if (!imageUrl.startsWith("/stock_images/") || !imageUrl.endsWith(".jpg")) {
+        return res.status(400).json({ 
+          error: "Invalid imageUrl format. Must start with /stock_images/ and end with .jpg" 
+        });
+      }
+
+      const updatedCourse = await storage.updateCourseImage(req.params.id, imageUrl);
+      
+      if (!updatedCourse) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      res.json(updatedCourse);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update course image" });
+    }
+  });
+
   // GET /api/slots/search - Tee-time availability search
   app.get("/api/slots/search", async (req, res) => {
     try {

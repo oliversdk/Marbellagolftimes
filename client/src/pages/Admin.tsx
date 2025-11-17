@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Send, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, BookingRequest } from "@shared/schema";
@@ -68,6 +68,7 @@ export default function Admin() {
   const [emailSubject, setEmailSubject] = useState(DEFAULT_EMAIL_TEMPLATE.subject);
   const [emailBody, setEmailBody] = useState(DEFAULT_EMAIL_TEMPLATE.body);
   const [senderName, setSenderName] = useState("");
+  const [courseImageUrls, setCourseImageUrls] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   // Fetch courses
@@ -97,6 +98,34 @@ export default function Admin() {
       toast({
         title: "Email Send Failed",
         description: "Could not send emails. Please check your SMTP configuration.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update course image mutation
+  const updateCourseImageMutation = useMutation({
+    mutationFn: async ({ courseId, imageUrl }: { courseId: string; imageUrl: string }) => {
+      return await apiRequest("PATCH", `/api/courses/${courseId}/image`, { imageUrl });
+    },
+    onSuccess: (data: any, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      const courseName = courses?.find(c => c.id === variables.courseId)?.name || "course";
+      toast({
+        title: "Image Updated",
+        description: `Successfully updated image for ${courseName}`,
+      });
+      // Clear the input for this course
+      setCourseImageUrls((prev) => {
+        const updated = { ...prev };
+        delete updated[variables.courseId];
+        return updated;
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Could not update course image. Please check the URL format.",
         variant: "destructive",
       });
     },
@@ -176,6 +205,7 @@ export default function Admin() {
             <TabsTrigger value="courses" data-testid="tab-courses">Golf Courses</TabsTrigger>
             <TabsTrigger value="featured" data-testid="tab-featured">Featured Courses</TabsTrigger>
             <TabsTrigger value="all-courses" data-testid="tab-all-courses">All Courses</TabsTrigger>
+            <TabsTrigger value="course-images" data-testid="tab-course-images">Course Images</TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">Affiliate Emails</TabsTrigger>
           </TabsList>
 
@@ -304,6 +334,132 @@ export default function Admin() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {courses.map((course) => (
                       <CourseCard key={course.id} course={course} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    No courses in database
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="course-images">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Image className="h-5 w-5" />
+                  Course Image Manager
+                </CardTitle>
+                <CardDescription>
+                  Update golf course images - {courses?.length || 0} total courses
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {courses && courses.length > 0 ? (
+                  <div className="space-y-4">
+                    {courses.map((course) => (
+                      <div 
+                        key={course.id} 
+                        className="border rounded-md p-4 hover-elevate"
+                        data-testid={`card-course-image-${course.id}`}
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                          <div className="md:col-span-3">
+                            <div className="space-y-2">
+                              <div className="font-medium">{course.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {course.city}, {course.province}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">Current Image</Label>
+                              {course.imageUrl ? (
+                                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
+                                  <img
+                                    src={course.imageUrl}
+                                    alt={course.name}
+                                    className="w-full h-full object-cover"
+                                    data-testid={`img-course-${course.id}`}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
+                                  <span className="text-xs text-muted-foreground">No image</span>
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground break-all">
+                                {course.imageUrl || "None"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`image-url-${course.id}`} className="text-xs text-muted-foreground">
+                                New Image URL
+                              </Label>
+                              <Input
+                                id={`image-url-${course.id}`}
+                                value={courseImageUrls[course.id] || ""}
+                                onChange={(e) => 
+                                  setCourseImageUrls((prev) => ({
+                                    ...prev,
+                                    [course.id]: e.target.value,
+                                  }))
+                                }
+                                placeholder="/stock_images/filename.jpg"
+                                className="font-mono text-sm"
+                                data-testid={`input-image-url-${course.id}`}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Must start with /stock_images/ and end with .jpg
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-2 flex items-end">
+                            <Button
+                              onClick={() => {
+                                const newImageUrl = courseImageUrls[course.id];
+                                if (!newImageUrl || !newImageUrl.trim()) {
+                                  toast({
+                                    title: "Invalid Input",
+                                    description: "Please enter an image URL",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                if (!newImageUrl.startsWith("/stock_images/") || !newImageUrl.endsWith(".jpg")) {
+                                  toast({
+                                    title: "Invalid Format",
+                                    description: "URL must start with /stock_images/ and end with .jpg",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                updateCourseImageMutation.mutate({
+                                  courseId: course.id,
+                                  imageUrl: newImageUrl,
+                                });
+                              }}
+                              disabled={
+                                !courseImageUrls[course.id] || 
+                                updateCourseImageMutation.isPending
+                              }
+                              className="w-full"
+                              data-testid={`button-save-image-${course.id}`}
+                            >
+                              <Save className="h-4 w-4 mr-2" />
+                              {updateCourseImageMutation.isPending ? "Saving..." : "Save"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : (
