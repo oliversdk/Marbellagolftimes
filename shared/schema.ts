@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   email: varchar("email").unique().notNull(),
   firstName: varchar("first_name").notNull(),
   lastName: varchar("last_name").notNull(),
+  phoneNumber: varchar("phone_number"),
   passwordHash: varchar("password_hash").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   stripeCustomerId: varchar("stripe_customer_id"), // For future Stripe integration
@@ -38,6 +39,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   passwordHash: true,
 }).extend({
   password: z.string().min(8, "Password must be at least 8 characters"),
+  phoneNumber: z.string().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
