@@ -75,7 +75,6 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
 
   const onSignupSubmit = async (data: InsertUser) => {
     try {
-      console.log("AuthDialog signup data:", data);
       await apiRequest("/api/auth/signup", "POST", data);
       toast({
         title: t('common.success'),
@@ -148,7 +147,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                       <Input
                         type="email"
                         placeholder="you@example.com"
-                        data-testid="input-email"
+                        data-testid="input-login-email"
                         {...field}
                       />
                     </FormControl>
@@ -167,7 +166,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                       <Input
                         type="password"
                         placeholder="••••••••"
-                        data-testid="input-password"
+                        data-testid="input-login-password"
                         {...field}
                       />
                     </FormControl>
@@ -201,7 +200,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                       <Input
                         type="text"
                         placeholder="John"
-                        data-testid="input-first-name"
+                        data-testid="input-signup-first-name"
                         {...field}
                       />
                     </FormControl>
@@ -220,7 +219,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                       <Input
                         type="text"
                         placeholder="Doe"
-                        data-testid="input-last-name"
+                        data-testid="input-signup-last-name"
                         {...field}
                       />
                     </FormControl>
@@ -239,7 +238,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                       <Input
                         type="tel"
                         placeholder="+45 12 34 56 78"
-                        data-testid="input-phone-number"
+                        data-testid="input-signup-phone-number"
                         {...field}
                       />
                     </FormControl>
@@ -258,7 +257,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                       <Input
                         type="email"
                         placeholder="you@example.com"
-                        data-testid="input-email"
+                        data-testid="input-signup-email"
                         {...field}
                       />
                     </FormControl>
@@ -277,7 +276,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                       <Input
                         type="password"
                         placeholder="••••••••"
-                        data-testid="input-password"
+                        data-testid="input-signup-password"
                         {...field}
                       />
                     </FormControl>
