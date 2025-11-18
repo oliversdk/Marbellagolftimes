@@ -84,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
       }
       
-      const { email, firstName, lastName, password } = result.data;
+      const { email, firstName, lastName, phoneNumber, password } = result.data;
       
       // Check if user exists
       const existingUser = await storage.getUserByEmail(email);
@@ -100,6 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email,
         firstName,
         lastName,
+        phoneNumber,
         passwordHash,
       });
       
@@ -161,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, phoneNumber: user.phoneNumber, profileImageUrl: user.profileImageUrl });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });

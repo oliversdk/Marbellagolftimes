@@ -51,7 +51,7 @@ export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: { email: string; firstName: string; lastName: string; passwordHash: string }): Promise<User>;
+  createUser(user: { email: string; firstName: string; lastName: string; phoneNumber?: string; passwordHash: string }): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
@@ -1024,13 +1024,14 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(user => user.email === email);
   }
 
-  async createUser(userData: { email: string; firstName: string; lastName: string; passwordHash: string }): Promise<User> {
+  async createUser(userData: { email: string; firstName: string; lastName: string; phoneNumber?: string; passwordHash: string }): Promise<User> {
     const id = randomUUID();
     const user: User = {
       id,
       email: userData.email,
       firstName: userData.firstName,
       lastName: userData.lastName,
+      phoneNumber: userData.phoneNumber || null,
       passwordHash: userData.passwordHash,
       profileImageUrl: null,
       stripeCustomerId: null,
@@ -1163,7 +1164,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(userData: { email: string; firstName: string; lastName: string; passwordHash: string }): Promise<User> {
+  async createUser(userData: { email: string; firstName: string; lastName: string; phoneNumber?: string; passwordHash: string }): Promise<User> {
     const [user] = await db.insert(users).values(userData).returning();
     return user;
   }
