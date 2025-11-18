@@ -26,6 +26,7 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash").notNull(),
   profileImageUrl: varchar("profile_image_url"),
   stripeCustomerId: varchar("stripe_customer_id"), // For future Stripe integration
+  isAdmin: text("is_admin").notNull().default("false"), // Admin role flag
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -37,6 +38,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   stripeCustomerId: true,
   profileImageUrl: true,
   passwordHash: true,
+  isAdmin: true, // Prevent users from setting admin during signup
 }).extend({
   password: z.string().min(8, "Password must be at least 8 characters"),
   phoneNumber: z.string().optional(),
