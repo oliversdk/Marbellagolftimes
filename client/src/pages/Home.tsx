@@ -8,6 +8,7 @@ import { LocationSearch } from "@/components/LocationSearch";
 import { SearchFilters } from "@/components/SearchFilters";
 import { CourseCard } from "@/components/CourseCard";
 import { BookingModal } from "@/components/BookingModal";
+import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { CoursesMap } from "@/components/CoursesMap";
 import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useAuth } from "@/hooks/useAuth";
 import { calculateDistance } from "@/lib/geolocation";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
@@ -95,9 +97,16 @@ export default function Home() {
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(12);
+  const [showPostBookingSignup, setShowPostBookingSignup] = useState(false);
+  const [lastBookingData, setLastBookingData] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+  } | null>(null);
   const { toast } = useToast();
   const { t } = useI18n();
   const { favorites } = useFavorites();
+  const { isAuthenticated } = useAuth();
 
   // Reset visible count when filters or sort mode changes
   useEffect(() => {
@@ -188,7 +197,7 @@ export default function Home() {
     mutationFn: async (data: InsertBookingRequest) => {
       return await apiRequest("POST", "/api/booking-requests", data);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/booking-requests"] });
       setBookingModalOpen(false);
       setSelectedSlot(null);
@@ -196,6 +205,16 @@ export default function Home() {
         title: t('home.bookingSuccessTitle'),
         description: t('home.bookingSuccessDescription'),
       });
+      
+      // Show signup dialog for guests
+      if (!isAuthenticated) {
+        setLastBookingData({
+          name: variables.customerName ?? "",
+          email: variables.customerEmail ?? "",
+          phone: variables.customerPhone ?? "",
+        });
+        setShowPostBookingSignup(true);
+      }
     },
     onError: () => {
       toast({
@@ -755,6 +774,15 @@ export default function Home() {
         onOpenChange={setBookingModalOpen}
         onSubmit={handleBookingSubmit}
         isPending={createBookingMutation.isPending}
+      />
+
+      {/* Post-Booking Signup Dialog */}
+      <PostBookingSignupDialog
+        open={showPostBookingSignup}
+        onOpenChange={setShowPostBookingSignup}
+        customerName={lastBookingData?.name || ""}
+        customerEmail={lastBookingData?.email || ""}
+        customerPhone={lastBookingData?.phone || ""}
       />
     </div>
   );

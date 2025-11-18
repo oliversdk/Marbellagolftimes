@@ -28,6 +28,7 @@ const translations: Record<Language, Translations> = {
       next: 'Next',
       today: 'Today',
       tomorrow: 'Tomorrow',
+      skip: 'Skip',
     },
     header: {
       title: 'Fridas Golf',
@@ -350,6 +351,7 @@ const translations: Record<Language, Translations> = {
       next: 'Siguiente',
       today: 'Hoy',
       tomorrow: 'Mañana',
+      skip: 'Omitir',
     },
     header: {
       title: 'Fridas Golf',
@@ -672,6 +674,7 @@ const translations: Record<Language, Translations> = {
       next: 'Næste',
       today: 'I dag',
       tomorrow: 'I morgen',
+      skip: 'Spring over',
     },
     header: {
       title: 'Fridas Golf',
@@ -994,6 +997,7 @@ const translations: Record<Language, Translations> = {
       next: 'Nästa',
       today: 'Idag',
       tomorrow: 'Imorgon',
+      skip: 'Hoppa över',
     },
     header: {
       title: 'Fridas Golf',
@@ -1316,6 +1320,7 @@ const translations: Record<Language, Translations> = {
       next: 'Далее',
       today: 'Сегодня',
       tomorrow: 'Завтра',
+      skip: 'Пропустить',
     },
     header: {
       title: 'Fridas Golf',

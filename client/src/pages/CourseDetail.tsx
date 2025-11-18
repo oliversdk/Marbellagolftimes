@@ -26,11 +26,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { BookingModal } from "@/components/BookingModal";
+import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { MapPin, Phone, Mail, Globe, Star, Home, Calendar, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { GolfCourse } from "@shared/schema";
 
@@ -39,9 +41,16 @@ export default function CourseDetail() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { trackEvent } = useAnalytics();
+  const { isAuthenticated } = useAuth();
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successBookingId, setSuccessBookingId] = useState<string | null>(null);
+  const [showPostBookingSignup, setShowPostBookingSignup] = useState(false);
+  const [lastBookingData, setLastBookingData] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+  } | null>(null);
 
   const { data: course, isLoading } = useQuery<GolfCourse>({
     queryKey: ['/api/courses', id],
@@ -63,14 +72,25 @@ export default function CourseDetail() {
       customerEmail: string;
       customerPhone: string;
     }) => {
-      return await apiRequest('POST', '/api/booking-requests', data);
+      const response = await apiRequest('POST', '/api/booking-requests', data);
+      return await response.json();
     },
-    onSuccess: (booking) => {
+    onSuccess: (booking, variables) => {
       trackEvent('booking_request_submitted', 'booking', course?.name);
       setBookingModalOpen(false);
       setSuccessBookingId(booking.id);
       setSuccessDialogOpen(true);
       queryClient.invalidateQueries({ queryKey: ['/api/booking-requests'] });
+      
+      // Show signup dialog for guests
+      if (!isAuthenticated) {
+        setLastBookingData({
+          name: variables.customerName,
+          email: variables.customerEmail,
+          phone: variables.customerPhone,
+        });
+        setShowPostBookingSignup(true);
+      }
     },
     onError: () => {
       trackEvent('booking_request_failed', 'booking', course?.name);
@@ -191,7 +211,7 @@ export default function CourseDetail() {
       <SEO
         title={`${course.name} - Golf Tee Times | Fridas Golf`}
         description={courseDescription}
-        image={course.imageUrl}
+        image={course.imageUrl || undefined}
         url={`https://fridasgolf.com/course/${course.id}`}
         type="article"
         structuredData={courseSchema}
@@ -568,6 +588,15 @@ export default function CourseDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Post-Booking Signup Dialog */}
+      <PostBookingSignupDialog
+        open={showPostBookingSignup}
+        onOpenChange={setShowPostBookingSignup}
+        customerName={lastBookingData?.name || ""}
+        customerEmail={lastBookingData?.email || ""}
+        customerPhone={lastBookingData?.phone || ""}
+      />
     </div>
   );
 }
