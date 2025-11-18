@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 interface PostBookingSignupDialogProps {
   open: boolean;
@@ -45,6 +46,19 @@ export function PostBookingSignupDialog({
       password: "",
     },
   });
+
+  // Reset form when dialog opens with new customer data
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        email: customerEmail,
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: customerPhone,
+        password: "",
+      });
+    }
+  }, [open, customerEmail, firstName, lastName, customerPhone, form]);
 
   const onSubmit = async (data: InsertUser) => {
     try {
