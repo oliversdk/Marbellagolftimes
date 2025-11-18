@@ -35,7 +35,7 @@ export default function Login() {
       await apiRequest("/api/auth/login", "POST", data);
       toast({
         title: t('common.success'),
-        description: "Successfully logged in",
+        description: t('auth.loginSuccess'),
       });
       window.location.href = "/";
     } catch (error: any) {

@@ -30,7 +30,7 @@ export default function Signup() {
       await apiRequest("/api/auth/signup", "POST", data);
       toast({
         title: t('common.success'),
-        description: "Account created successfully",
+        description: t('auth.signupSuccess'),
       });
       window.location.href = "/";
     } catch (error: any) {

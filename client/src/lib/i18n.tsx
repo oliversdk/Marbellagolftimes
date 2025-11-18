@@ -49,6 +49,8 @@ const translations: Record<Language, Translations> = {
       noAccount: "Don't have an account?",
       invalidCredentials: 'Invalid email or password',
       emailTaken: 'Email already registered',
+      loginSuccess: 'Successfully logged in',
+      signupSuccess: 'Account created successfully',
     },
     search: {
       placeholder: 'Search courses...',
@@ -368,6 +370,8 @@ const translations: Record<Language, Translations> = {
       noAccount: '¿No tienes cuenta?',
       invalidCredentials: 'Email o contraseña inválidos',
       emailTaken: 'Email ya registrado',
+      loginSuccess: 'Sesión iniciada exitosamente',
+      signupSuccess: 'Cuenta creada exitosamente',
     },
     search: {
       placeholder: 'Buscar campos...',
@@ -687,6 +691,8 @@ const translations: Record<Language, Translations> = {
       noAccount: 'Har du ikke en konto?',
       invalidCredentials: 'Ugyldig email eller adgangskode',
       emailTaken: 'Email allerede registreret',
+      loginSuccess: 'Logget ind succesfuldt',
+      signupSuccess: 'Konto oprettet succesfuldt',
     },
     search: {
       placeholder: 'Søg baner...',
@@ -1006,6 +1012,8 @@ const translations: Record<Language, Translations> = {
       noAccount: 'Har du inget konto?',
       invalidCredentials: 'Ogiltig e-post eller lösenord',
       emailTaken: 'E-posten redan registrerad',
+      loginSuccess: 'Inloggad framgångsrikt',
+      signupSuccess: 'Konto skapat framgångsrikt',
     },
     search: {
       placeholder: 'Sök banor...',
@@ -1325,6 +1333,8 @@ const translations: Record<Language, Translations> = {
       noAccount: 'Нет аккаунта?',
       invalidCredentials: 'Неверный email или пароль',
       emailTaken: 'Email уже зарегистрирован',
+      loginSuccess: 'Успешно вошли в систему',
+      signupSuccess: 'Аккаунт успешно создан',
     },
     search: {
       placeholder: 'Поиск полей...',
