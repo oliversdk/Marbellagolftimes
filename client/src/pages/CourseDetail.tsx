@@ -72,7 +72,7 @@ export default function CourseDetail() {
       customerEmail: string;
       customerPhone: string;
     }) => {
-      const response = await apiRequest('POST', '/api/booking-requests', data);
+      const response = await apiRequest('/api/booking-requests', 'POST', data);
       return await response.json();
     },
     onSuccess: (booking, variables) => {

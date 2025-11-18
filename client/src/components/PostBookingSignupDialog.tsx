@@ -78,7 +78,7 @@ export function PostBookingSignupDialog({
             {t('auth.createAccount')}
           </DialogTitle>
           <DialogDescription>
-            Opret en konto for at se dine bookinger og booke nemmere næste gang.
+            {t('auth.postBookingSignupDescription')}
           </DialogDescription>
         </DialogHeader>
 

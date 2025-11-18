@@ -53,6 +53,8 @@ const translations: Record<Language, Translations> = {
       emailTaken: 'Email already registered',
       loginSuccess: 'Successfully logged in',
       signupSuccess: 'Account created successfully',
+      createAccount: 'Create Your Account',
+      postBookingSignupDescription: 'Create an account to view your bookings and book faster next time.',
     },
     search: {
       placeholder: 'Search courses...',
@@ -376,6 +378,8 @@ const translations: Record<Language, Translations> = {
       emailTaken: 'Email ya registrado',
       loginSuccess: 'Sesión iniciada exitosamente',
       signupSuccess: 'Cuenta creada exitosamente',
+      createAccount: 'Crea tu cuenta',
+      postBookingSignupDescription: 'Crea una cuenta para ver tus reservas y reservar más rápido la próxima vez.',
     },
     search: {
       placeholder: 'Buscar campos...',
@@ -699,6 +703,8 @@ const translations: Record<Language, Translations> = {
       emailTaken: 'Email allerede registreret',
       loginSuccess: 'Logget ind succesfuldt',
       signupSuccess: 'Konto oprettet succesfuldt',
+      createAccount: 'Opret din konto',
+      postBookingSignupDescription: 'Opret en konto for at se dine bookinger og booke nemmere næste gang.',
     },
     search: {
       placeholder: 'Søg baner...',
@@ -1022,6 +1028,8 @@ const translations: Record<Language, Translations> = {
       emailTaken: 'E-posten redan registrerad',
       loginSuccess: 'Inloggad framgångsrikt',
       signupSuccess: 'Konto skapat framgångsrikt',
+      createAccount: 'Skapa ditt konto',
+      postBookingSignupDescription: 'Skapa ett konto för att se dina bokningar och boka snabbare nästa gång.',
     },
     search: {
       placeholder: 'Sök banor...',
@@ -1345,6 +1353,8 @@ const translations: Record<Language, Translations> = {
       emailTaken: 'Email уже зарегистрирован',
       loginSuccess: 'Успешно вошли в систему',
       signupSuccess: 'Аккаунт успешно создан',
+      createAccount: 'Создать аккаунт',
+      postBookingSignupDescription: 'Создайте аккаунт, чтобы просматривать свои бронирования и бронировать быстрее в следующий раз.',
     },
     search: {
       placeholder: 'Поиск полей...',
