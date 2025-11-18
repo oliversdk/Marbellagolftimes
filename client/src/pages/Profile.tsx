@@ -77,6 +77,7 @@ export default function Profile() {
             <CardTitle>{t('profile.title')}</CardTitle>
             <CardDescription>
               {typedUser.firstName} {typedUser.lastName} • {typedUser.email}
+              {typedUser.phoneNumber && ` • ${typedUser.phoneNumber}`}
             </CardDescription>
           </CardHeader>
         </Card>
