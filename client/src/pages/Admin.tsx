@@ -457,7 +457,6 @@ export default function Admin() {
                 User Management
               </TabsTrigger>
             )}
-            <TabsTrigger value="courses" data-testid="tab-courses">{t('admin.tabGolfCourses')}</TabsTrigger>
             <TabsTrigger value="all-courses" data-testid="tab-all-courses">{t('admin.tabAllCourses')}</TabsTrigger>
             <TabsTrigger value="course-images" data-testid="tab-course-images">{t('admin.tabCourseImages')}</TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
@@ -614,47 +613,6 @@ export default function Admin() {
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     No users found
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="courses">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('admin.courseDirectory')}</CardTitle>
-                <CardDescription>
-                  {t('admin.coursesFromRegion', { count: courses?.length || 0 })}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {courses && courses.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('admin.tableHeaderName')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderCity')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderProvince')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderEmail')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderPhone')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {courses.map((course) => (
-                        <TableRow key={course.id} data-testid={`row-course-${course.id}`}>
-                          <TableCell className="font-medium">{course.name}</TableCell>
-                          <TableCell>{course.city}</TableCell>
-                          <TableCell>{course.province}</TableCell>
-                          <TableCell className="text-sm">{course.email}</TableCell>
-                          <TableCell className="text-sm">{course.phone}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    {t('admin.noCourses')}
                   </div>
                 )}
               </CardContent>
