@@ -458,6 +458,7 @@ export default function Admin() {
               </TabsTrigger>
             )}
             <TabsTrigger value="courses" data-testid="tab-courses">{t('admin.tabGolfCourses')}</TabsTrigger>
+            <TabsTrigger value="all-courses" data-testid="tab-all-courses">{t('admin.tabAllCourses')}</TabsTrigger>
             <TabsTrigger value="course-images" data-testid="tab-course-images">{t('admin.tabCourseImages')}</TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
           </TabsList>
@@ -651,6 +652,30 @@ export default function Admin() {
                       ))}
                     </TableBody>
                   </Table>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    {t('admin.noCourses')}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="all-courses">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('admin.allCoursesTitle')}</CardTitle>
+                <CardDescription>
+                  {t('admin.allCoursesDescription', { count: courses?.length || 0 })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {courses && courses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {courses.map((course) => (
+                      <CourseCard key={course.id} course={course} />
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     {t('admin.noCourses')}
