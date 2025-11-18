@@ -72,12 +72,13 @@ export function BookingModal({
     }
   }, [preSelectedSlot, open]);
 
-  // Auto-fill name/email for logged-in users when modal opens
+  // Auto-fill name/email/phone for logged-in users when modal opens
   useEffect(() => {
     if (open && isAuthenticated && user) {
       const typedUser = user as User;
       setCustomerName(`${typedUser.firstName} ${typedUser.lastName}`);
       setCustomerEmail(typedUser.email || "");
+      setCustomerPhone(typedUser.phoneNumber || "");
     }
   }, [open, isAuthenticated, user]);
 
