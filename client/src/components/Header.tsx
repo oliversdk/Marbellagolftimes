@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { MapPin, User, LogOut, UserCircle } from "lucide-react";
@@ -5,6 +6,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
+import { AuthDialog } from "@/components/AuthDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +18,8 @@ export function Header() {
   const [location] = useLocation();
   const { t } = useI18n();
   const { isAuthenticated } = useAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
 
   const handleLogout = async () => {
     try {
@@ -91,16 +95,28 @@ export function Header() {
               </DropdownMenu>
             ) : (
               <>
-                <Link href="/login">
-                  <Button variant="ghost" size="default" data-testid="button-login">
-                    {t('header.login')}
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button variant="outline" size="default" data-testid="button-signup">
-                    {t('auth.signup')}
-                  </Button>
-                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="default" 
+                  data-testid="button-login"
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthDialogOpen(true);
+                  }}
+                >
+                  {t('header.login')}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="default" 
+                  data-testid="button-signup"
+                  onClick={() => {
+                    setAuthMode("signup");
+                    setAuthDialogOpen(true);
+                  }}
+                >
+                  {t('auth.signup')}
+                </Button>
               </>
             )}
             <Link href="/">
@@ -111,6 +127,11 @@ export function Header() {
           </div>
         </div>
       </div>
+      <AuthDialog 
+        open={authDialogOpen} 
+        onOpenChange={setAuthDialogOpen}
+        initialMode={authMode}
+      />
     </header>
   );
 }

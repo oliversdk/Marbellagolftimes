@@ -1,0 +1,293 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { insertUserSchema, type InsertUser } from "@shared/schema";
+import { useI18n } from "@/lib/i18n";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type LoginForm = z.infer<typeof loginSchema>;
+
+interface AuthDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialMode?: "login" | "signup";
+}
+
+export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDialogProps) {
+  const [mode, setMode] = useState<"login" | "signup">(initialMode);
+  const { t } = useI18n();
+  const { toast } = useToast();
+
+  const loginForm = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const signupForm = useForm<InsertUser>({
+    resolver: zodResolver(insertUserSchema),
+    defaultValues: {
+      email: "",
+      firstName: "",
+      lastName: "",
+      phoneNumber: "",
+      password: "",
+    },
+  });
+
+  const onLoginSubmit = async (data: LoginForm) => {
+    try {
+      await apiRequest("/api/auth/login", "POST", data);
+      toast({
+        title: t('common.success'),
+        description: t('auth.loginSuccess'),
+      });
+      onOpenChange(false);
+      window.location.href = "/";
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: t('common.error'),
+        description: error.message || t('auth.invalidCredentials'),
+      });
+    }
+  };
+
+  const onSignupSubmit = async (data: InsertUser) => {
+    try {
+      await apiRequest("/api/auth/signup", "POST", data);
+      toast({
+        title: t('common.success'),
+        description: t('auth.signupSuccess'),
+      });
+      onOpenChange(false);
+      window.location.href = "/";
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: t('common.error'),
+        description: error.message || t('auth.emailTaken'),
+      });
+    }
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      loginForm.reset();
+      signupForm.reset();
+      setMode(initialMode);
+    }
+    onOpenChange(newOpen);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md" data-testid="dialog-auth">
+        <DialogHeader>
+          <DialogTitle data-testid={mode === "login" ? "text-login-title" : "text-signup-title"}>
+            {mode === "login" ? t('auth.login') : t('auth.signup')}
+          </DialogTitle>
+          <DialogDescription>
+            {mode === "login" ? (
+              <>
+                {t('auth.noAccount')}{' '}
+                <button
+                  onClick={() => setMode("signup")}
+                  className="text-primary hover:underline cursor-pointer"
+                  data-testid="link-signup"
+                >
+                  {t('auth.signup')}
+                </button>
+              </>
+            ) : (
+              <>
+                {t('auth.haveAccount')}{' '}
+                <button
+                  onClick={() => setMode("login")}
+                  className="text-primary hover:underline cursor-pointer"
+                  data-testid="link-login"
+                >
+                  {t('auth.login')}
+                </button>
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {mode === "login" ? (
+          <Form {...loginForm}>
+            <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+              <FormField
+                control={loginForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.email')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        data-testid="input-email"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={loginForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.password')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        data-testid="input-password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loginForm.formState.isSubmitting}
+                data-testid="button-login"
+              >
+                {loginForm.formState.isSubmitting ? t('common.loading') : t('auth.loginButton')}
+              </Button>
+            </form>
+          </Form>
+        ) : (
+          <Form {...signupForm}>
+            <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="space-y-4">
+              <FormField
+                control={signupForm.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.firstName')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="John"
+                        data-testid="input-first-name"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={signupForm.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.lastName')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="Doe"
+                        data-testid="input-last-name"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={signupForm.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.phoneNumber')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        placeholder="+45 12 34 56 78"
+                        data-testid="input-phone-number"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={signupForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.email')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        data-testid="input-email"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={signupForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('auth.password')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        data-testid="input-password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={signupForm.formState.isSubmitting}
+                data-testid="button-signup"
+              >
+                {signupForm.formState.isSubmitting ? t('common.loading') : t('auth.signupButton')}
+              </Button>
+            </form>
+          </Form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
