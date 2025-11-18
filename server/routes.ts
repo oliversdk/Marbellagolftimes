@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { getSession, isAuthenticated, isAdmin } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, type CourseWithSlots, type TeeTimeSlot } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, type CourseWithSlots, type TeeTimeSlot, type User } from "@shared/schema";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
@@ -301,6 +301,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // GET /api/admin/users/:id/bookings - Get bookings for a specific user (Admin only)
+  app.get("/api/admin/users/:id/bookings", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const bookings = await storage.getBookingsByUserId(id);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching user bookings:", error);
+      res.status(500).json({ message: "Failed to fetch user bookings" });
     }
   });
 

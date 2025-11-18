@@ -102,8 +102,10 @@ export default function Admin() {
   const [courseImageUrls, setCourseImageUrls] = useState<Record<string, string>>({});
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [viewingUserBookings, setViewingUserBookings] = useState<User | null>(null);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const { toast } = useToast();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const { t } = useI18n();
 
   // Fetch courses (public endpoint)
@@ -117,10 +119,28 @@ export default function Admin() {
     enabled: isAuthenticated,
   });
 
-  // Fetch users - only if authenticated
+  // Fetch users - only if authenticated and admin
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && isAdmin,
+  });
+
+  // Fetch bookings for a specific user
+  const { data: userBookings } = useQuery<BookingRequest[]>({
+    queryKey: ["/api/admin/users", viewingUserBookings?.id, "bookings"],
+    enabled: !!viewingUserBookings,
+  });
+
+  // Filter users based on search query
+  const filteredUsers = users?.filter((user) => {
+    if (!userSearchQuery) return true;
+    const query = userSearchQuery.toLowerCase();
+    return (
+      user.firstName.toLowerCase().includes(query) ||
+      user.lastName.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      (user.phoneNumber && user.phoneNumber.toLowerCase().includes(query))
+    );
   });
 
   // Edit user form
@@ -431,10 +451,12 @@ export default function Admin() {
         <Tabs defaultValue="bookings" className="space-y-6">
           <TabsList>
             <TabsTrigger value="bookings" data-testid="tab-bookings">{t('admin.tabBookingRequests')}</TabsTrigger>
-            <TabsTrigger value="users" data-testid="tab-users">
-              <Users className="h-4 w-4 mr-2" />
-              User Management
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="users" data-testid="tab-users">
+                <Users className="h-4 w-4 mr-2" />
+                User Management
+              </TabsTrigger>
+            )}
             <TabsTrigger value="courses" data-testid="tab-courses">{t('admin.tabGolfCourses')}</TabsTrigger>
             <TabsTrigger value="featured" data-testid="tab-featured">{t('admin.tabFeaturedCourses')}</TabsTrigger>
             <TabsTrigger value="all-courses" data-testid="tab-all-courses">{t('admin.tabAllCourses')}</TabsTrigger>
@@ -497,62 +519,99 @@ export default function Admin() {
                   User Management
                 </CardTitle>
                 <CardDescription>
-                  View, edit, and manage user accounts
+                  View, edit, and manage user accounts and booking history
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                {users && users.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                          <TableCell className="font-medium">
-                            {user.firstName} {user.lastName}
-                          </TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.phoneNumber || "—"}</TableCell>
-                          <TableCell>
-                            {user.isAdmin === "true" ? (
-                              <Badge variant="default">Admin</Badge>
-                            ) : (
-                              <Badge variant="secondary">User</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditUser(user)}
-                                data-testid={`button-edit-user-${user.id}`}
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setDeletingUser(user)}
-                                data-testid={`button-delete-user-${user.id}`}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Search users by name, email, or phone..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    data-testid="input-search-users"
+                    className="max-w-md"
+                  />
+                  {userSearchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setUserSearchQuery("")}
+                      data-testid="button-clear-search"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {filteredUsers && filteredUsers.length > 0 ? (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Showing {filteredUsers.length} of {users?.length || 0} users
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredUsers.map((user) => (
+                          <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                            <TableCell className="font-medium">
+                              {user.firstName} {user.lastName}
+                            </TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>{user.phoneNumber || "—"}</TableCell>
+                            <TableCell>
+                              {user.isAdmin === "true" ? (
+                                <Badge variant="default">Admin</Badge>
+                              ) : (
+                                <Badge variant="secondary">User</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setViewingUserBookings(user)}
+                                  data-testid={`button-view-bookings-${user.id}`}
+                                >
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  View Bookings
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditUser(user)}
+                                  data-testid={`button-edit-user-${user.id}`}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setDeletingUser(user)}
+                                  data-testid={`button-delete-user-${user.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : userSearchQuery ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    No users found matching "{userSearchQuery}"
+                  </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     No users found
@@ -1055,6 +1114,77 @@ export default function Admin() {
                 data-testid="button-confirm-delete"
               >
                 {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* View User Bookings Dialog */}
+        <Dialog open={!!viewingUserBookings} onOpenChange={(open) => !open && setViewingUserBookings(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" data-testid="dialog-user-bookings">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Booking History
+              </DialogTitle>
+              {viewingUserBookings && (
+                <DialogDescription>
+                  Showing all bookings for {viewingUserBookings.firstName} {viewingUserBookings.lastName} ({viewingUserBookings.email})
+                </DialogDescription>
+              )}
+            </DialogHeader>
+            <div className="space-y-4">
+              {userBookings && userBookings.length > 0 ? (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Total bookings: {userBookings.length}
+                  </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Course</TableHead>
+                        <TableHead>Tee Time</TableHead>
+                        <TableHead>Players</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Requested</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userBookings.map((booking) => {
+                        const course = courses?.find(c => c.id === booking.courseId);
+                        return (
+                          <TableRow key={booking.id} data-testid={`row-user-booking-${booking.id}`}>
+                            <TableCell className="font-medium">
+                              {course?.name || booking.courseId}
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(booking.teeTime), "PPp")}
+                            </TableCell>
+                            <TableCell>{booking.players}</TableCell>
+                            <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {format(new Date(booking.createdAt), "PP")}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  No bookings found for this user
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setViewingUserBookings(null)}
+                data-testid="button-close-bookings"
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>
