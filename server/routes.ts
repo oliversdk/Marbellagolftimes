@@ -212,6 +212,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/admin/users/:id - Update user information (Admin only)
+  app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { firstName, lastName, email, phoneNumber } = req.body;
+
+      // Validate that at least one field is provided
+      if (!firstName && !lastName && !email && !phoneNumber) {
+        return res.status(400).json({ message: "At least one field must be provided" });
+      }
+
+      // Build updates object with only provided fields
+      const updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string } = {};
+      if (firstName !== undefined) updates.firstName = firstName;
+      if (lastName !== undefined) updates.lastName = lastName;
+      if (email !== undefined) updates.email = email;
+      if (phoneNumber !== undefined) updates.phoneNumber = phoneNumber;
+
+      const updated = await storage.updateUser(id, updates);
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Return sanitized user data
+      const sanitizedUser = {
+        id: updated.id,
+        email: updated.email,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        phoneNumber: updated.phoneNumber,
+        isAdmin: updated.isAdmin,
+      };
+
+      res.json({ message: "User updated successfully", user: sanitizedUser });
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // DELETE /api/admin/users/:id - Delete user (Admin only)
+  app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Prevent admin from deleting themselves
+      if (req.session.userId === id) {
+        return res.status(403).json({ message: "Cannot delete your own account" });
+      }
+
+      const deleted = await storage.deleteUser(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // GET /api/courses - Get all golf courses
   app.get("/api/courses", async (req, res) => {
     try {
