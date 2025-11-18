@@ -17,7 +17,7 @@ import {
 export function Header() {
   const [location] = useLocation();
   const { t } = useI18n();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
 
@@ -57,16 +57,18 @@ export function Header() {
                 {t('search.searchButton')}
               </span>
             </Link>
-            <Link href="/admin">
-              <span
-                className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${
-                  location === "/admin" ? "text-foreground" : "text-muted-foreground"
-                }`}
-                data-testid="link-admin"
-              >
-                {t('header.admin')}
-              </span>
-            </Link>
+            {isAdmin && (
+              <Link href="/admin">
+                <span
+                  className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${
+                    location === "/admin" ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                  data-testid="link-admin"
+                >
+                  {t('header.admin')}
+                </span>
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-2">
