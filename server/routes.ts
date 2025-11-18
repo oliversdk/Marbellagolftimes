@@ -684,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/bookings - Get current user's bookings (Authenticated endpoint)
   app.get("/api/bookings", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const bookings = await storage.getBookingsByUserId(userId);
       res.json(bookings);
     } catch (error) {
@@ -699,7 +699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add userId if user is authenticated
       const bookingData = {
         ...req.body,
-        userId: req.user?.claims?.sub || null,
+        userId: req.session.userId || null,
       };
       
       const validatedData = insertBookingRequestSchema.parse(bookingData);
