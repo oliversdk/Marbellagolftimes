@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { SEO } from "@/components/SEO";
@@ -15,9 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar } from "lucide-react";
+import { Calendar, Shield, ShieldOff } from "lucide-react";
 import { format } from "date-fns";
 import type { BookingRequest, User } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface BookingWithCourse extends BookingRequest {
   courseName: string;
@@ -39,6 +41,33 @@ export default function Profile() {
   const { data: bookings, isLoading: bookingsLoading } = useQuery<BookingWithCourse[]>({
     queryKey: ['/api/bookings'],
     enabled: isAuthenticated,
+  });
+
+  const { data: allUsers, isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ['/api/admin/users'],
+    enabled: isAuthenticated && typedUser?.isAdmin === 'true',
+  });
+
+  const { toast } = useToast();
+
+  const toggleAdminMutation = useMutation({
+    mutationFn: async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
+      await apiRequest(`/api/admin/users/${userId}/admin`, 'PATCH', { isAdmin });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: t('common.success'),
+        description: 'Admin status updated successfully',
+      });
+    },
+    onError: () => {
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: 'Failed to update admin status',
+      });
+    },
   });
 
   // Show loading state
@@ -138,6 +167,91 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Admin User Management (only visible to admins) */}
+        {typedUser.isAdmin === 'true' && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Admin User Management
+              </CardTitle>
+              <CardDescription>
+                Manage admin privileges for all users
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {usersLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">{t('common.loading')}</p>
+                </div>
+              ) : allUsers && allUsers.length > 0 ? (
+                <Table data-testid="table-admin-users">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Admin Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allUsers.map((adminUser) => (
+                      <TableRow key={adminUser.id} data-testid={`row-user-${adminUser.id}`}>
+                        <TableCell className="font-medium">
+                          {adminUser.firstName} {adminUser.lastName}
+                        </TableCell>
+                        <TableCell>{adminUser.email}</TableCell>
+                        <TableCell>{adminUser.phoneNumber || '-'}</TableCell>
+                        <TableCell>
+                          {adminUser.isAdmin === 'true' ? (
+                            <Badge variant="default" className="gap-1">
+                              <Shield className="h-3 w-3" />
+                              Admin
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              User
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant={adminUser.isAdmin === 'true' ? 'destructive' : 'default'}
+                            onClick={() => toggleAdminMutation.mutate({
+                              userId: adminUser.id,
+                              isAdmin: adminUser.isAdmin !== 'true',
+                            })}
+                            disabled={toggleAdminMutation.isPending || adminUser.id === typedUser.id}
+                            data-testid={`button-toggle-admin-${adminUser.id}`}
+                          >
+                            {adminUser.isAdmin === 'true' ? (
+                              <>
+                                <ShieldOff className="h-4 w-4 mr-1" />
+                                Remove Admin
+                              </>
+                            ) : (
+                              <>
+                                <Shield className="h-4 w-4 mr-1" />
+                                Make Admin
+                              </>
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No users found</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );
