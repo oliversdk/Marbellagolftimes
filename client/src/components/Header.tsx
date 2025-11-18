@@ -1,9 +1,15 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin, User } from "lucide-react";
+import { MapPin, User, LogOut, UserCircle } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Header() {
   const [location] = useLocation();
@@ -52,11 +58,27 @@ export function Header() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             {isAuthenticated ? (
-              <Link href="/profile">
-                <Button variant="ghost" size="icon" data-testid="link-profile">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" data-testid="button-user-menu">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="cursor-pointer" data-testid="link-profile">
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      {t('profile.title')}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="/api/logout" className="cursor-pointer" data-testid="button-logout">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      {t('header.logout')}
+                    </a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <a href="/api/login">
                 <Button variant="outline" size="default" data-testid="button-login">
