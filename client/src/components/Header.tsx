@@ -4,6 +4,7 @@ import { MapPin, User, LogOut, UserCircle } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,15 @@ export function Header() {
   const [location] = useLocation();
   const { t } = useI18n();
   const { isAuthenticated } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await apiRequest("/api/auth/logout", "POST");
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -72,19 +82,26 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <a href="/api/logout" className="cursor-pointer" data-testid="button-logout">
+                    <button onClick={handleLogout} className="w-full cursor-pointer flex items-center" data-testid="button-logout">
                       <LogOut className="mr-2 h-4 w-4" />
                       {t('header.logout')}
-                    </a>
+                    </button>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <a href="/api/login">
-                <Button variant="outline" size="default" data-testid="button-login">
-                  {t('header.login')}
-                </Button>
-              </a>
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="default" data-testid="button-login">
+                    {t('header.login')}
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button variant="outline" size="default" data-testid="button-signup">
+                    {t('auth.signup')}
+                  </Button>
+                </Link>
+              </>
             )}
             <Link href="/">
               <Button size="default" data-testid="button-search-tee-times">

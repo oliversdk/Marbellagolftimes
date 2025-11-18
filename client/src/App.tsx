@@ -13,6 +13,8 @@ import NotFound from "@/pages/not-found";
 const CourseDetail = lazy(() => import("@/pages/CourseDetail"));
 const Admin = lazy(() => import("@/pages/Admin"));
 const Profile = lazy(() => import("@/pages/Profile"));
+const Login = lazy(() => import("@/pages/Login"));
+const Signup = lazy(() => import("@/pages/Signup"));
 
 function LoadingFallback() {
   return (
@@ -29,6 +31,16 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/login">
+        <Suspense fallback={<LoadingFallback />}>
+          <Login />
+        </Suspense>
+      </Route>
+      <Route path="/signup">
+        <Suspense fallback={<LoadingFallback />}>
+          <Signup />
+        </Suspense>
+      </Route>
       <Route path="/admin">
         <Suspense fallback={<LoadingFallback />}>
           <Admin />

@@ -10,7 +10,6 @@ import {
   type AffiliateEmail,
   type InsertAffiliateEmail,
   type User,
-  type UpsertUser,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -48,6 +47,11 @@ export interface IStorage {
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
   createAffiliateEmail(email: InsertAffiliateEmail): Promise<AffiliateEmail>;
   updateAffiliateEmail(id: string, updates: Partial<AffiliateEmail>): Promise<AffiliateEmail | undefined>;
+
+  // Users
+  getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: { email: string; firstName: string; lastName: string; passwordHash: string }): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
@@ -56,6 +60,7 @@ export class MemStorage implements IStorage {
   private links: Map<string, CourseProviderLink>;
   private bookings: Map<string, BookingRequest>;
   private affiliateEmails: Map<string, AffiliateEmail>;
+  private users: Map<string, User>;
 
   constructor() {
     this.courses = new Map();
@@ -63,6 +68,7 @@ export class MemStorage implements IStorage {
     this.links = new Map();
     this.bookings = new Map();
     this.affiliateEmails = new Map();
+    this.users = new Map();
     
     // Seed initial data
     this.seedData();
@@ -1008,6 +1014,32 @@ export class MemStorage implements IStorage {
     this.affiliateEmails.set(id, updatedEmail);
     return updatedEmail;
   }
+
+  // Users
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.email === email);
+  }
+
+  async createUser(userData: { email: string; firstName: string; lastName: string; passwordHash: string }): Promise<User> {
+    const id = randomUUID();
+    const user: User = {
+      id,
+      email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      passwordHash: userData.passwordHash,
+      profileImageUrl: null,
+      stripeCustomerId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(id, user);
+    return user;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1121,25 +1153,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User operations
-  // (IMPORTANT) these user operations are mandatory for Replit Auth.
-  // Code from blueprint:javascript_log_in_with_replit
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: { email: string; firstName: string; lastName: string; passwordHash: string }): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
     return user;
   }
 }
