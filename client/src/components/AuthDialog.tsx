@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -48,6 +48,13 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
     },
   });
 
+  // Sync mode with initialMode when dialog opens
+  useEffect(() => {
+    if (open) {
+      setMode(initialMode);
+    }
+  }, [open, initialMode]);
+
   const onLoginSubmit = async (data: LoginForm) => {
     try {
       await apiRequest("/api/auth/login", "POST", data);
@@ -68,6 +75,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
 
   const onSignupSubmit = async (data: InsertUser) => {
     try {
+      console.log("AuthDialog signup data:", data);
       await apiRequest("/api/auth/signup", "POST", data);
       toast({
         title: t('common.success'),
@@ -127,7 +135,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
           </DialogDescription>
         </DialogHeader>
 
-        {mode === "login" ? (
+        <div style={{ display: mode === "login" ? "block" : "none" }}>
           <Form {...loginForm}>
             <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
               <FormField
@@ -178,7 +186,9 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
               </Button>
             </form>
           </Form>
-        ) : (
+        </div>
+        
+        <div style={{ display: mode === "signup" ? "block" : "none" }}>
           <Form {...signupForm}>
             <form onSubmit={signupForm.handleSubmit(onSignupSubmit)} className="space-y-4">
               <FormField
@@ -286,7 +296,7 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
               </Button>
             </form>
           </Form>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
