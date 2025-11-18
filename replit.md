@@ -28,19 +28,30 @@ The application uses custom email/password authentication with bcrypt password h
 
 #### Admin User Management
 
-The Admin dashboard includes a comprehensive User Management system for viewing, editing, and deleting user accounts. The system provides full CRUD operations with role-based access control:
+The Admin dashboard includes a comprehensive User Management system for viewing, editing, deleting user accounts, and viewing booking history. The system provides full CRUD operations with role-based access control:
 
+- **Role-Based Access Control**: User Management tab only visible to admin users (non-admins cannot see or access)
 - **User List**: Displays all users in a table showing name, email, phone, role badge (Admin/User), and action buttons
+- **User Search**: Real-time search filtering by name, email, or phone number with results counter
+- **View Booking History**: Each user has a "View Bookings" button that opens a dialog showing their complete booking history with:
+  - Course names (resolved from course IDs)
+  - Tee times (formatted with date and time)
+  - Number of players
+  - Status badges (pending, confirmed, cancelled)
+  - Request dates
+  - Loading and error states for better UX
 - **Edit User**: Dialog form with validation for updating user information (first name, last name, email, phone)
 - **Delete User**: Confirmation dialog showing complete user details (name, email, role) before deletion
 - **Self-Protection**: Admins cannot edit or delete their own account (backend returns 403)
 - **Duplicate Email Validation**: Backend validates email uniqueness and returns 409 if email already exists
 - **API Endpoints**: 
-  - `GET /api/admin/users` - Fetch all users
-  - `PATCH /api/admin/users/:id` - Update user information
-  - `DELETE /api/admin/users/:id` - Delete user account
+  - `GET /api/admin/users` - Fetch all users (admin only)
+  - `GET /api/admin/users/:id/bookings` - Fetch bookings for specific user (admin only)
+  - `PATCH /api/admin/users/:id` - Update user information (admin only)
+  - `DELETE /api/admin/users/:id` - Delete user account (admin only)
 - **Error Handling**: Frontend displays specific error messages for self-protection (403) and duplicate emails (409)
 - **Cache Invalidation**: UI automatically updates after successful edit/delete operations
+- **useAuth Hook**: Exposes `isAdmin` boolean flag derived from user's `isAdmin` field
 
 Note: All `apiRequest` calls throughout the application use the signature `apiRequest(url, method, data)`. Error responses include `status` and `statusCode` fields for proper client-side error handling.
 
