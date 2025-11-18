@@ -126,7 +126,7 @@ export default function Admin() {
   });
 
   // Fetch bookings for a specific user
-  const { data: userBookings } = useQuery<BookingRequest[]>({
+  const { data: userBookings, isLoading: isLoadingUserBookings, error: userBookingsError } = useQuery<BookingRequest[]>({
     queryKey: ["/api/admin/users", viewingUserBookings?.id, "bookings"],
     enabled: !!viewingUserBookings,
   });
@@ -1134,7 +1134,15 @@ export default function Admin() {
               )}
             </DialogHeader>
             <div className="space-y-4">
-              {userBookings && userBookings.length > 0 ? (
+              {isLoadingUserBookings ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  Loading bookings...
+                </div>
+              ) : userBookingsError ? (
+                <div className="text-center py-12 text-destructive">
+                  Failed to load bookings. Please try again.
+                </div>
+              ) : userBookings && userBookings.length > 0 ? (
                 <div>
                   <p className="text-sm text-muted-foreground mb-4">
                     Total bookings: {userBookings.length}
