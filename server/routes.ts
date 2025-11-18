@@ -16,6 +16,20 @@ import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 
+// Validation schema for updating user information
+const updateUserSchema = z.object({
+  firstName: z.string().min(1, "First name is required").optional(),
+  lastName: z.string().min(1, "Last name is required").optional(),
+  email: z.string().email("Invalid email address").optional(),
+  phoneNumber: z.string().optional(),
+}).refine(data => {
+  // At least one field must be provided
+  return data.firstName !== undefined || data.lastName !== undefined || 
+         data.email !== undefined || data.phoneNumber !== undefined;
+}, {
+  message: "At least one field must be provided"
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -216,21 +230,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const { firstName, lastName, email, phoneNumber } = req.body;
+      console.log("PATCH /api/admin/users/:id - Updating user:", id, "with body:", req.body);
 
-      // Validate that at least one field is provided
-      if (!firstName && !lastName && !email && !phoneNumber) {
-        return res.status(400).json({ message: "At least one field must be provided" });
+      // Validate request body
+      const validationResult = updateUserSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        console.error("Validation failed:", validationResult.error.issues);
+        return res.status(400).json({ 
+          message: "Invalid input", 
+          errors: validationResult.error.issues 
+        });
       }
 
-      // Build updates object with only provided fields
-      const updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string } = {};
-      if (firstName !== undefined) updates.firstName = firstName;
-      if (lastName !== undefined) updates.lastName = lastName;
-      if (email !== undefined) updates.email = email;
-      if (phoneNumber !== undefined) updates.phoneNumber = phoneNumber;
+      const updates = validationResult.data;
+      console.log("Validated updates:", updates);
+
+      // Check if email is being updated and if it already exists
+      if (updates.email) {
+        const existingUser = await storage.getUserByEmail(updates.email);
+        if (existingUser && existingUser.id !== id) {
+          console.error("Email already in use:", updates.email);
+          return res.status(409).json({ message: "Email already in use" });
+        }
+      }
 
       const updated = await storage.updateUser(id, updates);
+      console.log("Update result:", updated ? "Success" : "User not found");
       if (!updated) {
         return res.status(404).json({ message: "User not found" });
       }
