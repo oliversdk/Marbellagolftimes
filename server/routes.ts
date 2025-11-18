@@ -4,7 +4,7 @@ import express from "express";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
-import { getSession, isAuthenticated } from "./customAuth";
+import { getSession, isAuthenticated, isAdmin } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, type CourseWithSlots, type TeeTimeSlot } from "@shared/schema";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
@@ -162,10 +162,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, phoneNumber: user.phoneNumber, profileImageUrl: user.profileImageUrl });
+      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, phoneNumber: user.phoneNumber, profileImageUrl: user.profileImageUrl, isAdmin: user.isAdmin });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // GET /api/admin/users - Get all users (Admin only)
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      // Don't send password hashes to frontend
+      const sanitizedUsers = allUsers.map((u: User) => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        phoneNumber: u.phoneNumber,
+        isAdmin: u.isAdmin,
+        createdAt: u.createdAt,
+      }));
+      res.json(sanitizedUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // PATCH /api/admin/users/:id/admin - Toggle admin status (Admin only)
+  app.patch("/api/admin/users/:id/admin", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isAdmin: newIsAdmin } = req.body;
+
+      if (typeof newIsAdmin !== 'boolean') {
+        return res.status(400).json({ message: "isAdmin must be a boolean" });
+      }
+
+      const updated = await storage.setUserAdmin(id, newIsAdmin);
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ message: "Admin status updated successfully", user: { id, isAdmin: newIsAdmin ? 'true' : 'false' } });
+    } catch (error) {
+      console.error("Error updating admin status:", error);
+      res.status(500).json({ message: "Failed to update admin status" });
     }
   });
 

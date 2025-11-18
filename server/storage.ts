@@ -52,6 +52,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: { email: string; firstName: string; lastName: string; phoneNumber?: string; passwordHash: string }): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -1035,11 +1037,25 @@ export class MemStorage implements IStorage {
       passwordHash: userData.passwordHash,
       profileImageUrl: null,
       stripeCustomerId: null,
+      isAdmin: 'false',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, isAdmin: isAdmin ? 'true' : 'false' };
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
 }
 
@@ -1166,6 +1182,19 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(userData: { email: string; firstName: string; lastName: string; phoneNumber?: string; passwordHash: string }): Promise<User> {
     const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ isAdmin: isAdmin ? 'true' : 'false' })
+      .where(eq(users.id, id))
+      .returning();
     return user;
   }
 }
