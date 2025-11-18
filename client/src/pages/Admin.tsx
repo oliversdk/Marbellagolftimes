@@ -21,10 +21,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, BookingRequest } from "@shared/schema";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { format } from "date-fns";
 
 const DEFAULT_EMAIL_TEMPLATE = {
@@ -66,12 +78,30 @@ Atentamente,
 [SENDER_NAME]`,
 };
 
+type User = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string | null;
+  isAdmin: string;
+};
+
+const editUserSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  phoneNumber: z.string().optional(),
+});
+
 export default function Admin() {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState(DEFAULT_EMAIL_TEMPLATE.subject);
   const [emailBody, setEmailBody] = useState(DEFAULT_EMAIL_TEMPLATE.body);
   const [senderName, setSenderName] = useState("");
   const [courseImageUrls, setCourseImageUrls] = useState<Record<string, string>>({});
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const { t } = useI18n();
@@ -87,10 +117,110 @@ export default function Admin() {
     enabled: isAuthenticated,
   });
 
+  // Fetch users - only if authenticated
+  const { data: users } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
+    enabled: isAuthenticated,
+  });
+
+  // Edit user form
+  const editForm = useForm<z.infer<typeof editUserSchema>>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phoneNumber: "",
+    },
+  });
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof editUserSchema> }) => {
+      return await apiRequest(`/api/admin/users/${id}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "User updated",
+        description: "User information has been updated successfully",
+      });
+      setEditingUser(null);
+      editForm.reset();
+    },
+    onError: (error: any) => {
+      let description = "Please try again later";
+      
+      // Check HTTP status code
+      if (error?.status === 403 || error?.statusCode === 403) {
+        description = "You cannot edit your own account";
+      } else if (error?.status === 409 || error?.statusCode === 409) {
+        description = "This email is already being used by another user";
+      } else if (error?.message) {
+        description = error.message;
+      }
+      
+      toast({
+        title: "Update failed",
+        description,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest(`/api/admin/users/${id}`, "DELETE", undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "User deleted",
+        description: "User has been deleted successfully",
+      });
+      setDeletingUser(null);
+    },
+    onError: (error: any) => {
+      let description = "Please try again later";
+      
+      // Check HTTP status code
+      if (error?.status === 403 || error?.statusCode === 403) {
+        description = "You cannot delete your own account";
+      } else if (error?.message) {
+        description = error.message;
+      }
+      
+      toast({
+        title: "Delete failed",
+        description,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle edit user - populate form
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    editForm.reset({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phoneNumber: user.phoneNumber || "",
+    });
+  };
+
+  // Handle save edited user
+  const handleSaveUser = (data: z.infer<typeof editUserSchema>) => {
+    if (editingUser) {
+      updateUserMutation.mutate({ id: editingUser.id, data });
+    }
+  };
+
   // Send affiliate emails mutation
   const sendEmailsMutation = useMutation({
     mutationFn: async (data: { courseIds: string[]; subject: string; body: string; senderName: string }) => {
-      return await apiRequest("POST", "/api/affiliate-emails/send", data);
+      return await apiRequest("/api/affiliate-emails/send", "POST", data);
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/affiliate-emails"] });
@@ -112,7 +242,7 @@ export default function Admin() {
   // Update course image mutation
   const updateCourseImageMutation = useMutation({
     mutationFn: async ({ courseId, imageUrl }: { courseId: string; imageUrl: string }) => {
-      return await apiRequest("PATCH", `/api/courses/${courseId}/image`, { imageUrl });
+      return await apiRequest(`/api/courses/${courseId}/image`, "PATCH", { imageUrl });
     },
     onSuccess: (data: any, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
@@ -175,7 +305,7 @@ export default function Admin() {
   const deleteImageMutation = useMutation({
     mutationFn: async ({ filename, courseId, directory }: { filename: string; courseId: string; directory: string }) => {
       const encodedFilename = encodeURIComponent(filename);
-      return await apiRequest("DELETE", `/api/images/${encodedFilename}?courseId=${encodeURIComponent(courseId)}&directory=${encodeURIComponent(directory)}`, undefined);
+      return await apiRequest(`/api/images/${encodedFilename}?courseId=${encodeURIComponent(courseId)}&directory=${encodeURIComponent(directory)}`, "DELETE", undefined);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
@@ -301,6 +431,10 @@ export default function Admin() {
         <Tabs defaultValue="bookings" className="space-y-6">
           <TabsList>
             <TabsTrigger value="bookings" data-testid="tab-bookings">{t('admin.tabBookingRequests')}</TabsTrigger>
+            <TabsTrigger value="users" data-testid="tab-users">
+              <Users className="h-4 w-4 mr-2" />
+              User Management
+            </TabsTrigger>
             <TabsTrigger value="courses" data-testid="tab-courses">{t('admin.tabGolfCourses')}</TabsTrigger>
             <TabsTrigger value="featured" data-testid="tab-featured">{t('admin.tabFeaturedCourses')}</TabsTrigger>
             <TabsTrigger value="all-courses" data-testid="tab-all-courses">{t('admin.tabAllCourses')}</TabsTrigger>
@@ -349,6 +483,79 @@ export default function Admin() {
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     {t('admin.noBookings')}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  User Management
+                </CardTitle>
+                <CardDescription>
+                  View, edit, and manage user accounts
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {users && users.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((user) => (
+                        <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                          <TableCell className="font-medium">
+                            {user.firstName} {user.lastName}
+                          </TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.phoneNumber || "—"}</TableCell>
+                          <TableCell>
+                            {user.isAdmin === "true" ? (
+                              <Badge variant="default">Admin</Badge>
+                            ) : (
+                              <Badge variant="secondary">User</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditUser(user)}
+                                data-testid={`button-edit-user-${user.id}`}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDeletingUser(user)}
+                                data-testid={`button-delete-user-${user.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    No users found
                   </div>
                 )}
               </CardContent>
@@ -718,6 +925,140 @@ export default function Admin() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Edit User Dialog */}
+        <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+          <DialogContent data-testid="dialog-edit-user">
+            <DialogHeader>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>
+                Update user information. You cannot edit your own account.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(handleSaveUser)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-edit-first-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-edit-last-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="email" data-testid="input-edit-email" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number (Optional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-edit-phone" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingUser(null)}
+                    data-testid="button-cancel-edit"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={updateUserMutation.isPending}
+                    data-testid="button-save-user"
+                  >
+                    {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete User Dialog */}
+        <Dialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+          <DialogContent data-testid="dialog-delete-user">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Delete User
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this user? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            {deletingUser && (
+              <div className="rounded-md bg-muted p-4 space-y-2">
+                <p className="font-medium">
+                  {deletingUser.firstName} {deletingUser.lastName}
+                </p>
+                <p className="text-sm text-muted-foreground">{deletingUser.email}</p>
+                <div>
+                  {deletingUser.isAdmin === "true" ? (
+                    <Badge variant="default">Admin</Badge>
+                  ) : (
+                    <Badge variant="secondary">User</Badge>
+                  )}
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDeletingUser(null)}
+                data-testid="button-cancel-delete"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => deletingUser && deleteUserMutation.mutate(deletingUser.id)}
+                disabled={deleteUserMutation.isPending}
+                data-testid="button-confirm-delete"
+              >
+                {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

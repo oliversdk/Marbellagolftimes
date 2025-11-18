@@ -232,6 +232,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       console.log("PATCH /api/admin/users/:id - Updating user:", id, "with body:", req.body);
 
+      // Prevent admin from editing themselves
+      if (req.session.userId === id) {
+        return res.status(403).json({ message: "Cannot edit your own account" });
+      }
+
       // Validate request body
       const validationResult = updateUserSchema.safeParse(req.body);
       if (!validationResult.success) {
