@@ -21,6 +21,7 @@ export default function Signup() {
       email: "",
       firstName: "",
       lastName: "",
+      phoneNumber: "",
       password: "",
     },
   });
@@ -98,6 +99,25 @@ export default function Signup() {
                           type="text"
                           placeholder="Doe"
                           data-testid="input-last-name"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('auth.phoneNumber')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          placeholder="+45 12 34 56 78"
+                          data-testid="input-phone-number"
                           {...field}
                         />
                       </FormControl>
