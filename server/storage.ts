@@ -1386,10 +1386,14 @@ export class MemStorage implements IStorage {
     const courseCommissions = new Map<string, { commission: number; bookingCount: number }>();
     
     for (const booking of confirmedBookings) {
-      const course = this.courses.get(booking.courseId);
-      if (!course || !booking.estimatedPrice) continue;
+      if (!booking.estimatedPrice || booking.estimatedPrice <= 0) continue;
       
-      const commission = booking.estimatedPrice * ((course.kickbackPercent ?? 0) / 100);
+      const course = this.courses.get(booking.courseId);
+      if (!course) continue;
+      
+      const bookingPrice = Number(booking.estimatedPrice ?? 0);
+      const kickback = Number(course.kickbackPercent ?? 0);
+      const commission = bookingPrice * (kickback / 100);
       const existing = courseCommissions.get(booking.courseId) || { commission: 0, bookingCount: 0 };
       
       courseCommissions.set(booking.courseId, {
@@ -1437,10 +1441,14 @@ export class MemStorage implements IStorage {
       const date = new Date(booking.createdAt);
       if (date < cutoffDate) continue;
       
-      const course = this.courses.get(booking.courseId);
-      if (!course || !booking.estimatedPrice) continue;
+      if (!booking.estimatedPrice || booking.estimatedPrice <= 0) continue;
       
-      const commission = booking.estimatedPrice * ((course.kickbackPercent ?? 0) / 100);
+      const course = this.courses.get(booking.courseId);
+      if (!course) continue;
+      
+      const bookingPrice = Number(booking.estimatedPrice ?? 0);
+      const kickback = Number(course.kickbackPercent ?? 0);
+      const commission = bookingPrice * (kickback / 100);
       
       let key: string;
       if (period === 'day') {
@@ -1516,7 +1524,7 @@ export class MemStorage implements IStorage {
     
     // Calculate total ad spend from all campaigns
     const allCampaigns = Array.from(this.campaigns.values());
-    const totalAdSpend = allCampaigns.reduce((sum, campaign) => sum + (campaign.totalSpend || 0), 0);
+    const totalAdSpend = allCampaigns.reduce((sum, campaign) => sum + Number(campaign.totalSpend || 0), 0);
     
     // Calculate net profit and ROI
     const netProfit = totalCommission - totalAdSpend;
@@ -1881,66 +1889,72 @@ export class DatabaseStorage implements IStorage {
     totalCommission: number;
     commissionsPerCourse: Array<{ courseId: string; courseName: string; commission: number; bookingCount: number }>;
   }> {
-    const confirmedBookings = await db
+    const results = await db
       .select({
+        bookingId: bookingRequests.id,
         courseId: bookingRequests.courseId,
+        courseName: golfCourses.name,
         estimatedPrice: bookingRequests.estimatedPrice,
         kickbackPercent: golfCourses.kickbackPercent,
-        courseName: golfCourses.name,
       })
       .from(bookingRequests)
       .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
-      .where(eq(bookingRequests.status, 'CONFIRMED'));
+      .where(
+        sqlFunc`${bookingRequests.status} = 'CONFIRMED' 
+        AND ${bookingRequests.estimatedPrice} IS NOT NULL 
+        AND ${bookingRequests.estimatedPrice} > 0`
+      );
     
-    // Group by course and calculate commissions
-    const courseCommissions = new Map<string, { commission: number; bookingCount: number; courseName: string }>();
-    
-    for (const booking of confirmedBookings) {
-      if (!booking.courseId || !booking.estimatedPrice) continue;
-      
-      const commission = booking.estimatedPrice * ((booking.kickbackPercent ?? 0) / 100);
-      const existing = courseCommissions.get(booking.courseId) || { 
-        commission: 0, 
-        bookingCount: 0,
-        courseName: booking.courseName || 'Unknown Course'
-      };
-      
-      courseCommissions.set(booking.courseId, {
-        commission: existing.commission + commission,
-        bookingCount: existing.bookingCount + 1,
-        courseName: existing.courseName,
-      });
-    }
-    
-    // Calculate total and format results
     let totalCommission = 0;
-    const commissionsPerCourse = Array.from(courseCommissions.entries()).map(([courseId, data]) => {
-      totalCommission += data.commission;
-      return {
-        courseId,
-        courseName: data.courseName,
-        commission: data.commission,
-        bookingCount: data.bookingCount,
-      };
-    });
+    const commissionsMap = new Map<string, { courseName: string; commission: number; bookingCount: number }>();
+    
+    for (const row of results) {
+      // Skip bookings with deleted courses
+      if (!row.courseName) continue;
+      
+      const bookingPrice = Number(row.estimatedPrice ?? 0);
+      const kickback = Number(row.kickbackPercent ?? 0);
+      const commission = bookingPrice * (kickback / 100);
+      totalCommission += commission;
+      
+      const existing = commissionsMap.get(row.courseId);
+      if (existing) {
+        existing.commission += commission;
+        existing.bookingCount += 1;
+      } else {
+        commissionsMap.set(row.courseId, {
+          courseName: row.courseName,
+          commission,
+          bookingCount: 1
+        });
+      }
+    }
     
     return {
       totalCommission,
-      commissionsPerCourse,
+      commissionsPerCourse: Array.from(commissionsMap.entries()).map(([courseId, data]) => ({
+        courseId,
+        ...data
+      }))
     };
   }
 
   async getCommissionByPeriod(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; commission: number }>> {
-    const confirmedBookings = await db
+    const results = await db
       .select({
         courseId: bookingRequests.courseId,
+        courseName: golfCourses.name,
         estimatedPrice: bookingRequests.estimatedPrice,
         createdAt: bookingRequests.createdAt,
         kickbackPercent: golfCourses.kickbackPercent,
       })
       .from(bookingRequests)
       .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
-      .where(eq(bookingRequests.status, 'CONFIRMED'));
+      .where(
+        sqlFunc`${bookingRequests.status} = 'CONFIRMED' 
+        AND ${bookingRequests.estimatedPrice} IS NOT NULL 
+        AND ${bookingRequests.estimatedPrice} > 0`
+      );
     
     // Group commissions by period
     const grouped = new Map<string, number>();
@@ -1955,13 +1969,16 @@ export class DatabaseStorage implements IStorage {
       cutoffDate.setMonth(now.getMonth() - 12);
     }
     
-    for (const booking of confirmedBookings) {
-      const date = new Date(booking.createdAt);
+    for (const row of results) {
+      const date = new Date(row.createdAt);
       if (date < cutoffDate) continue;
       
-      if (!booking.estimatedPrice) continue;
+      // Skip bookings with deleted courses
+      if (!row.courseName) continue;
       
-      const commission = booking.estimatedPrice * ((booking.kickbackPercent ?? 0) / 100);
+      const bookingPrice = Number(row.estimatedPrice ?? 0);
+      const kickback = Number(row.kickbackPercent ?? 0);
+      const commission = bookingPrice * (kickback / 100);
       
       let key: string;
       if (period === 'day') {
@@ -2030,7 +2047,7 @@ export class DatabaseStorage implements IStorage {
     
     // Calculate total ad spend from all campaigns
     const allCampaigns = await db.select().from(adCampaigns);
-    const totalAdSpend = allCampaigns.reduce((sum, campaign) => sum + (campaign.totalSpend || 0), 0);
+    const totalAdSpend = allCampaigns.reduce((sum, campaign) => sum + Number(campaign.totalSpend || 0), 0);
     
     // Calculate net profit and ROI
     const netProfit = totalCommission - totalAdSpend;
