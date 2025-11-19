@@ -106,6 +106,8 @@ export const bookingRequests = pgTable("booking_requests", {
   customerEmail: text("customer_email").notNull(),
   customerPhone: text("customer_phone"),
   status: text("status").notNull().default("PENDING"), // PENDING, SENT_TO_COURSE, CONFIRMED, CANCELLED
+  cancelledAt: timestamp("cancelled_at"),
+  cancellationReason: text("cancellation_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -138,6 +140,105 @@ export const insertAffiliateEmailSchema = createInsertSchema(affiliateEmails).om
 export type InsertAffiliateEmail = z.infer<typeof insertAffiliateEmailSchema>;
 export type AffiliateEmail = typeof affiliateEmails.$inferSelect;
 
+// Course Reviews
+export const courseReviews = pgTable("course_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  rating: integer("rating").notNull(), // 1-5 stars
+  title: text("title"),
+  review: text("review"),
+  photoUrls: text("photo_urls").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCourseReviewSchema = createInsertSchema(courseReviews).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+}).extend({
+  rating: z.number().min(1).max(5),
+  title: z.string().optional(),
+  review: z.string().optional(),
+  photoUrls: z.array(z.string()).optional(),
+});
+
+export type InsertCourseReview = z.infer<typeof insertCourseReviewSchema>;
+export type CourseReview = typeof courseReviews.$inferSelect;
+
+// Testimonials
+export const testimonials = pgTable("testimonials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  customerName: text("customer_name").notNull(),
+  content: text("content").notNull(),
+  rating: integer("rating").notNull(), // 1-5 stars
+  location: text("location"), // e.g., "Marbella, Spain"
+  isApproved: text("is_approved").notNull().default("false"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTestimonialSchema = createInsertSchema(testimonials).omit({ 
+  id: true, 
+  createdAt: true,
+  isApproved: true 
+}).extend({
+  rating: z.number().min(1).max(5),
+});
+
+export type InsertTestimonial = z.infer<typeof insertTestimonialSchema>;
+export type Testimonial = typeof testimonials.$inferSelect;
+
+// Blog Posts
+export const blogPosts = pgTable("blog_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  coverImageUrl: text("cover_image_url"),
+  authorId: varchar("author_id").notNull().references(() => users.id),
+  category: text("category"), // e.g., "Golf Tips", "Course Guides"
+  tags: text("tags").array(),
+  isPublished: text("is_published").notNull().default("false"),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true,
+  publishedAt: true 
+});
+
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+export type BlogPost = typeof blogPosts.$inferSelect;
+
+// Newsletters
+export const newsletters = pgTable("newsletters", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  subject: text("subject").notNull(),
+  content: text("content").notNull(),
+  recipientType: text("recipient_type").notNull(), // ALL, RECENT_BOOKERS, SUBSCRIBERS
+  sentAt: timestamp("sent_at"),
+  sentCount: integer("sent_count").default(0),
+  status: text("status").notNull().default("DRAFT"), // DRAFT, SENDING, SENT, ERROR
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNewsletterSchema = createInsertSchema(newsletters).omit({ 
+  id: true, 
+  createdAt: true,
+  sentAt: true,
+  sentCount: true 
+});
+
+export type InsertNewsletter = z.infer<typeof insertNewsletterSchema>;
+export type Newsletter = typeof newsletters.$inferSelect;
+
 // API Response Types
 export interface TeeTimeSlot {
   teeTime: string;
@@ -157,4 +258,10 @@ export interface CourseWithSlots {
   note?: string;
   course?: GolfCourse;
   providerType: "API" | "DEEP_LINK" | "NONE";
+}
+
+export interface CourseWithReviews extends GolfCourse {
+  averageRating?: number;
+  reviewCount?: number;
+  reviews?: CourseReview[];
 }

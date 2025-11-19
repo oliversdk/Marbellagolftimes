@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -32,8 +43,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Calendar, Shield, ShieldOff, Pencil, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar, Shield, ShieldOff, Pencil, Trash2, X, RotateCcw, AlertTriangle } from "lucide-react";
+import { format, isPast, differenceInHours } from "date-fns";
 import type { BookingRequest, User } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
