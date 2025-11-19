@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { getSession, isAuthenticated, isAdmin } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, type CourseWithSlots, type TeeTimeSlot, type User } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, type CourseWithSlots, type TeeTimeSlot, type User } from "@shared/schema";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
@@ -1191,6 +1191,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error rebooking:", error);
       res.status(500).json({ error: "Failed to create new booking" });
+    }
+  });
+
+  // ===== COURSE REVIEWS =====
+
+  // GET /api/courses/:courseId/reviews - Get all reviews for a course (Public)
+  app.get("/api/courses/:courseId/reviews", async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const reviews = await storage.getAllReviewsByCourseId(courseId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching course reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // POST /api/courses/:courseId/reviews - Create a review (Authenticated)
+  app.post("/api/courses/:courseId/reviews", isAuthenticated, async (req: any, res) => {
+    try {
+      const { courseId } = req.params;
+
+      // Check if course exists
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Validate review data with Zod schema
+      const reviewData = {
+        courseId,
+        userId: req.session.userId,
+        ...req.body,
+      };
+
+      const validatedData = insertCourseReviewSchema.parse(reviewData);
+      const newReview = await storage.createReview(validatedData);
+
+      res.json(newReview);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid review data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create review" });
+    }
+  });
+
+  // ===== TESTIMONIALS =====
+
+  // POST /api/testimonials - Create testimonial (Authenticated)
+  app.post("/api/testimonials", isAuthenticated, async (req: any, res) => {
+    try {
+      // Validate testimonial data with Zod schema
+      const testimonialData = {
+        userId: req.session.userId,
+        ...req.body,
+      };
+
+      const validatedData = insertTestimonialSchema.parse(testimonialData);
+      const testimonial = await storage.createTestimonial(validatedData);
+
+      res.json(testimonial);
+    } catch (error) {
+      console.error("Error creating testimonial:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid testimonial data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create testimonial" });
+    }
+  });
+
+  // GET /api/testimonials - Get approved testimonials (Public)
+  app.get("/api/testimonials", async (req, res) => {
+    try {
+      const testimonials = await storage.getApprovedTestimonials();
+      res.json(testimonials);
+    } catch (error) {
+      console.error("Error fetching testimonials:", error);
+      res.status(500).json({ error: "Failed to fetch testimonials" });
     }
   });
 

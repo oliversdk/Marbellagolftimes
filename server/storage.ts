@@ -10,12 +10,18 @@ import {
   type AffiliateEmail,
   type InsertAffiliateEmail,
   type User,
+  type CourseReview,
+  type InsertCourseReview,
+  type Testimonial,
+  type InsertTestimonial,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
   bookingRequests,
   affiliateEmails,
   users,
+  courseReviews,
+  testimonials,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -57,6 +63,20 @@ export interface IStorage {
   setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined>;
   updateUser(id: string, updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string; isAdmin?: string }): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
+
+  // Course Reviews
+  getAllReviewsByCourseId(courseId: string): Promise<CourseReview[]>;
+  getReviewById(id: string): Promise<CourseReview | undefined>;
+  createReview(review: InsertCourseReview): Promise<CourseReview>;
+  updateReview(id: string, updates: Partial<CourseReview>): Promise<CourseReview | undefined>;
+  deleteReview(id: string): Promise<boolean>;
+
+  // Testimonials
+  getAllTestimonials(): Promise<Testimonial[]>;
+  getApprovedTestimonials(): Promise<Testimonial[]>;
+  createTestimonial(testimonial: InsertTestimonial): Promise<Testimonial>;
+  approveTestimonial(id: string): Promise<Testimonial | undefined>;
+  deleteTestimonial(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -66,6 +86,8 @@ export class MemStorage implements IStorage {
   private bookings: Map<string, BookingRequest>;
   private affiliateEmails: Map<string, AffiliateEmail>;
   private users: Map<string, User>;
+  private courseReviews: Map<string, CourseReview>;
+  private testimonials: Map<string, Testimonial>;
 
   constructor() {
     this.courses = new Map();
@@ -74,6 +96,8 @@ export class MemStorage implements IStorage {
     this.bookings = new Map();
     this.affiliateEmails = new Map();
     this.users = new Map();
+    this.courseReviews = new Map();
+    this.testimonials = new Map();
     
     // Seed initial data
     this.seedData();
@@ -1089,6 +1113,86 @@ export class MemStorage implements IStorage {
   async deleteUser(id: string): Promise<boolean> {
     return this.users.delete(id);
   }
+
+  // Course Reviews
+  async getAllReviewsByCourseId(courseId: string): Promise<CourseReview[]> {
+    return Array.from(this.courseReviews.values()).filter(r => r.courseId === courseId);
+  }
+
+  async getReviewById(id: string): Promise<CourseReview | undefined> {
+    return this.courseReviews.get(id);
+  }
+
+  async createReview(review: InsertCourseReview): Promise<CourseReview> {
+    const id = randomUUID();
+    const newReview: CourseReview = {
+      id,
+      ...review,
+      photoUrls: review.photoUrls && review.photoUrls.length > 0 ? review.photoUrls : null,
+      title: review.title || null,
+      review: review.review || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.courseReviews.set(id, newReview);
+    return newReview;
+  }
+
+  async updateReview(id: string, updates: Partial<CourseReview>): Promise<CourseReview | undefined> {
+    const review = this.courseReviews.get(id);
+    if (!review) return undefined;
+    
+    const updated = {
+      ...review,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.courseReviews.set(id, updated);
+    return updated;
+  }
+
+  async deleteReview(id: string): Promise<boolean> {
+    return this.courseReviews.delete(id);
+  }
+
+  // Testimonials
+  async getAllTestimonials(): Promise<Testimonial[]> {
+    return Array.from(this.testimonials.values());
+  }
+
+  async getApprovedTestimonials(): Promise<Testimonial[]> {
+    return Array.from(this.testimonials.values()).filter(t => t.isApproved === 'true');
+  }
+
+  async createTestimonial(testimonial: InsertTestimonial): Promise<Testimonial> {
+    const id = randomUUID();
+    const newTestimonial: Testimonial = {
+      id,
+      ...testimonial,
+      userId: testimonial.userId || null,
+      location: testimonial.location || null,
+      isApproved: 'false',
+      createdAt: new Date(),
+    };
+    this.testimonials.set(id, newTestimonial);
+    return newTestimonial;
+  }
+
+  async approveTestimonial(id: string): Promise<Testimonial | undefined> {
+    const testimonial = this.testimonials.get(id);
+    if (!testimonial) return undefined;
+    
+    const updated = {
+      ...testimonial,
+      isApproved: 'true',
+    };
+    this.testimonials.set(id, updated);
+    return updated;
+  }
+
+  async deleteTestimonial(id: string): Promise<boolean> {
+    return this.testimonials.delete(id);
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1256,6 +1360,84 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(users)
       .where(eq(users.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Course Reviews
+  async getAllReviewsByCourseId(courseId: string): Promise<CourseReview[]> {
+    return await db
+      .select()
+      .from(courseReviews)
+      .where(eq(courseReviews.courseId, courseId));
+  }
+
+  async getReviewById(id: string): Promise<CourseReview | undefined> {
+    const results = await db
+      .select()
+      .from(courseReviews)
+      .where(eq(courseReviews.id, id));
+    return results[0];
+  }
+
+  async createReview(review: InsertCourseReview): Promise<CourseReview> {
+    const [newReview] = await db
+      .insert(courseReviews)
+      .values(review)
+      .returning();
+    return newReview;
+  }
+
+  async updateReview(id: string, updates: Partial<CourseReview>): Promise<CourseReview | undefined> {
+    const [updated] = await db
+      .update(courseReviews)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(courseReviews.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteReview(id: string): Promise<boolean> {
+    const result = await db
+      .delete(courseReviews)
+      .where(eq(courseReviews.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Testimonials
+  async getAllTestimonials(): Promise<Testimonial[]> {
+    return await db.select().from(testimonials);
+  }
+
+  async getApprovedTestimonials(): Promise<Testimonial[]> {
+    return await db
+      .select()
+      .from(testimonials)
+      .where(eq(testimonials.isApproved, 'true'));
+  }
+
+  async createTestimonial(testimonial: InsertTestimonial): Promise<Testimonial> {
+    const [newTestimonial] = await db
+      .insert(testimonials)
+      .values(testimonial)
+      .returning();
+    return newTestimonial;
+  }
+
+  async approveTestimonial(id: string): Promise<Testimonial | undefined> {
+    const [updated] = await db
+      .update(testimonials)
+      .set({ isApproved: 'true' })
+      .where(eq(testimonials.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteTestimonial(id: string): Promise<boolean> {
+    const result = await db
+      .delete(testimonials)
+      .where(eq(testimonials.id, id))
       .returning();
     return result.length > 0;
   }
