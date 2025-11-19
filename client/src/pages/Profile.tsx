@@ -66,6 +66,12 @@ const editUserSchema = z.object({
 
 type EditUserFormData = z.infer<typeof editUserSchema>;
 
+const cancelBookingSchema = z.object({
+  reason: z.string().min(3, "Please provide a reason (minimum 3 characters)"),
+});
+
+type CancelBookingFormData = z.infer<typeof cancelBookingSchema>;
+
 export default function Profile() {
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -76,6 +82,8 @@ export default function Profile() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<BookingWithCourse | null>(null);
 
   // Form for editing user
   const editForm = useForm<EditUserFormData>({
@@ -85,6 +93,14 @@ export default function Profile() {
       lastName: "",
       email: "",
       phoneNumber: "",
+    },
+  });
+
+  // Form for cancel booking
+  const cancelForm = useForm<CancelBookingFormData>({
+    resolver: zodResolver(cancelBookingSchema),
+    defaultValues: {
+      reason: "",
     },
   });
 
@@ -172,6 +188,49 @@ export default function Profile() {
     },
   });
 
+  const cancelBookingMutation = useMutation({
+    mutationFn: async ({ bookingId, reason }: { bookingId: string; reason: string }) => {
+      await apiRequest(`/api/booking-requests/${bookingId}/cancel`, 'POST', { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      setCancelDialogOpen(false);
+      setSelectedBooking(null);
+      cancelForm.reset();
+      toast({
+        title: t('common.success'),
+        description: 'Booking cancelled successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: error.message || 'Failed to cancel booking',
+      });
+    },
+  });
+
+  const rebookMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      return await apiRequest(`/api/booking-requests/${bookingId}/rebook`, 'POST');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      toast({
+        title: t('common.success'),
+        description: 'Booking duplicated successfully! Check your Upcoming bookings.',
+      });
+    },
+    onError: () => {
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: 'Failed to duplicate booking',
+      });
+    },
+  });
+
   // Handler for opening edit dialog
   const handleEditUser = (adminUser: User) => {
     setSelectedUser(adminUser);
@@ -196,6 +255,35 @@ export default function Profile() {
       updateUserMutation.mutate({ ...data, userId: selectedUser.id });
     }
   };
+
+  // Handler for opening cancel dialog
+  const handleCancelBooking = (booking: BookingWithCourse) => {
+    setSelectedBooking(booking);
+    setCancelDialogOpen(true);
+  };
+
+  // Handler for submitting cancel form
+  const onCancelSubmit = (data: CancelBookingFormData) => {
+    if (selectedBooking) {
+      cancelBookingMutation.mutate({ bookingId: selectedBooking.id, reason: data.reason });
+    }
+  };
+
+  // Handler for rebook
+  const handleRebook = (booking: BookingWithCourse) => {
+    rebookMutation.mutate(booking.id);
+  };
+
+  // Check if booking can be cancelled (within 24 hours)
+  const canCancelBooking = (booking: BookingWithCourse): boolean => {
+    if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') return false;
+    const hoursUntilTeeTime = differenceInHours(new Date(booking.teeTime), new Date());
+    return hoursUntilTeeTime >= 24;
+  };
+
+  // Split bookings into upcoming and past
+  const upcomingBookings = bookings?.filter(b => !isPast(new Date(b.teeTime)) && b.status !== 'CANCELLED') || [];
+  const pastBookings = bookings?.filter(b => isPast(new Date(b.teeTime)) || b.status === 'CANCELLED') || [];
 
   // Show loading state
   if (authLoading || !typedUser) {
@@ -238,7 +326,7 @@ export default function Profile() {
           </CardHeader>
         </Card>
 
-        {/* Booking History Card */}
+        {/* Booking History Card with Tabs */}
         <Card>
           <CardHeader>
             <CardTitle>{t('profile.bookingHistory')}</CardTitle>
@@ -254,35 +342,131 @@ export default function Profile() {
                 <p className="text-muted-foreground">{t('common.loading')}</p>
               </div>
             ) : bookings && bookings.length > 0 ? (
-              <Table data-testid="table-booking-history">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('profile.course')}</TableHead>
-                    <TableHead>{t('profile.teeTime')}</TableHead>
-                    <TableHead>{t('profile.players')}</TableHead>
-                    <TableHead>{t('profile.status')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bookings.map((booking, index) => (
-                    <TableRow key={booking.id} data-testid={`row-booking-${index}`}>
-                      <TableCell className="font-medium">{booking.courseName}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {format(new Date(booking.teeTime), 'PPP p')}
-                        </div>
-                      </TableCell>
-                      <TableCell>{booking.players}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(booking.status)}>
-                          {t(`profile.status${booking.status.charAt(0) + booking.status.slice(1).toLowerCase()}`)}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <Tabs defaultValue="upcoming" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="upcoming" data-testid="tab-upcoming">
+                    Upcoming ({upcomingBookings.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="past" data-testid="tab-past">
+                    Past ({pastBookings.length})
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="upcoming">
+                  {upcomingBookings.length > 0 ? (
+                    <Table data-testid="table-upcoming-bookings">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('profile.course')}</TableHead>
+                          <TableHead>{t('profile.teeTime')}</TableHead>
+                          <TableHead>{t('profile.players')}</TableHead>
+                          <TableHead>{t('profile.status')}</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {upcomingBookings.map((booking, index) => (
+                          <TableRow key={booking.id} data-testid={`row-upcoming-booking-${index}`}>
+                            <TableCell className="font-medium">{booking.courseName}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                {format(new Date(booking.teeTime), 'PPP p')}
+                              </div>
+                            </TableCell>
+                            <TableCell>{booking.players}</TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusVariant(booking.status)}>
+                                {t(`profile.status${booking.status.charAt(0) + booking.status.slice(1).toLowerCase()}`)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                {canCancelBooking(booking) ? (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleCancelBooking(booking)}
+                                    data-testid={`button-cancel-${index}`}
+                                  >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Cancel
+                                  </Button>
+                                ) : (
+                                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    <span>Cannot cancel ({"<"}24h)</span>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8" data-testid="text-no-upcoming-bookings">
+                      <Calendar className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground mb-4">No upcoming bookings</p>
+                      <Button onClick={() => navigate('/')} data-testid="button-book-now">
+                        {t('profile.bookNow')}
+                      </Button>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="past">
+                  {pastBookings.length > 0 ? (
+                    <Table data-testid="table-past-bookings">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('profile.course')}</TableHead>
+                          <TableHead>{t('profile.teeTime')}</TableHead>
+                          <TableHead>{t('profile.players')}</TableHead>
+                          <TableHead>{t('profile.status')}</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pastBookings.map((booking, index) => (
+                          <TableRow key={booking.id} data-testid={`row-past-booking-${index}`}>
+                            <TableCell className="font-medium">{booking.courseName}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                {format(new Date(booking.teeTime), 'PPP p')}
+                              </div>
+                            </TableCell>
+                            <TableCell>{booking.players}</TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusVariant(booking.status)}>
+                                {t(`profile.status${booking.status.charAt(0) + booking.status.slice(1).toLowerCase()}`)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRebook(booking)}
+                                disabled={rebookMutation.isPending}
+                                data-testid={`button-rebook-${index}`}
+                              >
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Book Again
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8" data-testid="text-no-past-bookings">
+                      <Calendar className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No past bookings</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             ) : (
               <div className="text-center py-12" data-testid="text-no-bookings">
                 <Calendar className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -504,6 +688,65 @@ export default function Profile() {
                 {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cancel Booking Dialog */}
+        <Dialog open={cancelDialogOpen} onOpenChange={(open) => {
+          setCancelDialogOpen(open);
+          if (!open) cancelForm.reset();
+        }}>
+          <DialogContent data-testid="dialog-cancel-booking">
+            <DialogHeader>
+              <DialogTitle>Cancel Booking</DialogTitle>
+              <DialogDescription>
+                You are about to cancel your booking at {selectedBooking?.courseName} on{' '}
+                {selectedBooking && format(new Date(selectedBooking.teeTime), 'PPP p')}.
+                Please provide a reason for cancellation.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...cancelForm}>
+              <form onSubmit={cancelForm.handleSubmit(onCancelSubmit)} className="space-y-4">
+                <FormField
+                  control={cancelForm.control}
+                  name="reason"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cancellation Reason</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Please explain why you're cancelling this booking..."
+                          data-testid="input-cancel-reason"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setCancelDialogOpen(false);
+                      cancelForm.reset();
+                    }}
+                    data-testid="button-cancel-dialog"
+                  >
+                    Keep Booking
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    disabled={cancelBookingMutation.isPending}
+                    data-testid="button-confirm-cancel"
+                  >
+                    {cancelBookingMutation.isPending ? 'Cancelling...' : 'Cancel Booking'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
