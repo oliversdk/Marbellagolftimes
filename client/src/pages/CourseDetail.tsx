@@ -34,6 +34,14 @@ import { MapPin, Phone, Mail, Globe, Star, Home, Calendar, Download } from "luci
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { StarRating } from "@/components/StarRating";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertCourseReviewSchema, type InsertCourseReview } from "@shared/schema";
+import { z } from "zod";
 import type { GolfCourse } from "@shared/schema";
 
 export default function CourseDetail() {
@@ -41,7 +49,7 @@ export default function CourseDetail() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { trackEvent } = useAnalytics();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successBookingId, setSuccessBookingId] = useState<string | null>(null);
@@ -61,6 +69,34 @@ export default function CourseDetail() {
       return res.json();
     },
     enabled: !!id,
+  });
+
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery<any[]>({
+    queryKey: ['/api/courses', id, 'reviews'],
+    queryFn: async () => {
+      if (!id) return [];
+      const res = await fetch(`/api/courses/${id}/reviews`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  const reviewFormSchema = insertCourseReviewSchema
+    .omit({ courseId: true, userId: true })
+    .extend({
+      rating: z.number().min(1, "Please select a rating").max(5),
+      title: z.string().optional(),
+      review: z.string().optional(),
+    });
+
+  const reviewForm = useForm<z.infer<typeof reviewFormSchema>>({
+    resolver: zodResolver(reviewFormSchema),
+    defaultValues: {
+      rating: 0,
+      title: "",
+      review: "",
+    },
   });
 
   const bookingMutation = useMutation({
@@ -122,6 +158,49 @@ export default function CourseDetail() {
         console.error('Failed to get Google Calendar URL:', error);
       }
     }
+  };
+
+  const reviewMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof reviewFormSchema> & { courseId: string; userId: string }) => {
+      const response = await apiRequest(`/api/courses/${id}/reviews`, 'POST', data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      trackEvent('review_submitted', 'review', course?.name);
+      toast({
+        title: "Review Submitted",
+        description: "Thank you for your review!",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/courses', id, 'reviews'] });
+      reviewForm.reset({
+        rating: 0,
+        title: "",
+        review: "",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to Submit Review",
+        description: "Please try again later.",
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleReviewSubmit = (data: z.infer<typeof reviewFormSchema>) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to submit a review.",
+        variant: 'destructive',
+      });
+      return;
+    }
+    reviewMutation.mutate({
+      ...data,
+      courseId: id!,
+      userId: user.id,
+    });
   };
 
   const handleBookingModalOpen = () => {
@@ -412,19 +491,154 @@ export default function CourseDetail() {
 
               {/* Reviews Tab */}
               <TabsContent value="reviews" data-testid="content-reviews">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{t('courseDetail.reviews')}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-12">
-                      <Star className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-                      <p className="text-muted-foreground" data-testid="text-no-reviews">
-                        {t('courseDetail.noReviews')}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-6">
+                  {/* Review Submission Form */}
+                  {isAuthenticated ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Write a Review</CardTitle>
+                        <CardDescription>Share your experience with this course</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Form {...reviewForm}>
+                          <form onSubmit={reviewForm.handleSubmit(handleReviewSubmit)} className="space-y-4">
+                            <FormField
+                              control={reviewForm.control}
+                              name="rating"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Rating *</FormLabel>
+                                  <FormControl>
+                                    <div>
+                                      <StarRating
+                                        rating={field.value}
+                                        size="lg"
+                                        interactive
+                                        onRatingChange={(rating) => {
+                                          field.onChange(rating);
+                                        }}
+                                        data-testid="input-review-rating"
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={reviewForm.control}
+                              name="title"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Title</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Summarize your experience"
+                                      {...field}
+                                      data-testid="input-review-title"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={reviewForm.control}
+                              name="review"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Review</FormLabel>
+                                  <FormControl>
+                                    <Textarea
+                                      placeholder="Tell us about your experience at this course..."
+                                      className="min-h-32"
+                                      {...field}
+                                      data-testid="input-review-text"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <Button
+                              type="submit"
+                              disabled={reviewMutation.isPending}
+                              data-testid="button-submit-review"
+                            >
+                              {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
+                            </Button>
+                          </form>
+                        </Form>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardContent className="py-6">
+                        <p className="text-center text-muted-foreground">
+                          Please{" "}
+                          <Link href="/login" className="text-primary hover:underline">
+                            log in
+                          </Link>{" "}
+                          to write a review
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Existing Reviews */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>
+                        {reviews.length > 0
+                          ? `Reviews (${reviews.length})`
+                          : t('courseDetail.reviews')}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {reviewsLoading ? (
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">Loading reviews...</p>
+                        </div>
+                      ) : reviews.length > 0 ? (
+                        <div className="space-y-6">
+                          {reviews.map((review: any) => (
+                            <div
+                              key={review.id}
+                              className="border-b pb-6 last:border-b-0 last:pb-0"
+                              data-testid={`review-${review.id}`}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <StarRating rating={review.rating} size="sm" />
+                                  {review.title && (
+                                    <h4 className="font-medium mt-1" data-testid="text-review-title">
+                                      {review.title}
+                                    </h4>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(review.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              {review.review && (
+                                <p className="text-sm text-muted-foreground mt-2" data-testid="text-review-content">
+                                  {review.review}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Star className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                          <p className="text-muted-foreground" data-testid="text-no-reviews">
+                            {t('courseDetail.noReviews')}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
