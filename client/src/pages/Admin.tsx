@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -92,6 +93,7 @@ const editUserSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   phoneNumber: z.string().optional(),
+  isAdmin: z.enum(["true", "false"]),
 });
 
 export default function Admin() {
@@ -151,6 +153,7 @@ export default function Admin() {
       lastName: "",
       email: "",
       phoneNumber: "",
+      isAdmin: "false",
     },
   });
 
@@ -227,6 +230,7 @@ export default function Admin() {
       lastName: user.lastName,
       email: user.email,
       phoneNumber: user.phoneNumber || "",
+      isAdmin: user.isAdmin as "true" | "false",
     });
   };
 
@@ -978,6 +982,27 @@ export default function Admin() {
                         <Input {...field} data-testid="input-edit-phone" />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="isAdmin"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Access Level</FormLabel>
+                        <div className="text-sm text-muted-foreground">
+                          {field.value === "true" ? "Administrator" : "Regular User"}
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value === "true"}
+                          onCheckedChange={(checked) => field.onChange(checked ? "true" : "false")}
+                          data-testid="switch-edit-admin"
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

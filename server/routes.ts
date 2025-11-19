@@ -22,10 +22,11 @@ const updateUserSchema = z.object({
   lastName: z.string().min(1, "Last name is required").optional(),
   email: z.string().email("Invalid email address").optional(),
   phoneNumber: z.string().optional(),
+  isAdmin: z.enum(["true", "false"]).optional(),
 }).refine(data => {
   // At least one field must be provided
   return data.firstName !== undefined || data.lastName !== undefined || 
-         data.email !== undefined || data.phoneNumber !== undefined;
+         data.email !== undefined || data.phoneNumber !== undefined || data.isAdmin !== undefined;
 }, {
   message: "At least one field must be provided"
 });
