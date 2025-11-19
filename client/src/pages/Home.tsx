@@ -26,6 +26,7 @@ import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } f
 import { useFilterPersistence, type SortMode } from "@/hooks/useFilterPersistence";
 import heroImage from "@assets/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.png";
 import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
+import golfVideo from "@assets/golf video_1763551739293.mp4";
 
 // Utility: Get time range from slots
 function getTimeRange(slots: TeeTimeSlot[]): { from: string; to: string } | null {
@@ -296,10 +297,14 @@ export default function Home() {
       {/* Hero Section */}
       <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
         <div className="absolute inset-0">
-          <img
-            src={heroImage}
-            alt="Owner's perspective walking across a pristine Costa del Sol golf course on a sunny day, with vibrant green fairways, Mediterranean Sea views and coastal mountains"
+          <video
+            src={golfVideo}
+            autoPlay
+            muted
+            loop
+            playsInline
             className="w-full h-full object-cover"
+            data-testid="video-hero"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
         </div>
