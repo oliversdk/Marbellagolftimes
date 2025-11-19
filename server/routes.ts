@@ -1111,6 +1111,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/booking-requests/:id/cancel - Cancel a booking (Authenticated users only, must own booking)
+  app.patch("/api/booking-requests/:id/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { cancellationReason } = req.body;
+      
+      // Get booking
+      const booking = await storage.getBookingById(id);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      // Check ownership - user must own the booking
+      if (booking.userId !== req.session.userId) {
+        return res.status(403).json({ error: "You can only cancel your own bookings" });
+      }
+
+      // Check if already cancelled
+      if (booking.status === "CANCELLED") {
+        return res.status(400).json({ error: "Booking is already cancelled" });
+      }
+
+      // Check if booking is in the past
+      if (new Date(booking.teeTime) < new Date()) {
+        return res.status(400).json({ error: "Cannot cancel past bookings" });
+      }
+
+      // Check 24-hour deadline
+      const now = new Date();
+      const teeTime = new Date(booking.teeTime);
+      const hoursUntilTeeTime = (teeTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursUntilTeeTime < 24) {
+        return res.status(400).json({ 
+          error: "Cancellations must be made at least 24 hours before tee time" 
+        });
+      }
+
+      // Cancel the booking
+      const updatedBooking = await storage.cancelBooking(id, cancellationReason);
+      res.json(updatedBooking);
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      res.status(500).json({ error: "Failed to cancel booking" });
+    }
+  });
+
+  // POST /api/booking-requests/:id/rebook - Create new booking based on existing one (Authenticated)
+  app.post("/api/booking-requests/:id/rebook", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { teeTime, players } = req.body;
+      
+      // Get original booking
+      const originalBooking = await storage.getBookingById(id);
+      if (!originalBooking) {
+        return res.status(404).json({ error: "Original booking not found" });
+      }
+
+      // Check ownership - user must own the original booking
+      if (originalBooking.userId !== req.session.userId) {
+        return res.status(403).json({ error: "You can only rebook your own bookings" });
+      }
+
+      // Create new booking with same details but new tee time
+      const newBooking = await storage.createBooking({
+        userId: req.session.userId,
+        courseId: originalBooking.courseId,
+        teeTime: teeTime || originalBooking.teeTime.toISOString(),
+        players: players || originalBooking.players,
+        customerName: originalBooking.customerName,
+        customerEmail: originalBooking.customerEmail,
+        customerPhone: originalBooking.customerPhone,
+        status: "PENDING",
+      });
+
+      res.json(newBooking);
+    } catch (error) {
+      console.error("Error rebooking:", error);
+      res.status(500).json({ error: "Failed to create new booking" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

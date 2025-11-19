@@ -42,6 +42,7 @@ export interface IStorage {
   getBookingById(id: string): Promise<BookingRequest | undefined>;
   getBookingsByUserId(userId: string): Promise<(BookingRequest & { courseName?: string })[]>;
   createBooking(booking: InsertBookingRequest): Promise<BookingRequest>;
+  cancelBooking(id: string, reason?: string): Promise<BookingRequest | undefined>;
 
   // Affiliate Emails
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
@@ -984,10 +985,26 @@ export class MemStorage implements IStorage {
       customerEmail: insertBooking.customerEmail,
       customerPhone: insertBooking.customerPhone || null,
       status: insertBooking.status || "PENDING",
+      cancelledAt: null,
+      cancellationReason: null,
       createdAt: new Date(),
     };
     this.bookings.set(id, booking);
     return booking;
+  }
+
+  async cancelBooking(id: string, reason?: string): Promise<BookingRequest | undefined> {
+    const booking = this.bookings.get(id);
+    if (!booking) return undefined;
+    
+    const updatedBooking = {
+      ...booking,
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      cancellationReason: reason || null,
+    };
+    this.bookings.set(id, updatedBooking);
+    return updatedBooking;
   }
 
   // Affiliate Emails
@@ -1163,6 +1180,19 @@ export class DatabaseStorage implements IStorage {
       teeTime: new Date(booking.teeTime),
     }).returning();
     return results[0];
+  }
+
+  async cancelBooking(id: string, reason?: string): Promise<BookingRequest | undefined> {
+    const [booking] = await db
+      .update(bookingRequests)
+      .set({
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+        cancellationReason: reason || null,
+      })
+      .where(eq(bookingRequests.id, id))
+      .returning();
+    return booking;
   }
 
   // Affiliate Emails
