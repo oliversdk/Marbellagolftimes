@@ -12,6 +12,7 @@ import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { CoursesMap } from "@/components/CoursesMap";
 import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
+import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -770,6 +771,9 @@ export default function Home() {
           </div>
         </>
       )}
+
+      {/* Testimonials Carousel */}
+      <TestimonialsCarousel />
 
       {/* Booking Modal */}
       <BookingModal

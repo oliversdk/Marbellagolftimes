@@ -21,6 +21,27 @@ The Profile page has been enhanced with advanced booking management features:
 
 An Admin dashboard provides tools for managing bookings, courses, images, and affiliate emails. The platform supports full internationalization (i18n) with 5 languages (English, Spanish, Danish, Swedish, Russian), including locale-aware placeholders, proper pluralization, auth success messages, and a Globe-icon language switcher.
 
+#### Reviews & Social Proof System
+
+The platform includes a comprehensive reviews and social proof system for building trust and credibility:
+
+- **Course Reviews**: Authenticated users can submit reviews for golf courses with star ratings (1-5), text content, and optional photo uploads. Reviews display on CourseDetail pages with author information, ratings, and timestamps. Backend validates all submissions with Zod schema validation and course existence checks.
+  
+- **Star Rating Component**: Fully accessible star rating component using radiogroup pattern with keyboard navigation (Enter/Space to select, Arrow keys to navigate) and roving tab index for WCAG 2.1 compliance. Supports both interactive rating input and read-only display modes.
+
+- **"Top Rated" Badges**: Courses with average rating ≥ 4.5 and at least one review automatically display "Top Rated" badges on both course cards and detail pages. Backend calculates average ratings and review counts per-request (Promise.all for parallel execution). Cache TTL: 300 seconds (5 minutes).
+
+- **Testimonials Carousel**: Auto-rotating carousel (5-second intervals) on Home page displaying approved customer testimonials with star ratings, quotes, and customer locations. Built with Embla Carousel with responsive grid layout (1 col mobile, 2 cols tablet, 3 cols desktop). Includes 5 high-quality seed testimonials for demonstration (marked for replacement with authentic testimonials post-launch).
+
+- **API Endpoints**:
+  - `GET /api/courses/:id/reviews` - Fetch all reviews for a course
+  - `POST /api/reviews` - Create new review (authenticated users only)
+  - `DELETE /api/reviews/:id` - Delete review (admin only)
+  - `GET /api/testimonials` - Fetch approved testimonials
+  - `POST /api/testimonials` - Submit testimonial (authenticated users only)
+
+Note: Review system currently lacks duplicate prevention and booking ownership validation - flagged for future enhancement. Average rating calculation uses N+1 pattern; consider caching/aggregation if dataset grows significantly.
+
 ### Backend Architecture
 
 The backend is developed with Node.js and Express in TypeScript, using ESM modules. It provides RESTful APIs under the `/api` prefix, handling JSON requests/responses and error handling. Data storage uses Drizzle ORM with PostgreSQL for both development and production environments via the `DatabaseStorage` class. The core API routes manage golf courses, tee time searches (including a functional `holes` filter), booking requests, and affiliate email campaigns. An admin endpoint allows updating course images with validation and secure file deletion. Database seeding runs automatically on startup with 43 Costa del Sol golf courses.

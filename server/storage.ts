@@ -890,6 +890,65 @@ export class MemStorage implements IStorage {
         }
       }
     }
+
+    // Seed testimonials (demonstration data - replace with real customer testimonials post-launch)
+    const seedTestimonials: InsertTestimonial[] = [
+      {
+        userId: null,
+        customerName: "James Mitchell",
+        content: "Outstanding service from start to finish. Fridas Golf secured us tee times at Valderrama during peak season - something we couldn't achieve on our own. The concierge approach makes all the difference.",
+        rating: 5,
+        location: "London, UK",
+        isApproved: "true",
+      },
+      {
+        userId: null,
+        customerName: "Sofia Andersson",
+        content: "We used Fridas Golf for our annual golf trip to Costa del Sol. The platform showed real availability across all the premium courses, and booking was seamless. Highly recommend for serious golfers.",
+        rating: 5,
+        location: "Stockholm, Sweden",
+        isApproved: "true",
+      },
+      {
+        userId: null,
+        customerName: "Michael Rasmussen",
+        content: "Exceptional experience. The team helped us plan a perfect week of golf, from Sotogrande to Málaga. Real-time availability and personal service - exactly what we were looking for.",
+        rating: 5,
+        location: "Copenhagen, Denmark",
+        isApproved: "true",
+      },
+      {
+        userId: null,
+        customerName: "Elena Rodriguez",
+        content: "As a local, I've tried many booking platforms. Fridas Golf stands out for their curated selection and genuine expertise. Perfect for visitors who want the best Costa del Sol has to offer.",
+        rating: 5,
+        location: "Marbella, Spain",
+        isApproved: "true",
+      },
+      {
+        userId: null,
+        customerName: "Thomas Wagner",
+        content: "First-class service. The platform is modern and efficient, but it's the personal touch that sets Fridas Golf apart. They helped us secure dream tee times at courses we'd only read about.",
+        rating: 5,
+        location: "Munich, Germany",
+        isApproved: "true",
+      },
+    ];
+
+    for (const testimonialData of seedTestimonials) {
+      const id = randomUUID();
+      const testimonial: Testimonial = {
+        id,
+        userId: testimonialData.userId || null,
+        customerName: testimonialData.customerName,
+        content: testimonialData.content,
+        rating: testimonialData.rating,
+        location: testimonialData.location || null,
+        isApproved: testimonialData.isApproved,
+        createdAt: new Date(),
+      };
+      this.testimonials.set(id, testimonial);
+    }
   }
 
   // Golf Courses
@@ -2211,6 +2270,53 @@ export async function seedDatabase() {
       console.log(`Inserted ${directLinksToInsert.length} direct booking provider links`);
     }
   }
+
+  // Seed testimonials (demonstration data - replace with real customer testimonials post-launch)
+  const seedTestimonials: InsertTestimonial[] = [
+    {
+      userId: null,
+      customerName: "James Mitchell",
+      content: "Outstanding service from start to finish. Fridas Golf secured us tee times at Valderrama during peak season - something we couldn't achieve on our own. The concierge approach makes all the difference.",
+      rating: 5,
+      location: "London, UK",
+      isApproved: "true",
+    },
+    {
+      userId: null,
+      customerName: "Sofia Andersson",
+      content: "We used Fridas Golf for our annual golf trip to Costa del Sol. The platform showed real availability across all the premium courses, and booking was seamless. Highly recommend for serious golfers.",
+      rating: 5,
+      location: "Stockholm, Sweden",
+      isApproved: "true",
+    },
+    {
+      userId: null,
+      customerName: "Michael Rasmussen",
+      content: "Exceptional experience. The team helped us plan a perfect week of golf, from Sotogrande to Málaga. Real-time availability and personal service - exactly what we were looking for.",
+      rating: 5,
+      location: "Copenhagen, Denmark",
+      isApproved: "true",
+    },
+    {
+      userId: null,
+      customerName: "Elena Rodriguez",
+      content: "As a local, I've tried many booking platforms. Fridas Golf stands out for their curated selection and genuine expertise. Perfect for visitors who want the best Costa del Sol has to offer.",
+      rating: 5,
+      location: "Marbella, Spain",
+      isApproved: "true",
+    },
+    {
+      userId: null,
+      customerName: "Thomas Wagner",
+      content: "First-class service. The platform is modern and efficient, but it's the personal touch that sets Fridas Golf apart. They helped us secure dream tee times at courses we'd only read about.",
+      rating: 5,
+      location: "Munich, Germany",
+      isApproved: "true",
+    },
+  ];
+
+  await db.insert(testimonials).values(seedTestimonials);
+  console.log(`Inserted ${seedTestimonials.length} testimonials`);
 
   console.log("Database seeding completed!");
 }
