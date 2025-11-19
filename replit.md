@@ -54,6 +54,28 @@ The schema, defined using Drizzle ORM for PostgreSQL, includes tables for `users
 
 The application uses custom email/password authentication with bcrypt password hashing (10 salt rounds) and PostgreSQL-backed sessions (via `connect-pg-simple`). Users can sign up or log in via the `AuthDialog` component (a popup dialog opened from Header buttons) or directly navigate to `/signup` and `/login` pages. The Header displays "Log In" and "Sign Up" buttons when unauthenticated, which open the AuthDialog popup with background images visible. When authenticated, the Header shows a user menu with Profile and Logout options. The AuthDialog uses CSS display toggling (not conditional rendering) to maintain both login and signup forms mounted simultaneously, ensuring react-hook-form field registrations remain intact. All form inputs have unique data-testid attributes prefixed by mode (e.g., `input-login-email`, `input-signup-first-name`). Sessions are stored in PostgreSQL with a 7-day TTL, httpOnly cookies, and secure flag enabled in production. Admin routes (bookings management, course editing, affiliate emails, user management) and user profile routes are protected with the `isAuthenticated` middleware (checking `req.session.userId`), while public endpoints (course browsing, tee-time search, booking requests) remain accessible without authentication. Authenticated users benefit from auto-filled booking forms (name and email pre-populated from session) and can view their complete booking history on the Profile page (`/profile`), which displays all bookings with course names, tee times, player counts, and status badges. All booking requests link to the authenticated user via `userId` foreign key.
 
+#### Admin Analytics Dashboard
+
+The Admin interface includes a comprehensive Analytics Dashboard providing business insights and performance metrics:
+
+- **Revenue Metrics**: 
+  - Total revenue from all confirmed bookings (sums `estimatedPrice` field)
+  - Average booking value calculated from confirmed bookings
+  - Total count of confirmed bookings
+- **Booking Trends Chart**: Line chart visualizing bookings over time with period toggles:
+  - Daily view: Last 30 days
+  - Weekly view: Last 12 weeks  - Monthly view: Last 12 months
+- **Popular Courses**: Horizontal bar chart showing top 10 courses by booking count
+- **API Endpoints**:
+  - `GET /api/admin/analytics/bookings?period=day|week|month` - Time-series booking data
+  - `GET /api/admin/analytics/revenue` - Revenue metrics
+  - `GET /api/admin/analytics/popular-courses?limit=10` - Top courses by bookings
+- **Data Model**: Added `estimatedPrice: real` field to `booking_requests` table for revenue tracking (nullable for historical data)
+- **Frontend**: Built with Recharts (LineChart, BarChart, ResponsiveContainer)
+- **Access Control**: All analytics endpoints protected with `isAdmin` middleware
+
+Note: Current implementation loads all data into memory for aggregation. For production with large datasets, consider migrating to SQL-based aggregation using PostgreSQL's date_trunc() and GROUP BY for better performance.
+
 #### Admin User Management
 
 The Admin dashboard includes a comprehensive User Management system for viewing, editing, deleting user accounts, and viewing booking history. The system provides full CRUD operations with role-based access control:

@@ -25,7 +25,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql as sqlFunc, count, sum } from "drizzle-orm";
 
 export interface IStorage {
   // Golf Courses
@@ -77,6 +77,11 @@ export interface IStorage {
   createTestimonial(testimonial: InsertTestimonial): Promise<Testimonial>;
   approveTestimonial(id: string): Promise<Testimonial | undefined>;
   deleteTestimonial(id: string): Promise<boolean>;
+
+  // Analytics
+  getBookingsAnalytics(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; count: number }>>;
+  getRevenueAnalytics(): Promise<{ totalRevenue: number; averageBookingValue: number; confirmedBookings: number }>;
+  getPopularCourses(limit?: number): Promise<Array<{ courseId: string; courseName: string; bookingCount: number }>>;
 }
 
 export class MemStorage implements IStorage {
@@ -777,6 +782,7 @@ export class MemStorage implements IStorage {
         phone: courseData.phone || null,
         notes: courseData.notes || null,
         imageUrl: courseData.imageUrl || null,
+        facilities: courseData.facilities || null,
       };
       this.courses.set(id, course);
     }
@@ -899,7 +905,6 @@ export class MemStorage implements IStorage {
         content: "Outstanding service from start to finish. Fridas Golf secured us tee times at Valderrama during peak season - something we couldn't achieve on our own. The concierge approach makes all the difference.",
         rating: 5,
         location: "London, UK",
-        isApproved: "true",
       },
       {
         userId: null,
@@ -907,7 +912,6 @@ export class MemStorage implements IStorage {
         content: "We used Fridas Golf for our annual golf trip to Costa del Sol. The platform showed real availability across all the premium courses, and booking was seamless. Highly recommend for serious golfers.",
         rating: 5,
         location: "Stockholm, Sweden",
-        isApproved: "true",
       },
       {
         userId: null,
@@ -915,7 +919,6 @@ export class MemStorage implements IStorage {
         content: "Exceptional experience. The team helped us plan a perfect week of golf, from Sotogrande to Málaga. Real-time availability and personal service - exactly what we were looking for.",
         rating: 5,
         location: "Copenhagen, Denmark",
-        isApproved: "true",
       },
       {
         userId: null,
@@ -923,7 +926,6 @@ export class MemStorage implements IStorage {
         content: "As a local, I've tried many booking platforms. Fridas Golf stands out for their curated selection and genuine expertise. Perfect for visitors who want the best Costa del Sol has to offer.",
         rating: 5,
         location: "Marbella, Spain",
-        isApproved: "true",
       },
       {
         userId: null,
@@ -931,7 +933,6 @@ export class MemStorage implements IStorage {
         content: "First-class service. The platform is modern and efficient, but it's the personal touch that sets Fridas Golf apart. They helped us secure dream tee times at courses we'd only read about.",
         rating: 5,
         location: "Munich, Germany",
-        isApproved: "true",
       },
     ];
 
@@ -944,7 +945,7 @@ export class MemStorage implements IStorage {
         content: testimonialData.content,
         rating: testimonialData.rating,
         location: testimonialData.location || null,
-        isApproved: testimonialData.isApproved,
+        isApproved: "true",
         createdAt: new Date(),
       };
       this.testimonials.set(id, testimonial);
@@ -976,6 +977,7 @@ export class MemStorage implements IStorage {
       phone: insertCourse.phone || null,
       notes: insertCourse.notes || null,
       imageUrl: insertCourse.imageUrl || null,
+      facilities: insertCourse.facilities || null,
     };
     this.courses.set(id, course);
     return course;
@@ -1068,6 +1070,7 @@ export class MemStorage implements IStorage {
       customerEmail: insertBooking.customerEmail,
       customerPhone: insertBooking.customerPhone || null,
       status: insertBooking.status || "PENDING",
+      estimatedPrice: insertBooking.estimatedPrice || null,
       cancelledAt: null,
       cancellationReason: null,
       createdAt: new Date(),
@@ -1252,6 +1255,85 @@ export class MemStorage implements IStorage {
   async deleteTestimonial(id: string): Promise<boolean> {
     return this.testimonials.delete(id);
   }
+
+  // Analytics
+  async getBookingsAnalytics(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; count: number }>> {
+    const allBookings = Array.from(this.bookings.values());
+    
+    // Group bookings by period
+    const grouped = new Map<string, number>();
+    const now = new Date();
+    const cutoffDate = new Date();
+    
+    if (period === 'day') {
+      cutoffDate.setDate(now.getDate() - 30); // Last 30 days
+    } else if (period === 'week') {
+      cutoffDate.setDate(now.getDate() - 84); // Last 12 weeks
+    } else {
+      cutoffDate.setMonth(now.getMonth() - 12); // Last 12 months
+    }
+    
+    for (const booking of allBookings) {
+      const date = new Date(booking.createdAt);
+      if (date < cutoffDate) continue;
+      
+      let key: string;
+      if (period === 'day') {
+        key = date.toISOString().split('T')[0];
+      } else if (period === 'week') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }
+      
+      grouped.set(key, (grouped.get(key) || 0) + 1);
+    }
+    
+    return Array.from(grouped.entries())
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async getRevenueAnalytics(): Promise<{ totalRevenue: number; averageBookingValue: number; confirmedBookings: number }> {
+    const confirmedBookings = Array.from(this.bookings.values()).filter(b => b.status === 'CONFIRMED');
+    const totalRevenue = confirmedBookings.reduce((sum, b) => sum + (b.estimatedPrice || 0), 0);
+    const confirmedCount = confirmedBookings.length;
+    const averageBookingValue = confirmedCount > 0 ? totalRevenue / confirmedCount : 0;
+    
+    return {
+      totalRevenue,
+      averageBookingValue,
+      confirmedBookings: confirmedCount,
+    };
+  }
+
+  async getPopularCourses(limit: number = 10): Promise<Array<{ courseId: string; courseName: string; bookingCount: number }>> {
+    const allBookings = Array.from(this.bookings.values());
+    const allCourses = Array.from(this.courses.values());
+    
+    // Count bookings per course
+    const courseCounts = new Map<string, number>();
+    for (const booking of allBookings) {
+      courseCounts.set(booking.courseId, (courseCounts.get(booking.courseId) || 0) + 1);
+    }
+    
+    // Map to course names and sort
+    const popular = Array.from(courseCounts.entries())
+      .map(([courseId, bookingCount]) => {
+        const course = allCourses.find(c => c.id === courseId);
+        return {
+          courseId,
+          courseName: course?.name || 'Unknown Course',
+          bookingCount,
+        };
+      })
+      .sort((a, b) => b.bookingCount - a.bookingCount)
+      .slice(0, limit);
+    
+    return popular;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1326,6 +1408,9 @@ export class DatabaseStorage implements IStorage {
         customerEmail: bookingRequests.customerEmail,
         customerPhone: bookingRequests.customerPhone,
         status: bookingRequests.status,
+        estimatedPrice: bookingRequests.estimatedPrice,
+        cancelledAt: bookingRequests.cancelledAt,
+        cancellationReason: bookingRequests.cancellationReason,
         createdAt: bookingRequests.createdAt,
         courseName: golfCourses.name,
       })
@@ -1334,7 +1419,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bookingRequests.userId, userId))
       .orderBy(desc(bookingRequests.createdAt));
     
-    return results;
+    return results.map(result => ({
+      ...result,
+      courseName: result.courseName ?? undefined
+    }));
   }
 
   async createBooking(booking: InsertBookingRequest): Promise<BookingRequest> {
@@ -1499,6 +1587,89 @@ export class DatabaseStorage implements IStorage {
       .where(eq(testimonials.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  // Analytics
+  async getBookingsAnalytics(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; count: number }>> {
+    const allBookings = await db.select().from(bookingRequests);
+    
+    // Group bookings by period
+    const grouped = new Map<string, number>();
+    const now = new Date();
+    const cutoffDate = new Date();
+    
+    if (period === 'day') {
+      cutoffDate.setDate(now.getDate() - 30); // Last 30 days
+    } else if (period === 'week') {
+      cutoffDate.setDate(now.getDate() - 84); // Last 12 weeks
+    } else {
+      cutoffDate.setMonth(now.getMonth() - 12); // Last 12 months
+    }
+    
+    for (const booking of allBookings) {
+      const date = new Date(booking.createdAt);
+      if (date < cutoffDate) continue;
+      
+      let key: string;
+      if (period === 'day') {
+        key = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      } else if (period === 'week') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay()); // Start of week
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+      }
+      
+      grouped.set(key, (grouped.get(key) || 0) + 1);
+    }
+    
+    return Array.from(grouped.entries())
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async getRevenueAnalytics(): Promise<{ totalRevenue: number; averageBookingValue: number; confirmedBookings: number }> {
+    const confirmedBookings = await db
+      .select()
+      .from(bookingRequests)
+      .where(eq(bookingRequests.status, 'CONFIRMED'));
+    
+    const totalRevenue = confirmedBookings.reduce((sum, b) => sum + (b.estimatedPrice || 0), 0);
+    const confirmedCount = confirmedBookings.length;
+    const averageBookingValue = confirmedCount > 0 ? totalRevenue / confirmedCount : 0;
+    
+    return {
+      totalRevenue,
+      averageBookingValue,
+      confirmedBookings: confirmedCount,
+    };
+  }
+
+  async getPopularCourses(limit: number = 10): Promise<Array<{ courseId: string; courseName: string; bookingCount: number }>> {
+    const allBookings = await db.select().from(bookingRequests);
+    const allCourses = await db.select().from(golfCourses);
+    
+    // Count bookings per course
+    const courseCounts = new Map<string, number>();
+    for (const booking of allBookings) {
+      courseCounts.set(booking.courseId, (courseCounts.get(booking.courseId) || 0) + 1);
+    }
+    
+    // Map to course names and sort
+    const popular = Array.from(courseCounts.entries())
+      .map(([courseId, bookingCount]) => {
+        const course = allCourses.find(c => c.id === courseId);
+        return {
+          courseId,
+          courseName: course?.name || 'Unknown Course',
+          bookingCount,
+        };
+      })
+      .sort((a, b) => b.bookingCount - a.bookingCount)
+      .slice(0, limit);
+    
+    return popular;
   }
 }
 
@@ -2279,7 +2450,6 @@ export async function seedDatabase() {
       content: "Outstanding service from start to finish. Fridas Golf secured us tee times at Valderrama during peak season - something we couldn't achieve on our own. The concierge approach makes all the difference.",
       rating: 5,
       location: "London, UK",
-      isApproved: "true",
     },
     {
       userId: null,
@@ -2287,7 +2457,6 @@ export async function seedDatabase() {
       content: "We used Fridas Golf for our annual golf trip to Costa del Sol. The platform showed real availability across all the premium courses, and booking was seamless. Highly recommend for serious golfers.",
       rating: 5,
       location: "Stockholm, Sweden",
-      isApproved: "true",
     },
     {
       userId: null,
@@ -2295,7 +2464,6 @@ export async function seedDatabase() {
       content: "Exceptional experience. The team helped us plan a perfect week of golf, from Sotogrande to Málaga. Real-time availability and personal service - exactly what we were looking for.",
       rating: 5,
       location: "Copenhagen, Denmark",
-      isApproved: "true",
     },
     {
       userId: null,
@@ -2303,7 +2471,6 @@ export async function seedDatabase() {
       content: "As a local, I've tried many booking platforms. Fridas Golf stands out for their curated selection and genuine expertise. Perfect for visitors who want the best Costa del Sol has to offer.",
       rating: 5,
       location: "Marbella, Spain",
-      isApproved: "true",
     },
     {
       userId: null,
@@ -2311,7 +2478,6 @@ export async function seedDatabase() {
       content: "First-class service. The platform is modern and efficient, but it's the personal touch that sets Fridas Golf apart. They helped us secure dream tee times at courses we'd only read about.",
       rating: 5,
       location: "Munich, Germany",
-      isApproved: "true",
     },
   ];
 

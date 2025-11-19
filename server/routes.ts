@@ -317,6 +317,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/analytics/bookings - Get bookings analytics (Admin only)
+  app.get("/api/admin/analytics/bookings", isAdmin, async (req, res) => {
+    try {
+      const period = (req.query.period as 'day' | 'week' | 'month') || 'day';
+      if (!['day', 'week', 'month'].includes(period)) {
+        return res.status(400).json({ message: "Invalid period. Use 'day', 'week', or 'month'" });
+      }
+      const analytics = await storage.getBookingsAnalytics(period);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching bookings analytics:", error);
+      res.status(500).json({ message: "Failed to fetch bookings analytics" });
+    }
+  });
+
+  // GET /api/admin/analytics/revenue - Get revenue analytics (Admin only)
+  app.get("/api/admin/analytics/revenue", isAdmin, async (req, res) => {
+    try {
+      const analytics = await storage.getRevenueAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching revenue analytics:", error);
+      res.status(500).json({ message: "Failed to fetch revenue analytics" });
+    }
+  });
+
+  // GET /api/admin/analytics/popular-courses - Get popular courses (Admin only)
+  app.get("/api/admin/analytics/popular-courses", isAdmin, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const analytics = await storage.getPopularCourses(limit);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching popular courses:", error);
+      res.status(500).json({ message: "Failed to fetch popular courses" });
+    }
+  });
+
   // GET /api/courses - Get all golf courses
   app.get("/api/courses", async (req, res) => {
     try {
