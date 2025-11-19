@@ -619,6 +619,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/admin/courses/:id/kickback - Update course kickback percentage (Admin only)
+  app.patch("/api/admin/courses/:id/kickback", isAdmin, async (req, res) => {
+    try {
+      const { kickbackPercent } = req.body;
+
+      // Validate kickbackPercent is a number
+      if (typeof kickbackPercent !== "number") {
+        return res.status(400).json({ error: "kickbackPercent must be a number" });
+      }
+
+      // Validate range 0-100
+      if (kickbackPercent < 0 || kickbackPercent > 100) {
+        return res.status(400).json({ error: "kickbackPercent must be between 0 and 100" });
+      }
+
+      const updatedCourse = await storage.updateCourse(req.params.id, { kickbackPercent });
+      
+      if (!updatedCourse) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      res.json(updatedCourse);
+    } catch (error) {
+      console.error("Error updating course kickback:", error);
+      res.status(500).json({ error: "Failed to update course kickback" });
+    }
+  });
+
   // POST /api/upload/course-image - Upload a course image (Admin only)
   app.post("/api/upload/course-image", isAuthenticated, upload.single("image"), async (req, res) => {
     try {

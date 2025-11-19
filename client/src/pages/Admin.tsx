@@ -31,10 +31,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3 } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
+import { CommissionDashboard } from "@/components/CommissionDashboard";
+import { AdCampaigns } from "@/components/AdCampaigns";
 import type { GolfCourse, BookingRequest } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -97,6 +99,10 @@ const editUserSchema = z.object({
   isAdmin: z.enum(["true", "false"]),
 });
 
+const editKickbackSchema = z.object({
+  kickbackPercent: z.number().min(0, "Must be at least 0").max(100, "Must be at most 100"),
+});
+
 export default function Admin() {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState(DEFAULT_EMAIL_TEMPLATE.subject);
@@ -107,6 +113,7 @@ export default function Admin() {
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [viewingUserBookings, setViewingUserBookings] = useState<User | null>(null);
   const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [editingCourseKickback, setEditingCourseKickback] = useState<GolfCourse | null>(null);
   const { toast } = useToast();
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const { t } = useI18n();
@@ -239,6 +246,56 @@ export default function Admin() {
   const handleSaveUser = (data: z.infer<typeof editUserSchema>) => {
     if (editingUser) {
       updateUserMutation.mutate({ id: editingUser.id, data });
+    }
+  };
+
+  // Edit kickback form
+  const kickbackForm = useForm<z.infer<typeof editKickbackSchema>>({
+    resolver: zodResolver(editKickbackSchema),
+    defaultValues: {
+      kickbackPercent: 0,
+    },
+  });
+
+  // Update course kickback mutation
+  const updateKickbackMutation = useMutation({
+    mutationFn: async ({ courseId, kickbackPercent }: { courseId: string; kickbackPercent: number }) => {
+      return await apiRequest(`/api/admin/courses/${courseId}/kickback`, "PATCH", { kickbackPercent });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/analytics/commission"] });
+      toast({
+        title: "Kickback updated",
+        description: "Commission percentage has been updated successfully",
+      });
+      setEditingCourseKickback(null);
+      kickbackForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update kickback percentage",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle edit kickback - populate form
+  const handleEditKickback = (course: GolfCourse) => {
+    setEditingCourseKickback(course);
+    kickbackForm.reset({
+      kickbackPercent: course.kickbackPercent || 0,
+    });
+  };
+
+  // Handle save kickback
+  const handleSaveKickback = (data: z.infer<typeof editKickbackSchema>) => {
+    if (editingCourseKickback) {
+      updateKickbackMutation.mutate({ 
+        courseId: editingCourseKickback.id, 
+        kickbackPercent: data.kickbackPercent 
+      });
     }
   };
 
@@ -459,6 +516,10 @@ export default function Admin() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
             </TabsTrigger>
+            <TabsTrigger value="commission" data-testid="tab-commission">
+              <DollarSign className="h-4 w-4 mr-2" />
+              Commission
+            </TabsTrigger>
             <TabsTrigger value="bookings" data-testid="tab-bookings">{t('admin.tabBookingRequests')}</TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="users" data-testid="tab-users">
@@ -466,6 +527,10 @@ export default function Admin() {
                 User Management
               </TabsTrigger>
             )}
+            <TabsTrigger value="courses" data-testid="tab-courses">
+              <Percent className="h-4 w-4 mr-2" />
+              Courses
+            </TabsTrigger>
             <TabsTrigger value="all-courses" data-testid="tab-all-courses">{t('admin.tabAllCourses')}</TabsTrigger>
             <TabsTrigger value="course-images" data-testid="tab-course-images">{t('admin.tabCourseImages')}</TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
@@ -473,6 +538,13 @@ export default function Admin() {
 
           <TabsContent value="analytics">
             <AnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="commission">
+            <div className="space-y-6">
+              <CommissionDashboard />
+              <AdCampaigns />
+            </div>
           </TabsContent>
 
           <TabsContent value="bookings">
@@ -626,6 +698,63 @@ export default function Admin() {
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     No users found
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="courses">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Percent className="h-5 w-5" />
+                  Course Management
+                </CardTitle>
+                <CardDescription>
+                  Manage course commission percentages
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {courses && courses.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Course Name</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead className="text-right" data-testid="table-column-kickback">Kickback %</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {courses.map((course) => (
+                        <TableRow key={course.id} data-testid={`row-course-${course.id}`}>
+                          <TableCell className="font-medium">{course.name}</TableCell>
+                          <TableCell>{course.city}, {course.province}</TableCell>
+                          <TableCell className="text-right">
+                            {course.kickbackPercent !== null && course.kickbackPercent !== undefined 
+                              ? `${course.kickbackPercent}%` 
+                              : "0%"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditKickback(course)}
+                              data-testid={`button-edit-kickback-${course.id}`}
+                              aria-label="Edit commission percentage"
+                            >
+                              <Percent className="h-4 w-4 mr-1" />
+                              Edit Kickback
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    No courses found
                   </div>
                 )}
               </CardContent>
@@ -1083,6 +1212,81 @@ export default function Admin() {
                 {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Kickback Dialog */}
+        <Dialog open={!!editingCourseKickback} onOpenChange={(open) => !open && setEditingCourseKickback(null)}>
+          <DialogContent data-testid="dialog-edit-kickback">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Percent className="h-5 w-5" />
+                Edit Commission Percentage
+              </DialogTitle>
+              <DialogDescription>
+                Update the commission percentage you earn from bookings at this course
+              </DialogDescription>
+            </DialogHeader>
+            {editingCourseKickback && (
+              <div className="rounded-md bg-muted p-3 mb-4">
+                <p className="font-medium">{editingCourseKickback.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {editingCourseKickback.city}, {editingCourseKickback.province}
+                </p>
+              </div>
+            )}
+            <Form {...kickbackForm}>
+              <form onSubmit={kickbackForm.handleSubmit(handleSaveKickback)} className="space-y-4">
+                <FormField
+                  control={kickbackForm.control}
+                  name="kickbackPercent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Commission Percentage</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            placeholder="0"
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            data-testid="input-kickback-percent"
+                            className="pr-8"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                            %
+                          </span>
+                        </div>
+                      </FormControl>
+                      <p className="text-sm text-muted-foreground">
+                        Enter the commission percentage you earn from bookings at this course (0-100%)
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingCourseKickback(null)}
+                    data-testid="button-cancel-edit-kickback"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={updateKickbackMutation.isPending}
+                    data-testid="button-save-kickback"
+                  >
+                    {updateKickbackMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
 
