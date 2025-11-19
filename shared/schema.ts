@@ -63,6 +63,7 @@ export const golfCourses = pgTable("golf_courses", {
   notes: text("notes"),
   imageUrl: text("image_url"),
   facilities: text("facilities").array(),
+  kickbackPercent: real("kickback_percent").default(0), // Commission % (0-100)
 });
 
 export const insertGolfCourseSchema = createInsertSchema(golfCourses).omit({ id: true });
@@ -190,6 +191,32 @@ export const insertTestimonialSchema = createInsertSchema(testimonials).omit({
 
 export type InsertTestimonial = z.infer<typeof insertTestimonialSchema>;
 export type Testimonial = typeof testimonials.$inferSelect;
+
+// Ad Campaigns (for ROI tracking)
+export const adCampaigns = pgTable("ad_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  platform: text("platform").notNull(), // Google Ads, Facebook, Instagram, etc.
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  totalSpend: real("total_spend").notNull().default(0), // Total ad spend in EUR
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAdCampaignSchema = createInsertSchema(adCampaigns).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+}).extend({
+  startDate: z.string(),
+  endDate: z.string().optional(),
+  totalSpend: z.number().min(0, "Total spend must be positive"),
+});
+
+export type InsertAdCampaign = z.infer<typeof insertAdCampaignSchema>;
+export type AdCampaign = typeof adCampaigns.$inferSelect;
 
 // Blog Posts
 export const blogPosts = pgTable("blog_posts", {

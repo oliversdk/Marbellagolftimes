@@ -14,6 +14,8 @@ import {
   type InsertCourseReview,
   type Testimonial,
   type InsertTestimonial,
+  type AdCampaign,
+  type InsertAdCampaign,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -22,6 +24,7 @@ import {
   users,
   courseReviews,
   testimonials,
+  adCampaigns,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -32,6 +35,7 @@ export interface IStorage {
   getAllCourses(): Promise<GolfCourse[]>;
   getCourseById(id: string): Promise<GolfCourse | undefined>;
   createCourse(course: InsertGolfCourse): Promise<GolfCourse>;
+  updateCourse(id: string, updates: Partial<GolfCourse>): Promise<GolfCourse | undefined>;
   updateCourseImage(courseId: string, imageUrl: string | null): Promise<GolfCourse | undefined>;
 
   // Tee Time Providers
@@ -82,6 +86,28 @@ export interface IStorage {
   getBookingsAnalytics(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; count: number }>>;
   getRevenueAnalytics(): Promise<{ totalRevenue: number; averageBookingValue: number; confirmedBookings: number }>;
   getPopularCourses(limit?: number): Promise<Array<{ courseId: string; courseName: string; bookingCount: number }>>;
+  
+  // Commission Analytics
+  getCommissionAnalytics(): Promise<{
+    totalCommission: number;
+    commissionsPerCourse: Array<{ courseId: string; courseName: string; commission: number; bookingCount: number }>;
+  }>;
+  getCommissionByPeriod(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; commission: number }>>;
+
+  // Ad Campaigns CRUD
+  getAllCampaigns(): Promise<AdCampaign[]>;
+  getCampaignById(id: string): Promise<AdCampaign | undefined>;
+  createCampaign(campaign: InsertAdCampaign): Promise<AdCampaign>;
+  updateCampaign(id: string, updates: Partial<AdCampaign>): Promise<AdCampaign | undefined>;
+  deleteCampaign(id: string): Promise<boolean>;
+
+  // ROI Analytics  
+  getROIAnalytics(): Promise<{
+    totalCommission: number;
+    totalAdSpend: number;
+    netProfit: number;
+    roi: number;
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -93,6 +119,7 @@ export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private courseReviews: Map<string, CourseReview>;
   private testimonials: Map<string, Testimonial>;
+  private campaigns: Map<string, AdCampaign>;
 
   constructor() {
     this.courses = new Map();
@@ -103,6 +130,7 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.courseReviews = new Map();
     this.testimonials = new Map();
+    this.campaigns = new Map();
     
     // Seed initial data
     this.seedData();
@@ -263,6 +291,7 @@ export class MemStorage implements IStorage {
         notes: "Gary Player design",
         imageUrl: "/generated_images/Pine_forest_tree_lined_b311e285.png",
         facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
+        kickbackPercent: 30,
       },
       {
         name: "Estepona Golf",
@@ -783,6 +812,7 @@ export class MemStorage implements IStorage {
         notes: courseData.notes || null,
         imageUrl: courseData.imageUrl || null,
         facilities: courseData.facilities || null,
+        kickbackPercent: courseData.kickbackPercent ?? 0,
       };
       this.courses.set(id, course);
     }
@@ -978,9 +1008,19 @@ export class MemStorage implements IStorage {
       notes: insertCourse.notes || null,
       imageUrl: insertCourse.imageUrl || null,
       facilities: insertCourse.facilities || null,
+      kickbackPercent: insertCourse.kickbackPercent ?? 0,
     };
     this.courses.set(id, course);
     return course;
+  }
+
+  async updateCourse(id: string, updates: Partial<GolfCourse>): Promise<GolfCourse | undefined> {
+    const course = this.courses.get(id);
+    if (!course) return undefined;
+
+    const updatedCourse = { ...course, ...updates };
+    this.courses.set(id, updatedCourse);
+    return updatedCourse;
   }
 
   async updateCourseImage(courseId: string, imageUrl: string | null): Promise<GolfCourse | undefined> {
@@ -1334,6 +1374,161 @@ export class MemStorage implements IStorage {
     
     return popular;
   }
+
+  // Commission Analytics
+  async getCommissionAnalytics(): Promise<{
+    totalCommission: number;
+    commissionsPerCourse: Array<{ courseId: string; courseName: string; commission: number; bookingCount: number }>;
+  }> {
+    const confirmedBookings = Array.from(this.bookings.values()).filter(b => b.status === 'CONFIRMED');
+    
+    // Group by course and calculate commissions
+    const courseCommissions = new Map<string, { commission: number; bookingCount: number }>();
+    
+    for (const booking of confirmedBookings) {
+      const course = this.courses.get(booking.courseId);
+      if (!course || !booking.estimatedPrice) continue;
+      
+      const commission = booking.estimatedPrice * ((course.kickbackPercent ?? 0) / 100);
+      const existing = courseCommissions.get(booking.courseId) || { commission: 0, bookingCount: 0 };
+      
+      courseCommissions.set(booking.courseId, {
+        commission: existing.commission + commission,
+        bookingCount: existing.bookingCount + 1,
+      });
+    }
+    
+    // Calculate total and format results
+    let totalCommission = 0;
+    const commissionsPerCourse = Array.from(courseCommissions.entries()).map(([courseId, data]) => {
+      const course = this.courses.get(courseId);
+      totalCommission += data.commission;
+      return {
+        courseId,
+        courseName: course?.name || 'Unknown Course',
+        commission: data.commission,
+        bookingCount: data.bookingCount,
+      };
+    });
+    
+    return {
+      totalCommission,
+      commissionsPerCourse,
+    };
+  }
+
+  async getCommissionByPeriod(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; commission: number }>> {
+    const confirmedBookings = Array.from(this.bookings.values()).filter(b => b.status === 'CONFIRMED');
+    
+    // Group commissions by period
+    const grouped = new Map<string, number>();
+    const now = new Date();
+    const cutoffDate = new Date();
+    
+    if (period === 'day') {
+      cutoffDate.setDate(now.getDate() - 30);
+    } else if (period === 'week') {
+      cutoffDate.setDate(now.getDate() - 84);
+    } else {
+      cutoffDate.setMonth(now.getMonth() - 12);
+    }
+    
+    for (const booking of confirmedBookings) {
+      const date = new Date(booking.createdAt);
+      if (date < cutoffDate) continue;
+      
+      const course = this.courses.get(booking.courseId);
+      if (!course || !booking.estimatedPrice) continue;
+      
+      const commission = booking.estimatedPrice * ((course.kickbackPercent ?? 0) / 100);
+      
+      let key: string;
+      if (period === 'day') {
+        key = date.toISOString().split('T')[0];
+      } else if (period === 'week') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }
+      
+      grouped.set(key, (grouped.get(key) || 0) + commission);
+    }
+    
+    return Array.from(grouped.entries())
+      .map(([date, commission]) => ({ date, commission }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // Ad Campaigns CRUD
+  async getAllCampaigns(): Promise<AdCampaign[]> {
+    return Array.from(this.campaigns.values());
+  }
+
+  async getCampaignById(id: string): Promise<AdCampaign | undefined> {
+    return this.campaigns.get(id);
+  }
+
+  async createCampaign(campaign: InsertAdCampaign): Promise<AdCampaign> {
+    const id = randomUUID();
+    const newCampaign: AdCampaign = {
+      id,
+      name: campaign.name,
+      platform: campaign.platform,
+      startDate: new Date(campaign.startDate),
+      endDate: campaign.endDate ? new Date(campaign.endDate) : null,
+      totalSpend: campaign.totalSpend ?? 0,
+      notes: campaign.notes || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.campaigns.set(id, newCampaign);
+    return newCampaign;
+  }
+
+  async updateCampaign(id: string, updates: Partial<AdCampaign>): Promise<AdCampaign | undefined> {
+    const campaign = this.campaigns.get(id);
+    if (!campaign) return undefined;
+    
+    const updatedCampaign = {
+      ...campaign,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.campaigns.set(id, updatedCampaign);
+    return updatedCampaign;
+  }
+
+  async deleteCampaign(id: string): Promise<boolean> {
+    return this.campaigns.delete(id);
+  }
+
+  // ROI Analytics
+  async getROIAnalytics(): Promise<{
+    totalCommission: number;
+    totalAdSpend: number;
+    netProfit: number;
+    roi: number;
+  }> {
+    // Calculate total commission from confirmed bookings
+    const { totalCommission } = await this.getCommissionAnalytics();
+    
+    // Calculate total ad spend from all campaigns
+    const allCampaigns = Array.from(this.campaigns.values());
+    const totalAdSpend = allCampaigns.reduce((sum, campaign) => sum + (campaign.totalSpend || 0), 0);
+    
+    // Calculate net profit and ROI
+    const netProfit = totalCommission - totalAdSpend;
+    const roi = totalAdSpend > 0 ? (netProfit / totalAdSpend) * 100 : 0;
+    
+    return {
+      totalCommission,
+      totalAdSpend,
+      netProfit,
+      roi,
+    };
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1349,6 +1544,15 @@ export class DatabaseStorage implements IStorage {
 
   async createCourse(course: InsertGolfCourse): Promise<GolfCourse> {
     const results = await db.insert(golfCourses).values(course).returning();
+    return results[0];
+  }
+
+  async updateCourse(id: string, updates: Partial<GolfCourse>): Promise<GolfCourse | undefined> {
+    const results = await db
+      .update(golfCourses)
+      .set(updates)
+      .where(eq(golfCourses.id, id))
+      .returning();
     return results[0];
   }
 
@@ -1671,6 +1875,174 @@ export class DatabaseStorage implements IStorage {
     
     return popular;
   }
+
+  // Commission Analytics
+  async getCommissionAnalytics(): Promise<{
+    totalCommission: number;
+    commissionsPerCourse: Array<{ courseId: string; courseName: string; commission: number; bookingCount: number }>;
+  }> {
+    const confirmedBookings = await db
+      .select({
+        courseId: bookingRequests.courseId,
+        estimatedPrice: bookingRequests.estimatedPrice,
+        kickbackPercent: golfCourses.kickbackPercent,
+        courseName: golfCourses.name,
+      })
+      .from(bookingRequests)
+      .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
+      .where(eq(bookingRequests.status, 'CONFIRMED'));
+    
+    // Group by course and calculate commissions
+    const courseCommissions = new Map<string, { commission: number; bookingCount: number; courseName: string }>();
+    
+    for (const booking of confirmedBookings) {
+      if (!booking.courseId || !booking.estimatedPrice) continue;
+      
+      const commission = booking.estimatedPrice * ((booking.kickbackPercent ?? 0) / 100);
+      const existing = courseCommissions.get(booking.courseId) || { 
+        commission: 0, 
+        bookingCount: 0,
+        courseName: booking.courseName || 'Unknown Course'
+      };
+      
+      courseCommissions.set(booking.courseId, {
+        commission: existing.commission + commission,
+        bookingCount: existing.bookingCount + 1,
+        courseName: existing.courseName,
+      });
+    }
+    
+    // Calculate total and format results
+    let totalCommission = 0;
+    const commissionsPerCourse = Array.from(courseCommissions.entries()).map(([courseId, data]) => {
+      totalCommission += data.commission;
+      return {
+        courseId,
+        courseName: data.courseName,
+        commission: data.commission,
+        bookingCount: data.bookingCount,
+      };
+    });
+    
+    return {
+      totalCommission,
+      commissionsPerCourse,
+    };
+  }
+
+  async getCommissionByPeriod(period: 'day' | 'week' | 'month'): Promise<Array<{ date: string; commission: number }>> {
+    const confirmedBookings = await db
+      .select({
+        courseId: bookingRequests.courseId,
+        estimatedPrice: bookingRequests.estimatedPrice,
+        createdAt: bookingRequests.createdAt,
+        kickbackPercent: golfCourses.kickbackPercent,
+      })
+      .from(bookingRequests)
+      .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
+      .where(eq(bookingRequests.status, 'CONFIRMED'));
+    
+    // Group commissions by period
+    const grouped = new Map<string, number>();
+    const now = new Date();
+    const cutoffDate = new Date();
+    
+    if (period === 'day') {
+      cutoffDate.setDate(now.getDate() - 30);
+    } else if (period === 'week') {
+      cutoffDate.setDate(now.getDate() - 84);
+    } else {
+      cutoffDate.setMonth(now.getMonth() - 12);
+    }
+    
+    for (const booking of confirmedBookings) {
+      const date = new Date(booking.createdAt);
+      if (date < cutoffDate) continue;
+      
+      if (!booking.estimatedPrice) continue;
+      
+      const commission = booking.estimatedPrice * ((booking.kickbackPercent ?? 0) / 100);
+      
+      let key: string;
+      if (period === 'day') {
+        key = date.toISOString().split('T')[0];
+      } else if (period === 'week') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }
+      
+      grouped.set(key, (grouped.get(key) || 0) + commission);
+    }
+    
+    return Array.from(grouped.entries())
+      .map(([date, commission]) => ({ date, commission }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // Ad Campaigns CRUD
+  async getAllCampaigns(): Promise<AdCampaign[]> {
+    return await db.select().from(adCampaigns);
+  }
+
+  async getCampaignById(id: string): Promise<AdCampaign | undefined> {
+    const [campaign] = await db.select().from(adCampaigns).where(eq(adCampaigns.id, id));
+    return campaign;
+  }
+
+  async createCampaign(campaign: InsertAdCampaign): Promise<AdCampaign> {
+    const [newCampaign] = await db.insert(adCampaigns).values({
+      ...campaign,
+      startDate: new Date(campaign.startDate),
+      endDate: campaign.endDate ? new Date(campaign.endDate) : null,
+    }).returning();
+    return newCampaign;
+  }
+
+  async updateCampaign(id: string, updates: Partial<AdCampaign>): Promise<AdCampaign | undefined> {
+    const [updated] = await db
+      .update(adCampaigns)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(adCampaigns.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCampaign(id: string): Promise<boolean> {
+    const result = await db
+      .delete(adCampaigns)
+      .where(eq(adCampaigns.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // ROI Analytics
+  async getROIAnalytics(): Promise<{
+    totalCommission: number;
+    totalAdSpend: number;
+    netProfit: number;
+    roi: number;
+  }> {
+    // Calculate total commission from confirmed bookings
+    const { totalCommission } = await this.getCommissionAnalytics();
+    
+    // Calculate total ad spend from all campaigns
+    const allCampaigns = await db.select().from(adCampaigns);
+    const totalAdSpend = allCampaigns.reduce((sum, campaign) => sum + (campaign.totalSpend || 0), 0);
+    
+    // Calculate net profit and ROI
+    const netProfit = totalCommission - totalAdSpend;
+    const roi = totalAdSpend > 0 ? (netProfit / totalAdSpend) * 100 : 0;
+    
+    return {
+      totalCommission,
+      totalAdSpend,
+      netProfit,
+      roi,
+    };
+  }
 }
 
 export async function seedDatabase() {
@@ -1837,6 +2209,7 @@ export async function seedDatabase() {
       notes: "Gary Player design",
       imageUrl: "/generated_images/Pine_forest_tree_lined_b311e285.png",
       facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities"],
+      kickbackPercent: 30,
     },
     {
       name: "Estepona Golf",

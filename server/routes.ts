@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { getSession, isAuthenticated, isAdmin } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, type CourseWithSlots, type TeeTimeSlot, type User } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User } from "@shared/schema";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
@@ -355,6 +355,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/analytics/commission - Get total commission and breakdown per course
+  app.get("/api/admin/analytics/commission", isAdmin, async (req, res) => {
+    try {
+      const analytics = await storage.getCommissionAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching commission analytics:", error);
+      res.status(500).json({ message: "Failed to fetch commission analytics" });
+    }
+  });
+
+  // GET /api/admin/analytics/commission-by-period - Get commission over time
+  app.get("/api/admin/analytics/commission-by-period", isAdmin, async (req, res) => {
+    try {
+      const period = (req.query.period as 'day' | 'week' | 'month') || 'day';
+      if (!['day', 'week', 'month'].includes(period)) {
+        return res.status(400).json({ message: "Invalid period. Use 'day', 'week', or 'month'" });
+      }
+      const analytics = await storage.getCommissionByPeriod(period);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching commission by period:", error);
+      res.status(500).json({ message: "Failed to fetch commission by period" });
+    }
+  });
+
+  // GET /api/admin/analytics/roi - Get ROI analytics
+  app.get("/api/admin/analytics/roi", isAdmin, async (req, res) => {
+    try {
+      const analytics = await storage.getROIAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching ROI analytics:", error);
+      res.status(500).json({ message: "Failed to fetch ROI analytics" });
+    }
+  });
+
+  // GET /api/admin/campaigns - Get all ad campaigns
+  app.get("/api/admin/campaigns", isAdmin, async (req, res) => {
+    try {
+      const campaigns = await storage.getAllCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch campaigns" });
+    }
+  });
+
+  // POST /api/admin/campaigns - Create new campaign
+  app.post("/api/admin/campaigns", isAdmin, async (req, res) => {
+    try {
+      const result = insertAdCampaignSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
+      }
+      const campaign = await storage.createCampaign(result.data);
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error("Error creating campaign:", error);
+      res.status(500).json({ message: "Failed to create campaign" });
+    }
+  });
+
+  // PATCH /api/admin/campaigns/:id - Update campaign
+  app.patch("/api/admin/campaigns/:id", isAdmin, async (req, res) => {
+    try {
+      const campaign = await storage.updateCampaign(req.params.id, req.body);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error updating campaign:", error);
+      res.status(500).json({ message: "Failed to update campaign" });
+    }
+  });
+
+  // DELETE /api/admin/campaigns/:id - Delete campaign
+  app.delete("/api/admin/campaigns/:id", isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteCampaign(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting campaign:", error);
+      res.status(500).json({ message: "Failed to delete campaign" });
+    }
+  });
+
   // GET /api/courses - Get all golf courses
   app.get("/api/courses", async (req, res) => {
     try {
@@ -609,6 +700,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Image deleted successfully" });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to delete image" });
+    }
+  });
+
+  // PATCH /api/admin/courses/:id/kickback - Update course kickback percentage
+  app.patch("/api/admin/courses/:id/kickback", isAdmin, async (req, res) => {
+    try {
+      const kickbackSchema = z.object({
+        kickbackPercent: z.number().min(0).max(100, "Kickback must be between 0-100%"),
+      });
+      
+      const result = kickbackSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
+      }
+      
+      const course = await storage.updateCourse(req.params.id, { kickbackPercent: result.data.kickbackPercent });
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+      
+      res.json(course);
+    } catch (error) {
+      console.error("Error updating course kickback:", error);
+      res.status(500).json({ message: "Failed to update course kickback" });
     }
   });
 
