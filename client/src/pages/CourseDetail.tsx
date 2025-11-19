@@ -346,17 +346,35 @@ export default function CourseDetail() {
         
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
           <div className="max-w-7xl mx-auto">
-            <h1
-              className="font-serif text-4xl md:text-5xl font-bold text-foreground mb-2"
-              data-testid="text-course-name"
-            >
-              {course.name}
-            </h1>
-            <div className="flex items-center gap-2 text-muted-foreground mb-4">
-              <MapPin className="h-5 w-5" />
-              <span data-testid="text-course-location">
-                {course.city}, {course.province}
-              </span>
+            <div className="flex items-center gap-3 flex-wrap mb-2">
+              <h1
+                className="font-serif text-4xl md:text-5xl font-bold text-foreground"
+                data-testid="text-course-name"
+              >
+                {course.name}
+              </h1>
+              {(course as any).averageRating >= 4.5 && (course as any).reviewCount > 0 && (
+                <Badge variant="secondary" className="gap-1 h-fit" data-testid="badge-top-rated-detail">
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  Top Rated
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-4 flex-wrap text-muted-foreground mb-4">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                <span data-testid="text-course-location">
+                  {course.city}, {course.province}
+                </span>
+              </div>
+              {(course as any).reviewCount > 0 && (
+                <div className="flex items-center gap-1" data-testid="text-course-rating">
+                  <StarRating rating={(course as any).averageRating} size="sm" />
+                  <span className="text-sm font-medium">
+                    {(course as any).averageRating.toFixed(1)} ({(course as any).reviewCount} {(course as any).reviewCount === 1 ? 'review' : 'reviews'})
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 flex-wrap">
               <Button

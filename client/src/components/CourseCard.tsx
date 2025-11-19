@@ -2,7 +2,7 @@ import { useState, useCallback, memo } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Phone, Globe, Mail, Heart } from "lucide-react";
+import { MapPin, Phone, Globe, Mail, Heart, Star } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "wouter";
 import { useFavorites } from "@/hooks/useFavorites";
@@ -82,6 +82,12 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
               {isBestDeal && (
                 <Badge variant="default" data-testid={`badge-best-deal-${course.id}`}>
                   {t('course.bestDeal')}
+                </Badge>
+              )}
+              {(course as any).averageRating >= 4.5 && (course as any).reviewCount > 0 && (
+                <Badge variant="secondary" className="gap-1" data-testid={`badge-top-rated-${course.id}`}>
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  Top Rated
                 </Badge>
               )}
             </div>

@@ -321,8 +321,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/courses", async (req, res) => {
     try {
       const courses = await storage.getAllCourses();
+      
+      // Add average rating and review count to each course
+      const coursesWithRatings = await Promise.all(
+        courses.map(async (course) => {
+          const reviews = await storage.getAllReviewsByCourseId(course.id);
+          const avgRating = reviews.length > 0
+            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+            : 0;
+          
+          return {
+            ...course,
+            averageRating: avgRating,
+            reviewCount: reviews.length,
+          };
+        })
+      );
+      
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.json(courses);
+      res.json(coursesWithRatings);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch courses" });
     }
@@ -335,8 +352,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!course) {
         return res.status(404).json({ error: "Course not found" });
       }
+      
+      // Add average rating and review count
+      const reviews = await storage.getAllReviewsByCourseId(course.id);
+      const avgRating = reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        : 0;
+      
+      const courseWithRating = {
+        ...course,
+        averageRating: avgRating,
+        reviewCount: reviews.length,
+      };
+      
       res.setHeader('Cache-Control', 'public, max-age=300');
-      res.json(course);
+      res.json(courseWithRating);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch course" });
     }
