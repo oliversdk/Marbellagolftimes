@@ -16,13 +16,13 @@ The frontend is built with React 18, TypeScript, and Vite. It uses Wouter for ro
 
 The Profile page offers advanced booking management, including "Upcoming" and "Past" booking tabs, an option to cancel bookings (with a 24-hour rule validation), and a "Book Again" feature for rebooking past tee times.
 
-An Admin dashboard provides tools for managing bookings, courses, images, and affiliate emails. The platform supports full internationalization (i18n) across 5 languages (English, Spanish, Danish, Swedish, Russian) with a language switcher.
+An Admin dashboard provides tools for managing bookings, courses, images, and affiliate emails. The Courses tab displays all courses in a table layout with name, location, image thumbnail, kickback percentage, and a unified "Edit Course" button. The Edit Course dialog combines image management (upload/URL/delete) and commission percentage editing in a single interface with proper cache synchronization. The platform supports full internationalization (i18n) across 5 languages (English, Spanish, Danish, Swedish, Russian) with a language switcher.
 
 A comprehensive reviews and social proof system allows authenticated users to submit course reviews with star ratings and optional photo uploads. "Top Rated" badges are displayed for highly-rated courses, and a testimonials carousel showcases customer feedback.
 
 The Admin dashboard includes an Analytics Dashboard for revenue metrics, booking trends (daily, weekly, monthly), and popular courses, visualized with Recharts. It also features a User Management system for full CRUD operations on user accounts with role-based access control and the ability to view a user's booking history.
 
-A Commission & ROI Tracking System in the Admin interface monitors affiliate earnings based on course kickback percentages and tracks advertising campaign performance, calculating ROI.
+A Commission & ROI Tracking System in the Admin interface monitors affiliate earnings based on course kickback percentages (editable via unified Edit Course dialog) and tracks advertising campaign performance, calculating ROI. Course commission percentages are stored in the database and persist correctly with optimistic UI updates for instant feedback.
 
 ### Backend Architecture
 
