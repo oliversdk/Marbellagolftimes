@@ -263,8 +263,18 @@ export default function Admin() {
     mutationFn: async ({ courseId, kickbackPercent }: { courseId: string; kickbackPercent: number }) => {
       return await apiRequest(`/api/admin/courses/${courseId}/kickback`, "PATCH", { kickbackPercent });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+    onSuccess: async (_data, variables) => {
+      // Immediately update local course data for instant UI feedback
+      queryClient.setQueryData<GolfCourse[]>(["/api/courses"], (old) => {
+        if (!old) return old;
+        return old.map((course) =>
+          course.id === variables.courseId
+            ? { ...course, kickbackPercent: variables.kickbackPercent }
+            : course
+        );
+      });
+      // Force immediate refetch to ensure UI is in sync
+      await queryClient.refetchQueries({ queryKey: ["/api/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/analytics/commission"] });
       toast({
         title: "Kickback updated",

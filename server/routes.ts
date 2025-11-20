@@ -698,14 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const filePath = path.join(__dirname, `../client/public/${targetDirectory}`, filename);
       
-      // Check if file exists
-      try {
-        await fs.access(filePath);
-      } catch {
-        return res.status(404).json({ error: "File not found" });
-      }
-
-      // If courseId is provided, verify the course exists BEFORE deleting the file
+      // If courseId is provided, verify the course exists first
       if (courseId && typeof courseId === "string") {
         const course = await storage.getCourseById(courseId);
         if (!course) {
@@ -713,19 +706,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Delete the file
-      await fs.unlink(filePath);
+      // Check if file exists and delete it (idempotent - success even if already deleted)
+      let fileDeleted = false;
+      try {
+        await fs.access(filePath);
+        await fs.unlink(filePath);
+        fileDeleted = true;
+      } catch {
+        // File doesn't exist - that's OK, treat as already deleted (idempotent delete)
+        console.log(`File ${filename} not found, treating as already deleted`);
+      }
       
-      // Update course if courseId provided
+      // Update course database regardless of whether physical file existed
       if (courseId && typeof courseId === "string") {
         const updatedCourse = await storage.updateCourseImage(courseId, null);
         if (!updatedCourse) {
-          // This shouldn't happen if we checked above, but handle it anyway
           return res.status(500).json({ error: "Failed to update course after deleting file" });
         }
       }
       
-      res.json({ success: true, message: "Image deleted successfully" });
+      res.json({ 
+        success: true, 
+        message: fileDeleted ? "Image deleted successfully" : "Image reference removed (file already deleted)" 
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to delete image" });
     }
@@ -739,11 +742,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const result = kickbackSchema.safeParse(req.body);
+      console.log('[KICKBACK DEBUG] Parsing result:', result.success, result.data);
       if (!result.success) {
+        console.log('[KICKBACK DEBUG] Validation errors:', result.error.flatten());
         return res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
       }
       
+      console.log('[KICKBACK DEBUG] Updating course:', req.params.id, 'with kickbackPercent:', result.data.kickbackPercent);
       const course = await storage.updateCourse(req.params.id, { kickbackPercent: result.data.kickbackPercent });
+      console.log('[KICKBACK DEBUG] Updated course:', course ? `${course.name} - ${course.kickbackPercent}%` : 'NULL');
+      
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
       }
