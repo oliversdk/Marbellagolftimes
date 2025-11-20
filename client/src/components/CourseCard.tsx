@@ -69,14 +69,14 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
         <OptimizedImage
           src={course.imageUrl || placeholderImage}
           alt={course.name}
-          className="w-full h-48 object-cover rounded-t-lg"
+          className="w-full h-40 sm:h-48 object-cover rounded-t-lg"
           data-testid={`img-course-${course.id}`}
         />
-      <CardHeader className="p-4 space-y-2">
+      <CardHeader className="p-3 sm:p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h3 className="font-serif font-semibold text-lg leading-tight" data-testid={`text-course-name-${course.id}`}>
+              <h3 className="font-serif font-semibold text-base sm:text-lg leading-tight" data-testid={`text-course-name-${course.id}`}>
                 {course.name}
               </h3>
               {isBestDeal && (
@@ -134,8 +134,8 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
         </div>
       </CardHeader>
 
-      <CardContent className="px-4 pb-4 space-y-3">
-        <div className="flex flex-col gap-2 text-sm">
+      <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3">
+        <div className="flex flex-col gap-2 text-xs sm:text-sm">
           {course.email && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Mail className="h-4 w-4 flex-shrink-0" />
@@ -165,10 +165,10 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 pt-0 flex flex-col sm:flex-row gap-2">
+      <CardFooter className="p-3 sm:p-4 pt-0 flex flex-col sm:flex-row gap-2">
         <Button
           variant="default"
-          className="flex-1 w-full sm:w-auto min-h-11"
+          className="flex-1 w-full sm:w-auto min-h-12"
           asChild
           data-testid={`button-view-details-${course.id}`}
         >
@@ -179,7 +179,7 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
         {course.bookingUrl && (
           <Button
             variant="outline"
-            className="w-full sm:w-auto min-h-11"
+            className="w-full sm:w-auto min-h-12"
             onClick={() => window.open(course.bookingUrl || course.websiteUrl || "", "_blank")}
             data-testid={`button-club-site-${course.id}`}
           >

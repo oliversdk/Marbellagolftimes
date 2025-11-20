@@ -296,7 +296,7 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
+      <div className="relative h-[50vh] min-h-[450px] sm:h-[60vh] sm:min-h-[500px] w-full overflow-hidden">
         <div className="absolute inset-0">
           <video
             src={golfVideo}
@@ -311,17 +311,17 @@ export default function Home() {
         </div>
 
         <div className="relative h-full flex items-center justify-center px-4">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
+          <div className="max-w-3xl mx-auto text-center space-y-4 sm:space-y-6">
+            <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight px-2">
               {t('home.heroTitle')}
             </h1>
-            <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-2">
               {t('home.heroDescription')}
             </p>
 
             <Card className="bg-white/95 backdrop-blur-md border-0 shadow-xl max-w-xl mx-auto">
-              <CardHeader>
-                <CardTitle className="text-center">{t('home.startSearchTitle')}</CardTitle>
+              <CardHeader className="pb-4 sm:pb-6">
+                <CardTitle className="text-center text-lg sm:text-xl">{t('home.startSearchTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <LocationSearch onLocationSelected={handleLocationSelected} />
@@ -333,8 +333,8 @@ export default function Home() {
 
       {/* Search Filters */}
       {userLocation && (
-        <div className="border-b bg-card lg:relative lg:z-auto sticky top-0 z-50 lg:shadow-none shadow-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 touch-manipulation">
+        <div className="border-b bg-card lg:relative lg:z-auto sticky top-16 z-40 lg:shadow-none shadow-md">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 touch-manipulation">
             <SearchFilters currentFilters={searchFilters} onSearch={handleFiltersApplied} />
           </div>
         </div>
@@ -393,28 +393,30 @@ export default function Home() {
                     variant={viewMode === "list" ? "default" : "outline"}
                     onClick={() => setViewMode("list")}
                     data-testid="button-view-list"
-                    className="min-h-11"
+                    className="min-h-11 flex-1 sm:flex-none"
                   >
                     <LayoutGrid className="mr-2 h-4 w-4" />
-                    {t('search.viewList')}
+                    <span className="hidden xs:inline">{t('search.viewList')}</span>
+                    <span className="inline xs:hidden">List</span>
                   </Button>
                   <Button 
                     variant={viewMode === "map" ? "default" : "outline"}
                     onClick={() => setViewMode("map")}
                     data-testid="button-view-map"
-                    className="min-h-11"
+                    className="min-h-11 flex-1 sm:flex-none"
                   >
                     <Map className="mr-2 h-4 w-4" />
-                    {t('search.viewMap')}
+                    <span className="hidden xs:inline">{t('search.viewMap')}</span>
+                    <span className="inline xs:hidden">Map</span>
                   </Button>
                 </div>
                 
                 {/* Sorting Controls - Only for List View */}
                 {viewMode === "list" && (
-                  <div className="flex flex-wrap gap-2" data-testid="sort-controls">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2" data-testid="sort-controls">
                     <button
                       onClick={() => setSortMode("distance-asc")}
-                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
                         sortMode === "distance-asc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -425,7 +427,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("distance-desc")}
-                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
                         sortMode === "distance-desc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -436,7 +438,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("price-asc")}
-                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
                         sortMode === "price-asc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -447,7 +449,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("price-desc")}
-                      className={`px-4 py-2 min-h-11 rounded-md border text-sm font-medium transition-colors ${
+                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
                         sortMode === "price-desc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"

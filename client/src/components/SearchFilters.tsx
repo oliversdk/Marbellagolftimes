@@ -13,8 +13,9 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { OptimizedImage } from "@/components/OptimizedImage";
-import { CalendarIcon, Search, X, Clock } from "lucide-react";
+import { CalendarIcon, Search, X, Clock, SlidersHorizontal } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -53,6 +54,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
   const [courseSearch, setCourseSearch] = useState<string>(currentFilters?.courseSearch || "");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(currentFilters?.showFavoritesOnly ?? false);
   const [autocompleteOpen, setAutocompleteOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   
   const { recentSearches, addRecentSearch, clearRecentSearches } = useRecentSearches();
 
@@ -115,7 +117,13 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
     });
   }, [recentSearches, courses]);
 
-  return (
+  const handleSearchAndClose = useCallback(() => {
+    handleSearch();
+    setMobileFiltersOpen(false);
+  }, [handleSearch]);
+
+  // Filter form content (reused in mobile sheet and desktop view)
+  const filtersContent = (
     <div className="space-y-4 touch-manipulation">
       <div className="space-y-2">
         <Label htmlFor="course-search">{t('search.searchCourses')}</Label>
@@ -134,7 +142,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
               </span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[400px] p-0" align="start">
+          <PopoverContent className="w-[90vw] sm:w-[400px] p-0" align="start">
             <Command>
               <CommandInput
                 placeholder={t('search.searchCourses')}
@@ -202,7 +210,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
                           data-testid={`course-search-result-${course.id}`}
                         >
                           <OptimizedImage
-                            src={course.imageUrl}
+                            src={course.imageUrl || undefined}
                             alt={course.name}
                             className="h-12 w-12 rounded-md object-cover shrink-0"
                             fallbackSrc={placeholderImage}
@@ -329,10 +337,37 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
         </Label>
       </div>
 
-      <Button onClick={handleSearch} className="w-full min-h-11" size="lg" data-testid="button-apply-filters">
+      <Button onClick={handleSearchAndClose} className="w-full min-h-12" size="lg" data-testid="button-apply-filters">
         <Search className="mr-2 h-4 w-4" />
         {t('common.apply')}
       </Button>
     </div>
+  );
+
+  return (
+    <>
+      {/* Mobile: Sheet with filters button */}
+      <div className="block lg:hidden">
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" className="w-full min-h-12" size="lg" data-testid="button-open-filters-mobile" aria-label={t('search.filter')}>
+              <SlidersHorizontal className="mr-2 h-5 w-5" />
+              {t('search.filter')}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
+            <SheetHeader className="mb-4">
+              <SheetTitle>{t('search.filter')}</SheetTitle>
+            </SheetHeader>
+            {filtersContent}
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop: Filters displayed directly */}
+      <div className="hidden lg:block">
+        {filtersContent}
+      </div>
+    </>
   );
 }

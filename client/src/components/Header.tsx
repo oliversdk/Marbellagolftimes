@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin, User, LogOut, UserCircle, Shield } from "lucide-react";
+import { MapPin, User, LogOut, UserCircle, Shield, Menu } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,13 +13,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export function Header() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { t } = useI18n();
   const { isAuthenticated, isAdmin } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navigateAndCloseMobile = (path: string) => {
+    setMobileMenuOpen(false);
+    setLocation(path);
+  };
 
   const handleLogout = async () => {
     try {
@@ -33,20 +46,22 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
-          <div className="flex items-center gap-2 cursor-pointer hover-elevate px-3 py-2 rounded-md">
+        <div className="flex h-16 items-center justify-between gap-2">
+          {/* Logo - Simplified on mobile */}
+          <div className="flex items-center gap-2 hover-elevate px-2 sm:px-3 py-2 rounded-md">
             <Link href="/" data-testid="link-home">
-              <MapPin className="h-6 w-6 text-primary" />
+              <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </Link>
             <Link href="/" className="flex flex-col">
-              <span className="font-serif font-semibold text-lg leading-none">
+              <span className="font-serif font-semibold text-base sm:text-lg leading-none">
                 {t('header.title')}
               </span>
-              <span className="text-xs text-muted-foreground">{t('header.subtitle')}</span>
+              <span className="hidden sm:inline text-xs text-muted-foreground">{t('header.subtitle')}</span>
             </Link>
           </div>
 
-          <nav className="hidden md:flex items-center gap-6">
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-6">
             <Link href="/">
               <span
                 className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${
@@ -71,7 +86,13 @@ export function Header() {
             )}
           </nav>
 
-          <div className="flex items-center gap-2">
+          {/* Desktop Right Actions */}
+          <div className="hidden lg:flex items-center gap-2">
+            <Link href="/#search">
+              <Button variant="default" size="default" data-testid="button-find-tee-times-desktop">
+                {t('search.searchButton')}
+              </Button>
+            </Link>
             <LanguageSwitcher />
             {isAuthenticated ? (
               <DropdownMenu>
@@ -89,7 +110,7 @@ export function Header() {
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem asChild>
-                      <Link href="/admin" className="cursor-pointer" data-testid="link-admin-mobile">
+                      <Link href="/admin" className="cursor-pointer" data-testid="link-admin-desktop">
                         <Shield className="mr-2 h-4 w-4" />
                         {t('header.admin')}
                       </Link>
@@ -129,11 +150,146 @@ export function Header() {
                 </Button>
               </>
             )}
-            <Link href="/">
-              <Button size="default" data-testid="button-search-tee-times">
-                {t('search.searchButton')}
-              </Button>
-            </Link>
+          </div>
+
+          {/* Mobile Right Actions */}
+          <div className="flex lg:hidden items-center gap-2">
+            <LanguageSwitcher />
+            
+            {/* Mobile Menu - Always show for navigation */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="min-w-11 min-h-11" data-testid="button-mobile-menu" aria-label={t('common.menu')}>
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                <SheetHeader>
+                  <SheetTitle>{t('header.title')}</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4 mt-8">
+                  {isAuthenticated ? (
+                    <>
+                      <Button 
+                        variant="default" 
+                        size="lg" 
+                        className="w-full min-h-12"
+                        data-testid="button-search-mobile-auth"
+                        onClick={() => navigateAndCloseMobile("/")}
+                      >
+                        {t('search.searchButton')}
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="lg" 
+                        className="w-full min-h-12"
+                        data-testid="button-profile-mobile"
+                        onClick={() => navigateAndCloseMobile("/profile")}
+                      >
+                        <UserCircle className="mr-2 h-4 w-4" />
+                        {t('profile.title')}
+                      </Button>
+                      {isAdmin && (
+                        <Button 
+                          variant="secondary" 
+                          size="lg" 
+                          className="w-full min-h-12"
+                          data-testid="button-admin-mobile-nav"
+                          onClick={() => navigateAndCloseMobile("/admin")}
+                        >
+                          <Shield className="mr-2 h-4 w-4" />
+                          {t('header.admin')}
+                        </Button>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="w-full min-h-12"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          handleLogout();
+                        }}
+                        data-testid="button-logout-mobile-nav"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        {t('header.logout')}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="default" 
+                        size="lg" 
+                        className="w-full min-h-12"
+                        data-testid="button-login-mobile"
+                        onClick={() => {
+                          setAuthMode("login");
+                          setAuthDialogOpen(true);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        {t('header.login')}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="w-full min-h-12"
+                        data-testid="button-signup-mobile"
+                        onClick={() => {
+                          setAuthMode("signup");
+                          setAuthDialogOpen(true);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        {t('auth.signup')}
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="lg" 
+                        className="w-full min-h-12"
+                        data-testid="button-search-mobile"
+                        onClick={() => navigateAndCloseMobile("/")}
+                      >
+                        {t('search.searchButton')}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+            
+            {/* Keep user icon for quick profile access when authenticated */}
+            {isAuthenticated && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="min-w-11 min-h-11" data-testid="button-user-menu-mobile" aria-label={t('profile.title')}>
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="cursor-pointer" data-testid="link-profile-mobile">
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      {t('profile.title')}
+                    </Link>
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer" data-testid="link-admin-mobile">
+                        <Shield className="mr-2 h-4 w-4" />
+                        {t('header.admin')}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem asChild>
+                    <button onClick={handleLogout} className="w-full cursor-pointer flex items-center" data-testid="button-logout-mobile">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      {t('header.logout')}
+                    </button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>

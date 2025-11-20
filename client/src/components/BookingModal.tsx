@@ -175,7 +175,8 @@ export function BookingModal({
           <Button
             variant={searchDate.toDateString() === new Date().toDateString() ? "default" : "outline"}
             onClick={() => setSearchDate(new Date())}
-            size="sm"
+            size="default"
+            className="flex-1 min-h-11"
             data-testid="button-date-today"
           >
             {t('common.today')}
@@ -183,7 +184,8 @@ export function BookingModal({
           <Button
             variant={searchDate.toDateString() === addDays(new Date(), 1).toDateString() ? "default" : "outline"}
             onClick={() => setSearchDate(addDays(new Date(), 1))}
-            size="sm"
+            size="default"
+            className="flex-1 min-h-11"
             data-testid="button-date-tomorrow"
           >
             {t('common.tomorrow')}
@@ -191,7 +193,8 @@ export function BookingModal({
           <Button
             variant={searchDate.toDateString() === addDays(new Date(), 2).toDateString() ? "default" : "outline"}
             onClick={() => setSearchDate(addDays(new Date(), 2))}
-            size="sm"
+            size="default"
+            className="flex-1 min-h-11"
             data-testid="button-date-day-after"
           >
             {format(addDays(new Date(), 2), 'EEE')}
@@ -201,7 +204,7 @@ export function BookingModal({
         <div className="space-y-2">
           <Label>{t('booking.numberOfPlayers')}</Label>
           <Select value={players} onValueChange={setPlayers}>
-            <SelectTrigger data-testid="select-players-search">
+            <SelectTrigger data-testid="select-players-search" className="min-h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -231,7 +234,7 @@ export function BookingModal({
                   onClick={() => handleSlotSelect(slot)}
                   data-testid={`slot-option-${index}`}
                 >
-                  <CardContent className="flex items-center justify-between p-3">
+                  <CardContent className="flex items-center justify-between p-4 min-h-16">
                     <div className="flex items-center gap-3">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -269,6 +272,7 @@ export function BookingModal({
           variant="outline"
           onClick={() => onOpenChange(false)}
           data-testid="button-cancel-booking"
+          className="min-h-11"
         >
           {t('common.cancel')}
         </Button>
@@ -306,6 +310,7 @@ export function BookingModal({
             placeholder={t('placeholders.name')}
             required
             data-testid="input-customer-name"
+            className="min-h-11"
           />
         </div>
 
@@ -319,6 +324,7 @@ export function BookingModal({
             placeholder={t('placeholders.email')}
             required
             data-testid="input-customer-email"
+            className="min-h-11"
           />
         </div>
 
@@ -331,6 +337,7 @@ export function BookingModal({
             onChange={(e) => setCustomerPhone(e.target.value)}
             placeholder={t('placeholders.phone')}
             data-testid="input-customer-phone"
+            className="min-h-11"
           />
         </div>
 
@@ -342,6 +349,7 @@ export function BookingModal({
               onClick={handleBackToSlots}
               disabled={isPending}
               data-testid="button-back-to-slots"
+              className="min-h-11"
             >
               {t('common.back')}
             </Button>
@@ -352,6 +360,7 @@ export function BookingModal({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
             data-testid="button-cancel-booking"
+            className="min-h-11"
           >
             {t('common.cancel')}
           </Button>
@@ -359,6 +368,7 @@ export function BookingModal({
             type="submit"
             disabled={isPending}
             data-testid="button-submit-booking"
+            className="min-h-11"
           >
             {isPending ? t('common.loading') : t('booking.submitBooking')}
           </Button>
@@ -369,7 +379,7 @@ export function BookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]" data-testid="dialog-booking">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto" data-testid="dialog-booking">
         {step === 'select-time' ? renderTimeSelection() : renderDetailsForm()}
       </DialogContent>
     </Dialog>

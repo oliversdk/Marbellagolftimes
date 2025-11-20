@@ -79,7 +79,7 @@ export function LocationSearch({ onLocationSelected }: LocationSearchProps) {
           <Button
             onClick={handleCurrentLocation}
             disabled={isLoading}
-            className="w-full"
+            className="w-full min-h-11"
             size="lg"
             data-testid="button-use-location"
           >
