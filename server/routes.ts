@@ -742,16 +742,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const result = kickbackSchema.safeParse(req.body);
-      console.log('[KICKBACK DEBUG] Parsing result:', result.success, result.data);
       if (!result.success) {
-        console.log('[KICKBACK DEBUG] Validation errors:', result.error.flatten());
         return res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
       }
       
-      console.log('[KICKBACK DEBUG] Updating course:', req.params.id, 'with kickbackPercent:', result.data.kickbackPercent);
       const course = await storage.updateCourse(req.params.id, { kickbackPercent: result.data.kickbackPercent });
-      console.log('[KICKBACK DEBUG] Updated course:', course ? `${course.name} - ${course.kickbackPercent}%` : 'NULL');
-      
       if (!course) {
         return res.status(404).json({ message: "Course not found" });
       }
