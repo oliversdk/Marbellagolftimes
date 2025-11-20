@@ -25,6 +25,7 @@ import {
   courseReviews,
   testimonials,
   adCampaigns,
+  blogPosts,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -1716,11 +1717,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const result = await db
-      .delete(users)
-      .where(eq(users.id, id))
-      .returning();
-    return result.length > 0;
+    // Delete user with cascade - remove all related data first
+    try {
+      // Delete user's course reviews
+      await db.delete(courseReviews).where(eq(courseReviews.userId, id));
+      
+      // Delete user's testimonials
+      await db.delete(testimonials).where(eq(testimonials.userId, id));
+      
+      // Delete user's blog posts (if they have any)
+      await db.delete(blogPosts).where(eq(blogPosts.authorId, id));
+      
+      // Set booking requests userId to NULL (preserve booking history)
+      await db
+        .update(bookingRequests)
+        .set({ userId: null })
+        .where(eq(bookingRequests.userId, id));
+      
+      // Finally delete the user
+      const result = await db
+        .delete(users)
+        .where(eq(users.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
   }
 
   // Course Reviews

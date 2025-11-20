@@ -20,7 +20,7 @@ An Admin dashboard provides tools for managing bookings, courses, images, and af
 
 A comprehensive reviews and social proof system allows authenticated users to submit course reviews with star ratings and optional photo uploads. "Top Rated" badges are displayed for highly-rated courses, and a testimonials carousel showcases customer feedback.
 
-The Admin dashboard includes an Analytics Dashboard for revenue metrics, booking trends (daily, weekly, monthly), and popular courses, visualized with Recharts. It also features a User Management system for full CRUD operations on user accounts with role-based access control and the ability to view a user's booking history.
+The Admin dashboard includes an Analytics Dashboard for revenue metrics, booking trends (daily, weekly, monthly), and popular courses, visualized with Recharts. It also features a User Management system for full CRUD operations on user accounts with role-based access control, the ability to view a user's booking history, and cascade delete functionality that safely removes users along with their reviews, testimonials, and blog posts while preserving booking history.
 
 A Commission & ROI Tracking System in the Admin interface monitors affiliate earnings based on course kickback percentages (editable via unified Edit Course dialog) and tracks advertising campaign performance, calculating ROI. Course commission percentages are stored in the database and persist correctly with optimistic UI updates for instant feedback.
 
