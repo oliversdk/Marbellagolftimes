@@ -346,6 +346,15 @@ export default function Admin() {
         title: t('admin.imageUpdatedTitle'),
         description: t('admin.imageUpdatedDescription', { courseName }),
       });
+      // Update local state in dialog using state setter callback to avoid stale closure
+      setEditingCourse((current) => {
+        if (current?.id === variables.courseId) {
+          // Also update URL input when updating course
+          setEditCourseImageUrl(variables.imageUrl);
+          return { ...current, imageUrl: variables.imageUrl };
+        }
+        return current;
+      });
       // Clear the input for this course
       setCourseImageUrls((prev) => {
         const updated = { ...prev };
@@ -402,11 +411,20 @@ export default function Admin() {
       const encodedFilename = encodeURIComponent(filename);
       return await apiRequest(`/api/images/${encodedFilename}?courseId=${encodeURIComponent(courseId)}&directory=${encodeURIComponent(directory)}`, "DELETE", undefined);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       toast({
         title: t('admin.imageDeletedTitle'),
         description: t('admin.imageDeletedDescription'),
+      });
+      // Update local state in dialog using state setter callback to avoid stale closure
+      setEditingCourse((current) => {
+        if (current?.id === variables.courseId) {
+          // Also clear URL input when deleting image
+          setEditCourseImageUrl("");
+          return { ...current, imageUrl: null };
+        }
+        return current;
       });
     },
     onError: (error: any) => {
