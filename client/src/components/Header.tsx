@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin, User, LogOut, UserCircle } from "lucide-react";
+import { MapPin, User, LogOut, UserCircle, Shield } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
@@ -87,6 +87,14 @@ export function Header() {
                       {t('profile.title')}
                     </Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer" data-testid="link-admin-mobile">
+                        <Shield className="mr-2 h-4 w-4" />
+                        {t('header.admin')}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <button onClick={handleLogout} className="w-full cursor-pointer flex items-center" data-testid="button-logout">
                       <LogOut className="mr-2 h-4 w-4" />
