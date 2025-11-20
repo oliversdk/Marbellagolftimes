@@ -28,7 +28,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc, sql as sqlFunc, count, sum } from "drizzle-orm";
+import { eq, desc, sql as sqlFunc, sql, count, sum } from "drizzle-orm";
 
 export interface IStorage {
   // Golf Courses
@@ -1383,20 +1383,22 @@ export class MemStorage implements IStorage {
     const confirmedBookings = Array.from(this.bookings.values()).filter(b => b.status === 'CONFIRMED');
     
     // Group by course and calculate commissions
-    const courseCommissions = new Map<string, { commission: number; bookingCount: number }>();
+    const courseCommissions = new Map<string, { courseName: string; commission: number; bookingCount: number }>();
     
     for (const booking of confirmedBookings) {
       if (!booking.estimatedPrice || booking.estimatedPrice <= 0) continue;
       
+      const courseKey = booking.courseId ?? 'unknown';
       const course = this.courses.get(booking.courseId);
-      if (!course) continue;
+      const courseName = course?.name || 'Unknown Course';
+      const kickback = Number(course?.kickbackPercent ?? 0);
       
       const bookingPrice = Number(booking.estimatedPrice ?? 0);
-      const kickback = Number(course.kickbackPercent ?? 0);
       const commission = bookingPrice * (kickback / 100);
-      const existing = courseCommissions.get(booking.courseId) || { commission: 0, bookingCount: 0 };
+      const existing = courseCommissions.get(courseKey) || { courseName, commission: 0, bookingCount: 0 };
       
-      courseCommissions.set(booking.courseId, {
+      courseCommissions.set(courseKey, {
+        courseName,
         commission: existing.commission + commission,
         bookingCount: existing.bookingCount + 1,
       });
@@ -1405,11 +1407,10 @@ export class MemStorage implements IStorage {
     // Calculate total and format results
     let totalCommission = 0;
     const commissionsPerCourse = Array.from(courseCommissions.entries()).map(([courseId, data]) => {
-      const course = this.courses.get(courseId);
       totalCommission += data.commission;
       return {
         courseId,
-        courseName: course?.name || 'Unknown Course',
+        courseName: data.courseName,
         commission: data.commission,
         bookingCount: data.bookingCount,
       };
@@ -1444,10 +1445,9 @@ export class MemStorage implements IStorage {
       if (!booking.estimatedPrice || booking.estimatedPrice <= 0) continue;
       
       const course = this.courses.get(booking.courseId);
-      if (!course) continue;
+      const kickback = Number(course?.kickbackPercent ?? 0);
       
       const bookingPrice = Number(booking.estimatedPrice ?? 0);
-      const kickback = Number(course.kickbackPercent ?? 0);
       const commission = bookingPrice * (kickback / 100);
       
       let key: string;
@@ -1893,9 +1893,9 @@ export class DatabaseStorage implements IStorage {
       .select({
         bookingId: bookingRequests.id,
         courseId: bookingRequests.courseId,
-        courseName: golfCourses.name,
+        courseName: sql<string>`COALESCE(${golfCourses.name}, 'Unknown Course')`.as('courseName'),
         estimatedPrice: bookingRequests.estimatedPrice,
-        kickbackPercent: golfCourses.kickbackPercent,
+        kickbackPercent: sql<number>`COALESCE(${golfCourses.kickbackPercent}, 0)`.as('kickbackPercent'),
       })
       .from(bookingRequests)
       .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
@@ -1909,12 +1909,12 @@ export class DatabaseStorage implements IStorage {
     const commissionsMap = new Map<string, { courseName: string; commission: number; bookingCount: number }>();
     
     for (const row of results) {
-      // Skip bookings with deleted courses
-      if (!row.courseName) continue;
-      
       const bookingPrice = Number(row.estimatedPrice ?? 0);
       const kickback = Number(row.kickbackPercent ?? 0);
       const commission = bookingPrice * (kickback / 100);
+      
+      if (!Number.isFinite(commission)) continue;
+      
       totalCommission += commission;
       
       const existing = commissionsMap.get(row.courseId);
@@ -1943,10 +1943,10 @@ export class DatabaseStorage implements IStorage {
     const results = await db
       .select({
         courseId: bookingRequests.courseId,
-        courseName: golfCourses.name,
+        courseName: sql<string>`COALESCE(${golfCourses.name}, 'Unknown Course')`.as('courseName'),
         estimatedPrice: bookingRequests.estimatedPrice,
         createdAt: bookingRequests.createdAt,
-        kickbackPercent: golfCourses.kickbackPercent,
+        kickbackPercent: sql<number>`COALESCE(${golfCourses.kickbackPercent}, 0)`.as('kickbackPercent'),
       })
       .from(bookingRequests)
       .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
@@ -1973,12 +1973,11 @@ export class DatabaseStorage implements IStorage {
       const date = new Date(row.createdAt);
       if (date < cutoffDate) continue;
       
-      // Skip bookings with deleted courses
-      if (!row.courseName) continue;
-      
       const bookingPrice = Number(row.estimatedPrice ?? 0);
       const kickback = Number(row.kickbackPercent ?? 0);
       const commission = bookingPrice * (kickback / 100);
+      
+      if (!Number.isFinite(commission)) continue;
       
       let key: string;
       if (period === 'day') {

@@ -67,7 +67,6 @@ export function CommissionDashboard() {
   // Sort commission per course by commission amount (highest first)
   const sortedCommissionsPerCourse = commissionData?.commissionsPerCourse
     ? [...commissionData.commissionsPerCourse]
-        .filter(course => course.commission > 0)
         .sort((a, b) => b.commission - a.commission)
     : [];
 
