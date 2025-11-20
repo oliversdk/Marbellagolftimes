@@ -17,9 +17,14 @@ import {
 export function Header() {
   const [location] = useLocation();
   const { t } = useI18n();
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, user } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+
+  // Debug logging
+  console.log('[Header Debug] isAuthenticated:', isAuthenticated);
+  console.log('[Header Debug] isAdmin:', isAdmin);
+  console.log('[Header Debug] user:', user);
 
   const handleLogout = async () => {
     try {
