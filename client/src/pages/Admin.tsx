@@ -261,20 +261,17 @@ export default function Admin() {
   // Update course kickback mutation
   const updateKickbackMutation = useMutation({
     mutationFn: async ({ courseId, kickbackPercent }: { courseId: string; kickbackPercent: number }) => {
-      return await apiRequest(`/api/admin/courses/${courseId}/kickback`, "PATCH", { kickbackPercent });
+      const response = await apiRequest(`/api/admin/courses/${courseId}/kickback`, "PATCH", { kickbackPercent });
+      return await response.json() as GolfCourse;
     },
-    onSuccess: async (_data, variables) => {
-      // Immediately update local course data for instant UI feedback
+    onSuccess: async (data: GolfCourse) => {
+      // Update cache with server response (source of truth)
       queryClient.setQueryData<GolfCourse[]>(["/api/courses"], (old) => {
         if (!old) return old;
         return old.map((course) =>
-          course.id === variables.courseId
-            ? { ...course, kickbackPercent: variables.kickbackPercent }
-            : course
+          course.id === data.id ? data : course
         );
       });
-      // Force immediate refetch to ensure UI is in sync
-      await queryClient.refetchQueries({ queryKey: ["/api/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/analytics/commission"] });
       toast({
         title: "Kickback updated",
