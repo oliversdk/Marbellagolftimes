@@ -1,9 +1,9 @@
-# Design Guidelines: Fridas Golf
+# Design Guidelines: Marbella Golf Times
 
 ## Design Approach
-**Boutique-Premium**: Fridas Golf positions itself as a personal concierge for Costa del Sol's finest golf experiences. Drawing inspiration from luxury hospitality brands and curated travel services, we blend the efficiency of modern booking platforms with the warmth and personal touch of a dedicated golf advisor.
+**Boutique-Premium**: Marbella Golf Times positions itself as a personal concierge for Costa del Sol's finest golf experiences. Drawing inspiration from luxury hospitality brands and curated travel services, we blend the efficiency of modern booking platforms with the warmth and personal touch of a dedicated golf advisor.
 
-**Core Principle**: Fridas Golf is your trusted guide—not just a search tool, but a carefully curated selection of premier tee times delivered with personal service and local expertise. Every interaction should feel warm, premium, and effortlessly elegant.
+**Core Principle**: Marbella Golf Times is your trusted guide—not just a search tool, but a carefully curated selection of premier tee times delivered with personal service and local expertise. Every interaction should feel warm, premium, and effortlessly elegant.
 
 ---
 
@@ -98,7 +98,7 @@ The color system reflects the natural beauty of Costa del Sol golf—olive grove
 **Sections** (in order):
 1. **Hero with Search** - Welcome message, geolocation input, search filters
 2. **Featured Courses** - 3-column grid showcasing premium courses with curated descriptions
-3. **Our Service** - Personal touch: How Fridas Golf curates your experience
+3. **Our Service** - Personal touch: How Marbella Golf Times curates your experience
 4. **Benefits** - Real-time availability, local expertise, premium course access
 5. **Course Statistics** - Premium courses across Sotogrande to Málaga
 6. **Testimonials** - Customer experiences with personal touch
@@ -160,7 +160,7 @@ The color system reflects the natural beauty of Costa del Sol golf—olive grove
 
 ### Navigation
 - **Sticky header**: Clean background with subtle elevation
-- Fridas Golf logo (left), navigation links (center), primary CTA (right)
+- Marbella Golf Times logo (left), navigation links (center), primary CTA (right)
 - Mobile: Elegant slide-out menu
 
 ### Cards

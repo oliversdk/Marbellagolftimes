@@ -259,9 +259,9 @@ export default function Home() {
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Fridas Golf",
-    "url": "https://fridasgolf.com",
-    "logo": "https://fridasgolf.com/favicon.png",
+    "name": "Marbella Golf Times",
+    "url": "https://marbellagolftimes.com",
+    "logo": "https://marbellagolftimes.com/favicon.png",
     "description": "Premium golf tee time booking service for Costa del Sol. Curated selection of 40+ premier golf courses from Sotogrande to Málaga with real-time availability and personal concierge service.",
     "address": {
       "@type": "PostalAddress",
@@ -279,17 +279,17 @@ export default function Home() {
       "areaServed": "ES"
     },
     "sameAs": [
-      "https://fridasgolf.com"
+      "https://marbellagolftimes.com"
     ]
   };
 
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title="Fridas Golf - Premium Golf Tee Times Costa del Sol"
+        title="Marbella Golf Times - Premium Golf Tee Times Costa del Sol"
         description="Book tee times at 40+ premier golf courses from Sotogrande to Málaga. Real availability, curated selection, concierge service."
         image={heroImage}
-        url="https://fridasgolf.com"
+        url="https://marbellagolftimes.com"
         type="website"
         structuredData={organizationSchema}
       />

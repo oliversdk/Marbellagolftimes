@@ -1,8 +1,8 @@
-# Fridas Golf
+# Marbella Golf Times
 
 ## Overview
 
-Fridas Golf is a boutique-premium golf tee-time service for the Costa del Sol, Spain. It provides real tee-time availability across over 40 premier courses, curated course selection, geolocation search, and a complete booking flow with concierge-quality service. The platform aims to offer a modern, efficient, and user-friendly experience for booking golf tee times, enhancing the golf tourism market in the region.
+Marbella Golf Times is a boutique-premium golf tee-time service for the Costa del Sol, Spain. It provides real tee-time availability across over 40 premier courses, curated course selection, geolocation search, and a complete booking flow with concierge-quality service. The platform aims to offer a modern, efficient, and user-friendly experience for booking golf tee times, enhancing the golf tourism market in the region.
 
 ## User Preferences
 

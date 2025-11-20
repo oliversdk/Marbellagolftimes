@@ -55,9 +55,9 @@ export function SEO({
   const locale = languageToLocale[language];
   
   // Default values
-  const siteName = 'Fridas Golf';
-  const defaultImage = image || 'https://fridasgolf.com/favicon.png';
-  const defaultUrl = url || 'https://fridasgolf.com';
+  const siteName = 'Marbella Golf Times';
+  const defaultImage = image || 'https://marbellagolftimes.com/favicon.png';
+  const defaultUrl = url || 'https://marbellagolftimes.com';
   const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
   
   useEffect(() => {
