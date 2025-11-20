@@ -113,7 +113,8 @@ export default function Admin() {
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [viewingUserBookings, setViewingUserBookings] = useState<User | null>(null);
   const [userSearchQuery, setUserSearchQuery] = useState("");
-  const [editingCourseKickback, setEditingCourseKickback] = useState<GolfCourse | null>(null);
+  const [editingCourse, setEditingCourse] = useState<GolfCourse | null>(null);
+  const [editCourseImageUrl, setEditCourseImageUrl] = useState("");
   const { toast } = useToast();
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const { t } = useI18n();
@@ -269,7 +270,7 @@ export default function Admin() {
         title: "Kickback updated",
         description: "Commission percentage has been updated successfully",
       });
-      setEditingCourseKickback(null);
+      setEditingCourse(null);
       kickbackForm.reset();
     },
     onError: (error: any) => {
@@ -281,9 +282,10 @@ export default function Admin() {
     },
   });
 
-  // Handle edit kickback - populate form
-  const handleEditKickback = (course: GolfCourse) => {
-    setEditingCourseKickback(course);
+  // Handle edit course - populate form
+  const handleEditCourse = (course: GolfCourse) => {
+    setEditingCourse(course);
+    setEditCourseImageUrl(course.imageUrl || "");
     kickbackForm.reset({
       kickbackPercent: course.kickbackPercent || 0,
     });
@@ -291,11 +293,22 @@ export default function Admin() {
 
   // Handle save kickback
   const handleSaveKickback = (data: z.infer<typeof editKickbackSchema>) => {
-    if (editingCourseKickback) {
+    if (editingCourse) {
       updateKickbackMutation.mutate({ 
-        courseId: editingCourseKickback.id, 
+        courseId: editingCourse.id, 
         kickbackPercent: data.kickbackPercent 
       });
+    }
+  };
+  
+  // Handle delete image for editing course
+  const handleDeleteCourseImage = () => {
+    if (!editingCourse?.imageUrl) return;
+    const parts = editingCourse.imageUrl.split("/");
+    const filename = parts.pop();
+    const directory = parts[parts.length - 1];
+    if (filename && window.confirm(`Delete ${filename}? This cannot be undone.`)) {
+      deleteImageMutation.mutate({ filename, courseId: editingCourse.id, directory });
     }
   };
 
@@ -531,8 +544,6 @@ export default function Admin() {
               <Percent className="h-4 w-4 mr-2" />
               Courses
             </TabsTrigger>
-            <TabsTrigger value="all-courses" data-testid="tab-all-courses">{t('admin.tabAllCourses')}</TabsTrigger>
-            <TabsTrigger value="course-images" data-testid="tab-course-images">{t('admin.tabCourseImages')}</TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
           </TabsList>
 
@@ -712,7 +723,7 @@ export default function Admin() {
                   Course Management
                 </CardTitle>
                 <CardDescription>
-                  Manage course commission percentages
+                  Manage course images, commission percentages, and details
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -720,6 +731,7 @@ export default function Admin() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Image</TableHead>
                         <TableHead>Course Name</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead className="text-right" data-testid="table-column-kickback">Kickback %</TableHead>
@@ -729,6 +741,16 @@ export default function Admin() {
                     <TableBody>
                       {courses.map((course) => (
                         <TableRow key={course.id} data-testid={`row-course-${course.id}`}>
+                          <TableCell>
+                            <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
+                              <OptimizedImage
+                                src={course.imageUrl || undefined}
+                                alt={course.name}
+                                className="w-full h-full object-cover"
+                                data-testid={`img-course-thumb-${course.id}`}
+                              />
+                            </div>
+                          </TableCell>
                           <TableCell className="font-medium">{course.name}</TableCell>
                           <TableCell>{course.city}, {course.province}</TableCell>
                           <TableCell className="text-right">
@@ -740,12 +762,12 @@ export default function Admin() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEditKickback(course)}
-                              data-testid={`button-edit-kickback-${course.id}`}
-                              aria-label="Edit commission percentage"
+                              onClick={() => handleEditCourse(course)}
+                              data-testid={`button-edit-course-${course.id}`}
+                              aria-label="Edit course"
                             >
-                              <Percent className="h-4 w-4 mr-1" />
-                              Edit Kickback
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit Course
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -761,196 +783,6 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="all-courses">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('admin.allCoursesTitle')}</CardTitle>
-                <CardDescription>
-                  {t('admin.allCoursesDescription', { count: courses?.length || 0 })}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {courses && courses.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {courses.map((course) => (
-                      <CourseCard key={course.id} course={course} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    {t('admin.noCourses')}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="course-images">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Image className="h-5 w-5" />
-                  {t('admin.courseImageManager')}
-                </CardTitle>
-                <CardDescription>
-                  {t('admin.updateImagesDescription', { count: courses?.length || 0 })}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {courses && courses.length > 0 ? (
-                  <div className="space-y-4">
-                    {courses.map((course) => (
-                      <div 
-                        key={course.id} 
-                        className="border rounded-md p-4 hover-elevate"
-                        data-testid={`card-course-image-${course.id}`}
-                      >
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                          <div className="space-y-2">
-                            <div className="font-medium">{course.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {course.city}, {course.province}
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">{t('admin.currentImage')}</Label>
-                            {course.imageUrl ? (
-                              <div className="space-y-2">
-                                <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
-                                  <OptimizedImage
-                                    src={course.imageUrl}
-                                    alt={course.name}
-                                    className="w-full h-full object-cover"
-                                    data-testid={`img-course-${course.id}`}
-                                  />
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="w-full"
-                                  onClick={() => {
-                                    if (!course.imageUrl) return;
-                                    const parts = course.imageUrl.split("/");
-                                    const filename = parts.pop();
-                                    const directory = parts[parts.length - 1];
-                                    if (filename && window.confirm(`Delete ${filename}? This cannot be undone.`)) {
-                                      deleteImageMutation.mutate({ filename, courseId: course.id, directory });
-                                    }
-                                  }}
-                                  data-testid={`button-delete-image-${course.id}`}
-                                >
-                                  <Trash2 className="h-3 w-3 mr-2" />
-                                  {t('admin.deleteImage')}
-                                </Button>
-                                <div className="text-xs text-muted-foreground break-all">
-                                  {course.imageUrl}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
-                                <span className="text-xs text-muted-foreground">{t('admin.noImage')}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor={`image-url-${course.id}`} className="text-xs text-muted-foreground">
-                              {t('admin.newImageUrlOrUpload')}
-                            </Label>
-                            <Input
-                              id={`image-url-${course.id}`}
-                              value={courseImageUrls[course.id] || ""}
-                              onChange={(e) => 
-                                setCourseImageUrls((prev) => ({
-                                  ...prev,
-                                  [course.id]: e.target.value,
-                                }))
-                              }
-                              placeholder={t('admin.pathPlaceholder')}
-                              className="font-mono text-sm"
-                              data-testid={`input-image-url-${course.id}`}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              {t('admin.pathHint')}
-                            </p>
-                            <div className="flex gap-2 pt-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  const input = document.createElement("input");
-                                  input.type = "file";
-                                  input.accept = "image/jpeg,image/jpg,image/png,image/webp";
-                                  input.onchange = (e) => {
-                                    const file = (e.target as HTMLInputElement).files?.[0];
-                                    if (file) {
-                                      uploadImageMutation.mutate({ courseId: course.id, file });
-                                    }
-                                  };
-                                  input.click();
-                                }}
-                                disabled={uploadImageMutation.isPending}
-                                className="flex-1"
-                                data-testid={`button-upload-image-${course.id}`}
-                              >
-                                <Upload className="h-4 w-4 mr-2" />
-                                {uploadImageMutation.isPending ? t('admin.uploading') : t('admin.upload')}
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  const newImageUrl = courseImageUrls[course.id];
-                                  if (!newImageUrl || !newImageUrl.trim()) {
-                                    toast({
-                                      title: "Invalid Input",
-                                      description: "Please enter an image URL",
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-                                  const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-                                  const hasValidExtension = validExtensions.some(ext => 
-                                    newImageUrl.toLowerCase().endsWith(ext)
-                                  );
-                                  const startsWithValidDirectory = newImageUrl.startsWith("/stock_images/") || newImageUrl.startsWith("/generated_images/");
-                                  if (!startsWithValidDirectory || !hasValidExtension) {
-                                    toast({
-                                      title: "Invalid Format",
-                                      description: "URL must start with /stock_images/ or /generated_images/ and end with .jpg, .jpeg, .png, or .webp",
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-                                  updateCourseImageMutation.mutate({
-                                    courseId: course.id,
-                                    imageUrl: newImageUrl,
-                                  });
-                                }}
-                                disabled={
-                                  !courseImageUrls[course.id] || 
-                                  updateCourseImageMutation.isPending
-                                }
-                                className="flex-1"
-                                data-testid={`button-save-image-${course.id}`}
-                              >
-                                <Save className="h-4 w-4 mr-2" />
-                                {updateCourseImageMutation.isPending ? t('common.saving') : t('admin.setImageUrl')}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    {t('admin.noCourses')}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="emails">
             <div className="grid gap-6">
@@ -1215,78 +1047,200 @@ export default function Admin() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit Kickback Dialog */}
-        <Dialog open={!!editingCourseKickback} onOpenChange={(open) => !open && setEditingCourseKickback(null)}>
-          <DialogContent data-testid="dialog-edit-kickback">
+        {/* Edit Course Dialog */}
+        <Dialog open={!!editingCourse} onOpenChange={(open) => !open && setEditingCourse(null)}>
+          <DialogContent className="max-w-2xl" data-testid="dialog-edit-course">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Percent className="h-5 w-5" />
-                Edit Commission Percentage
+                <Edit className="h-5 w-5" />
+                Edit Course
               </DialogTitle>
               <DialogDescription>
-                Update the commission percentage you earn from bookings at this course
+                Update course image and commission percentage
               </DialogDescription>
             </DialogHeader>
-            {editingCourseKickback && (
-              <div className="rounded-md bg-muted p-3 mb-4">
-                <p className="font-medium">{editingCourseKickback.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {editingCourseKickback.city}, {editingCourseKickback.province}
-                </p>
+            {editingCourse && (
+              <div className="space-y-6">
+                <div className="rounded-md bg-muted p-3">
+                  <p className="font-medium">{editingCourse.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {editingCourse.city}, {editingCourse.province}
+                  </p>
+                </div>
+
+                {/* Course Image Section */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Course Image</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Current Image</Label>
+                      {editingCourse.imageUrl ? (
+                        <div className="space-y-2">
+                          <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
+                            <OptimizedImage
+                              src={editingCourse.imageUrl}
+                              alt={editingCourse.name}
+                              className="w-full h-full object-cover"
+                              data-testid="img-edit-course-current"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="w-full"
+                            onClick={handleDeleteCourseImage}
+                            data-testid="button-delete-course-image"
+                          >
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete Image
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="w-full h-32 rounded-md bg-muted flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">No image</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-image-url" className="text-xs text-muted-foreground">
+                        New Image URL or Upload
+                      </Label>
+                      <Input
+                        id="edit-image-url"
+                        value={editCourseImageUrl}
+                        onChange={(e) => setEditCourseImageUrl(e.target.value)}
+                        placeholder="/stock_images/course.jpg"
+                        className="font-mono text-sm"
+                        data-testid="input-edit-image-url"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Path must start with /stock_images/ or /generated_images/
+                      </p>
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = "image/jpeg,image/jpg,image/png,image/webp";
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) {
+                                uploadImageMutation.mutate({ courseId: editingCourse.id, file });
+                              }
+                            };
+                            input.click();
+                          }}
+                          disabled={uploadImageMutation.isPending}
+                          className="flex-1"
+                          data-testid="button-upload-course-image"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploadImageMutation.isPending ? "Uploading..." : "Upload"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!editCourseImageUrl || !editCourseImageUrl.trim()) {
+                              toast({
+                                title: "Invalid Input",
+                                description: "Please enter an image URL",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+                            const hasValidExtension = validExtensions.some(ext => 
+                              editCourseImageUrl.toLowerCase().endsWith(ext)
+                            );
+                            const startsWithValidDirectory = editCourseImageUrl.startsWith("/stock_images/") || editCourseImageUrl.startsWith("/generated_images/");
+                            if (!startsWithValidDirectory || !hasValidExtension) {
+                              toast({
+                                title: "Invalid Format",
+                                description: "URL must start with /stock_images/ or /generated_images/ and end with .jpg, .jpeg, .png, or .webp",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            updateCourseImageMutation.mutate({
+                              courseId: editingCourse.id,
+                              imageUrl: editCourseImageUrl,
+                            });
+                          }}
+                          disabled={
+                            !editCourseImageUrl || 
+                            updateCourseImageMutation.isPending
+                          }
+                          className="flex-1"
+                          data-testid="button-save-course-image"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          {updateCourseImageMutation.isPending ? "Saving..." : "Set URL"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Commission Percentage Section */}
+                <div className="border-t pt-4">
+                  <Form {...kickbackForm}>
+                    <form onSubmit={kickbackForm.handleSubmit(handleSaveKickback)} className="space-y-4">
+                      <FormField
+                        control={kickbackForm.control}
+                        name="kickbackPercent"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Commission Percentage</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  {...field}
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  max="100"
+                                  placeholder="0"
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                  data-testid="input-kickback-percent"
+                                  className="pr-8"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                  %
+                                </span>
+                              </div>
+                            </FormControl>
+                            <p className="text-sm text-muted-foreground">
+                              Enter the commission percentage you earn from bookings at this course (0-100%)
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setEditingCourse(null)}
+                          data-testid="button-cancel-edit-course"
+                        >
+                          Close
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={updateKickbackMutation.isPending}
+                          data-testid="button-save-kickback"
+                        >
+                          {updateKickbackMutation.isPending ? "Saving..." : "Save Commission %"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </div>
               </div>
             )}
-            <Form {...kickbackForm}>
-              <form onSubmit={kickbackForm.handleSubmit(handleSaveKickback)} className="space-y-4">
-                <FormField
-                  control={kickbackForm.control}
-                  name="kickbackPercent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Commission Percentage</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="100"
-                            placeholder="0"
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                            data-testid="input-kickback-percent"
-                            className="pr-8"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                            %
-                          </span>
-                        </div>
-                      </FormControl>
-                      <p className="text-sm text-muted-foreground">
-                        Enter the commission percentage you earn from bookings at this course (0-100%)
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setEditingCourseKickback(null)}
-                    data-testid="button-cancel-edit-kickback"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={updateKickbackMutation.isPending}
-                    data-testid="button-save-kickback"
-                  >
-                    {updateKickbackMutation.isPending ? "Saving..." : "Save Changes"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
           </DialogContent>
         </Dialog>
 
