@@ -1,54 +1,35 @@
-# Costa del Sol Golf Booking Systems - Discovery Report
+# Costa del Sol Golf Booking Systems - Discovery Report - CORRECTED
 
-## Major Findings 🎯
+## CRITICAL CORRECTION ⚠️
 
-### 1. **Golfmanager/TeeOne Dominance** (18 courses!)
-Valle Romano Golf Resort OGSÅ bruger Golfmanager!
-- URL: valleromano.golfmanager.com/consumer/home
-- Tenant: valleromano
-
-**Total: 18 Golfmanager kurser nu**
-
-### 2. **Golf Service Platform** (3+ courses identified)
-Popular booking aggregator bruges af flere kurser:
-- **Aloha Golf Club**: golf-service.com/book/tee-times/select-tee-time.asp?corid=119
-- **Rio Real Golf & Hotel**: golf-service.com/book/tee-times/select-tee-time.asp?corid=30
-- **Marbella Club Golf Resort**: golf-service.com/book/tee-times/select-tee-time.asp?corid=46
-
-**Note:** Golf Service er en booking aggregator (ikke et management system) - kurser bruger andre systemer bag kulisserne.
-
-### 3. **iMaster Golf System**
-- **Real Club de Golf Guadalmina**: members.imaster.golf/guadalminagolf
-
-### 4. **Members-Only Clubs** (Limited public access)
-- **Real Club de Golf Las Brisas**: Members only, ingen offentlig booking system
-- **Aloha Golf Club**: Primarily members-only (limited public slots May-Sept 1-3pm)
+I initially confused **TeeOne Golf** (Spanish system) with **Golfmanager** (different European system). This report has been corrected below.
 
 ---
 
-## Booking Platform Insights
+## Major Findings 🎯
 
-### **A. Golfmanager API** ✅ RECOMMENDED
-**What:** Leading golf management software in Spain
-**Advantages:**
-- ONE API key = access to 18+ courses
-- Real-time tee times
-- Comprehensive booking management
-- Multi-resource booking (tee times, buggies, services)
-- Dynamic pricing
-- Well-documented API
+### 1. **TeeOne Golf Dominance** (18 courses!)
+- URL: `open.teeone.golf`
+- Company: Madrid-based, since 2000
+- 250+ courses in Spain
+- **No public API** - requires direct contact
 
-**Implementation:**
-```bash
-# Get availability for ANY Golfmanager course
-curl https://mt.golfmanager.app/api/availability \
-  -u user:key \
-  -d tenant=lacala \
-  -d start=2025-11-25T08:00:00+01:00 \
-  -d end=2025-11-25T18:00:00+01:00
-```
+### 2. **Golf Service Platform** (3 courses)
+Booking aggregator - backend systems vary
 
-**Courses using Golfmanager:**
+### 3. **iMaster Golf System** (1 course)
+Guadalmina course
+
+---
+
+## TeeOne Golf Details
+
+**Contact Information:**
+- 📞 **Phone:** 902 200 052
+- 🌐 **Website:** www.teeone.golf
+- 📍 **Address:** c/ Segundo Mata 1, Oficina 6, 28224 Pozuelo de Alarcón (Madrid)
+
+**TeeOne Golf Courses (18 identified):**
 1. Atalaya Golf
 2. El Paraíso Golf
 3. Estepona Golf
@@ -66,154 +47,65 @@ curl https://mt.golfmanager.app/api/availability \
 15. San Roque Club
 16. Santa Clara Golf
 17. Torrequebrada Golf
-18. **Valle Romano Golf** ⭐ NEW
+18. Valle Romano Golf & Resort
 
----
-
-### **B. Golf Service Platform**
-**What:** Booking aggregator (third-party booking widget)
-**Status:** Requires investigation - likely uses backend management systems
-
-**Known courses:**
-- Aloha Golf Club
-- Rio Real Golf & Hotel  
-- Marbella Club Golf Resort
-
-**Implementation:** 
-- May need individual course agreements
-- NOT a unified API - each course separate
-- Consider these courses may have Golfmanager or other system behind Golf Service
-
----
-
-### **C. iMaster Golf**
-**What:** Golf management software
-**Status:** Potential API integration opportunity
-
-**Courses:**
-- Real Club de Golf Guadalmina (confirmed)
-- Possibly others
-
----
-
-### **D. Other Platforms to Investigate**
-1. **GolfNow API** - International booking platform
-2. **Chronogolf/Lightspeed Golf** - Not identified in Costa del Sol yet
-3. **TeeTime Central** - Integrates with 40+ tee sheet systems
-4. **Golf-Booking.com** - 750+ courses aggregator
+**Portal:** https://open.teeone.golf/en/{tenant}/disponibilidad
 
 ---
 
 ## Integration Strategy 🎯
 
-### **Phase 1: Golfmanager Integration** (HIGHEST PRIORITY)
-**Impact:** 18 courses (42% of total)
-**Effort:** Single API integration
-**Timeline:** 1-2 weeks with API credentials
+### **Phase 1: Contact TeeOne Golf** ⭐ HIGHEST PRIORITY
+When API credentials available:
+- ✅ ONE API key = access to 18 courses (42% coverage)
+- ✅ Real-time tee times 
+- ✅ Unified booking experience
+- ✅ Commission tracking
 
-**What you get:**
-- Real-time tee times for 18 premium courses
-- Unified booking experience
-- Dynamic pricing
-- Resource management (buggies, services)
+**Implementation:** 1-2 weeks development
 
-**Required:**
-- Golfmanager API credentials (already ordered)
-- Test with demo tenant first
-- Implement authentication
-- Build availability search
-- Implement booking creation
+**Contact:** Call 902 200 052 with integration request
 
 ---
 
-### **Phase 2: Individual Course Investigation**
-**Target:** Remaining 20 courses
-**Approach:** Research each course's booking system
+### **Phase 2: Golf Service Investigation**
+- Rio Real
+- Marbella Club  
+- Aloha Golf (members-only)
 
-**Priority courses to investigate:**
-1. Rio Real Golf & Hotel (Golf Service - check if Golfmanager backend)
-2. Marbella Club Golf Resort (Golf Service - check backend)
-3. Santa Maria Golf (has online booking - system unknown)
-4. Guadalmina (iMaster Golf - request API access)
-5. Aloha Golf (members-only, limited value)
-6. Las Brisas (members-only, limited value)
+Determine actual backend systems.
 
 ---
 
-### **Phase 3: Booking Aggregators**
-For courses without direct API:
-- Use "DEEP_LINK" type
-- Direct users to course booking pages
-- Track referrals for potential commissions
+### **Phase 3: Remaining Courses**
+- iMaster Golf (Guadalmina)
+- Unknown systems (17 courses)
 
 ---
 
-## Technical Architecture Recommendation
+## Technical Notes
 
-```
-┌─────────────────────────────────────────┐
-│     Marbella Golf Times Frontend        │
-└─────────────────┬───────────────────────┘
-                  │
-        ┌─────────┴──────────┐
-        │                    │
-        ▼                    ▼
-┌───────────────┐    ┌──────────────┐
-│  Golfmanager  │    │ Other APIs   │
-│      API      │    │ (iMaster,    │
-│  (18 courses) │    │  GolfNow)    │
-└───────────────┘    └──────────────┘
-        │                    │
-        ▼                    ▼
-┌─────────────────────────────────┐
-│   Unified Search Results        │
-│   - Real-time availability      │
-│   - Dynamic pricing             │
-│   - Direct booking              │
-└─────────────────────────────────┘
-```
+**TeeOne Golf API:**
+- Private API (no public documentation)
+- Custom integration process
+- Requires business relationship
+- Spanish company with local support
+- Emphasis on relationship-driven integration
+
+**NOT to be confused with:**
+- **Golfmanager** - Separate European system (cloud API at mt.golfmanager.app)
+- **Tee-On Golf Systems** - Canadian company (different platform)
 
 ---
 
 ## Next Steps 🚀
 
-### Immediate (When API credentials arrive):
-1. ✅ Update Valle Romano in database as Golfmanager course
-2. ✅ Test Golfmanager API with demo tenant
-3. ✅ Implement real-time tee time fetching for 18 courses
-4. ✅ Replace "Direct" links with actual tee times
-5. ✅ Implement booking flow
-
-### Short-term (1-2 weeks):
-1. 🔍 Contact Rio Real, Marbella Club to confirm their backend system
-2. 🔍 Contact iMaster Golf for Guadalmina API access
-3. 🔍 Investigate Santa Maria booking system
-4. 🔍 Check if any other courses use Golfmanager
-
-### Medium-term (1 month):
-1. Implement additional APIs as discovered
-2. Set up affiliate partnerships for commission tracking
-3. Optimize booking flow based on user feedback
-4. Add advanced features (buggy rental, packages, etc.)
+1. ✅ Call TeeOne Golf: **902 200 052**
+2. ✅ Request API documentation & credentials
+3. ✅ Explain integration use case (booking aggregator)
+4. ✅ Await API access to implement 18-course integration
 
 ---
 
-## ROI Analysis
-
-**Golfmanager Integration:**
-- **Effort:** 1-2 weeks development
-- **Impact:** 18 courses (42% coverage)
-- **User value:** Real-time booking for premium courses (Valderrama, Finca Cortesín, La Cala, etc.)
-- **Commission potential:** Track bookings, negotiate affiliate rates
-
-**Other Integrations:**
-- Higher effort per course
-- Lower immediate impact
-- Consider case-by-case based on course popularity
-
-**Recommendation:** Focus 100% on Golfmanager integration first! 🎯
-
----
-
-**Report Date:** November 21, 2025
-**Status:** Ready for implementation when API credentials received
+**Report Date:** November 21, 2025 (CORRECTED)
+**Status:** Ready to contact TeeOne Golf for API access

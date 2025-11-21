@@ -5,8 +5,10 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 ---
 
-## 1. TeeOne/Golfmanager (18 courses) ✅ INTEGRATED
-**Status:** Currently showing as "Direct" links - Ready for API integration when credentials available
+## 1. TeeOne Golf (18 courses) ⏳ PENDING API ACCESS
+**Status:** Currently showing as "Direct" links - Ready for API integration when TeeOne Golf provides credentials
+**Provider:** TeeOne Golf (Madrid-based, teeone.golf)
+**Contact:** 902 200 052
 
 1. **Atalaya Golf & Country Club**
    - URL: https://open.teeone.golf/en/atalaya/disponibilidad
@@ -159,14 +161,14 @@ Analysis of 43 golf courses and their booking/tee time systems.
 ## Recommendations
 
 ### Immediate Actions:
-1. ✅ **TeeOne/Golfmanager API** - Implement real-time tee times for 18 courses (når credentials modtages)
-2. 🔍 **Investigate Golf Service courses** - Check if Rio Real, Marbella Club use Golfmanager backend
+1. 📞 **CONTACT TeeOne Golf** - Call 902 200 052 to request API credentials & documentation
+2. 🔍 **Investigate Golf Service courses** - Check if Rio Real, Marbella Club use alternative backends
 3. 🔍 **Investigate iMaster Golf** - Contact for Guadalmina API access
 4. 🔍 **Research remaining 17 courses** - Identify booking systems
 
 ### Long-term Strategy:
-- **Priority 1:** TeeOne/Golfmanager (18 courses - 42% coverage) - API credentials ordered ⭐
-- **Priority 2:** Golf Service backend investigation - May reveal more Golfmanager courses
+- **Priority 1:** TeeOne Golf (18 courses - 42% coverage) - Contact directly for API ⭐
+- **Priority 2:** Golf Service backend investigation
 - **Priority 3:** iMaster Golf - Contact for API access
 - **Priority 4:** Individual course research for remaining 17 courses
 - **Fallback:** Direct booking links for courses without API access
@@ -177,8 +179,8 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 | System | Courses | Status | Next Steps |
 |--------|---------|--------|-----------|
-| TeeOne/Golfmanager | 18 (42%) | ⏳ Pending credentials | Waiting for API key |
-| Golf Service | 3 | 🔍 Backend investigation | Check for Golfmanager |
+| TeeOne Golf | 18 (42%) | 📞 Contact needed | Call 902 200 052 |
+| Golf Service | 3 | 🔍 Backend investigation | Research backend systems |
 | iMaster Golf | 1+ | 🔍 Research needed | Contact vendor |
 | Direct Links | 4 | ✅ Implemented | No action needed |
 | Unknown | 17 | 🔍 Investigation | Manual review needed |
