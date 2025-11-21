@@ -4,6 +4,7 @@ import express from "express";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { GolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
+import { teeoneClient } from "./providers/teeone";
 import { getSession, isAuthenticated, isAdmin } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User } from "@shared/schema";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
@@ -986,8 +987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json(results);
       } else {
-        // Production mode: Use real API for all courses with provider links
-        const golfmanager = new GolfmanagerProvider(golfmanagerConfig);
+        // Production mode: Use TeeOne API for courses with golfmanager:* provider codes
         const results: CourseWithSlots[] = [];
 
         for (const { course, distance } of coursesWithDistance) {
@@ -1001,23 +1001,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Extract tenant from provider code (format: "golfmanager:tenant_name")
               const tenant = golfmanagerLink.providerCourseCode.split(":")[1];
               
-              // Build date range for search
+              // Build search parameters
               const searchDate = date ? new Date(date as string) : new Date();
-              const startTime = `${searchDate.toISOString().split("T")[0]}T${fromTime || "07:00"}:00`;
-              const endTime = `${searchDate.toISOString().split("T")[0]}T${toTime || "20:00"}:00`;
+              const dateStr = searchDate.toISOString().split("T")[0];
               
-              const gmSlots = await golfmanager.searchAvailability(
+              console.log(`[TeeOne] Searching availability for ${course.name} (tenant: ${tenant})`);
+              
+              const slots = await teeoneClient.searchAvailability(
                 tenant,
-                startTime,
-                endTime,
-                players ? parseInt(players as string) : 2
+                dateStr,
+                players ? parseInt(players as string) : 2,
+                holes ? parseInt(holes as string) : 18,
+                fromTime as string || "07:00",
+                toTime as string || "20:00"
               );
 
-              const slots = golfmanager.convertSlotsToTeeTime(
-                gmSlots,
-                players ? parseInt(players as string) : 2,
-                holes ? parseInt(holes as string) : 18
-              );
+              console.log(`[TeeOne] Retrieved ${slots.length} slots for ${course.name}`);
 
               results.push({
                 courseId: course.id,
@@ -1025,12 +1024,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 distanceKm: Math.round(distance * 10) / 10,
                 bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
                 slots,
-                note: "Live Golfmanager availability",
+                note: "Live TeeOne availability",
                 providerType: "API",
                 course,
               });
             } catch (error) {
-              console.error(`Golfmanager error for course ${course.name}:`, error);
+              console.error(`[TeeOne] Error for course ${course.name}:`, error);
               // Continue to next course on error
             }
           }
