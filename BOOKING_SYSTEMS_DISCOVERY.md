@@ -25,6 +25,7 @@ Guadalmina course
 ## TeeOne Golf Details
 
 **Contact Information:**
+- 📧 **Email:** info@teeone.golf
 - 📞 **Phone:** 902 200 052
 - 🌐 **Website:** www.teeone.golf
 - 📍 **Address:** c/ Segundo Mata 1, Oficina 6, 28224 Pozuelo de Alarcón (Madrid)
