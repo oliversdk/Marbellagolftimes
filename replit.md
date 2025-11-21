@@ -59,9 +59,8 @@ Client-side geolocation uses the Browser Geolocation API for current location de
 
 ### API Integration Points
 
--   **Tee Time Availability Search**: Integrates with external APIs for real-time tee times.
--   **Golfmanager API**: Production-ready integration for real-time tee-time availability (DEMO, PRODUCTION, MOCK modes), covering 16 courses including premium ones.
--   **Direct Booking Integration (DEEP_LINK_ONLY)**: For 4 courses, allowing direct booking on club websites.
--   **Tee Time Provider Integration**: Flexible system supporting web scraping (`SCRAPER`), REST APIs (`API`), and direct booking links (`DEEP_LINK_ONLY`).
+-   **TeeOne/Golfmanager Integration**: 16+ premium courses use TeeOne booking system (Golfmanager backend) displayed as direct booking links (`DEEP_LINK` type) to TeeOne's frontend at `https://open.teeone.golf/en/{tenant}/disponibilidad`. Notable courses include Marbella Golf, Santa Clara, Finca Cortesín, Real Club Valderrama, Los Naranjos, La Quinta, Los Arqueros, Estepona Golf, Torrequebrada, La Reserva Sotogrande, and Real Club de Golf Sotogrande. When Golfmanager API credentials become available, this can be upgraded to show real-time availability directly in the platform.
+-   **Tee Time Provider Integration**: Flexible system supporting REST APIs (`API`), direct booking links (`DEEP_LINK`), and web scraping (`SCRAPER`).
+-   **Golfmanager Operating Modes**: System supports DEMO mode (no API key, fallback to direct links), MOCK mode (simulated data for testing), and PRODUCTION mode (real-time API when credentials available).
 -   **Open-Meteo API**: For real-time weather data on course detail pages (no API key required).
 -   **Browser Geolocation API**: Used for client-side geolocation services.
