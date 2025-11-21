@@ -5,7 +5,7 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 ---
 
-## 1. TeeOne/Golfmanager (16 courses) ✅ INTEGRATED
+## 1. TeeOne/Golfmanager (17 courses) ✅ INTEGRATED
 **Status:** Currently showing as "Direct" links - Ready for API integration when credentials available
 
 1. **Atalaya Golf & Country Club**
@@ -72,6 +72,11 @@ Analysis of 43 golf courses and their booking/tee time systems.
     - URL: https://open.teeone.golf/en/torrequebrada/disponibilidad
     - Tenant: torrequebrada
 
+17. **La Cala Resort** ⭐ NEW
+    - URL: https://open.teeone.golf/en/lacala/disponibilidad
+    - Tenant: lacala
+    - Discovered: https://lacala.golfmanager.com/consumer/ebookings
+
 ---
 
 ## 2. Direct Website Booking (4 courses)
@@ -101,17 +106,7 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 ---
 
-## 4. Golf Directo (1 course identified)
-**Status:** Potential API integration opportunity
-
-1. **La Cala Resort**
-   - Booking: https://www.lacala.com/en/golf/tee-times
-   - Tournament system: https://www.golfdirecto.com
-   - **Note:** Uses Golf Directo for events/tournaments
-
----
-
-## 5. Unknown/Custom Systems (21 courses) 🔍
+## 4. Unknown/Custom Systems (20 courses) 🔍
 **Status:** Requires investigation - May use Chronogolf, iGolf, or custom solutions
 
 1. Aloha Golf Club - https://www.clubdegolfaloha.com
@@ -136,6 +131,8 @@ Analysis of 43 golf courses and their booking/tee time systems.
 20. Santana Golf & Country Club - https://www.santanagolf.com
 21. Valle Romano Golf & Resort - https://www.valleromano.es/en/golf
 
+**Note:** La Cala Resort was previously listed here, but has been confirmed to use Golfmanager and moved to section 1.
+
 ---
 
 ## Recommendations
@@ -159,12 +156,11 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 | System | Courses | Status | Next Steps |
 |--------|---------|--------|-----------|
-| TeeOne/Golfmanager | 16 | ⏳ Pending credentials | Waiting for API key |
+| TeeOne/Golfmanager | 17 | ⏳ Pending credentials | Waiting for API key |
 | Chronogolf | ? | 🔍 Unknown | Identify courses |
 | iMaster Golf | 1+ | 🔍 Research needed | Contact vendor |
-| Golf Directo | 1+ | 🔍 Research needed | Contact vendor |
 | Direct Links | 4 | ✅ Implemented | No action needed |
-| Unknown | 21 | 🔍 Investigation | Manual review needed |
+| Unknown | 20 | 🔍 Investigation | Manual review needed |
 
 ---
 
