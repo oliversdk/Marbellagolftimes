@@ -340,10 +340,21 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
     mode = "production";
   }
 
-  // Get credentials based on version
-  const baseUrl = version === "v1" 
-    ? (GOLFMANAGER_V1_URL || "https://mt-aws-europa.golfmanager.com/api")
-    : (GOLFMANAGER_V3_URL || "https://eu.golfmanager.com/main/apimt");
+  // Use provided tenant or fallback to env var or demo
+  const tenantId = tenant || GOLFMANAGER_TENANT || "demo";
+  
+  // Get credentials based on version and tenant
+  // Demo tenant uses .app server for testing
+  let baseUrl: string;
+  if (version === "v1") {
+    if (tenantId === "demo" && mode === "demo") {
+      baseUrl = "https://mt.golfmanager.app/api";
+    } else {
+      baseUrl = GOLFMANAGER_V1_URL || "https://mt-aws-europa.golfmanager.com/api";
+    }
+  } else {
+    baseUrl = GOLFMANAGER_V3_URL || "https://eu.golfmanager.com/main/apimt";
+  }
 
   const user = version === "v1"
     ? (GOLFMANAGER_V1_USER || "SZc5XNpGd0")
@@ -352,9 +363,6 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
   const password = version === "v1"
     ? (GOLFMANAGER_V1_PASSWORD || "")
     : (GOLFMANAGER_V3_PASSWORD || "");
-
-  // Use provided tenant or fallback to env var or demo
-  const tenantId = tenant || GOLFMANAGER_TENANT || "demo";
 
   return {
     mode,
