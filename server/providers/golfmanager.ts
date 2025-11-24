@@ -243,7 +243,7 @@ export class GolfmanagerProvider {
     holes: number = 18
   ): TeeTimeSlot[] {
     return golfmanagerSlots
-      .filter(slot => slot.available !== false) // Only available slots
+      .filter(slot => slot.available !== false && slot.start) // Only available slots with start time
       .map((slot) => ({
         teeTime: slot.start,
         greenFee: slot.pricePerSlot || slot.price || 0,
@@ -252,7 +252,7 @@ export class GolfmanagerProvider {
         holes: holes,
         source: `Golfmanager ${this.config.version.toUpperCase()}`,
       }))
-      .sort((a, b) => a.teeTime.localeCompare(b.teeTime));
+      .sort((a, b) => (a.teeTime || "").localeCompare(b.teeTime || ""));
   }
 
   /**
@@ -330,6 +330,8 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
   
   if (explicitMode === "mock") {
     mode = "mock";
+  } else if (explicitMode === "demo") {
+    mode = "demo"; // Explicitly set to demo mode
   } else if (explicitMode === "production") {
     mode = "production";
   } else if (version === "v1" && GOLFMANAGER_V1_USER && GOLFMANAGER_V1_PASSWORD) {

@@ -979,17 +979,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             } catch (error) {
               console.error(`[Golfmanager] Error fetching availability for ${course.name} (tenant: ${tenant}):`, error);
-              // Show course with booking link but no slots
-              results.push({
-                courseId: course.id,
-                courseName: course.name,
-                distanceKm: Math.round(distance * 10) / 10,
-                bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
-                slots: [],
-                note: "Real-time availability temporarily unavailable - Book directly on course page",
-                providerType: "DEEP_LINK",
-                course,
-              });
+              
+              // If demo mode and tenant access failed, fall back to demo tenant data
+              if (golfmanagerConfig.mode === "demo") {
+                try {
+                  console.log(`[Golfmanager] Falling back to demo tenant for ${course.name}`);
+                  
+                  const demoProvider = createGolfmanagerProvider("demo");
+                  
+                  const searchDate = date ? new Date(date as string) : new Date();
+                  const startTime = `${searchDate.toISOString().split("T")[0]}T${fromTime || "07:00"}:00`;
+                  const endTime = `${searchDate.toISOString().split("T")[0]}T${toTime || "20:00"}:00`;
+                  
+                  const gmSlots = await demoProvider.searchAvailability(
+                    startTime,
+                    endTime,
+                    undefined,
+                    players ? parseInt(players as string) : 2,
+                    holes ? [`${holes}holes`] : undefined
+                  );
+
+                  const slots = demoProvider.convertSlotsToTeeTime(
+                    gmSlots,
+                    players ? parseInt(players as string) : 2,
+                    holes ? parseInt(holes as string) : 18
+                  );
+
+                  console.log(`[Golfmanager] Retrieved ${slots.length} demo slots for ${course.name}`);
+
+                  results.push({
+                    courseId: course.id,
+                    courseName: course.name,
+                    distanceKm: Math.round(distance * 10) / 10,
+                    bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                    slots,
+                    note: "Demo times shown - Real availability coming soon",
+                    providerType: "API",
+                    course,
+                  });
+                } catch (demoError) {
+                  console.error(`[Golfmanager] Demo fallback also failed for ${course.name}:`, demoError);
+                  // Final fallback: Show course with booking link but no slots
+                  results.push({
+                    courseId: course.id,
+                    courseName: course.name,
+                    distanceKm: Math.round(distance * 10) / 10,
+                    bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                    slots: [],
+                    note: "Book directly on course booking page",
+                    providerType: "DEEP_LINK",
+                    course,
+                  });
+                }
+              } else {
+                // Production mode: Show course with booking link but no slots
+                results.push({
+                  courseId: course.id,
+                  courseName: course.name,
+                  distanceKm: Math.round(distance * 10) / 10,
+                  bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                  slots: [],
+                  note: "Real-time availability temporarily unavailable - Book directly on course page",
+                  providerType: "DEEP_LINK",
+                  course,
+                });
+              }
             }
           } else {
             // Course without Golfmanager - show with direct booking link if available
