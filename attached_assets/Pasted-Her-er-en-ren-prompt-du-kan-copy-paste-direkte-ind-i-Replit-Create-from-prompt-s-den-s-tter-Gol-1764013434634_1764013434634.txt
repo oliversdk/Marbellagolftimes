@@ -1,0 +1,146 @@
+Her er en ren prompt, du kan copy-paste direkte ind i Replit “Create from prompt”, så den sætter Golfmanager API’et korrekt op til searchAvailability (og klar til at udvide):
+
+⸻
+
+Replit prompt (til Golfmanager API v1 – searchAvailability proxy)
+
+Build a small Node.js + TypeScript backend that wraps the Golfmanager API v1 and exposes a clean REST endpoint for my frontend golf booking portal.
+
+Tech stack & structure
+	•	Node.js + TypeScript
+	•	Express for HTTP server
+	•	Axios for outbound HTTP calls
+	•	dotenv for env variables
+	•	ts-node-dev for local dev
+	•	Project structure:
+	•	src/server.ts – Express app
+	•	src/golfmanagerClient.ts – Golfmanager API client
+	•	src/types.ts – shared types (request/response interfaces)
+	•	package.json, tsconfig.json, .env.example
+
+Environment variables
+
+Use a .env file for configuration:
+	•	GM_BASE_URL=https://mt.golfmanager.app/api
+	•	GM_USERNAME=your_golfmanager_user     // basic auth user (from Golfmanager API key)
+	•	GM_PASSWORD=your_golfmanager_key      // basic auth password/key
+	•	PORT=3000
+
+Include a .env.example file with the same keys and placeholder values.
+
+Golfmanager docs to follow
+
+Use the public docs from here: https://github.com/golfmanager/api_v1 and implement exactly the searchAvailability endpoint:
+	•	Method: GET
+	•	URL: https://mt.golfmanager.app/api/searchAvailability
+	•	Authentication: HTTP Basic Auth (GM_USERNAME / GM_PASSWORD)
+	•	Required params:
+	•	tenant (string)
+	•	start (datetime ISO 8601, e.g. 2019-04-23T07:00:00)
+	•	end   (datetime ISO 8601)
+	•	Optional params:
+	•	slots (int, default 1)
+	•	tags (string array, like ["18holes","9holes"])
+	•	idResource (int)
+	•	idResourceType (int)
+
+Body is sent as form data (application/x-www-form-urlencoded) like in the curl examples in the README.
+
+Types
+
+In src/types.ts, define TypeScript interfaces matching the docs, e.g.:
+
+export interface SearchAvailabilityRequest {
+  tenant: string;
+  start: string;        // ISO 8601
+  end: string;          // ISO 8601
+  slots?: number;
+  tags?: string[];
+  idResource?: number;
+  idResourceType?: number;
+}
+
+export interface Slot {
+  idType: number;
+  max: number;
+  min: number | null;
+  multiple: number | null;
+  name: string;
+  price: number;
+  start: string;
+  idResource: number;
+  resourceName: string;
+  resourceTags: string[];
+  tags: string[];
+  // plus the optional fields from the docs:
+  minCancelAdvance?: string;
+  maxReservationsPerSale?: number;
+  maxReservationsPerDay?: number;
+  maxActiveReservations?: number;
+  onCredit?: boolean;
+  dueDate?: string;
+  prepayPercent?: number;
+}
+
+Golfmanager client
+
+In src/golfmanagerClient.ts:
+	•	Create an Axios instance with:
+	•	baseURL = process.env.GM_BASE_URL
+	•	Basic auth: auth: { username: GM_USERNAME, password: GM_PASSWORD }
+	•	Export a function searchAvailability(params: SearchAvailabilityRequest): Promise<Slot[]>
+	•	This function:
+	•	Validates that tenant, start, end are present
+	•	Sends a POST or GET (use the same semantics as the curl in the README: they use curl ... -d but default method is POST; however the docs say Method: GET – so implement GET with query string)
+	•	For GET: build query parameters as:
+	•	tenant, start, end, slots, idResource, idResourceType
+	•	If tags is present, send it like the examples, e.g. tags=["18holes","9holes"]
+	•	Returns the parsed JSON response as Slot[]
+	•	On errors, throw a typed error including status, statusText and data when available
+
+Express server
+
+In src/server.ts:
+	•	Read env vars with dotenv
+	•	Create an Express app with JSON body parsing and CORS enabled
+	•	Healthcheck: GET /health → { status: "ok" }
+	•	Main proxy endpoint:
+POST /api/gm/searchAvailability
+	•	Accept JSON body matching SearchAvailabilityRequest
+	•	Validate minimal fields (tenant, start, end)
+	•	Call searchAvailability(params) from golfmanagerClient
+	•	Return { success: true, data: slots } on success
+	•	On error, return a 4xx/5xx with { success: false, message, details }
+
+Example body:
+
+{
+  "tenant": "demo",
+  "start": "2019-04-23T07:00:00",
+  "end": "2019-04-23T11:00:00",
+  "slots": 2,
+  "tags": ["18holes", "9holes"]
+}
+
+The endpoint should forward this to Golfmanager and return their list of slots unchanged inside the data field.
+
+Scripts
+
+In package.json:
+	•	"dev": "ts-node-dev --respawn --transpile-only src/server.ts"
+	•	"build": "tsc"
+	•	"start": "node dist/server.js"
+
+Extra: simple frontend test page (optional)
+
+Also create a minimal static HTML file (e.g. public/index.html) served by Express at / with a simple form:
+	•	Inputs: tenant, start, end, slots
+	•	Optional checkbox or text input for tags
+	•	On submit, do a fetch('/api/gm/searchAvailability', { method: 'POST', body: JSON.stringify(...), headers: { "Content-Type": "application/json" } })
+	•	Render the returned slots as a simple <table> with columns: time, name, price, resourceName, tags.
+
+Make sure everything compiles and runs with npm run dev, and that the API call uses HTTP Basic Auth with the username/key from the Golfmanager API v1 documentation.
+
+⸻
+
+Hvis du vil, kan jeg bagefter lave den konkrete server.ts + golfmanagerClient.ts kode, du bare kan paste direkte ind.
