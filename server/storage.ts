@@ -2785,7 +2785,7 @@ export async function seedDatabase() {
   const golfmanagerProvider = insertedProviders.find((p) => p.name === "Golfmanager");
 
   if (golfmanagerProvider) {
-    // Add provider links for Golfmanager/iMaster/teeone courses
+    // Add provider links for Golfmanager/TeeOne Golf courses (18 total)
     const golfmanagerCourseLinks = [
       { courseName: "La Reserva Club Sotogrande", tenant: "lareserva" },
       { courseName: "Finca Cortesín Golf Club", tenant: "fincacortesin" },
@@ -2803,6 +2803,8 @@ export async function seedDatabase() {
       { courseName: "Flamingos Golf (Villa Padierna)", tenant: "villapadierna" },
       { courseName: "Los Arqueros Golf & Country Club", tenant: "arqueros" },
       { courseName: "La Quinta Golf & Country Club", tenant: "quinta" },
+      { courseName: "La Cala Resort", tenant: "lacala" },
+      { courseName: "Valle Romano Golf & Resort", tenant: "valleromano" },
     ];
 
     const linksToInsert: InsertCourseProviderLink[] = [];

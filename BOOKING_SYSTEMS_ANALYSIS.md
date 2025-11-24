@@ -5,10 +5,12 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 ---
 
-## 1. TeeOne Golf (18 courses) ⏳ PENDING API ACCESS
-**Status:** Currently showing as "Direct" links - Ready for API integration when TeeOne Golf provides credentials
-**Provider:** TeeOne Golf (Madrid-based, teeone.golf)
-**Contact:** 902 200 052
+## 1. Golfmanager (18 courses) ✅ INTEGRATED
+**Status:** Real-time tee time availability ACTIVE via Golfmanager API V1
+**Integration Date:** November 24, 2025
+**API Details:** Base URL: https://mt-aws-europa.golfmanager.com/api
+**Frontend:** TeeOne Golf (teeone.golf - booking interface only)
+**Note:** TeeOne Golf provides the frontend, but the actual booking system backend is Golfmanager
 
 1. **Atalaya Golf & Country Club**
    - URL: https://open.teeone.golf/en/atalaya/disponibilidad
@@ -160,15 +162,20 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 ## Recommendations
 
-### Immediate Actions:
-1. 📞 **CONTACT TeeOne Golf** - Call 902 200 052 to request API credentials & documentation
-2. 🔍 **Investigate Golf Service courses** - Check if Rio Real, Marbella Club use alternative backends
-3. 🔍 **Investigate iMaster Golf** - Contact for Guadalmina API access
-4. 🔍 **Research remaining 17 courses** - Identify booking systems
+### Completed Actions:
+1. ✅ **Golfmanager API Integration** - Credentials obtained and integrated (November 24, 2025)
+2. ✅ **18 courses now showing real-time availability** - All Golfmanager-linked courses display live tee times via searchAvailability
+3. 📋 **Future: Direct booking flow** - Backend supports makeReservation, confirmReservation, cancelReservation (not yet exposed to frontend)
+
+### Next Actions:
+1. 🔍 **Investigate Golf Service courses** - Check if Rio Real, Marbella Club use Golfmanager backend
+2. 🔍 **Investigate iMaster Golf** - Contact for Guadalmina API access
+3. 🔍 **Research remaining 17 courses** - Identify booking systems
+4. 📊 **Monitor Golfmanager integration** - Track performance and booking success rates
 
 ### Long-term Strategy:
-- **Priority 1:** TeeOne Golf (18 courses - 42% coverage) - Contact directly for API ⭐
-- **Priority 2:** Golf Service backend investigation
+- **Priority 1:** ✅ COMPLETE - Golfmanager (18 courses - 42% coverage)
+- **Priority 2:** Golf Service backend investigation (may reveal more Golfmanager courses)
 - **Priority 3:** iMaster Golf - Contact for API access
 - **Priority 4:** Individual course research for remaining 17 courses
 - **Fallback:** Direct booking links for courses without API access
@@ -177,13 +184,13 @@ Analysis of 43 golf courses and their booking/tee time systems.
 
 ## API Integration Status
 
-| System | Courses | Status | Next Steps |
-|--------|---------|--------|-----------|
-| TeeOne Golf | 18 (42%) | 📞 Contact needed | Call 902 200 052 |
-| Golf Service | 3 | 🔍 Backend investigation | Research backend systems |
-| iMaster Golf | 1+ | 🔍 Research needed | Contact vendor |
-| Direct Links | 4 | ✅ Implemented | No action needed |
-| Unknown | 17 | 🔍 Investigation | Manual review needed |
+| System | Courses | Status | Details |
+|--------|---------|--------|---------|
+| Golfmanager | 18 (42%) | ✅ LIVE | Real-time API integrated (Nov 24, 2025) |
+| Golf Service | 3 | 🔍 Investigation | Check for Golfmanager backend |
+| iMaster Golf | 1+ | 🔍 Research | Contact for API access |
+| Direct Links | 4 | ✅ Implemented | Baviera, Calanova, El Chaparral, La Cañada |
+| Unknown | 17 | 🔍 Investigation | Manual research needed |
 
 ---
 

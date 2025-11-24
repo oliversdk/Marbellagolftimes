@@ -61,24 +61,16 @@ export interface GolfmanagerReservationResponse {
  * Supports both V1 and V3 APIs with full booking flow
  */
 export class GolfmanagerProvider {
-  private user: string;
-  private password: string;
-  private baseUrl: string;
-  private tenant: string;
-  private mode: GolfmanagerMode;
-  private version: GolfmanagerVersion;
+  private config: GolfmanagerConfig;
 
   constructor(config: GolfmanagerConfig) {
-    this.user = config.user;
-    this.password = config.password;
-    this.baseUrl = config.baseUrl;
-    this.tenant = config.tenant;
-    this.mode = config.mode;
-    this.version = config.version;
+    this.config = config;
     
     console.log(`[Golfmanager] Initialized in ${config.mode.toUpperCase()} mode (${config.version.toUpperCase()})`);
     console.log(`[Golfmanager] Base URL: ${config.baseUrl}`);
     console.log(`[Golfmanager] Tenant: ${config.tenant}`);
+    console.log(`[Golfmanager] User: ${config.user}`);
+    console.log(`[Golfmanager] Has Password: ${!!config.password}`);
   }
 
   /**
@@ -88,17 +80,17 @@ export class GolfmanagerProvider {
     endpoint: string,
     params: Record<string, any> = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = `${this.config.baseUrl}${endpoint}`;
     
     try {
       const response = await axios.get<T>(url, {
         params: {
-          tenant: this.tenant,
+          tenant: this.config.tenant,
           ...params,
         },
         auth: {
-          username: this.user,
-          password: this.password,
+          username: this.config.user,
+          password: this.config.password,
         },
         timeout: 15000, // 15 second timeout
       });
@@ -121,7 +113,7 @@ export class GolfmanagerProvider {
    * Get tenant information (course details)
    */
   async getTenant(): Promise<any> {
-    const endpoint = this.version === "v3" ? "/model/tenant" : "/getTenant";
+    const endpoint = this.config.version === "v3" ? "/model/tenant" : "/getTenant";
     return this.apiRequest(endpoint);
   }
 
@@ -129,7 +121,7 @@ export class GolfmanagerProvider {
    * Get available resources (tees) for the course
    */
   async getResources(): Promise<GolfmanagerResource[]> {
-    const endpoint = this.version === "v3" ? "/bookings/resources" : "/resources";
+    const endpoint = this.config.version === "v3" ? "/bookings/resources" : "/resources";
     const data = await this.apiRequest<any>(endpoint);
     return Array.isArray(data) ? data : [];
   }
@@ -138,7 +130,7 @@ export class GolfmanagerProvider {
    * Get availability types (booking options/fares)
    */
   async getAvailabilityTypes(): Promise<GolfmanagerAvailabilityType[]> {
-    const endpoint = this.version === "v3" ? "/bookings/availabilityTypes" : "/availabilityTypes";
+    const endpoint = this.config.version === "v3" ? "/bookings/availabilityTypes" : "/availabilityTypes";
     const data = await this.apiRequest<any>(endpoint);
     return Array.isArray(data) ? data : [];
   }
@@ -158,7 +150,7 @@ export class GolfmanagerProvider {
     slots?: number,
     tags?: string[]
   ): Promise<GolfmanagerSlot[]> {
-    const endpoint = this.version === "v3" 
+    const endpoint = this.config.version === "v3" 
       ? "/bookings/searchAvailability" 
       : "/searchAvailability";
     
@@ -183,7 +175,7 @@ export class GolfmanagerProvider {
   async makeReservation(
     reservations: GolfmanagerReservation[]
   ): Promise<GolfmanagerReservationResponse[]> {
-    const endpoint = this.version === "v3" 
+    const endpoint = this.config.version === "v3" 
       ? "/bookings/makeReservation" 
       : "/makeReservation";
     
@@ -200,7 +192,7 @@ export class GolfmanagerProvider {
    * @param ids - Array of reservation IDs to confirm
    */
   async confirmReservation(ids: number[]): Promise<any> {
-    const endpoint = this.version === "v3" 
+    const endpoint = this.config.version === "v3" 
       ? "/bookings/confirmReservation" 
       : "/confirmReservation";
     
@@ -216,7 +208,7 @@ export class GolfmanagerProvider {
    * @param ids - Array of reservation IDs to cancel
    */
   async cancelReservation(ids: number[]): Promise<any> {
-    const endpoint = this.version === "v3" 
+    const endpoint = this.config.version === "v3" 
       ? "/bookings/cancelReservation" 
       : "/cancelReservation";
     
@@ -233,7 +225,7 @@ export class GolfmanagerProvider {
    * @param end - End date (YYYY-MM-DD)
    */
   async getBookings(start: string, end: string): Promise<any[]> {
-    const endpoint = this.version === "v3" 
+    const endpoint = this.config.version === "v3" 
       ? "/bookings/bookings" 
       : "/bookings";
     
@@ -258,7 +250,7 @@ export class GolfmanagerProvider {
         currency: "EUR",
         players: slot.slots || players,
         holes: holes,
-        source: `Golfmanager ${this.version.toUpperCase()}`,
+        source: `Golfmanager ${this.config.version.toUpperCase()}`,
       }))
       .sort((a, b) => a.teeTime.localeCompare(b.teeTime));
   }
@@ -317,8 +309,10 @@ export class GolfmanagerProvider {
 
 /**
  * Get Golfmanager configuration from environment variables
+ * @param version - API version (v1 or v3)
+ * @param tenant - Course-specific tenant ID (overrides env var)
  */
-export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1"): GolfmanagerConfig {
+export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?: string): GolfmanagerConfig {
   const {
     GOLFMANAGER_MODE,
     GOLFMANAGER_TENANT,
@@ -357,7 +351,8 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1"): Golfma
     ? (GOLFMANAGER_V1_PASSWORD || "")
     : (GOLFMANAGER_V3_PASSWORD || "");
 
-  const tenant = GOLFMANAGER_TENANT || "demo";
+  // Use provided tenant or fallback to env var or demo
+  const tenantId = tenant || GOLFMANAGER_TENANT || "demo";
 
   return {
     mode,
@@ -365,10 +360,20 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1"): Golfma
     user,
     password,
     baseUrl,
-    tenant,
+    tenant: tenantId,
   };
 }
 
-// Export singleton instances for both versions
+/**
+ * Create a Golfmanager provider instance for a specific tenant
+ * @param tenant - Course-specific tenant ID
+ * @param version - API version (defaults to v1)
+ */
+export function createGolfmanagerProvider(tenant: string, version: GolfmanagerVersion = "v1"): GolfmanagerProvider {
+  const config = getGolfmanagerConfig(version, tenant);
+  return new GolfmanagerProvider(config);
+}
+
+// Export default demo instances for backward compatibility
 export const golfmanagerV1 = new GolfmanagerProvider(getGolfmanagerConfig("v1"));
 export const golfmanagerV3 = new GolfmanagerProvider(getGolfmanagerConfig("v3"));

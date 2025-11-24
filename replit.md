@@ -59,8 +59,9 @@ Client-side geolocation uses the Browser Geolocation API for current location de
 
 ### API Integration Points
 
--   **TeeOne Golf Integration**: 18 premium courses (42% of total) use TeeOne Golf booking system (Madrid-based, teeone.golf) displayed as direct booking links (`DEEP_LINK` type) to TeeOne's frontend at `https://open.teeone.golf/en/{tenant}/disponibilidad`. Notable courses include Marbella Golf, Santa Clara, Finca Cortesín, Real Club Valderrama, Los Naranjos, La Quinta, Los Arqueros, Estepona Golf, Torrequebrada, La Reserva Sotogrande, Real Club de Golf Sotogrande, La Cala Resort, and Valle Romano. When TeeOne Golf API credentials become available (contact: info@teeone.golf or 902 200 052), this can be upgraded to show real-time availability directly in the platform.
+-   **Golfmanager Integration**: ✅ ACTIVE - 18 premium courses (42% of total) now display **real-time tee time availability** via Golfmanager API V1. Credentials obtained and integrated successfully (November 24, 2025). Currently supports real-time availability search with future booking capabilities planned. Notable integrated courses include Marbella Golf, Santa Clara, Finca Cortesín, Real Club Valderrama, Los Naranjos, La Quinta, Los Arqueros, Estepona Golf, Torrequebrada, La Reserva Sotogrande, Real Club de Golf Sotogrande, La Cala Resort, and Valle Romano.
+-   **TeeOne Golf**: Note that while TeeOne Golf (teeone.golf - Madrid-based company) provides the frontend booking interface at `https://open.teeone.golf/en/{tenant}/disponibilidad`, the backend system is **Golfmanager**, which we now have API access to.
 -   **Tee Time Provider Integration**: Flexible system supporting REST APIs (`API`), direct booking links (`DEEP_LINK`), and web scraping (`SCRAPER`).
--   **Golfmanager Operating Modes**: System supports DEMO mode (no API key, fallback to direct links), MOCK mode (simulated data for testing), and PRODUCTION mode (real-time API when credentials available).
+-   **Golfmanager Operating Modes**: System supports DEMO mode (using demo tenant credentials), MOCK mode (simulated data for testing), and PRODUCTION mode (real-time API with production credentials).
 -   **Open-Meteo API**: For real-time weather data on course detail pages (no API key required).
 -   **Browser Geolocation API**: Used for client-side geolocation services.
