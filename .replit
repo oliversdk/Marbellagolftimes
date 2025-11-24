@@ -100,3 +100,12 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_log_in_with_replit:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+GOLFMANAGER_V1_URL = "https://mt-aws-europa.golfmanager.com/api"
+GOLFMANAGER_V3_URL = "https://eu.golfmanager.com/main/apimt"
+GOLFMANAGER_V1_USER = "SZc5XNpGd0"
+GOLFMANAGER_V3_USER = "wagner@freeway.dk"
+GOLFMANAGER_TENANT = "demo"
