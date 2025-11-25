@@ -144,6 +144,55 @@ export const insertAffiliateEmailSchema = createInsertSchema(affiliateEmails).om
 export type InsertAffiliateEmail = z.infer<typeof insertAffiliateEmailSchema>;
 export type AffiliateEmail = typeof affiliateEmails.$inferSelect;
 
+// Course Onboarding (Partnership Funnel)
+export const courseOnboarding = pgTable("course_onboarding", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id).unique(),
+  // Funnel stage: NOT_CONTACTED, OUTREACH_SENT, INTERESTED, NOT_INTERESTED, PARTNERSHIP_ACCEPTED, CREDENTIALS_RECEIVED
+  stage: text("stage").notNull().default("NOT_CONTACTED"),
+  // Outreach tracking
+  outreachSentAt: timestamp("outreach_sent_at"),
+  outreachMethod: text("outreach_method"), // EMAIL, PHONE, IN_PERSON
+  // Response tracking
+  responseReceivedAt: timestamp("response_received_at"),
+  responseNotes: text("response_notes"),
+  // Partnership tracking
+  partnershipAcceptedAt: timestamp("partnership_accepted_at"),
+  agreedCommission: real("agreed_commission"), // Agreed kickback percentage
+  // Credentials tracking
+  credentialsReceivedAt: timestamp("credentials_received_at"),
+  credentialsType: text("credentials_type"), // GOLFMANAGER_V1, GOLFMANAGER_V3, TEEONE, OTHER
+  // Contact info
+  contactPerson: text("contact_person"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  // General
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCourseOnboardingSchema = createInsertSchema(courseOnboarding).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+});
+
+export type InsertCourseOnboarding = z.infer<typeof insertCourseOnboardingSchema>;
+export type CourseOnboarding = typeof courseOnboarding.$inferSelect;
+
+// Onboarding stages for funnel visualization
+export const ONBOARDING_STAGES = [
+  "NOT_CONTACTED",
+  "OUTREACH_SENT", 
+  "INTERESTED",
+  "NOT_INTERESTED",
+  "PARTNERSHIP_ACCEPTED",
+  "CREDENTIALS_RECEIVED"
+] as const;
+
+export type OnboardingStage = typeof ONBOARDING_STAGES[number];
+
 // Course Reviews
 export const courseReviews = pgTable("course_reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
