@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { getSession, isAuthenticated, isAdmin } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse } from "@shared/schema";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
@@ -619,22 +619,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PATCH /api/admin/courses/:id/kickback - Update course kickback percentage (Admin only)
-  app.patch("/api/admin/courses/:id/kickback", isAdmin, async (req, res) => {
+  // PATCH /api/admin/courses/:id - Update course settings (kickback + credentials) (Admin only)
+  app.patch("/api/admin/courses/:id", isAdmin, async (req, res) => {
     try {
-      const { kickbackPercent } = req.body;
+      const updateCourseSchema = z.object({
+        kickbackPercent: z.number().min(0).max(100).optional(),
+        golfmanagerUser: z.string().optional(),
+        golfmanagerPassword: z.string().optional(),
+      });
 
-      // Validate kickbackPercent is a number
-      if (typeof kickbackPercent !== "number") {
-        return res.status(400).json({ error: "kickbackPercent must be a number" });
+      const result = updateCourseSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: result.error.flatten() 
+        });
       }
 
-      // Validate range 0-100
-      if (kickbackPercent < 0 || kickbackPercent > 100) {
-        return res.status(400).json({ error: "kickbackPercent must be between 0 and 100" });
+      // Build updates object with only provided fields
+      const updates: Partial<GolfCourse> = {};
+      if (result.data.kickbackPercent !== undefined) {
+        updates.kickbackPercent = result.data.kickbackPercent;
+      }
+      if (result.data.golfmanagerUser !== undefined) {
+        updates.golfmanagerUser = result.data.golfmanagerUser || null;
+      }
+      if (result.data.golfmanagerPassword !== undefined) {
+        updates.golfmanagerPassword = result.data.golfmanagerPassword || null;
       }
 
-      const updatedCourse = await storage.updateCourse(req.params.id, { kickbackPercent });
+      const updatedCourse = await storage.updateCourse(req.params.id, updates);
       
       if (!updatedCourse) {
         return res.status(404).json({ error: "Course not found" });
@@ -642,8 +656,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updatedCourse);
     } catch (error) {
-      console.error("Error updating course kickback:", error);
-      res.status(500).json({ error: "Failed to update course kickback" });
+      console.error("Error updating course:", error);
+      res.status(500).json({ error: "Failed to update course settings" });
     }
   });
 
@@ -731,30 +745,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to delete image" });
-    }
-  });
-
-  // PATCH /api/admin/courses/:id/kickback - Update course kickback percentage
-  app.patch("/api/admin/courses/:id/kickback", isAdmin, async (req, res) => {
-    try {
-      const kickbackSchema = z.object({
-        kickbackPercent: z.number().min(0).max(100, "Kickback must be between 0-100%"),
-      });
-      
-      const result = kickbackSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
-      }
-      
-      const course = await storage.updateCourse(req.params.id, { kickbackPercent: result.data.kickbackPercent });
-      if (!course) {
-        return res.status(404).json({ message: "Course not found" });
-      }
-      
-      res.json(course);
-    } catch (error) {
-      console.error("Error updating course kickback:", error);
-      res.status(500).json({ message: "Failed to update course kickback" });
     }
   });
 
@@ -940,8 +930,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             
             try {
-              // Create tenant-specific provider instance
-              const provider = createGolfmanagerProvider(tenant);
+              // Create tenant-specific provider instance with database credentials (if available)
+              const dbCredentials = course.golfmanagerUser && course.golfmanagerPassword 
+                ? { user: course.golfmanagerUser, password: course.golfmanagerPassword }
+                : undefined;
+              
+              const provider = createGolfmanagerProvider(tenant, "v1", dbCredentials);
               
               // Build date range for search
               const searchDate = date ? new Date(date as string) : new Date();

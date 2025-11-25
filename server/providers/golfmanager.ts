@@ -308,12 +308,23 @@ export class GolfmanagerProvider {
 }
 
 /**
- * Get Golfmanager configuration from environment variables
- * Supports both per-tenant credentials (GM_{TENANT}_USER/PASS) and global credentials
+ * Get Golfmanager configuration from environment variables or database
+ * 
+ * Credential priority order:
+ * 1. Database credentials (course.golfmanagerUser/Password)
+ * 2. Tenant-specific env vars (GM_{TENANT}_USER/PASS)
+ * 3. Global env vars (GOLFMANAGER_V1_USER/PASSWORD)
+ * 4. Default demo credentials
+ * 
  * @param version - API version (v1 or v3)
  * @param tenant - Course-specific tenant ID (overrides env var)
+ * @param dbCredentials - Optional database credentials from course record
  */
-export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?: string): GolfmanagerConfig {
+export function getGolfmanagerConfig(
+  version: GolfmanagerVersion = "v1", 
+  tenant?: string,
+  dbCredentials?: { user: string | null; password: string | null }
+): GolfmanagerConfig {
   const {
     GOLFMANAGER_MODE,
     GOLFMANAGER_TENANT,
@@ -328,33 +339,47 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
   // Use provided tenant or fallback to env var or demo
   const tenantId = tenant || GOLFMANAGER_TENANT || "demo";
   
-  // Try to get tenant-specific credentials first
-  // Format: GM_{TENANT}_USER and GM_{TENANT}_PASS (e.g. GM_PARAISO_USER, GM_PARAISO_PASS)
-  const tenantUpperCase = tenantId.toUpperCase();
-  const tenantUserKey = `GM_${tenantUpperCase}_USER`;
-  const tenantPassKey = `GM_${tenantUpperCase}_PASS`;
-  
-  const tenantUser = process.env[tenantUserKey];
-  const tenantPassword = process.env[tenantPassKey];
-  
-  // Fall back to global credentials if tenant-specific not found
+  // Credential priority system
   let user: string;
   let password: string;
+  let credentialSource: string;
   
-  if (tenantUser && tenantPassword) {
-    // Use tenant-specific credentials (production mode for this tenant)
-    user = tenantUser;
-    password = tenantPassword;
-    console.log(`[Golfmanager] Using tenant-specific credentials for ${tenantId}`);
+  // Priority 1: Database credentials (highest priority)
+  if (dbCredentials?.user && dbCredentials?.password) {
+    user = dbCredentials.user;
+    password = dbCredentials.password;
+    credentialSource = "database";
+    console.log(`[Golfmanager] Using database credentials for ${tenantId}`);
   } else {
-    // Fall back to global credentials
-    user = version === "v1"
-      ? (GOLFMANAGER_V1_USER || "SZc5XNpGd0")
-      : (GOLFMANAGER_V3_USER || "wagner@freeway.dk");
+    // Priority 2: Tenant-specific environment variables
+    // Format: GM_{TENANT}_USER and GM_{TENANT}_PASS (e.g. GM_PARAISO_USER, GM_PARAISO_PASS)
+    const tenantUpperCase = tenantId.toUpperCase();
+    const tenantUserKey = `GM_${tenantUpperCase}_USER`;
+    const tenantPassKey = `GM_${tenantUpperCase}_PASS`;
     
-    password = version === "v1"
-      ? (GOLFMANAGER_V1_PASSWORD || "")
-      : (GOLFMANAGER_V3_PASSWORD || "");
+    const tenantUser = process.env[tenantUserKey];
+    const tenantPassword = process.env[tenantPassKey];
+    
+    if (tenantUser && tenantPassword) {
+      user = tenantUser;
+      password = tenantPassword;
+      credentialSource = "tenant-env";
+      console.log(`[Golfmanager] Using tenant-specific env credentials for ${tenantId}`);
+    } else {
+      // Priority 3: Global credentials
+      user = version === "v1"
+        ? (GOLFMANAGER_V1_USER || "SZc5XNpGd0")
+        : (GOLFMANAGER_V3_USER || "wagner@freeway.dk");
+      
+      password = version === "v1"
+        ? (GOLFMANAGER_V1_PASSWORD || "")
+        : (GOLFMANAGER_V3_PASSWORD || "");
+      
+      credentialSource = password ? "global-env" : "demo";
+      if (!password) {
+        console.log(`[Golfmanager] Using demo credentials for ${tenantId}`);
+      }
+    }
   }
 
   // Determine mode
@@ -367,8 +392,8 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
     mode = "demo";
   } else if (explicitMode === "production") {
     mode = "production";
-  } else if (tenantUser && tenantPassword) {
-    // If tenant has its own credentials, auto-enable production mode for this tenant
+  } else if (credentialSource === "database" || credentialSource === "tenant-env") {
+    // If using database or tenant-specific credentials, auto-enable production mode
     mode = "production";
   } else if (version === "v1" && GOLFMANAGER_V1_USER && GOLFMANAGER_V1_PASSWORD) {
     mode = "production";
@@ -403,9 +428,14 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
  * Create a Golfmanager provider instance for a specific tenant
  * @param tenant - Course-specific tenant ID
  * @param version - API version (defaults to v1)
+ * @param dbCredentials - Optional database credentials from course record
  */
-export function createGolfmanagerProvider(tenant: string, version: GolfmanagerVersion = "v1"): GolfmanagerProvider {
-  const config = getGolfmanagerConfig(version, tenant);
+export function createGolfmanagerProvider(
+  tenant: string, 
+  version: GolfmanagerVersion = "v1",
+  dbCredentials?: { user: string | null; password: string | null }
+): GolfmanagerProvider {
+  const config = getGolfmanagerConfig(version, tenant, dbCredentials);
   return new GolfmanagerProvider(config);
 }
 
