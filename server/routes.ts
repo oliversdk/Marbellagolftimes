@@ -474,6 +474,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/course-providers - Get all courses with provider info (Admin only)
+  app.get("/api/admin/course-providers", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const courses = await storage.getAllCourses();
+      const allLinks = await storage.getAllLinks();
+      
+      // Map courses to provider info
+      const coursesWithProviders = courses.map(course => {
+        const courseLinks = allLinks.filter(link => link.courseId === course.id);
+        
+        // Determine provider type from links
+        let providerType: "golfmanager_v1" | "golfmanager_v3" | "teeone" | null = null;
+        let providerCode: string | null = null;
+        
+        for (const link of courseLinks) {
+          if (link.providerCourseCode?.startsWith("golfmanagerv3:")) {
+            providerType = "golfmanager_v3";
+            providerCode = link.providerCourseCode;
+            break;
+          } else if (link.providerCourseCode?.startsWith("golfmanager:")) {
+            providerType = "golfmanager_v1";
+            providerCode = link.providerCourseCode;
+            break;
+          } else if (link.providerCourseCode?.startsWith("teeone:")) {
+            providerType = "teeone";
+            providerCode = link.providerCourseCode;
+            break;
+          }
+        }
+        
+        return {
+          id: course.id,
+          name: course.name,
+          city: course.city,
+          providerType,
+          providerCode,
+        };
+      });
+      
+      res.json(coursesWithProviders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch course providers" });
+    }
+  });
+
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
     try {

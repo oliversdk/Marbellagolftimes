@@ -543,19 +543,9 @@ export default function Home() {
                                           {courseSlot.courseName}
                                         </h3>
                                       </Link>
-                                      {courseSlot.providerName === "golfmanager" && (
-                                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400" data-testid={`badge-gm-${courseSlot.courseId}`}>
-                                          GM
-                                        </Badge>
-                                      )}
                                       {isBestDeal && (
                                         <Badge variant="default" data-testid={`badge-best-deal-${courseSlot.courseId}`}>
                                           {t('course.bestDeal')}
-                                        </Badge>
-                                      )}
-                                      {courseSlot.providerType === "DEEP_LINK" && (
-                                        <Badge variant="outline" className="text-xs" data-testid={`badge-booking-type-${courseSlot.courseId}`}>
-                                          {t('home.directBadge')}
                                         </Badge>
                                       )}
                                     </div>

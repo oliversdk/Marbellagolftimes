@@ -45,6 +45,7 @@ export interface IStorage {
   createProvider(provider: InsertTeeTimeProvider): Promise<TeeTimeProvider>;
 
   // Course Provider Links
+  getAllLinks(): Promise<CourseProviderLink[]>;
   getLinksByCourseId(courseId: string): Promise<CourseProviderLink[]>;
   createLink(link: InsertCourseProviderLink): Promise<CourseProviderLink>;
 
@@ -1038,6 +1039,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.providers.values());
   }
 
+  async getAllLinks(): Promise<CourseProviderLink[]> {
+    return Array.from(this.links.values());
+  }
+
   async getLinksByCourseId(courseId: string): Promise<CourseProviderLink[]> {
     return Array.from(this.links.values()).filter(
       (link) => link.courseId === courseId
@@ -1590,6 +1595,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Course Provider Links
+  async getAllLinks(): Promise<CourseProviderLink[]> {
+    return await db.select().from(courseProviderLinks);
+  }
+
   async getLinksByCourseId(courseId: string): Promise<CourseProviderLink[]> {
     return await db.select().from(courseProviderLinks).where(eq(courseProviderLinks.courseId, courseId));
   }

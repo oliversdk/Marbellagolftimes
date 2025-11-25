@@ -91,6 +91,14 @@ type User = {
   isAdmin: string;
 };
 
+type CourseProvider = {
+  id: string;
+  name: string;
+  city: string;
+  providerType: "golfmanager_v1" | "golfmanager_v3" | "teeone" | null;
+  providerCode: string | null;
+};
+
 const editUserSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -124,6 +132,12 @@ export default function Admin() {
   // Fetch courses (public endpoint)
   const { data: courses } = useQuery<GolfCourse[]>({
     queryKey: ["/api/courses"],
+  });
+
+  // Fetch course providers (admin only)
+  const { data: courseProviders } = useQuery<CourseProvider[]>({
+    queryKey: ["/api/admin/course-providers"],
+    enabled: isAuthenticated && isAdmin,
   });
 
   // Fetch bookings - only if authenticated
@@ -773,45 +787,69 @@ export default function Admin() {
                       <TableRow>
                         <TableHead>Image</TableHead>
                         <TableHead>Course Name</TableHead>
+                        <TableHead>Provider</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead className="text-right" data-testid="table-column-kickback">Kickback %</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {courses.map((course) => (
-                        <TableRow key={course.id} data-testid={`row-course-${course.id}`}>
-                          <TableCell>
-                            <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
-                              <OptimizedImage
-                                src={course.imageUrl || undefined}
-                                alt={course.name}
-                                className="w-full h-full object-cover"
-                                data-testid={`img-course-thumb-${course.id}`}
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-medium">{course.name}</TableCell>
-                          <TableCell>{course.city}, {course.province}</TableCell>
-                          <TableCell className="text-right">
-                            {course.kickbackPercent !== null && course.kickbackPercent !== undefined 
-                              ? `${course.kickbackPercent}%` 
-                              : "0%"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditCourse(course)}
-                              data-testid={`button-edit-course-${course.id}`}
-                              aria-label="Edit course"
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit Course
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {courses.map((course) => {
+                        const provider = courseProviders?.find(p => p.id === course.id);
+                        return (
+                          <TableRow key={course.id} data-testid={`row-course-${course.id}`}>
+                            <TableCell>
+                              <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
+                                <OptimizedImage
+                                  src={course.imageUrl || undefined}
+                                  alt={course.name}
+                                  className="w-full h-full object-cover"
+                                  data-testid={`img-course-thumb-${course.id}`}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">{course.name}</TableCell>
+                            <TableCell>
+                              {provider?.providerType === "golfmanager_v1" && (
+                                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400" data-testid={`badge-provider-${course.id}`}>
+                                  GM V1
+                                </Badge>
+                              )}
+                              {provider?.providerType === "golfmanager_v3" && (
+                                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/30 dark:bg-indigo-500/20 dark:text-indigo-400" data-testid={`badge-provider-${course.id}`}>
+                                  GM V3
+                                </Badge>
+                              )}
+                              {provider?.providerType === "teeone" && (
+                                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400" data-testid={`badge-provider-${course.id}`}>
+                                  TeeOne
+                                </Badge>
+                              )}
+                              {!provider?.providerType && (
+                                <span className="text-muted-foreground text-sm">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{course.city}, {course.province}</TableCell>
+                            <TableCell className="text-right">
+                              {course.kickbackPercent !== null && course.kickbackPercent !== undefined 
+                                ? `${course.kickbackPercent}%` 
+                                : "0%"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditCourse(course)}
+                                data-testid={`button-edit-course-${course.id}`}
+                                aria-label="Edit course"
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit Course
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 ) : (
