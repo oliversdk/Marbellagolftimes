@@ -1,0 +1,470 @@
+Yes – exactly. So let’s build it so each golf course/tenant has its own auth wired in nicely.
+
+Below you get:
+	1.	A short Replit prompt you can paste into “Create from prompt”.
+	2.	All the actual files (TypeScript + Express) you can copy-paste if needed.
+
+⸻
+
+1️⃣ Replit “Create from Prompt”
+
+Paste this into Replit → Create Repl → “Create from prompt”:
+
+Create a Node.js + TypeScript backend for a golf booking portal that wraps the Golfmanager API v1 searchAvailability endpoint.
+
+Requirements:
+	•	Use: express, axios, cors, dotenv.
+	•	Use TypeScript with ts-node-dev for development.
+	•	Project structure:
+	•	src/server.ts – Express server
+	•	src/types.ts – Type definitions
+	•	src/courses.ts – per-course (per-tenant) config with individual API credentials
+	•	src/golfmanagerClient.ts – calls Golfmanager searchAvailability with Basic Auth for the right course
+	•	.env.example, tsconfig.json, package.json
+	•	Each golf course has: key, tenant, apiUser, apiPassword, name.
+	•	We expose:
+	•	GET /health → { status: "ok" }
+	•	POST /api/:courseKey/availability which:
+	•	Uses courseKey from the URL (e.g. paraiso, lareserva) to look up credentials
+	•	Reads JSON body { start, end, slots?, tags?, idResource?, idResourceType? }
+	•	Calls Golfmanager GET /searchAvailability with query params and per-course Basic Auth
+	•	Returns { success: true, tenant, data } on success
+	•	Returns clean errors on failure.
+	•	Env vars: PORT, GM_BASE_URL (default https://mt.golfmanager.app/api) and one pair for each course, like:
+	•	GM_PARAISO_USER, GM_PARAISO_PASS
+	•	GM_LARESERVA_USER, GM_LARESERVA_PASS
+	•	GM_FINCA_USER, GM_FINCA_PASS, etc.
+	•	Make sure everything compiles with npm run build and runs with npm run dev.
+
+If that doesn’t generate exactly what you need, just overwrite with the code below 👇
+
+⸻
+
+2️⃣ Filer du kan copy-paste direkte
+
+package.json
+
+{
+  "name": "golfmanager-proxy",
+  "version": "1.0.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.0"
+  }
+}
+
+
+⸻
+
+tsconfig.json
+
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "module": "commonjs",
+    "rootDir": "src",
+    "outDir": "dist",
+    "esModuleInterop": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
+
+
+⸻
+
+.env.example
+
+PORT=3000
+GM_BASE_URL=https://mt.golfmanager.app/api
+
+# One pair per course (you set these as "Secrets" in Replit)
+GM_PARAISO_USER=
+GM_PARAISO_PASS=
+
+GM_LARESERVA_USER=
+GM_LARESERVA_PASS=
+
+GM_FINCA_USER=
+GM_FINCA_PASS=
+
+GM_RCGS_USER=
+GM_RCGS_PASS=
+
+GM_SANROQUE_USER=
+GM_SANROQUE_PASS=
+
+GM_MARBELLA_USER=
+GM_MARBELLA_PASS=
+
+GM_ESTEPRONA_USER=
+GM_ESTEPRONA_PASS=
+
+GM_ATALAYA_USER=
+GM_ATALAYA_PASS=
+
+GM_SANTACLARA_USER=
+GM_SANTACLARA_PASS=
+
+GM_NARANJOS_USER=
+GM_NARANJOS_PASS=
+
+GM_MIJAS_USER=
+GM_MIJAS_PASS=
+
+GM_TORREQUEBRADA_USER=
+GM_TORREQUEBRADA_PASS=
+
+I Replit: læg en rigtig .env ind (eller brug “Secrets”) med de værdier du får fra hver golfbane.
+
+⸻
+
+src/types.ts
+
+export interface SearchAvailabilityRequest {
+  tenant: string;        // tenant name in Golfmanager (e.g. "paraiso")
+  start: string;         // ISO 8601
+  end: string;           // ISO 8601
+  slots?: number;
+  tags?: string[];
+  idResource?: number;
+  idResourceType?: number;
+}
+
+// You can refine this later – for now keep it flexible
+export interface Slot {
+  [key: string]: any;
+}
+
+
+⸻
+
+src/courses.ts
+
+Her binder vi courseKey (som du bruger i URL’en) til tenant + credentials.
+
+export interface CourseConfig {
+  key: string;       // used in URL: /api/:key/availability
+  tenant: string;    // tenant id in Golfmanager
+  apiUser: string;   // basic auth username
+  apiPassword: string; // basic auth password/key
+  name: string;      // human readable
+}
+
+export const courses: Record<string, CourseConfig> = {
+  // Eksempel: El Paraíso
+  paraiso: {
+    key: "paraiso",
+    tenant: "paraiso",
+    apiUser: process.env.GM_PARAISO_USER || "",
+    apiPassword: process.env.GM_PARAISO_PASS || "",
+    name: "El Paraíso Golf Club"
+  },
+
+  lareserva: {
+    key: "lareserva",
+    tenant: "lareserva",
+    apiUser: process.env.GM_LARESERVA_USER || "",
+    apiPassword: process.env.GM_LARESERVA_PASS || "",
+    name: "La Reserva Club Sotogrande"
+  },
+
+  fincacortesin: {
+    key: "fincacortesin",
+    tenant: "fincacortesin",
+    apiUser: process.env.GM_FINCA_USER || "",
+    apiPassword: process.env.GM_FINCA_PASS || "",
+    name: "Finca Cortesín Golf Club"
+  },
+
+  rcgsotogrande: {
+    key: "rcgsotogrande",
+    tenant: "rcgsotogrande",
+    apiUser: process.env.GM_RCGS_USER || "",
+    apiPassword: process.env.GM_RCGS_PASS || "",
+    name: "Real Club de Golf Sotogrande"
+  },
+
+  sanroque: {
+    key: "sanroque",
+    tenant: "sanroque",
+    apiUser: process.env.GM_SANROQUE_USER || "",
+    apiPassword: process.env.GM_SANROQUE_PASS || "",
+    name: "San Roque Club"
+  },
+
+  marbella: {
+    key: "marbella",
+    tenant: "marbella",
+    apiUser: process.env.GM_MARBELLA_USER || "",
+    apiPassword: process.env.GM_MARBELLA_PASS || "",
+    name: "Marbella Golf & Country Club"
+  },
+
+  estepona: {
+    key: "estepona",
+    tenant: "estepona",
+    apiUser: process.env.GM_ESTEPRONA_USER || "",
+    apiPassword: process.env.GM_ESTEPRONA_PASS || "",
+    name: "Estepona Golf"
+  },
+
+  atalaya: {
+    key: "atalaya",
+    tenant: "atalaya",
+    apiUser: process.env.GM_ATALAYA_USER || "",
+    apiPassword: process.env.GM_ATALAYA_PASS || "",
+    name: "Atalaya Golf & Country Club"
+  },
+
+  santaclara: {
+    key: "santaclara",
+    tenant: "santaclara",
+    apiUser: process.env.GM_SANTACLARA_USER || "",
+    apiPassword: process.env.GM_SANTACLARA_PASS || "",
+    name: "Santa Clara Golf Marbella"
+  },
+
+  naranjos: {
+    key: "naranjos",
+    tenant: "naranjos",
+    apiUser: process.env.GM_NARANJOS_USER || "",
+    apiPassword: process.env.GM_NARANJOS_PASS || "",
+    name: "Los Naranjos Golf Club"
+  },
+
+  mijas: {
+    key: "mijas",
+    tenant: "mijas",
+    apiUser: process.env.GM_MIJAS_USER || "",
+    apiPassword: process.env.GM_MIJAS_PASS || "",
+    name: "Mijas Golf"
+  },
+
+  torrequebrada: {
+    key: "torrequebrada",
+    tenant: "torrequebrada",
+    apiUser: process.env.GM_TORREQUEBRADA_USER || "",
+    apiPassword: process.env.GM_TORREQUEBRADA_PASS || "",
+    name: "Torrequebrada Golf"
+  }
+};
+
+Du kan selvfølgelig tilføje/fjerne baner her, efterhånden som du får API-aftaler.
+
+⸻
+
+src/golfmanagerClient.ts
+
+Denne fil laver selve call’et til Golfmanager med per-course Basic Auth.
+
+import axios from "axios";
+import { SearchAvailabilityRequest, Slot } from "./types";
+import { courses } from "./courses";
+
+class GMError extends Error {
+  statusCode?: number;
+  details?: any;
+
+  constructor(message: string, statusCode?: number, details?: any) {
+    super(message);
+    this.statusCode = statusCode;
+    this.details = details;
+  }
+}
+
+export async function searchAvailability(
+  courseKey: string,
+  params: SearchAvailabilityRequest
+): Promise<Slot[]> {
+  const course = courses[courseKey];
+
+  if (!course) {
+    throw new GMError(`Unknown course key: ${courseKey}`, 400);
+  }
+
+  if (!course.apiUser || !course.apiPassword) {
+    throw new GMError(
+      `Missing API credentials for course ${courseKey}. Check environment variables.`,
+      500
+    );
+  }
+
+  if (!params.start || !params.end) {
+    throw new GMError("start and end are required ISO-8601 strings", 400);
+  }
+
+  const baseURL = process.env.GM_BASE_URL || "https://mt.golfmanager.app/api";
+
+  const client = axios.create({
+    baseURL,
+    auth: {
+      username: course.apiUser,
+      password: course.apiPassword
+    },
+    timeout: 10000
+  });
+
+  const query: Record<string, any> = {
+    tenant: course.tenant,
+    start: params.start,
+    end: params.end
+  };
+
+  if (params.slots != null) query.slots = params.slots;
+  if (params.idResource != null) query.idResource = params.idResource;
+  if (params.idResourceType != null) query.idResourceType = params.idResourceType;
+
+  if (params.tags && params.tags.length > 0) {
+    // Golfmanager docs viser tags=["18holes","9holes"] i querystring
+    query.tags = JSON.stringify(params.tags);
+  }
+
+  try {
+    const res = await client.get<Slot[]>("/searchAvailability", { params: query });
+    return res.data;
+  } catch (err: any) {
+    if (err.response) {
+      throw new GMError(
+        `Golfmanager API error: ${err.response.statusText}`,
+        err.response.status,
+        err.response.data
+      );
+    }
+    throw new GMError(`Golfmanager API request failed: ${err.message}`);
+  }
+}
+
+
+⸻
+
+src/server.ts
+
+Express-serveren, som din frontend kalder.
+
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import { searchAvailability } from "./golfmanagerClient";
+import { SearchAvailabilityRequest } from "./types";
+import { courses } from "./courses";
+
+dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+// List known courses (nice for debugging)
+app.get("/courses", (_req, res) => {
+  res.json({
+    success: true,
+    data: Object.values(courses).map(c => ({
+      key: c.key,
+      tenant: c.tenant,
+      name: c.name,
+      hasCredentials: Boolean(c.apiUser && c.apiPassword)
+    }))
+  });
+});
+
+// Main availability endpoint:
+// POST /api/paraiso/availability
+// body: { start, end, slots?, tags?, idResource?, idResourceType? }
+app.post("/api/:courseKey/availability", async (req, res) => {
+  const courseKey = req.params.courseKey;
+
+  const body = req.body as Partial<SearchAvailabilityRequest>;
+
+  const start = body.start;
+  const end = body.end;
+
+  if (!start || !end) {
+    return res.status(400).json({
+      success: false,
+      message: "start and end are required in the body (ISO-8601 strings)"
+    });
+  }
+
+  const params: SearchAvailabilityRequest = {
+    tenant: "", // will be taken from course config, so this is not used
+    start,
+    end,
+    slots: body.slots,
+    tags: body.tags,
+    idResource: body.idResource,
+    idResourceType: body.idResourceType
+  };
+
+  try {
+    const slots = await searchAvailability(courseKey, params);
+    res.json({
+      success: true,
+      courseKey,
+      data: slots
+    });
+  } catch (err: any) {
+    console.error(err);
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || "Error calling Golfmanager API",
+      details: err.details || null
+    });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Golfmanager proxy listening on port ${port}`);
+});
+
+
+⸻
+
+3️⃣ Sådan tester du hurtigt
+	1.	I Replit:
+	•	Sørg for at dependencies er installeret (Replit gør det ofte selv).
+	•	Tilføj Secrets / .env med mindst ét sæt credentials (fx GM_PARAISO_USER, GM_PARAISO_PASS).
+	2.	Kør:
+
+npm run dev
+
+	3.	Lav et request (via Replit “HTTP client”, Postman eller curl):
+
+curl -X POST https://<din-repl-URL>/api/paraiso/availability \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start": "2025-05-20T07:00:00",
+    "end": "2025-05-20T11:00:00",
+    "slots": 2,
+    "tags": ["18holes"]
+  }'
+
+Hvis credentials til paraiso er korrekte, får du Golfmanager’s slots tilbage 👌
+
+⸻
+
+Hvis du vil, kan vi bagefter koble det direkte ind i fridasgolf.com frontend’en med fetch-kode også.

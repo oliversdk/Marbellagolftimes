@@ -309,6 +309,7 @@ export class GolfmanagerProvider {
 
 /**
  * Get Golfmanager configuration from environment variables
+ * Supports both per-tenant credentials (GM_{TENANT}_USER/PASS) and global credentials
  * @param version - API version (v1 or v3)
  * @param tenant - Course-specific tenant ID (overrides env var)
  */
@@ -324,6 +325,38 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
     GOLFMANAGER_V3_PASSWORD,
   } = process.env;
 
+  // Use provided tenant or fallback to env var or demo
+  const tenantId = tenant || GOLFMANAGER_TENANT || "demo";
+  
+  // Try to get tenant-specific credentials first
+  // Format: GM_{TENANT}_USER and GM_{TENANT}_PASS (e.g. GM_PARAISO_USER, GM_PARAISO_PASS)
+  const tenantUpperCase = tenantId.toUpperCase();
+  const tenantUserKey = `GM_${tenantUpperCase}_USER`;
+  const tenantPassKey = `GM_${tenantUpperCase}_PASS`;
+  
+  const tenantUser = process.env[tenantUserKey];
+  const tenantPassword = process.env[tenantPassKey];
+  
+  // Fall back to global credentials if tenant-specific not found
+  let user: string;
+  let password: string;
+  
+  if (tenantUser && tenantPassword) {
+    // Use tenant-specific credentials (production mode for this tenant)
+    user = tenantUser;
+    password = tenantPassword;
+    console.log(`[Golfmanager] Using tenant-specific credentials for ${tenantId}`);
+  } else {
+    // Fall back to global credentials
+    user = version === "v1"
+      ? (GOLFMANAGER_V1_USER || "SZc5XNpGd0")
+      : (GOLFMANAGER_V3_USER || "wagner@freeway.dk");
+    
+    password = version === "v1"
+      ? (GOLFMANAGER_V1_PASSWORD || "")
+      : (GOLFMANAGER_V3_PASSWORD || "");
+  }
+
   // Determine mode
   const explicitMode = GOLFMANAGER_MODE?.toLowerCase();
   let mode: GolfmanagerMode = "demo";
@@ -331,19 +364,19 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
   if (explicitMode === "mock") {
     mode = "mock";
   } else if (explicitMode === "demo") {
-    mode = "demo"; // Explicitly set to demo mode
+    mode = "demo";
   } else if (explicitMode === "production") {
+    mode = "production";
+  } else if (tenantUser && tenantPassword) {
+    // If tenant has its own credentials, auto-enable production mode for this tenant
     mode = "production";
   } else if (version === "v1" && GOLFMANAGER_V1_USER && GOLFMANAGER_V1_PASSWORD) {
     mode = "production";
   } else if (version === "v3" && GOLFMANAGER_V3_USER && GOLFMANAGER_V3_PASSWORD) {
     mode = "production";
   }
-
-  // Use provided tenant or fallback to env var or demo
-  const tenantId = tenant || GOLFMANAGER_TENANT || "demo";
   
-  // Get credentials based on version and tenant
+  // Get base URL based on version and tenant
   // Demo tenant uses .app server for testing
   let baseUrl: string;
   if (version === "v1") {
@@ -355,14 +388,6 @@ export function getGolfmanagerConfig(version: GolfmanagerVersion = "v1", tenant?
   } else {
     baseUrl = GOLFMANAGER_V3_URL || "https://eu.golfmanager.com/main/apimt";
   }
-
-  const user = version === "v1"
-    ? (GOLFMANAGER_V1_USER || "SZc5XNpGd0")
-    : (GOLFMANAGER_V3_USER || "wagner@freeway.dk");
-
-  const password = version === "v1"
-    ? (GOLFMANAGER_V1_PASSWORD || "")
-    : (GOLFMANAGER_V3_PASSWORD || "");
 
   return {
     mode,
