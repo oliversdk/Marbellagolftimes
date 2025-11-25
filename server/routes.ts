@@ -904,14 +904,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const { course, distance } of coursesWithDistance) {
           const providerLinks = await storage.getLinksByCourseId(course.id);
           
-          // Check for Golfmanager/TeeOne Golf booking link
+          // Check for Golfmanager/TeeOne Golf booking link (supports both V1 and V3)
+          // Format: "golfmanager:tenant" for V1, "golfmanagerv3:tenant" for V3
           const golfmanagerLink = providerLinks.find((link) => 
-            link.providerCourseCode && link.providerCourseCode.startsWith("golfmanager:")
+            link.providerCourseCode && (
+              link.providerCourseCode.startsWith("golfmanager:") ||
+              link.providerCourseCode.startsWith("golfmanagerv3:")
+            )
           );
           
           if (golfmanagerLink) {
-            // Extract tenant from providerCourseCode (format: "golfmanager:tenant")
-            const tenant = golfmanagerLink.providerCourseCode?.split(":")[1];
+            // Parse provider code to extract version and tenant
+            const providerCode = golfmanagerLink.providerCourseCode || "";
+            const isV3 = providerCode.startsWith("golfmanagerv3:");
+            const version = isV3 ? "v3" : "v1";
+            const tenant = providerCode.split(":")[1];
             
             if (!tenant) {
               console.error(`[Golfmanager] Invalid providerCourseCode for ${course.name}: ${golfmanagerLink.providerCourseCode}`);
@@ -935,14 +942,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ? { user: course.golfmanagerUser, password: course.golfmanagerPassword }
                 : undefined;
               
-              const provider = createGolfmanagerProvider(tenant, "v1", dbCredentials);
+              const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
               
               // Build date range for search
               const searchDate = date ? new Date(date as string) : new Date();
               const startTime = `${searchDate.toISOString().split("T")[0]}T${fromTime || "07:00"}:00`;
               const endTime = `${searchDate.toISOString().split("T")[0]}T${toTime || "20:00"}:00`;
               
-              console.log(`[Golfmanager] Fetching availability for ${course.name} (tenant: ${tenant})`);
+              console.log(`[Golfmanager] Fetching availability for ${course.name} (tenant: ${tenant}, version: ${version})`);
               
               // Search for availability (no idResource specified = searches all resources/tees)
               const gmSlots = await provider.searchAvailability(
@@ -959,7 +966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 holes ? parseInt(holes as string) : 18
               );
 
-              console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name} (tenant: ${tenant})`);
+              console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name} (tenant: ${tenant}, version: ${version})`);
 
               results.push({
                 courseId: course.id,
@@ -972,7 +979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 course,
               });
             } catch (error) {
-              console.error(`[Golfmanager] Error fetching availability for ${course.name} (tenant: ${tenant}):`, error);
+              console.error(`[Golfmanager] Error fetching availability for ${course.name} (tenant: ${tenant}, version: ${version}):`, error);
               
               // If demo mode and tenant access failed, fall back to demo tenant data
               if (golfmanagerConfig.mode === "demo") {
