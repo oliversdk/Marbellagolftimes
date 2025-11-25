@@ -31,7 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
@@ -780,11 +780,88 @@ export default function Admin() {
                   Manage course images, commission percentages, and details
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Selection toolbar */}
+                <div className="flex flex-wrap items-center gap-2 pb-4 border-b">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const gmCourseIds = courseProviders
+                        ?.filter(p => p.providerType === "golfmanager_v1" || p.providerType === "golfmanager_v3")
+                        .map(p => p.id) || [];
+                      setSelectedCourseIds(gmCourseIds);
+                    }}
+                    data-testid="button-select-golfmanager"
+                  >
+                    <CheckSquare className="h-4 w-4 mr-1" />
+                    Select All Golfmanager ({courseProviders?.filter(p => p.providerType === "golfmanager_v1" || p.providerType === "golfmanager_v3").length || 0})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const teeOneCourseIds = courseProviders
+                        ?.filter(p => p.providerType === "teeone")
+                        .map(p => p.id) || [];
+                      setSelectedCourseIds(teeOneCourseIds);
+                    }}
+                    data-testid="button-select-teeone"
+                  >
+                    <CheckSquare className="h-4 w-4 mr-1" />
+                    Select All TeeOne ({courseProviders?.filter(p => p.providerType === "teeone").length || 0})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedCourseIds([])}
+                    disabled={selectedCourseIds.length === 0}
+                    data-testid="button-deselect-all"
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Clear Selection
+                  </Button>
+                  {selectedCourseIds.length > 0 && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Badge variant="secondary" data-testid="badge-selected-count">
+                        {selectedCourseIds.length} selected
+                      </Badge>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const selectedCourses = courses?.filter(c => selectedCourseIds.includes(c.id)) || [];
+                          const courseNames = selectedCourses.map(c => c.name).join(", ");
+                          toast({
+                            title: "Email Feature",
+                            description: `Ready to email ${selectedCourseIds.length} courses: ${courseNames.substring(0, 100)}${courseNames.length > 100 ? "..." : ""}`,
+                          });
+                        }}
+                        data-testid="button-email-selected"
+                      >
+                        <Mail className="h-4 w-4 mr-1" />
+                        Email Selected Courses
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 {courses && courses.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={courses.length > 0 && selectedCourseIds.length === courses.length}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedCourseIds(courses.map(c => c.id));
+                              } else {
+                                setSelectedCourseIds([]);
+                              }
+                            }}
+                            data-testid="checkbox-select-all"
+                          />
+                        </TableHead>
                         <TableHead>Image</TableHead>
                         <TableHead>Course Name</TableHead>
                         <TableHead>Provider</TableHead>
@@ -796,8 +873,22 @@ export default function Admin() {
                     <TableBody>
                       {courses.map((course) => {
                         const provider = courseProviders?.find(p => p.id === course.id);
+                        const isSelected = selectedCourseIds.includes(course.id);
                         return (
-                          <TableRow key={course.id} data-testid={`row-course-${course.id}`}>
+                          <TableRow key={course.id} data-testid={`row-course-${course.id}`} className={isSelected ? "bg-muted/50" : ""}>
+                            <TableCell>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedCourseIds([...selectedCourseIds, course.id]);
+                                  } else {
+                                    setSelectedCourseIds(selectedCourseIds.filter(id => id !== course.id));
+                                  }
+                                }}
+                                data-testid={`checkbox-course-${course.id}`}
+                              />
+                            </TableCell>
                             <TableCell>
                               <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
                                 <OptimizedImage
