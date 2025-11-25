@@ -31,7 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
@@ -99,6 +99,40 @@ type CourseProvider = {
   providerCode: string | null;
 };
 
+type OnboardingStage = "NOT_CONTACTED" | "OUTREACH_SENT" | "INTERESTED" | "NOT_INTERESTED" | "PARTNERSHIP_ACCEPTED" | "CREDENTIALS_RECEIVED";
+
+type CourseOnboardingData = {
+  courseId: string;
+  courseName: string;
+  city: string;
+  email: string | null;
+  phone: string | null;
+  providerType: string | null;
+  stage: OnboardingStage;
+  outreachSentAt: string | null;
+  outreachMethod: string | null;
+  responseReceivedAt: string | null;
+  responseNotes: string | null;
+  partnershipAcceptedAt: string | null;
+  agreedCommission: number | null;
+  credentialsReceivedAt: string | null;
+  credentialsType: string | null;
+  contactPerson: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  notes: string | null;
+  updatedAt: string | null;
+};
+
+const ONBOARDING_STAGES: { value: OnboardingStage; label: string; color: string; icon: typeof CircleDot }[] = [
+  { value: "NOT_CONTACTED", label: "Not Contacted", color: "bg-gray-100 text-gray-700", icon: CircleDot },
+  { value: "OUTREACH_SENT", label: "Outreach Sent", color: "bg-blue-100 text-blue-700", icon: Mail },
+  { value: "INTERESTED", label: "Interested", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
+  { value: "NOT_INTERESTED", label: "Not Interested", color: "bg-red-100 text-red-700", icon: XCircle },
+  { value: "PARTNERSHIP_ACCEPTED", label: "Partnership Accepted", color: "bg-purple-100 text-purple-700", icon: Handshake },
+  { value: "CREDENTIALS_RECEIVED", label: "Credentials Received", color: "bg-emerald-100 text-emerald-700", icon: Key },
+];
+
 const editUserSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -150,6 +184,40 @@ export default function Admin() {
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
     enabled: isAuthenticated && isAdmin,
+  });
+
+  // Fetch course onboarding data - only if authenticated
+  const { data: onboardingData, isLoading: isLoadingOnboarding } = useQuery<CourseOnboardingData[]>({
+    queryKey: ["/api/admin/onboarding"],
+    enabled: isAuthenticated,
+  });
+
+  // Fetch onboarding stats
+  const { data: onboardingStats } = useQuery<Record<OnboardingStage, number>>({
+    queryKey: ["/api/admin/onboarding/stats"],
+    enabled: isAuthenticated,
+  });
+
+  // Update onboarding stage mutation
+  const updateOnboardingStageMutation = useMutation({
+    mutationFn: async ({ courseId, stage }: { courseId: string; stage: OnboardingStage }) => {
+      return await apiRequest(`/api/admin/onboarding/${courseId}/stage`, "PUT", { stage });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding/stats"] });
+      toast({
+        title: "Stage updated",
+        description: "Course partnership stage has been updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update failed",
+        description: "Failed to update partnership stage",
+        variant: "destructive",
+      });
+    },
   });
 
   // Fetch bookings for a specific user
@@ -598,6 +666,10 @@ export default function Admin() {
               <Percent className="h-4 w-4 mr-2" />
               Courses
             </TabsTrigger>
+            <TabsTrigger value="partnerships" data-testid="tab-partnerships">
+              <Handshake className="h-4 w-4 mr-2" />
+              Partnerships
+            </TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
           </TabsList>
 
@@ -952,6 +1024,194 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="partnerships">
+            <div className="space-y-6">
+              {/* Funnel Stats Overview */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {ONBOARDING_STAGES.map((stage) => {
+                  const count = onboardingStats?.[stage.value] ?? 0;
+                  const StageIcon = stage.icon;
+                  return (
+                    <Card key={stage.value} className={`${stage.color} border-0`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <StageIcon className="h-4 w-4" />
+                          <span className="text-sm font-medium">{stage.label}</span>
+                        </div>
+                        <p className="text-2xl font-bold">{count}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Course List by Stage */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Handshake className="h-5 w-5" />
+                    Course Partnership Funnel
+                  </CardTitle>
+                  <CardDescription>
+                    Track outreach progress and manage partnerships with golf courses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingOnboarding ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      Loading partnership data...
+                    </div>
+                  ) : onboardingData && onboardingData.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Course</TableHead>
+                          <TableHead>Provider</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Stage</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {onboardingData.map((course) => {
+                          const currentStage = ONBOARDING_STAGES.find(s => s.value === course.stage);
+                          const StageIcon = currentStage?.icon || CircleDot;
+                          
+                          return (
+                            <TableRow key={course.courseId} data-testid={`row-onboarding-${course.courseId}`}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{course.courseName}</p>
+                                  <p className="text-sm text-muted-foreground">{course.city}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {course.providerType === "golfmanager_v1" && (
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700">GM V1</Badge>
+                                )}
+                                {course.providerType === "golfmanager_v3" && (
+                                  <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">GM V3</Badge>
+                                )}
+                                {course.providerType === "teeone" && (
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700">TeeOne</Badge>
+                                )}
+                                {!course.providerType && (
+                                  <span className="text-muted-foreground text-sm">None</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  {course.email && (
+                                    <div className="flex items-center gap-1">
+                                      <Mail className="h-3 w-3" />
+                                      <span className="truncate max-w-32">{course.email}</span>
+                                    </div>
+                                  )}
+                                  {course.phone && (
+                                    <div className="flex items-center gap-1 text-muted-foreground">
+                                      <Phone className="h-3 w-3" />
+                                      <span>{course.phone}</span>
+                                    </div>
+                                  )}
+                                  {!course.email && !course.phone && (
+                                    <span className="text-muted-foreground">No contact</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className={currentStage?.color}>
+                                  <StageIcon className="h-3 w-3 mr-1" />
+                                  {currentStage?.label || course.stage}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  {course.stage === "NOT_CONTACTED" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "OUTREACH_SENT" })}
+                                      disabled={updateOnboardingStageMutation.isPending}
+                                      data-testid={`button-mark-outreach-${course.courseId}`}
+                                    >
+                                      <Mail className="h-3 w-3 mr-1" />
+                                      Mark Sent
+                                    </Button>
+                                  )}
+                                  {course.stage === "OUTREACH_SENT" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-green-600 hover:text-green-700"
+                                        onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "INTERESTED" })}
+                                        disabled={updateOnboardingStageMutation.isPending}
+                                        data-testid={`button-mark-interested-${course.courseId}`}
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Interested
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-red-600 hover:text-red-700"
+                                        onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "NOT_INTERESTED" })}
+                                        disabled={updateOnboardingStageMutation.isPending}
+                                        data-testid={`button-mark-not-interested-${course.courseId}`}
+                                      >
+                                        <XCircle className="h-3 w-3 mr-1" />
+                                        Not Interested
+                                      </Button>
+                                    </>
+                                  )}
+                                  {course.stage === "INTERESTED" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-purple-600 hover:text-purple-700"
+                                      onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "PARTNERSHIP_ACCEPTED" })}
+                                      disabled={updateOnboardingStageMutation.isPending}
+                                      data-testid={`button-mark-partnership-${course.courseId}`}
+                                    >
+                                      <Handshake className="h-3 w-3 mr-1" />
+                                      Partnership
+                                    </Button>
+                                  )}
+                                  {course.stage === "PARTNERSHIP_ACCEPTED" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-emerald-600 hover:text-emerald-700"
+                                      onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "CREDENTIALS_RECEIVED" })}
+                                      disabled={updateOnboardingStageMutation.isPending}
+                                      data-testid={`button-mark-credentials-${course.courseId}`}
+                                    >
+                                      <Key className="h-3 w-3 mr-1" />
+                                      Got Credentials
+                                    </Button>
+                                  )}
+                                  {course.stage === "CREDENTIALS_RECEIVED" && (
+                                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Complete
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      No courses found
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="emails">
             <div className="grid gap-6">
