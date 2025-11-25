@@ -914,11 +914,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           if (golfmanagerLink) {
-            // Parse provider code to extract version and tenant
-            const providerCode = golfmanagerLink.providerCourseCode || "";
+            // Parse provider code to extract version and tenant (normalize for robustness)
+            const providerCode = (golfmanagerLink.providerCourseCode || "").toLowerCase().trim();
             const isV3 = providerCode.startsWith("golfmanagerv3:");
-            const version = isV3 ? "v3" : "v1";
-            const tenant = providerCode.split(":")[1];
+            const version: "v1" | "v3" = isV3 ? "v3" : "v1";
+            const tenant = providerCode.split(":")[1]?.trim();
             
             if (!tenant) {
               console.error(`[Golfmanager] Invalid providerCourseCode for ${course.name}: ${golfmanagerLink.providerCourseCode}`);
