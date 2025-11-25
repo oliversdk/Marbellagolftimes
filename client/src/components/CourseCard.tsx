@@ -17,11 +17,12 @@ interface CourseCardProps {
   price?: number;
   priceRange?: { min: number; max: number };
   isBestDeal?: boolean;
+  providerName?: "golfmanager" | "teeone" | null;
   onBook?: () => void;
   onViewDetails?: () => void;
 }
 
-export const CourseCard = memo(function CourseCard({ course, distance, price, priceRange, isBestDeal, onBook, onViewDetails }: CourseCardProps) {
+export const CourseCard = memo(function CourseCard({ course, distance, price, priceRange, isBestDeal, providerName, onBook, onViewDetails }: CourseCardProps) {
   const { t } = useI18n();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [swipePosition, setSwipePosition] = useState(0);
@@ -79,6 +80,11 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
               <h3 className="font-serif font-semibold text-base sm:text-lg leading-tight" data-testid={`text-course-name-${course.id}`}>
                 {course.name}
               </h3>
+              {providerName === "golfmanager" && (
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400" data-testid={`badge-gm-${course.id}`}>
+                  GM
+                </Badge>
+              )}
               {isBestDeal && (
                 <Badge variant="default" data-testid={`badge-best-deal-${course.id}`}>
                   {t('course.bestDeal')}

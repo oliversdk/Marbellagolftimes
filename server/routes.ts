@@ -853,30 +853,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort((a, b) => a.distance - b.distance);
 
       if (golfmanagerConfig.mode === "mock") {
-        // Mock mode: Show courses with TeeOne booking links as DEEP_LINK, others with mock data
+        // Mock mode: Show courses with provider info for badges
         const mockSlots: CourseWithSlots[] = await Promise.all(coursesWithDistance.map(async ({ course, distance }): Promise<CourseWithSlots> => {
           const providerLinks = await storage.getLinksByCourseId(course.id);
           
-          // Check for TeeOne/Golfmanager booking link
+          // Check for Golfmanager booking link (V1 or V3)
           const golfmanagerLink = providerLinks.find((link) => 
-            link.providerCourseCode && link.providerCourseCode.startsWith("golfmanager:")
+            link.providerCourseCode && (
+              link.providerCourseCode.startsWith("golfmanager:") ||
+              link.providerCourseCode.startsWith("golfmanagerv3:")
+            )
+          );
+          
+          // Check for TeeOne booking link
+          const teeoneLink = providerLinks.find((link) => 
+            link.providerCourseCode && link.providerCourseCode.startsWith("teeone:")
           );
           
           if (golfmanagerLink) {
-            // Course has TeeOne booking - show as direct link without mock slots
+            // Course has Golfmanager - show mock data with GM badge
             return {
               courseId: course.id,
               courseName: course.name,
               distanceKm: Math.round(distance * 10) / 10,
               bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
-              slots: [],
-              note: "Book directly on course booking page",
-              providerType: "DEEP_LINK",
+              slots: generateMockSlots(
+                date as string || new Date().toISOString(),
+                fromTime as string || "07:00",
+                toTime as string || "20:00",
+                players ? parseInt(players as string) : 2,
+                holes ? parseInt(holes as string) : 18
+              ),
+              note: "Mock data - Real-time availability coming soon",
+              providerType: "API",
+              providerName: "golfmanager",
               course,
             };
           }
           
-          // Other courses get mock data
+          if (teeoneLink) {
+            // Course has TeeOne - show as direct booking link
+            return {
+              courseId: course.id,
+              courseName: course.name,
+              distanceKm: Math.round(distance * 10) / 10,
+              bookingUrl: teeoneLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+              slots: [],
+              note: "Book directly on course website",
+              providerType: "DEEP_LINK",
+              providerName: "teeone",
+              course,
+            };
+          }
+          
+          // Other courses get mock data without provider badge
           const providerType: "API" | "DEEP_LINK" | "NONE" = providerLinks.length > 0 ? "DEEP_LINK" : "NONE";
           return {
             courseId: course.id,
@@ -890,8 +920,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               players ? parseInt(players as string) : 2,
               holes ? parseInt(holes as string) : 18
             ),
-            note: "Mock data - Configure GOLFMANAGER_API_KEY for real availability",
+            note: "Mock data - Configure booking provider for real availability",
             providerType,
+            providerName: null,
             course,
           };
         }));
@@ -931,6 +962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 slots: [],
                 note: "Book directly on course booking page",
                 providerType: "DEEP_LINK",
+                providerName: "golfmanager",
                 course,
               });
               continue;
@@ -976,6 +1008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 slots,
                 note: slots.length > 0 ? undefined : "No availability for selected date/time",
                 providerType: "API",
+                providerName: "golfmanager",
                 course,
               });
             } catch (error) {
@@ -1016,6 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     slots,
                     note: "Demo times shown - Real availability coming soon",
                     providerType: "API",
+                    providerName: "golfmanager",
                     course,
                   });
                 } catch (demoError) {
@@ -1029,6 +1063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     slots: [],
                     note: "Book directly on course booking page",
                     providerType: "DEEP_LINK",
+                    providerName: "golfmanager",
                     course,
                   });
                 }
@@ -1042,25 +1077,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   slots: [],
                   note: "Real-time availability temporarily unavailable - Book directly on course page",
                   providerType: "DEEP_LINK",
+                  providerName: "golfmanager",
                   course,
                 });
               }
             }
           } else {
-            // Course without Golfmanager - show with direct booking link if available
-            const deepLinkProvider = providerLinks.find((link) => link.bookingUrl);
+            // Check for TeeOne Golf booking link
+            const teeoneLink = providerLinks.find((link) => 
+              link.providerCourseCode && link.providerCourseCode.startsWith("teeone:")
+            );
             
-            if (deepLinkProvider) {
+            if (teeoneLink) {
               results.push({
                 courseId: course.id,
                 courseName: course.name,
                 distanceKm: Math.round(distance * 10) / 10,
-                bookingUrl: deepLinkProvider.bookingUrl || course.bookingUrl || course.websiteUrl,
+                bookingUrl: teeoneLink.bookingUrl || course.bookingUrl || course.websiteUrl,
                 slots: [],
                 note: "Book directly on course website",
                 providerType: "DEEP_LINK",
+                providerName: "teeone",
                 course,
               });
+            } else {
+              // Course without Golfmanager/TeeOne - show with direct booking link if available
+              const deepLinkProvider = providerLinks.find((link) => link.bookingUrl);
+              
+              if (deepLinkProvider) {
+                results.push({
+                  courseId: course.id,
+                  courseName: course.name,
+                  distanceKm: Math.round(distance * 10) / 10,
+                  bookingUrl: deepLinkProvider.bookingUrl || course.bookingUrl || course.websiteUrl,
+                  slots: [],
+                  note: "Book directly on course website",
+                  providerType: "DEEP_LINK",
+                  providerName: null,
+                  course,
+                });
+              }
             }
           }
         }
