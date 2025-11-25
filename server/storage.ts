@@ -16,6 +16,9 @@ import {
   type InsertTestimonial,
   type AdCampaign,
   type InsertAdCampaign,
+  type CourseOnboarding,
+  type InsertCourseOnboarding,
+  type OnboardingStage,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -26,6 +29,7 @@ import {
   testimonials,
   adCampaigns,
   blogPosts,
+  courseOnboarding,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -110,6 +114,14 @@ export interface IStorage {
     netProfit: number;
     roi: number;
   }>;
+
+  // Course Onboarding
+  getAllOnboarding(): Promise<CourseOnboarding[]>;
+  getOnboardingByCourseId(courseId: string): Promise<CourseOnboarding | undefined>;
+  createOnboarding(onboarding: InsertCourseOnboarding): Promise<CourseOnboarding>;
+  updateOnboarding(courseId: string, updates: Partial<CourseOnboarding>): Promise<CourseOnboarding | undefined>;
+  updateOnboardingStage(courseId: string, stage: OnboardingStage): Promise<CourseOnboarding | undefined>;
+  getOnboardingStats(): Promise<Record<OnboardingStage, number>>;
 }
 
 export class MemStorage implements IStorage {
@@ -1543,6 +1555,38 @@ export class MemStorage implements IStorage {
       roi,
     };
   }
+
+  // Course Onboarding (stub implementation for MemStorage)
+  async getAllOnboarding(): Promise<CourseOnboarding[]> {
+    return [];
+  }
+
+  async getOnboardingByCourseId(courseId: string): Promise<CourseOnboarding | undefined> {
+    return undefined;
+  }
+
+  async createOnboarding(onboarding: InsertCourseOnboarding): Promise<CourseOnboarding> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async updateOnboarding(courseId: string, updates: Partial<CourseOnboarding>): Promise<CourseOnboarding | undefined> {
+    return undefined;
+  }
+
+  async updateOnboardingStage(courseId: string, stage: OnboardingStage): Promise<CourseOnboarding | undefined> {
+    return undefined;
+  }
+
+  async getOnboardingStats(): Promise<Record<OnboardingStage, number>> {
+    return {
+      NOT_CONTACTED: 0,
+      OUTREACH_SENT: 0,
+      INTERESTED: 0,
+      NOT_INTERESTED: 0,
+      PARTNERSHIP_ACCEPTED: 0,
+      CREDENTIALS_RECEIVED: 0,
+    };
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2091,6 +2135,81 @@ export class DatabaseStorage implements IStorage {
       netProfit,
       roi,
     };
+  }
+
+  // Course Onboarding
+  async getAllOnboarding(): Promise<CourseOnboarding[]> {
+    return await db.select().from(courseOnboarding);
+  }
+
+  async getOnboardingByCourseId(courseId: string): Promise<CourseOnboarding | undefined> {
+    const results = await db.select().from(courseOnboarding).where(eq(courseOnboarding.courseId, courseId));
+    return results[0];
+  }
+
+  async createOnboarding(onboarding: InsertCourseOnboarding): Promise<CourseOnboarding> {
+    const results = await db.insert(courseOnboarding).values(onboarding).returning();
+    return results[0];
+  }
+
+  async updateOnboarding(courseId: string, updates: Partial<CourseOnboarding>): Promise<CourseOnboarding | undefined> {
+    const result = await db
+      .update(courseOnboarding)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(courseOnboarding.courseId, courseId))
+      .returning();
+    return result[0];
+  }
+
+  async updateOnboardingStage(courseId: string, stage: OnboardingStage): Promise<CourseOnboarding | undefined> {
+    const existing = await this.getOnboardingByCourseId(courseId);
+    
+    if (!existing) {
+      // Create new onboarding record if it doesn't exist
+      return await this.createOnboarding({ courseId, stage });
+    }
+
+    // Update stage and set relevant timestamps
+    const updates: Partial<CourseOnboarding> = { stage };
+    
+    if (stage === "OUTREACH_SENT" && !existing.outreachSentAt) {
+      updates.outreachSentAt = new Date();
+    } else if ((stage === "INTERESTED" || stage === "NOT_INTERESTED") && !existing.responseReceivedAt) {
+      updates.responseReceivedAt = new Date();
+    } else if (stage === "PARTNERSHIP_ACCEPTED" && !existing.partnershipAcceptedAt) {
+      updates.partnershipAcceptedAt = new Date();
+    } else if (stage === "CREDENTIALS_RECEIVED" && !existing.credentialsReceivedAt) {
+      updates.credentialsReceivedAt = new Date();
+    }
+
+    return await this.updateOnboarding(courseId, updates);
+  }
+
+  async getOnboardingStats(): Promise<Record<OnboardingStage, number>> {
+    const allOnboarding = await this.getAllOnboarding();
+    const allCourses = await this.getAllCourses();
+    
+    // Count courses without onboarding records as NOT_CONTACTED
+    const onboardedCourseIds = new Set(allOnboarding.map(o => o.courseId));
+    const notContactedCount = allCourses.filter(c => !onboardedCourseIds.has(c.id)).length;
+    
+    const stats: Record<OnboardingStage, number> = {
+      NOT_CONTACTED: notContactedCount,
+      OUTREACH_SENT: 0,
+      INTERESTED: 0,
+      NOT_INTERESTED: 0,
+      PARTNERSHIP_ACCEPTED: 0,
+      CREDENTIALS_RECEIVED: 0,
+    };
+
+    for (const onboarding of allOnboarding) {
+      const stage = onboarding.stage as OnboardingStage;
+      if (stage in stats) {
+        stats[stage]++;
+      }
+    }
+
+    return stats;
   }
 }
 

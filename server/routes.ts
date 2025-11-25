@@ -519,6 +519,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== COURSE ONBOARDING (Partnership Funnel) ====================
+  
+  // GET /api/admin/onboarding - Get all onboarding records with course info (Admin only)
+  app.get("/api/admin/onboarding", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const courses = await storage.getAllCourses();
+      const onboardingRecords = await storage.getAllOnboarding();
+      const allLinks = await storage.getAllLinks();
+      
+      // Create a map for quick lookup
+      const onboardingMap = new Map(onboardingRecords.map(o => [o.courseId, o]));
+      
+      // Combine course info with onboarding status
+      const coursesWithOnboarding = courses.map(course => {
+        const onboarding = onboardingMap.get(course.id);
+        const courseLinks = allLinks.filter(link => link.courseId === course.id);
+        
+        // Determine provider type
+        let providerType: string | null = null;
+        for (const link of courseLinks) {
+          if (link.providerCourseCode?.startsWith("golfmanagerv3:")) {
+            providerType = "golfmanager_v3";
+            break;
+          } else if (link.providerCourseCode?.startsWith("golfmanager:")) {
+            providerType = "golfmanager_v1";
+            break;
+          } else if (link.providerCourseCode?.startsWith("teeone:")) {
+            providerType = "teeone";
+            break;
+          }
+        }
+        
+        return {
+          courseId: course.id,
+          courseName: course.name,
+          city: course.city,
+          email: course.email,
+          phone: course.phone,
+          providerType,
+          stage: onboarding?.stage || "NOT_CONTACTED",
+          outreachSentAt: onboarding?.outreachSentAt,
+          outreachMethod: onboarding?.outreachMethod,
+          responseReceivedAt: onboarding?.responseReceivedAt,
+          responseNotes: onboarding?.responseNotes,
+          partnershipAcceptedAt: onboarding?.partnershipAcceptedAt,
+          agreedCommission: onboarding?.agreedCommission,
+          credentialsReceivedAt: onboarding?.credentialsReceivedAt,
+          credentialsType: onboarding?.credentialsType,
+          contactPerson: onboarding?.contactPerson,
+          contactEmail: onboarding?.contactEmail,
+          contactPhone: onboarding?.contactPhone,
+          notes: onboarding?.notes,
+          updatedAt: onboarding?.updatedAt,
+        };
+      });
+      
+      res.json(coursesWithOnboarding);
+    } catch (error) {
+      console.error("Failed to fetch onboarding:", error);
+      res.status(500).json({ error: "Failed to fetch onboarding data" });
+    }
+  });
+
+  // GET /api/admin/onboarding/stats - Get funnel statistics (Admin only)
+  app.get("/api/admin/onboarding/stats", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getOnboardingStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch onboarding stats" });
+    }
+  });
+
+  // PUT /api/admin/onboarding/:courseId/stage - Update course onboarding stage (Admin only)
+  app.put("/api/admin/onboarding/:courseId/stage", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { stage } = req.body;
+      
+      const validStages = ["NOT_CONTACTED", "OUTREACH_SENT", "INTERESTED", "NOT_INTERESTED", "PARTNERSHIP_ACCEPTED", "CREDENTIALS_RECEIVED"];
+      if (!validStages.includes(stage)) {
+        return res.status(400).json({ error: "Invalid stage" });
+      }
+      
+      const result = await storage.updateOnboardingStage(courseId, stage);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to update stage:", error);
+      res.status(500).json({ error: "Failed to update onboarding stage" });
+    }
+  });
+
+  // PATCH /api/admin/onboarding/:courseId - Update course onboarding details (Admin only)
+  app.patch("/api/admin/onboarding/:courseId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const updates = req.body;
+      
+      // Check if onboarding exists, create if not
+      const existing = await storage.getOnboardingByCourseId(courseId);
+      if (!existing) {
+        const created = await storage.createOnboarding({ 
+          courseId,
+          stage: updates.stage || "NOT_CONTACTED",
+          ...updates 
+        });
+        return res.json(created);
+      }
+      
+      const result = await storage.updateOnboarding(courseId, updates);
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to update onboarding:", error);
+      res.status(500).json({ error: "Failed to update onboarding" });
+    }
+  });
+
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
     try {
