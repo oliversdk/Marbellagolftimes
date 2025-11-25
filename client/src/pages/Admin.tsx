@@ -99,8 +99,10 @@ const editUserSchema = z.object({
   isAdmin: z.enum(["true", "false"]),
 });
 
-const editKickbackSchema = z.object({
+const editCourseSchema = z.object({
   kickbackPercent: z.number().min(0, "Must be at least 0").max(100, "Must be at most 100"),
+  golfmanagerUser: z.string().optional(),
+  golfmanagerPassword: z.string().optional(),
 });
 
 export default function Admin() {
@@ -250,18 +252,29 @@ export default function Admin() {
     }
   };
 
-  // Edit kickback form
-  const kickbackForm = useForm<z.infer<typeof editKickbackSchema>>({
-    resolver: zodResolver(editKickbackSchema),
+  // Edit course form (kickback + credentials)
+  const courseForm = useForm<z.infer<typeof editCourseSchema>>({
+    resolver: zodResolver(editCourseSchema),
     defaultValues: {
       kickbackPercent: 0,
+      golfmanagerUser: "",
+      golfmanagerPassword: "",
     },
   });
 
-  // Update course kickback mutation
-  const updateKickbackMutation = useMutation({
-    mutationFn: async ({ courseId, kickbackPercent }: { courseId: string; kickbackPercent: number }) => {
-      const response = await apiRequest(`/api/admin/courses/${courseId}/kickback`, "PATCH", { kickbackPercent });
+  // Update course (kickback + credentials) mutation
+  const updateCourseMutation = useMutation({
+    mutationFn: async ({ courseId, kickbackPercent, golfmanagerUser, golfmanagerPassword }: { 
+      courseId: string; 
+      kickbackPercent: number;
+      golfmanagerUser?: string;
+      golfmanagerPassword?: string;
+    }) => {
+      const response = await apiRequest(`/api/admin/courses/${courseId}`, "PATCH", { 
+        kickbackPercent,
+        golfmanagerUser,
+        golfmanagerPassword
+      });
       return await response.json() as GolfCourse;
     },
     onSuccess: async (data: GolfCourse) => {
@@ -274,16 +287,16 @@ export default function Admin() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/analytics/commission"] });
       toast({
-        title: "Kickback updated",
-        description: "Commission percentage has been updated successfully",
+        title: "Course Updated",
+        description: "Course settings have been updated successfully",
       });
       setEditingCourse(null);
-      kickbackForm.reset();
+      courseForm.reset();
     },
     onError: (error: any) => {
       toast({
         title: "Update failed",
-        description: error.message || "Failed to update kickback percentage",
+        description: error.message || "Failed to update course settings",
         variant: "destructive",
       });
     },
@@ -293,17 +306,19 @@ export default function Admin() {
   const handleEditCourse = (course: GolfCourse) => {
     setEditingCourse(course);
     setEditCourseImageUrl(course.imageUrl || "");
-    kickbackForm.reset({
+    courseForm.reset({
       kickbackPercent: course.kickbackPercent || 0,
+      golfmanagerUser: course.golfmanagerUser || "",
+      golfmanagerPassword: course.golfmanagerPassword || "",
     });
   };
 
-  // Handle save kickback
-  const handleSaveKickback = (data: z.infer<typeof editKickbackSchema>) => {
+  // Handle save course (kickback + credentials)
+  const handleSaveCourse = (data: z.infer<typeof editCourseSchema>) => {
     if (editingCourse) {
-      updateKickbackMutation.mutate({ 
+      updateCourseMutation.mutate({ 
         courseId: editingCourse.id, 
-        kickbackPercent: data.kickbackPercent 
+        ...data
       });
     }
   };
@@ -1209,12 +1224,13 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Commission Percentage Section */}
+                {/* Course Settings Form */}
                 <div className="border-t pt-4">
-                  <Form {...kickbackForm}>
-                    <form onSubmit={kickbackForm.handleSubmit(handleSaveKickback)} className="space-y-4">
+                  <Form {...courseForm}>
+                    <form onSubmit={courseForm.handleSubmit(handleSaveCourse)} className="space-y-4">
+                      {/* Commission Percentage */}
                       <FormField
-                        control={kickbackForm.control}
+                        control={courseForm.control}
                         name="kickbackPercent"
                         render={({ field }) => (
                           <FormItem>
@@ -1244,6 +1260,56 @@ export default function Admin() {
                           </FormItem>
                         )}
                       />
+
+                      {/* Golfmanager API Credentials */}
+                      <div className="space-y-3 pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <FormLabel className="text-base font-semibold">Golfmanager API Credentials</FormLabel>
+                          <span className="text-xs text-muted-foreground">(Optional)</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Add course-specific Golfmanager credentials to enable real-time tee time availability
+                        </p>
+
+                        <FormField
+                          control={courseForm.control}
+                          name="golfmanagerUser"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>API Username</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="text"
+                                  placeholder="Enter Golfmanager API username"
+                                  data-testid="input-golfmanager-user"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={courseForm.control}
+                          name="golfmanagerPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>API Password</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Enter Golfmanager API password"
+                                  data-testid="input-golfmanager-password"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
                       <DialogFooter>
                         <Button
                           type="button"
@@ -1255,10 +1321,10 @@ export default function Admin() {
                         </Button>
                         <Button
                           type="submit"
-                          disabled={updateKickbackMutation.isPending}
-                          data-testid="button-save-kickback"
+                          disabled={updateCourseMutation.isPending}
+                          data-testid="button-save-course"
                         >
-                          {updateKickbackMutation.isPending ? "Saving..." : "Save Commission %"}
+                          {updateCourseMutation.isPending ? "Saving..." : "Save Course Settings"}
                         </Button>
                       </DialogFooter>
                     </form>
