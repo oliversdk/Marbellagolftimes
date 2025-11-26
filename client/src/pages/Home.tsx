@@ -129,6 +129,96 @@ export default function Home() {
     },
   });
 
+  // Fun personalized greetings for admins - memoized to prevent re-rolling on every render
+  const adminGreeting = useMemo(() => {
+    if (!user || !revenueData) return null;
+    
+    const firstName = user.firstName || "Boss";
+    const commission = revenueData.totalCommission;
+    const roi = revenueData.roi;
+    
+    // Seeded random based on date to keep consistent during session but change daily
+    const today = new Date().toDateString();
+    const seed = today.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const pseudoRandom = (index: number) => ((seed + index) * 9301 + 49297) % 233280 / 233280;
+    
+    // Special greetings based on name
+    const personalGreetings: Record<string, string[]> = {
+      "Morten": [
+        `Hej Morten, din flotte fyr! 😎`,
+        `Goddag Morten! Klar til at erobre golfverdenen? 🏌️`,
+        `Morten! Du ser godt ud i dag! 💪`,
+        `Hey Morten - lad os tjene nogle penge! 💰`,
+        `Morten! Champagnen venter - lad os gøre det! 🍾`,
+      ],
+      "Frida": [
+        `Hej Frida, din lækre tøs! 🌟`,
+        `Frida! Skal vi signe nogle golfbaner i dag? ✨`,
+        `Godmorgen Frida! Du er en stjerne! ⭐`,
+        `Hey Frida - lad os gøre magien! 💫`,
+        `Frida! Klar til at crushe det i dag? 🔥`,
+      ],
+    };
+    
+    // Get base greeting
+    const greetings = personalGreetings[firstName] || [
+      `Hej ${firstName}! 👋`,
+      `Velkommen tilbage, ${firstName}! 🎯`,
+      `Hey ${firstName}! Klar til action? 🚀`,
+    ];
+    const baseGreeting = greetings[Math.floor(pseudoRandom(1) * greetings.length)];
+    
+    // Add context-based motivation
+    let motivation = "";
+    
+    if (commission === 0) {
+      const zeroMessages = [
+        "Skal vi få det første salg i dag? Du kan gøre det! 💪",
+        "Dagen er ung - lad os skaffe nogle bookings! 🏌️",
+        "Ingen salg endnu, men det ændrer vi! 🎯",
+        "Første salg venter derude - go get it! 🚀",
+        "I dag er dagen! Lad os få gang i pengene! 💸",
+      ];
+      motivation = zeroMessages[Math.floor(pseudoRandom(2) * zeroMessages.length)];
+    } else if (commission > 0 && commission < 100) {
+      const firstSaleMessages = [
+        "Hvor er du god! Pengene er begyndt at rulle! 🎉",
+        "BOOM! Vi er i gang! 💰",
+        "Yes! Det virker! Keep it up! 🔥",
+        "Du har knækket koden - mere af det! 🏆",
+        "Det første er altid det sværeste - nu ruller det! 🚀",
+      ];
+      motivation = firstSaleMessages[Math.floor(pseudoRandom(2) * firstSaleMessages.length)];
+    } else if (commission >= 100 && commission < 500) {
+      const growingMessages = [
+        `Du er on fire! €${commission.toFixed(0)} i commission! 🔥`,
+        "Det går fremad! Fortsæt det gode arbejde! 💪",
+        "Wow, du crusher det! 🚀",
+        "Imponerende! Kan vi slå rekorden i morgen? 📈",
+        `€${commission.toFixed(0)} allerede! Du er en stjerne! ⭐`,
+      ];
+      motivation = growingMessages[Math.floor(pseudoRandom(2) * growingMessages.length)];
+    } else if (commission >= 500) {
+      const successMessages = [
+        `LEGENDE! €${commission.toFixed(0)} - du er en maskine! 🏆`,
+        "Du har slået alle rekorder! Hvor er du sej! 👑",
+        `€${commission.toFixed(0)}?! Du er jo fantastisk! 🌟`,
+        "Boss-level unlocked! Keep crushing it! 💎",
+        `€${commission.toFixed(0)} i commission! Champagne-tid! 🍾`,
+      ];
+      motivation = successMessages[Math.floor(pseudoRandom(2) * successMessages.length)];
+    }
+    
+    // Add ROI comment if impressive
+    if (roi > 100) {
+      motivation += ` ROI på ${roi.toFixed(0)}%?! VANVITTIGT! 📊🔥`;
+    } else if (roi > 50) {
+      motivation += ` ROI på ${roi.toFixed(0)}% er super! 📊`;
+    }
+    
+    return { baseGreeting, motivation };
+  }, [user?.firstName, revenueData?.totalCommission, revenueData?.roi]);
+
   // Reset visible count when filters or sort mode changes
   useEffect(() => {
     setVisibleCount(12);
@@ -316,8 +406,17 @@ export default function Home() {
 
       {/* Admin Revenue Bar */}
       {isAdmin && revenueData && (
-        <div className="bg-primary/5 border-b">
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            {/* Personalized Greeting */}
+            {adminGreeting && (
+              <div className="mb-3 pb-3 border-b border-primary/10">
+                <p className="text-base font-medium">
+                  <span className="mr-2">{adminGreeting.baseGreeting}</span>
+                  <span className="text-muted-foreground">{adminGreeting.motivation}</span>
+                </p>
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
