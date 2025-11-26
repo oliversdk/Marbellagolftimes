@@ -653,8 +653,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { courseId } = req.params;
       const { type, direction, subject, body, outcome } = req.body;
-      const user = req.user as { id: string };
-      
       const log = await storage.createContactLog({
         courseId,
         type,
@@ -662,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject,
         body,
         outcome,
-        loggedByUserId: user.id,
+        loggedByUserId: req.session.userId,
       });
       res.json(log);
     } catch (error) {
@@ -1888,6 +1886,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching testimonials:", error);
       res.status(500).json({ error: "Failed to fetch testimonials" });
+    }
+  });
+
+  // ===== SENDGRID INBOUND EMAIL WEBHOOK =====
+  // This endpoint receives parsed inbound emails from SendGrid Inbound Parse
+  // and logs them as INBOUND contact entries for the matching golf course
+  // Uses a separate multer instance with memory storage to handle attachments
+  const inboundEmailParser = multer({ storage: multer.memoryStorage() });
+  
+  app.post("/api/webhooks/inbound-email", inboundEmailParser.any(), async (req, res) => {
+    try {
+      const { from, to, subject, text, html } = req.body;
+      
+      console.log("Received inbound email:", { from, to, subject });
+      
+      // Extract email address from various formats:
+      // "Name <email@domain.com>", "<email@domain.com>", or "email@domain.com"
+      const extractEmail = (emailStr: string): string => {
+        if (!emailStr) return "";
+        // Remove display name quotes and trim
+        const cleaned = emailStr.replace(/^["']|["']$/g, "").trim();
+        // Match email in angle brackets first
+        const bracketMatch = cleaned.match(/<([^>]+)>/);
+        if (bracketMatch) return bracketMatch[1].toLowerCase().trim();
+        // Otherwise, check if it looks like an email
+        const emailMatch = cleaned.match(/[\w.-]+@[\w.-]+\.\w+/);
+        return emailMatch ? emailMatch[0].toLowerCase().trim() : "";
+      };
+      
+      // Extract domain from email
+      const extractDomain = (email: string): string => {
+        const parts = email.split("@");
+        return parts.length > 1 ? parts[1].toLowerCase() : "";
+      };
+      
+      const senderEmail = extractEmail(from);
+      const senderDomain = extractDomain(senderEmail);
+      
+      if (!senderEmail) {
+        console.log("No sender email found in inbound email");
+        return res.status(200).send("OK");
+      }
+      
+      // Try to match sender email to a golf course with multiple strategies:
+      // 1. Exact email match
+      // 2. Domain match (same domain as course email)
+      // 3. Local part contains course name fragment
+      const courses = await storage.getAllCourses();
+      let matchedCourse = null;
+      
+      // Strategy 1: Exact email match
+      matchedCourse = courses.find(course => {
+        if (!course.email) return false;
+        return extractEmail(course.email) === senderEmail;
+      });
+      
+      // Strategy 2: Same domain as course email
+      if (!matchedCourse && senderDomain) {
+        matchedCourse = courses.find(course => {
+          if (!course.email) return false;
+          const courseDomain = extractDomain(extractEmail(course.email));
+          return courseDomain === senderDomain;
+        });
+      }
+      
+      // Strategy 3: Course name appears in sender email or domain
+      if (!matchedCourse) {
+        matchedCourse = courses.find(course => {
+          const courseSlug = course.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const emailSlug = senderEmail.replace(/[^a-z0-9]/g, "");
+          return emailSlug.includes(courseSlug) || courseSlug.includes(emailSlug.split("@")[0]);
+        });
+      }
+      
+      // Get email body - prefer plain text, fall back to HTML with tags stripped
+      let emailBody = text;
+      if (!emailBody && html) {
+        // Strip HTML tags for cleaner display
+        emailBody = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      }
+      emailBody = emailBody || "(No content)";
+      
+      if (matchedCourse) {
+        // Log the inbound email as a contact log entry
+        await storage.createContactLog({
+          courseId: matchedCourse.id,
+          type: "EMAIL",
+          direction: "INBOUND",
+          subject: subject || "(No subject)",
+          body: emailBody,
+          outcome: null, // To be reviewed by admin
+          loggedByUserId: null, // System-generated
+        });
+        
+        console.log(`Inbound email logged for course: ${matchedCourse.name}`);
+      } else {
+        // Log unmatched emails for debugging
+        console.log(`No matching course found for sender: ${senderEmail}`);
+        console.log("Email details:", { subject, bodyPreview: emailBody.substring(0, 200) });
+        // Consider storing in a separate "unmatched_inbound_emails" table in the future
+      }
+      
+      // Always return 200 to SendGrid to acknowledge receipt
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("Error processing inbound email:", error);
+      // Still return 200 to prevent SendGrid retries
+      res.status(200).send("OK");
     }
   });
 

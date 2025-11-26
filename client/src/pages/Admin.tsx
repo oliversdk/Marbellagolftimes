@@ -34,7 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -2781,6 +2781,11 @@ export default function Admin() {
                             : log.type === "IN_PERSON" ? UserPlus 
                             : FileText;
                           
+                          const DirectionIcon = log.direction === "OUTBOUND" ? ArrowUpRight : ArrowDownLeft;
+                          const directionColor = log.direction === "OUTBOUND" 
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800" 
+                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+                          
                           const outcomeColor = log.outcome === "POSITIVE" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                             : log.outcome === "NEGATIVE" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
                             : log.outcome === "NEUTRAL" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
@@ -2790,7 +2795,7 @@ export default function Admin() {
                           return (
                             <div 
                               key={log.id} 
-                              className="border rounded-md p-3 space-y-2"
+                              className={`border rounded-md p-3 space-y-2 ${log.direction === "INBOUND" ? "bg-emerald-50/50 dark:bg-emerald-950/20" : ""}`}
                               data-testid={`contact-log-${log.id}`}
                             >
                               <div className="flex items-start justify-between gap-2">
@@ -2799,7 +2804,8 @@ export default function Admin() {
                                   <Badge variant="outline">
                                     {log.type.replace("_", " ")}
                                   </Badge>
-                                  <Badge variant="outline">
+                                  <Badge variant="outline" className={directionColor}>
+                                    <DirectionIcon className="h-3 w-3 mr-1" />
                                     {log.direction === "OUTBOUND" ? "Sent" : "Received"}
                                   </Badge>
                                   {log.outcome && (
@@ -2809,7 +2815,7 @@ export default function Admin() {
                                   )}
                                 </div>
                                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {format(new Date(log.createdAt), "PP p")}
+                                  {format(new Date(log.loggedAt), "PP p")}
                                 </span>
                               </div>
                               {log.subject && (
