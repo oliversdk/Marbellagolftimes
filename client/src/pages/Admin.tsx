@@ -31,7 +31,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
@@ -1125,77 +1132,40 @@ export default function Admin() {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  {course.stage === "NOT_CONTACTED" && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "OUTREACH_SENT" })}
-                                      disabled={updateOnboardingStageMutation.isPending}
-                                      data-testid={`button-mark-outreach-${course.courseId}`}
+                                <div className="flex items-center justify-end gap-2">
+                                  <Select
+                                    value={course.stage}
+                                    onValueChange={(value: OnboardingStage) => {
+                                      if (value !== course.stage) {
+                                        updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: value });
+                                      }
+                                    }}
+                                    disabled={updateOnboardingStageMutation.isPending}
+                                  >
+                                    <SelectTrigger 
+                                      className="w-44" 
+                                      data-testid={`select-stage-${course.courseId}`}
                                     >
-                                      <Mail className="h-3 w-3 mr-1" />
-                                      Mark Sent
-                                    </Button>
-                                  )}
-                                  {course.stage === "OUTREACH_SENT" && (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="text-green-600 hover:text-green-700"
-                                        onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "INTERESTED" })}
-                                        disabled={updateOnboardingStageMutation.isPending}
-                                        data-testid={`button-mark-interested-${course.courseId}`}
-                                      >
-                                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Interested
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="text-red-600 hover:text-red-700"
-                                        onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "NOT_INTERESTED" })}
-                                        disabled={updateOnboardingStageMutation.isPending}
-                                        data-testid={`button-mark-not-interested-${course.courseId}`}
-                                      >
-                                        <XCircle className="h-3 w-3 mr-1" />
-                                        Not Interested
-                                      </Button>
-                                    </>
-                                  )}
-                                  {course.stage === "INTERESTED" && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-purple-600 hover:text-purple-700"
-                                      onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "PARTNERSHIP_ACCEPTED" })}
-                                      disabled={updateOnboardingStageMutation.isPending}
-                                      data-testid={`button-mark-partnership-${course.courseId}`}
-                                    >
-                                      <Handshake className="h-3 w-3 mr-1" />
-                                      Partnership
-                                    </Button>
-                                  )}
-                                  {course.stage === "PARTNERSHIP_ACCEPTED" && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-emerald-600 hover:text-emerald-700"
-                                      onClick={() => updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: "CREDENTIALS_RECEIVED" })}
-                                      disabled={updateOnboardingStageMutation.isPending}
-                                      data-testid={`button-mark-credentials-${course.courseId}`}
-                                    >
-                                      <Key className="h-3 w-3 mr-1" />
-                                      Got Credentials
-                                    </Button>
-                                  )}
-                                  {course.stage === "CREDENTIALS_RECEIVED" && (
-                                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                                      Complete
-                                    </Badge>
-                                  )}
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {ONBOARDING_STAGES.map((stage) => {
+                                        const Icon = stage.icon;
+                                        return (
+                                          <SelectItem 
+                                            key={stage.value} 
+                                            value={stage.value}
+                                            data-testid={`option-stage-${stage.value}-${course.courseId}`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <Icon className="h-3 w-3" />
+                                              <span>{stage.label}</span>
+                                            </div>
+                                          </SelectItem>
+                                        );
+                                      })}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               </TableCell>
                             </TableRow>
