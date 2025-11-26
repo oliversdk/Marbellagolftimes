@@ -392,6 +392,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/activity-feed - Get recent activity for team feed
+  app.get("/api/admin/activity-feed", isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      // Get courses first for lookup
+      const courses = await storage.getAllCourses();
+      const coursesWithCommission = courses.filter(c => (c.kickbackPercent || 0) > 0);
+      
+      // Get recent bookings
+      const allBookings = await storage.getAllBookings();
+      const recentBookings = [...allBookings]
+        .sort((a: typeof allBookings[0], b: typeof allBookings[0]) => 
+          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        )
+        .slice(0, limit);
+      
+      // Get recent affiliate emails sent
+      const affiliateEmails = await storage.getAllAffiliateEmails();
+      const recentEmails = affiliateEmails
+        .filter(e => e.sentAt)
+        .sort((a: typeof affiliateEmails[0], b: typeof affiliateEmails[0]) => 
+          new Date(b.sentAt || 0).getTime() - new Date(a.sentAt || 0).getTime()
+        )
+        .slice(0, limit);
+      
+      // Build activity feed
+      const activities: Array<{
+        type: 'booking' | 'email_sent' | 'partnership' | 'milestone';
+        timestamp: string;
+        data: Record<string, unknown>;
+      }> = [];
+      
+      // Add bookings as activities
+      for (const booking of recentBookings) {
+        const course = courses.find(c => c.id === booking.courseId);
+        const timestamp = booking.createdAt instanceof Date 
+          ? booking.createdAt.toISOString() 
+          : (booking.createdAt || new Date().toISOString());
+        activities.push({
+          type: 'booking',
+          timestamp,
+          data: {
+            courseName: course?.name || 'Unknown Course',
+            customerName: booking.customerName,
+            players: booking.players,
+            estimatedPrice: booking.estimatedPrice,
+            status: booking.status,
+          }
+        });
+      }
+      
+      // Add emails as activities
+      for (const email of recentEmails) {
+        const course = courses.find(c => c.id === email.courseId);
+        const timestamp = email.sentAt instanceof Date 
+          ? email.sentAt.toISOString() 
+          : (email.sentAt ? String(email.sentAt) : new Date().toISOString());
+        activities.push({
+          type: 'email_sent',
+          timestamp,
+          data: {
+            courseName: course?.name || 'Unknown Course',
+            status: email.status,
+          }
+        });
+      }
+      
+      // Add milestone if we hit partnership targets
+      if (coursesWithCommission.length >= 5) {
+        activities.push({
+          type: 'milestone',
+          timestamp: new Date().toISOString(),
+          data: {
+            milestoneName: 'partnerships_5',
+            count: coursesWithCommission.length,
+          }
+        });
+      }
+      
+      // Sort by timestamp desc and limit
+      activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      res.json({
+        activities: activities.slice(0, limit),
+        stats: {
+          totalBookings: allBookings.length,
+          totalCourses: courses.length,
+          totalPartnerships: coursesWithCommission.length,
+          pendingBookings: allBookings.filter((b: typeof allBookings[0]) => b.status === 'pending').length,
+          confirmedBookings: allBookings.filter((b: typeof allBookings[0]) => b.status === 'confirmed').length,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching activity feed:", error);
+      res.status(500).json({ message: "Failed to fetch activity feed" });
+    }
+  });
+
   // GET /api/admin/campaigns - Get all ad campaigns
   app.get("/api/admin/campaigns", isAdmin, async (req, res) => {
     try {

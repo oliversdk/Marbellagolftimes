@@ -219,6 +219,93 @@ export default function Home() {
     return { baseGreeting, motivation };
   }, [user?.firstName, revenueData?.totalCommission, revenueData?.roi]);
 
+  // Activity feed for admins - shows recent events with team commentary
+  type ActivityItem = {
+    type: 'booking' | 'email_sent' | 'partnership' | 'milestone';
+    timestamp: string;
+    data: Record<string, unknown>;
+  };
+  
+  type ActivityFeedData = {
+    activities: ActivityItem[];
+    stats: {
+      totalBookings: number;
+      totalCourses: number;
+      totalPartnerships: number;
+      pendingBookings: number;
+      confirmedBookings: number;
+    };
+  };
+
+  const { data: activityFeed } = useQuery<ActivityFeedData>({
+    queryKey: ['/api/admin/activity-feed'],
+    enabled: isAdmin,
+    refetchInterval: 30000, // Refresh every 30 seconds for live feel
+    queryFn: async () => {
+      const response = await fetch('/api/admin/activity-feed?limit=5');
+      if (!response.ok) throw new Error('Failed to fetch activity');
+      return response.json();
+    },
+  });
+
+  // Generate team commentary for activities
+  const getActivityCommentary = useMemo(() => {
+    if (!activityFeed) return null;
+    
+    const firstName = user?.firstName || "Boss";
+    const { activities, stats } = activityFeed;
+    
+    // Commentary based on recent activity
+    const commentaries: string[] = [];
+    
+    // Check for new bookings
+    const recentBookings = activities.filter(a => a.type === 'booking');
+    if (recentBookings.length > 0) {
+      const latestBooking = recentBookings[0];
+      const courseName = latestBooking.data.courseName as string;
+      const customerName = (latestBooking.data.customerName as string)?.split(' ')[0];
+      const bookingComments = [
+        `🎯 Ny booking på ${courseName}! ${customerName} er klar til golf!`,
+        `💰 Cha-ching! ${customerName} har booket på ${courseName}!`,
+        `🏌️ ${courseName} har lige fået en booking fra ${customerName}!`,
+        `🔥 Det sker! ${customerName} booker ${courseName}!`,
+      ];
+      const seed = new Date().getMinutes();
+      commentaries.push(bookingComments[seed % bookingComments.length]);
+    }
+    
+    // Check partnerships progress
+    if (stats.totalPartnerships >= 5) {
+      const partnershipComments = [
+        `🏆 WOW! ${stats.totalPartnerships} partnerskaber allerede! I er et dream team!`,
+        `⭐ ${stats.totalPartnerships} baner med aftale! Keep crushing it!`,
+        `💪 ${stats.totalPartnerships} partnerskaber! Det er fantastisk, ${firstName}!`,
+      ];
+      const seed = new Date().getDate();
+      commentaries.push(partnershipComments[seed % partnershipComments.length]);
+    } else if (stats.totalPartnerships > 0) {
+      commentaries.push(`📈 ${stats.totalPartnerships} partnerskaber indtil videre - kan vi nå 5 i dag?`);
+    }
+    
+    // Pending bookings encouragement
+    if (stats.pendingBookings > 0) {
+      const pendingComments = [
+        `⏳ ${stats.pendingBookings} ventende bookings - tjek admin og få dem confirmed! 💪`,
+        `📋 Husk: ${stats.pendingBookings} bookings venter på bekræftelse!`,
+        `🎯 ${stats.pendingBookings} kunder venter på svar - lad os gøre dem glade!`,
+      ];
+      const seed = new Date().getHours();
+      commentaries.push(pendingComments[seed % pendingComments.length]);
+    }
+    
+    // Confirmed bookings celebration
+    if (stats.confirmedBookings > 0) {
+      commentaries.push(`✅ ${stats.confirmedBookings} bekræftede bookings! Godt arbejde, holdet!`);
+    }
+    
+    return commentaries.length > 0 ? commentaries[0] : null;
+  }, [activityFeed, user?.firstName]);
+
   // Reset visible count when filters or sort mode changes
   useEffect(() => {
     setVisibleCount(12);
@@ -408,17 +495,24 @@ export default function Home() {
       {isAdmin && revenueData && (
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            {/* Personalized Greeting */}
-            {adminGreeting && (
-              <div className="mb-3 pb-3 border-b border-primary/10">
-                <p className="text-base font-medium">
-                  <span className="mr-2">{adminGreeting.baseGreeting}</span>
-                  <span className="text-muted-foreground">{adminGreeting.motivation}</span>
-                </p>
+            {/* Personalized Greeting + Activity Commentary */}
+            {(adminGreeting || getActivityCommentary) && (
+              <div className="mb-3 pb-3 border-b border-primary/10 space-y-2">
+                {adminGreeting && (
+                  <p className="text-base font-medium">
+                    <span className="mr-2">{adminGreeting.baseGreeting}</span>
+                    <span className="text-muted-foreground">{adminGreeting.motivation}</span>
+                  </p>
+                )}
+                {getActivityCommentary && (
+                  <p className="text-sm text-muted-foreground animate-pulse">
+                    {getActivityCommentary}
+                  </p>
+                )}
               </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex items-center gap-2">
                   <Euro className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">Commission:</span>
@@ -445,6 +539,15 @@ export default function Home() {
                     {revenueData.roi >= 0 ? '+' : ''}{revenueData.roi.toFixed(1)}%
                   </span>
                 </div>
+                {/* Quick Stats */}
+                {activityFeed?.stats && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>•</span>
+                    <span>{activityFeed.stats.totalBookings} bookings</span>
+                    <span>•</span>
+                    <span>{activityFeed.stats.totalPartnerships} partners</span>
+                  </div>
+                )}
               </div>
               <Link href="/admin">
                 <Button variant="outline" size="sm" data-testid="button-go-to-admin">
