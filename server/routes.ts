@@ -2082,10 +2082,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`Inbound email logged for course: ${matchedCourse.name}`);
       } else {
-        // Log unmatched emails for debugging
-        console.log(`No matching course found for sender: ${senderEmail}`);
-        console.log("Email details:", { subject, bodyPreview: emailBody.substring(0, 200) });
-        // Consider storing in a separate "unmatched_inbound_emails" table in the future
+        // Store unmatched email for manual assignment
+        const extractName = (emailStr: string): string | null => {
+          if (!emailStr) return null;
+          const match = emailStr.match(/^["']?([^<"']+)["']?\s*<.*>/);
+          return match ? match[1].trim() : null;
+        };
+        
+        await storage.createUnmatchedEmail({
+          fromEmail: senderEmail,
+          fromName: extractName(from),
+          toEmail: to || null,
+          subject: subject || null,
+          body: emailBody,
+        });
+        
+        console.log(`Unmatched inbound email stored for sender: ${senderEmail}`);
       }
       
       // Always return 200 to SendGrid to acknowledge receipt
