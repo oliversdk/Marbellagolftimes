@@ -116,6 +116,19 @@ type CourseProvider = {
 
 type OnboardingStage = "NOT_CONTACTED" | "OUTREACH_SENT" | "INTERESTED" | "NOT_INTERESTED" | "PARTNERSHIP_ACCEPTED" | "CREDENTIALS_RECEIVED";
 
+type UnmatchedEmail = {
+  id: string;
+  fromEmail: string;
+  fromName: string | null;
+  toEmail: string | null;
+  subject: string | null;
+  body: string | null;
+  assignedToCourseId: string | null;
+  assignedByUserId: string | null;
+  assignedAt: string | null;
+  receivedAt: string;
+};
+
 type CourseOnboardingData = {
   courseId: string;
   courseName: string;
@@ -315,6 +328,54 @@ export default function Admin() {
       return res.json();
     },
     enabled: !!selectedCourseProfile?.id,
+  });
+
+  // Fetch unmatched inbound emails
+  const { data: unmatchedEmails = [] } = useQuery<UnmatchedEmail[]>({
+    queryKey: ["/api/admin/unmatched-emails"],
+    enabled: isAuthenticated && isAdmin,
+  });
+
+  // Assign email to course mutation
+  const assignEmailMutation = useMutation({
+    mutationFn: async ({ emailId, courseId }: { emailId: string; courseId: string }) => {
+      return await apiRequest(`/api/admin/unmatched-emails/${emailId}/assign`, "POST", { courseId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/unmatched-emails"] });
+      toast({
+        title: "Email assigned",
+        description: "Email has been assigned to the course and logged",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Assignment failed",
+        description: "Failed to assign email to course",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete unmatched email mutation
+  const deleteUnmatchedEmailMutation = useMutation({
+    mutationFn: async (emailId: string) => {
+      return await apiRequest(`/api/admin/unmatched-emails/${emailId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/unmatched-emails"] });
+      toast({
+        title: "Email deleted",
+        description: "Unmatched email has been removed",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete email",
+        variant: "destructive",
+      });
+    },
   });
 
   // Combined courses with onboarding data for unified table
@@ -2491,6 +2552,92 @@ export default function Admin() {
                       </Button>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Unmatched Inbound Emails */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ArrowDownLeft className="h-5 w-5" />
+                    Unmatched Inbound Emails
+                    {unmatchedEmails.filter(e => !e.assignedToCourseId).length > 0 && (
+                      <Badge variant="destructive" className="ml-2">
+                        {unmatchedEmails.filter(e => !e.assignedToCourseId).length} pending
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    Emails received that couldn't be automatically matched to a course. Assign them manually.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {unmatchedEmails.filter(e => !e.assignedToCourseId).length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                      <p>No unmatched emails</p>
+                      <p className="text-sm">All incoming emails have been matched or assigned</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {unmatchedEmails.filter(e => !e.assignedToCourseId).map((email) => (
+                        <div
+                          key={email.id}
+                          className="border rounded-lg p-4 space-y-3"
+                          data-testid={`unmatched-email-${email.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline">
+                                  <Mail className="h-3 w-3 mr-1" />
+                                  {email.fromName || email.fromEmail}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(email.receivedAt), "MMM d, yyyy HH:mm")}
+                                </span>
+                              </div>
+                              <p className="font-medium mt-2 truncate">
+                                {email.subject || "(No subject)"}
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                {email.body?.substring(0, 200) || "(No content)"}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Select
+                              onValueChange={(courseId) => {
+                                assignEmailMutation.mutate({ emailId: email.id, courseId });
+                              }}
+                            >
+                              <SelectTrigger className="w-[280px]" data-testid={`select-assign-course-${email.id}`}>
+                                <SelectValue placeholder="Assign to course..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {courses?.map((course) => (
+                                  <SelectItem key={course.id} value={course.id}>
+                                    {course.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteUnmatchedEmailMutation.mutate(email.id)}
+                              disabled={deleteUnmatchedEmailMutation.isPending}
+                              data-testid={`button-delete-email-${email.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
