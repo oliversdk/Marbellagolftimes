@@ -19,6 +19,8 @@ import {
   type CourseOnboarding,
   type InsertCourseOnboarding,
   type OnboardingStage,
+  type CourseContactLog,
+  type InsertCourseContactLog,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -30,6 +32,7 @@ import {
   adCampaigns,
   blogPosts,
   courseOnboarding,
+  courseContactLogs,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -122,6 +125,11 @@ export interface IStorage {
   updateOnboarding(courseId: string, updates: Partial<CourseOnboarding>): Promise<CourseOnboarding | undefined>;
   updateOnboardingStage(courseId: string, stage: OnboardingStage): Promise<CourseOnboarding | undefined>;
   getOnboardingStats(): Promise<Record<OnboardingStage, number>>;
+
+  // Course Contact Logs
+  getContactLogsByCourseId(courseId: string): Promise<CourseContactLog[]>;
+  createContactLog(log: InsertCourseContactLog): Promise<CourseContactLog>;
+  deleteContactLog(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1587,6 +1595,19 @@ export class MemStorage implements IStorage {
       CREDENTIALS_RECEIVED: 0,
     };
   }
+
+  // Course Contact Logs (stub implementation for MemStorage)
+  async getContactLogsByCourseId(courseId: string): Promise<CourseContactLog[]> {
+    return [];
+  }
+
+  async createContactLog(log: InsertCourseContactLog): Promise<CourseContactLog> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async deleteContactLog(id: string): Promise<boolean> {
+    return false;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2210,6 +2231,25 @@ export class DatabaseStorage implements IStorage {
     }
 
     return stats;
+  }
+
+  // Course Contact Logs
+  async getContactLogsByCourseId(courseId: string): Promise<CourseContactLog[]> {
+    return await db
+      .select()
+      .from(courseContactLogs)
+      .where(eq(courseContactLogs.courseId, courseId))
+      .orderBy(desc(courseContactLogs.loggedAt));
+  }
+
+  async createContactLog(log: InsertCourseContactLog): Promise<CourseContactLog> {
+    const result = await db.insert(courseContactLogs).values(log).returning();
+    return result[0];
+  }
+
+  async deleteContactLog(id: string): Promise<boolean> {
+    const result = await db.delete(courseContactLogs).where(eq(courseContactLogs.id, id)).returning();
+    return result.length > 0;
   }
 }
 

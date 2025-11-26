@@ -636,6 +636,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/courses/:courseId/contact-logs - Get contact logs for a course (Admin only)
+  app.get("/api/admin/courses/:courseId/contact-logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const logs = await storage.getContactLogsByCourseId(courseId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Failed to fetch contact logs:", error);
+      res.status(500).json({ error: "Failed to fetch contact logs" });
+    }
+  });
+
+  // POST /api/admin/courses/:courseId/contact-logs - Create contact log (Admin only)
+  app.post("/api/admin/courses/:courseId/contact-logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { type, direction, subject, body, outcome } = req.body;
+      const user = req.user as { id: string };
+      
+      const log = await storage.createContactLog({
+        courseId,
+        type,
+        direction: direction || "OUTBOUND",
+        subject,
+        body,
+        outcome,
+        loggedByUserId: user.id,
+      });
+      res.json(log);
+    } catch (error) {
+      console.error("Failed to create contact log:", error);
+      res.status(500).json({ error: "Failed to create contact log" });
+    }
+  });
+
+  // DELETE /api/admin/contact-logs/:id - Delete contact log (Admin only)
+  app.delete("/api/admin/contact-logs/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteContactLog(id);
+      if (!success) {
+        return res.status(404).json({ error: "Contact log not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete contact log:", error);
+      res.status(500).json({ error: "Failed to delete contact log" });
+    }
+  });
+
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
     try {

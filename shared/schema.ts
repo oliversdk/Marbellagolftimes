@@ -193,6 +193,31 @@ export const ONBOARDING_STAGES = [
 
 export type OnboardingStage = typeof ONBOARDING_STAGES[number];
 
+// Course Contact Logs (for tracking all communications)
+export const courseContactLogs = pgTable("course_contact_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  type: text("type").notNull(), // EMAIL, PHONE, IN_PERSON, NOTE
+  direction: text("direction").notNull().default("OUTBOUND"), // OUTBOUND, INBOUND
+  subject: text("subject"),
+  body: text("body"),
+  outcome: text("outcome"), // POSITIVE, NEGATIVE, NEUTRAL, NO_RESPONSE
+  loggedByUserId: varchar("logged_by_user_id").references(() => users.id),
+  loggedAt: timestamp("logged_at").notNull().defaultNow(),
+});
+
+export const insertCourseContactLogSchema = createInsertSchema(courseContactLogs).omit({ 
+  id: true, 
+  loggedAt: true 
+});
+
+export type InsertCourseContactLog = z.infer<typeof insertCourseContactLogSchema>;
+export type CourseContactLog = typeof courseContactLogs.$inferSelect;
+
+// Contact log types
+export const CONTACT_LOG_TYPES = ["EMAIL", "PHONE", "IN_PERSON", "NOTE"] as const;
+export type ContactLogType = typeof CONTACT_LOG_TYPES[number];
+
 // Course Reviews
 export const courseReviews = pgTable("course_reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
