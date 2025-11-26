@@ -23,6 +23,8 @@ import {
   type InsertCourseContactLog,
   type CourseImage,
   type InsertCourseImage,
+  type UnmatchedInboundEmail,
+  type InsertUnmatchedInboundEmail,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -36,6 +38,7 @@ import {
   courseOnboarding,
   courseContactLogs,
   courseImages,
+  unmatchedInboundEmails,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -139,6 +142,12 @@ export interface IStorage {
   createCourseImage(image: InsertCourseImage): Promise<CourseImage>;
   deleteCourseImage(id: string): Promise<boolean>;
   reorderCourseImages(courseId: string, imageIds: string[]): Promise<void>;
+
+  // Unmatched Inbound Emails
+  getUnmatchedEmails(): Promise<UnmatchedInboundEmail[]>;
+  createUnmatchedEmail(email: InsertUnmatchedInboundEmail): Promise<UnmatchedInboundEmail>;
+  assignEmailToCourse(emailId: string, courseId: string, assignedByUserId: string): Promise<UnmatchedInboundEmail | undefined>;
+  deleteUnmatchedEmail(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1634,6 +1643,23 @@ export class MemStorage implements IStorage {
   async reorderCourseImages(courseId: string, imageIds: string[]): Promise<void> {
     throw new Error("Not implemented in MemStorage");
   }
+
+  // Unmatched Inbound Emails (stub implementation for MemStorage)
+  async getUnmatchedEmails(): Promise<UnmatchedInboundEmail[]> {
+    return [];
+  }
+
+  async createUnmatchedEmail(email: InsertUnmatchedInboundEmail): Promise<UnmatchedInboundEmail> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async assignEmailToCourse(emailId: string, courseId: string, assignedByUserId: string): Promise<UnmatchedInboundEmail | undefined> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async deleteUnmatchedEmail(id: string): Promise<boolean> {
+    return false;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2304,6 +2330,37 @@ export class DatabaseStorage implements IStorage {
         .set({ sortOrder: i })
         .where(eq(courseImages.id, imageIds[i]));
     }
+  }
+
+  // Unmatched Inbound Emails
+  async getUnmatchedEmails(): Promise<UnmatchedInboundEmail[]> {
+    return await db
+      .select()
+      .from(unmatchedInboundEmails)
+      .orderBy(desc(unmatchedInboundEmails.receivedAt));
+  }
+
+  async createUnmatchedEmail(email: InsertUnmatchedInboundEmail): Promise<UnmatchedInboundEmail> {
+    const result = await db.insert(unmatchedInboundEmails).values(email).returning();
+    return result[0];
+  }
+
+  async assignEmailToCourse(emailId: string, courseId: string, assignedByUserId: string): Promise<UnmatchedInboundEmail | undefined> {
+    const result = await db
+      .update(unmatchedInboundEmails)
+      .set({
+        assignedToCourseId: courseId,
+        assignedByUserId: assignedByUserId,
+        assignedAt: new Date(),
+      })
+      .where(eq(unmatchedInboundEmails.id, emailId))
+      .returning();
+    return result[0];
+  }
+
+  async deleteUnmatchedEmail(id: string): Promise<boolean> {
+    const result = await db.delete(unmatchedInboundEmails).where(eq(unmatchedInboundEmails.id, id)).returning();
+    return result.length > 0;
   }
 }
 
