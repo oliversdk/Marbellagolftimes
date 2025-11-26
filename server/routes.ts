@@ -684,6 +684,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/unmatched-emails - Get all unmatched inbound emails (Admin only)
+  app.get("/api/admin/unmatched-emails", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const emails = await storage.getUnmatchedEmails();
+      res.json(emails);
+    } catch (error) {
+      console.error("Failed to fetch unmatched emails:", error);
+      res.status(500).json({ error: "Failed to fetch unmatched emails" });
+    }
+  });
+
+  // POST /api/admin/unmatched-emails/:id/assign - Assign email to course (Admin only)
+  app.post("/api/admin/unmatched-emails/:id/assign", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { courseId } = req.body;
+      
+      if (!courseId) {
+        return res.status(400).json({ error: "courseId is required" });
+      }
+      
+      const user = req.user as { id: string };
+      const updatedEmail = await storage.assignEmailToCourse(id, courseId, user.id);
+      
+      if (!updatedEmail) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+      
+      // Also create a contact log entry for the course
+      await storage.createContactLog({
+        courseId: courseId,
+        type: "EMAIL",
+        direction: "INBOUND",
+        subject: updatedEmail.subject || "(No subject)",
+        body: updatedEmail.body || "(No content)",
+        outcome: null,
+        loggedByUserId: user.id,
+      });
+      
+      res.json(updatedEmail);
+    } catch (error) {
+      console.error("Failed to assign email:", error);
+      res.status(500).json({ error: "Failed to assign email" });
+    }
+  });
+
+  // DELETE /api/admin/unmatched-emails/:id - Delete unmatched email (Admin only)
+  app.delete("/api/admin/unmatched-emails/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteUnmatchedEmail(id);
+      if (!success) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete unmatched email:", error);
+      res.status(500).json({ error: "Failed to delete unmatched email" });
+    }
+  });
+
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
     try {
