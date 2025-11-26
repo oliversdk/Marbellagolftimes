@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -202,6 +203,11 @@ export default function Admin() {
   const [editingOnboarding, setEditingOnboarding] = useState<CourseOnboardingData | null>(null);
   const [contactLogsCourse, setContactLogsCourse] = useState<CourseOnboardingData | null>(null);
   
+  // Course Profile Sheet state
+  const [selectedCourseProfile, setSelectedCourseProfile] = useState<GolfCourse | null>(null);
+  const [profileTab, setProfileTab] = useState<string>("details");
+  const [courseSearchQuery, setCourseSearchQuery] = useState("");
+  
   const { toast } = useToast();
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const { t } = useI18n();
@@ -280,6 +286,85 @@ export default function Admin() {
       (user.phoneNumber && user.phoneNumber.toLowerCase().includes(query))
     );
   });
+
+  // Fetch contact logs for selected course profile
+  const { data: profileContactLogs, isLoading: isLoadingProfileContactLogs } = useQuery<CourseContactLog[]>({
+    queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "contact-logs"],
+    enabled: !!selectedCourseProfile,
+  });
+
+  // Gallery images for profile sheet
+  const { data: profileGalleryImages = [] } = useQuery<CourseImage[]>({
+    queryKey: ['/api/courses', selectedCourseProfile?.id, 'images'],
+    queryFn: async () => {
+      if (!selectedCourseProfile?.id) return [];
+      const res = await fetch(`/api/courses/${selectedCourseProfile.id}/images`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedCourseProfile?.id,
+  });
+
+  // Combined courses with onboarding data for unified table
+  const coursesWithOnboarding = useMemo(() => {
+    if (!courses) return [];
+    return courses.map(course => {
+      const onboarding = onboardingData?.find(o => o.courseId === course.id);
+      const provider = courseProviders?.find(p => p.id === course.id);
+      return {
+        ...course,
+        onboarding,
+        provider,
+      };
+    });
+  }, [courses, onboardingData, courseProviders]);
+
+  // Filtered courses for the unified table
+  const filteredCourses = useMemo(() => {
+    let filtered = coursesWithOnboarding;
+    
+    // Search filter
+    if (courseSearchQuery) {
+      const query = courseSearchQuery.toLowerCase();
+      filtered = filtered.filter(course =>
+        course.name.toLowerCase().includes(query) ||
+        course.city.toLowerCase().includes(query) ||
+        course.onboarding?.contactPerson?.toLowerCase().includes(query)
+      );
+    }
+    
+    // Stage filter
+    if (stageFilter !== "ALL") {
+      filtered = filtered.filter(course => course.onboarding?.stage === stageFilter);
+    }
+    
+    // Provider filter
+    if (providerFilter !== "ALL") {
+      filtered = filtered.filter(course => {
+        const providerType = course.provider?.providerType || "None";
+        return providerType === providerFilter;
+      });
+    }
+    
+    // Sort
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === "name") {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === "stage") {
+        const stageA = a.onboarding?.stage || "NOT_CONTACTED";
+        const stageB = b.onboarding?.stage || "NOT_CONTACTED";
+        comparison = stageA.localeCompare(stageB);
+      } else if (sortBy === "lastContacted") {
+        const dateA = a.onboarding?.outreachSentAt ? new Date(a.onboarding.outreachSentAt).getTime() : 0;
+        const dateB = b.onboarding?.outreachSentAt ? new Date(b.onboarding.outreachSentAt).getTime() : 0;
+        comparison = dateA - dateB;
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+    
+    return filtered;
+  }, [coursesWithOnboarding, courseSearchQuery, stageFilter, providerFilter, sortBy, sortOrder]);
 
   // Filter and sort onboarding data
   const filteredAndSortedOnboardingData = useMemo(() => {
@@ -603,8 +688,10 @@ export default function Admin() {
     mutationFn: async ({ courseId, data }: { courseId: string; data: z.infer<typeof addContactLogSchema> }) => {
       return await apiRequest(`/api/admin/courses/${courseId}/contact-logs`, "POST", data);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", contactLogsCourse?.courseId, "contact-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "contact-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", variables.courseId, "contact-logs"] });
       toast({
         title: "Contact Log Added",
         description: "New contact log entry has been added successfully",
@@ -653,6 +740,69 @@ export default function Admin() {
     if (contactLogsCourse) {
       addContactLogMutation.mutate({
         courseId: contactLogsCourse.courseId,
+        data,
+      });
+    }
+  };
+
+  // Handle add contact log for profile sheet
+  const handleAddProfileContactLog = (data: z.infer<typeof addContactLogSchema>) => {
+    if (selectedCourseProfile) {
+      addContactLogMutation.mutate({
+        courseId: selectedCourseProfile.id,
+        data,
+      });
+    }
+  };
+
+  // Open course profile sheet
+  const openCourseProfile = (course: GolfCourse) => {
+    setSelectedCourseProfile(course);
+    setProfileTab("details");
+    // Initialize forms with course data
+    const onboarding = onboardingData?.find(o => o.courseId === course.id);
+    onboardingForm.reset({
+      contactPerson: onboarding?.contactPerson || "",
+      contactEmail: onboarding?.contactEmail || "",
+      contactPhone: onboarding?.contactPhone || "",
+      agreedCommission: onboarding?.agreedCommission || 0,
+      notes: onboarding?.notes || "",
+    });
+    // Initialize course form
+    courseForm.reset({
+      name: course.name || "",
+      city: course.city || "",
+      province: course.province || "",
+      website: course.website || "",
+      email: course.email || "",
+      phone: course.phone || "",
+      description: course.description || "",
+      kickbackPercentage: course.kickbackPercentage || 0,
+    });
+    contactLogForm.reset({
+      type: "EMAIL",
+      direction: "OUTBOUND",
+      subject: "",
+      body: "",
+      outcome: undefined,
+    });
+  };
+
+  // Handle save profile details (course info)
+  const handleSaveProfileDetails = (data: z.infer<typeof editCourseSchema>) => {
+    if (selectedCourseProfile) {
+      updateCourseMutation.mutate({
+        courseId: selectedCourseProfile.id,
+        data,
+      });
+    }
+  };
+
+  // Handle save profile partnership (onboarding info)
+  const handleSaveProfilePartnership = (data: z.infer<typeof editOnboardingSchema>) => {
+    if (selectedCourseProfile) {
+      updateOnboardingMutation.mutate({
+        courseId: selectedCourseProfile.id,
         data,
       });
     }
@@ -1025,12 +1175,8 @@ export default function Admin() {
               </TabsTrigger>
             )}
             <TabsTrigger value="courses" data-testid="tab-courses">
-              <Percent className="h-4 w-4 mr-2" />
-              Courses
-            </TabsTrigger>
-            <TabsTrigger value="partnerships" data-testid="tab-partnerships">
               <Handshake className="h-4 w-4 mr-2" />
-              Partnerships
+              Courses
             </TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
           </TabsList>
@@ -1204,189 +1350,6 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="courses">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Percent className="h-5 w-5" />
-                  Course Management
-                </CardTitle>
-                <CardDescription>
-                  Manage course images, commission percentages, and details
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Selection toolbar */}
-                <div className="flex flex-wrap items-center gap-2 pb-4 border-b">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const gmCourseIds = courseProviders
-                        ?.filter(p => p.providerType === "golfmanager_v1" || p.providerType === "golfmanager_v3")
-                        .map(p => p.id) || [];
-                      setSelectedCourseIds(gmCourseIds);
-                    }}
-                    data-testid="button-select-golfmanager"
-                  >
-                    <CheckSquare className="h-4 w-4 mr-1" />
-                    Select All Golfmanager ({courseProviders?.filter(p => p.providerType === "golfmanager_v1" || p.providerType === "golfmanager_v3").length || 0})
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const teeOneCourseIds = courseProviders
-                        ?.filter(p => p.providerType === "teeone")
-                        .map(p => p.id) || [];
-                      setSelectedCourseIds(teeOneCourseIds);
-                    }}
-                    data-testid="button-select-teeone"
-                  >
-                    <CheckSquare className="h-4 w-4 mr-1" />
-                    Select All TeeOne ({courseProviders?.filter(p => p.providerType === "teeone").length || 0})
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedCourseIds([])}
-                    disabled={selectedCourseIds.length === 0}
-                    data-testid="button-deselect-all"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Clear Selection
-                  </Button>
-                  {selectedCourseIds.length > 0 && (
-                    <div className="flex items-center gap-2 ml-auto">
-                      <Badge variant="secondary" data-testid="badge-selected-count">
-                        {selectedCourseIds.length} selected
-                      </Badge>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          const selectedCourses = courses?.filter(c => selectedCourseIds.includes(c.id)) || [];
-                          const courseNames = selectedCourses.map(c => c.name).join(", ");
-                          toast({
-                            title: "Email Feature",
-                            description: `Ready to email ${selectedCourseIds.length} courses: ${courseNames.substring(0, 100)}${courseNames.length > 100 ? "..." : ""}`,
-                          });
-                        }}
-                        data-testid="button-email-selected"
-                      >
-                        <Mail className="h-4 w-4 mr-1" />
-                        Email Selected Courses
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {courses && courses.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={courses.length > 0 && selectedCourseIds.length === courses.length}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedCourseIds(courses.map(c => c.id));
-                              } else {
-                                setSelectedCourseIds([]);
-                              }
-                            }}
-                            data-testid="checkbox-select-all"
-                          />
-                        </TableHead>
-                        <TableHead>Image</TableHead>
-                        <TableHead>Course Name</TableHead>
-                        <TableHead>Provider</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead className="text-right" data-testid="table-column-kickback">Kickback %</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {courses.map((course) => {
-                        const provider = courseProviders?.find(p => p.id === course.id);
-                        const isSelected = selectedCourseIds.includes(course.id);
-                        return (
-                          <TableRow key={course.id} data-testid={`row-course-${course.id}`} className={isSelected ? "bg-muted/50" : ""}>
-                            <TableCell>
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedCourseIds([...selectedCourseIds, course.id]);
-                                  } else {
-                                    setSelectedCourseIds(selectedCourseIds.filter(id => id !== course.id));
-                                  }
-                                }}
-                                data-testid={`checkbox-course-${course.id}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
-                                <OptimizedImage
-                                  src={course.imageUrl || undefined}
-                                  alt={course.name}
-                                  className="w-full h-full object-cover"
-                                  data-testid={`img-course-thumb-${course.id}`}
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-medium">{course.name}</TableCell>
-                            <TableCell>
-                              {provider?.providerType === "golfmanager_v1" && (
-                                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400" data-testid={`badge-provider-${course.id}`}>
-                                  GM V1
-                                </Badge>
-                              )}
-                              {provider?.providerType === "golfmanager_v3" && (
-                                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 border-indigo-500/30 dark:bg-indigo-500/20 dark:text-indigo-400" data-testid={`badge-provider-${course.id}`}>
-                                  GM V3
-                                </Badge>
-                              )}
-                              {provider?.providerType === "teeone" && (
-                                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400" data-testid={`badge-provider-${course.id}`}>
-                                  TeeOne
-                                </Badge>
-                              )}
-                              {!provider?.providerType && (
-                                <span className="text-muted-foreground text-sm">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{course.city}, {course.province}</TableCell>
-                            <TableCell className="text-right">
-                              {course.kickbackPercent !== null && course.kickbackPercent !== undefined 
-                                ? `${course.kickbackPercent}%` 
-                                : "0%"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditCourse(course)}
-                                data-testid={`button-edit-course-${course.id}`}
-                                aria-label="Edit course"
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit Course
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    No courses found
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="partnerships">
             <div className="space-y-6">
               {/* Funnel Stats Overview */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -1407,15 +1370,15 @@ export default function Admin() {
                 })}
               </div>
 
-              {/* Course List by Stage */}
+              {/* Course List */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Handshake className="h-5 w-5" />
-                    Course Partnership Funnel
+                    Course Management
                   </CardTitle>
                   <CardDescription>
-                    Track outreach progress and manage partnerships with golf courses
+                    Manage courses, partnerships, and communications. Click a row to view full profile.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1425,10 +1388,10 @@ export default function Admin() {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search by name, city, or contact..."
-                        value={onboardingSearchQuery}
-                        onChange={(e) => setOnboardingSearchQuery(e.target.value)}
+                        value={courseSearchQuery}
+                        onChange={(e) => setCourseSearchQuery(e.target.value)}
                         className="pl-9"
-                        data-testid="input-onboarding-search"
+                        data-testid="input-course-search"
                       />
                     </div>
                     
@@ -1475,33 +1438,23 @@ export default function Admin() {
                     </Button>
                   </div>
 
-                  {/* Results count and selection info */}
+                  {/* Results count */}
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>
-                      Showing {filteredAndSortedOnboardingData.length} of {onboardingData?.length || 0} courses
-                      {selectedOnboardingIds.length > 0 && ` (${selectedOnboardingIds.length} selected)`}
+                      Showing {filteredCourses.length} of {courses?.length || 0} courses
                     </span>
                   </div>
 
                   {isLoadingOnboarding ? (
                     <div className="text-center py-12 text-muted-foreground">
-                      Loading partnership data...
+                      Loading course data...
                     </div>
-                  ) : filteredAndSortedOnboardingData.length > 0 ? (
+                  ) : filteredCourses.length > 0 ? (
                     <div className="border rounded-md overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[40px]">
-                              <Checkbox
-                                checked={
-                                  filteredAndSortedOnboardingData.length > 0 &&
-                                  filteredAndSortedOnboardingData.every((item) => selectedOnboardingIds.includes(item.courseId))
-                                }
-                                onCheckedChange={selectAllOnboarding}
-                                data-testid="checkbox-select-all-onboarding"
-                              />
-                            </TableHead>
+                            <TableHead>Image</TableHead>
                             <TableHead>
                               <Button
                                 variant="ghost"
@@ -1515,7 +1468,6 @@ export default function Admin() {
                               </Button>
                             </TableHead>
                             <TableHead>Provider</TableHead>
-                            <TableHead>Contact Person</TableHead>
                             <TableHead>
                               <Button
                                 variant="ghost"
@@ -1528,8 +1480,7 @@ export default function Admin() {
                                 <ArrowUpDown className="ml-1 h-3 w-3" />
                               </Button>
                             </TableHead>
-                            <TableHead>Commission</TableHead>
-                            <TableHead>Notes</TableHead>
+                            <TableHead>Kickback</TableHead>
                             <TableHead>
                               <Button
                                 variant="ghost"
@@ -1538,100 +1489,76 @@ export default function Admin() {
                                 onClick={() => toggleSort("lastContacted")}
                                 data-testid="button-sort-contacted"
                               >
-                                Last Contacted
+                                Last Contact
                                 <ArrowUpDown className="ml-1 h-3 w-3" />
                               </Button>
                             </TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead>Status</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredAndSortedOnboardingData.map((course) => {
-                            const currentStage = ONBOARDING_STAGES.find(s => s.value === course.stage);
+                          {filteredCourses.map((course) => {
+                            const currentStage = ONBOARDING_STAGES.find(s => s.value === course.onboarding?.stage);
                             const StageIcon = currentStage?.icon || CircleDot;
-                            const stale = isOutreachStale(course);
+                            const hasCredentials = course.provider?.username && course.provider?.password;
+                            const hasKickback = (course.kickbackPercent ?? 0) > 0;
                             
                             return (
-                              <TableRow key={course.courseId} data-testid={`row-onboarding-${course.courseId}`}>
+                              <TableRow 
+                                key={course.id} 
+                                data-testid={`row-course-${course.id}`}
+                                className="cursor-pointer hover-elevate"
+                                onClick={() => openCourseProfile(course)}
+                              >
                                 <TableCell>
-                                  <Checkbox
-                                    checked={selectedOnboardingIds.includes(course.courseId)}
-                                    onCheckedChange={() => toggleOnboardingSelection(course.courseId)}
-                                    data-testid={`checkbox-onboarding-${course.courseId}`}
-                                  />
+                                  <div className="w-12 h-12 rounded-md overflow-hidden bg-muted">
+                                    <OptimizedImage
+                                      src={course.imageUrl || undefined}
+                                      alt={course.name}
+                                      className="w-full h-full object-cover"
+                                      data-testid={`img-course-thumb-${course.id}`}
+                                    />
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-2">
                                     <div>
-                                      <Link 
-                                        href={`/course/${course.courseId}`}
-                                        className="font-medium text-primary hover:underline inline-flex items-center gap-1"
-                                        data-testid={`link-course-${course.courseId}`}
-                                      >
-                                        {course.courseName}
-                                        <ExternalLink className="h-3 w-3" />
-                                      </Link>
-                                      <p className="text-sm text-muted-foreground">{course.city}</p>
+                                      <span className="font-medium">{course.name}</span>
+                                      <p className="text-sm text-muted-foreground">{course.city}, {course.province}</p>
                                     </div>
-                                    {stale && (
-                                      <Tooltip>
-                                        <TooltipTrigger>
-                                          <Badge variant="destructive" className="ml-1" data-testid={`badge-stale-${course.courseId}`}>
-                                            <AlertTriangle className="h-3 w-3" />
-                                          </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Outreach sent over 7 days ago with no response</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  {course.providerType === "golfmanager_v1" && (
+                                  {course.provider?.providerType === "golfmanager_v1" && (
                                     <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
                                   )}
-                                  {course.providerType === "golfmanager_v3" && (
+                                  {course.provider?.providerType === "golfmanager_v3" && (
                                     <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
                                   )}
-                                  {course.providerType === "teeone" && (
+                                  {course.provider?.providerType === "teeone" && (
                                     <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
                                   )}
-                                  {!course.providerType && (
+                                  {!course.provider?.providerType && (
                                     <span className="text-muted-foreground text-sm">None</span>
                                   )}
                                 </TableCell>
-                                <TableCell>
-                                  <div className="text-sm">
-                                    {course.contactPerson ? (
-                                      <div>
-                                        <span className="font-medium">{course.contactPerson}</span>
-                                        {course.contactEmail && (
-                                          <p className="text-muted-foreground truncate max-w-[150px]">{course.contactEmail}</p>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span className="text-muted-foreground">Not set</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
+                                <TableCell onClick={(e) => e.stopPropagation()}>
                                   <Select
-                                    value={course.stage}
+                                    value={course.onboarding?.stage || "NOT_CONTACTED"}
                                     onValueChange={(value: OnboardingStage) => {
-                                      if (value !== course.stage) {
-                                        updateOnboardingStageMutation.mutate({ courseId: course.courseId, stage: value });
+                                      if (value !== course.onboarding?.stage) {
+                                        updateOnboardingStageMutation.mutate({ courseId: course.id, stage: value });
                                       }
                                     }}
                                     disabled={updateOnboardingStageMutation.isPending}
                                   >
                                     <SelectTrigger 
-                                      className="w-[160px]" 
-                                      data-testid={`select-stage-${course.courseId}`}
+                                      className="w-[140px]" 
+                                      data-testid={`select-stage-${course.id}`}
                                     >
                                       <Badge variant="secondary" className={currentStage?.color}>
                                         <StageIcon className="h-3 w-3 mr-1" />
-                                        {currentStage?.label || course.stage}
+                                        {currentStage?.label || "Not Contacted"}
                                       </Badge>
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1641,7 +1568,7 @@ export default function Admin() {
                                           <SelectItem 
                                             key={stage.value} 
                                             value={stage.value}
-                                            data-testid={`option-stage-${stage.value}-${course.courseId}`}
+                                            data-testid={`option-stage-${stage.value}-${course.id}`}
                                           >
                                             <div className="flex items-center gap-2">
                                               <Icon className="h-3 w-3" />
@@ -1654,65 +1581,43 @@ export default function Admin() {
                                   </Select>
                                 </TableCell>
                                 <TableCell>
-                                  {course.agreedCommission ? (
-                                    <Badge variant="outline">{course.agreedCommission}%</Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground text-sm">-</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="max-w-[150px]">
-                                  {course.notes ? (
-                                    <Tooltip>
-                                      <TooltipTrigger className="text-left">
-                                        <span className="text-sm truncate block max-w-[140px]" data-testid={`text-notes-${course.courseId}`}>
-                                          {course.notes}
-                                        </span>
-                                      </TooltipTrigger>
-                                      <TooltipContent className="max-w-[300px]">
-                                        <p className="whitespace-pre-wrap">{course.notes}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
+                                  {hasKickback ? (
+                                    <Badge variant="outline">{course.kickbackPercent}%</Badge>
                                   ) : (
                                     <span className="text-muted-foreground text-sm">-</span>
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  {course.outreachSentAt ? (
-                                    <span className="text-sm" data-testid={`text-contacted-${course.courseId}`}>
-                                      {format(new Date(course.outreachSentAt), "PP")}
+                                  {course.onboarding?.outreachSentAt ? (
+                                    <span className="text-sm">
+                                      {format(new Date(course.onboarding.outreachSentAt), "PP")}
                                     </span>
                                   ) : (
                                     <span className="text-muted-foreground text-sm">Never</span>
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleEditOnboarding(course)}
-                                          data-testid={`button-edit-onboarding-${course.courseId}`}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Edit Details</TooltipContent>
-                                    </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => setContactLogsCourse(course)}
-                                          data-testid={`button-contact-logs-${course.courseId}`}
-                                        >
-                                          <History className="h-4 w-4" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Contact History</TooltipContent>
-                                    </Tooltip>
+                                  <div className="flex items-center gap-1">
+                                    {hasKickback && (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                                            <DollarSign className="h-3 w-3" />
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Kickback configured</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                    {hasCredentials && (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                                            <Lock className="h-3 w-3" />
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Credentials set</TooltipContent>
+                                      </Tooltip>
+                                    )}
                                   </div>
                                 </TableCell>
                               </TableRow>
@@ -1723,7 +1628,7 @@ export default function Admin() {
                     </div>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
-                      {onboardingSearchQuery || stageFilter !== "ALL" || providerFilter !== "ALL" 
+                      {courseSearchQuery || stageFilter !== "ALL" || providerFilter !== "ALL" 
                         ? "No courses match your filters" 
                         : "No courses found"}
                     </div>
@@ -1731,6 +1636,624 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Course Profile Sheet */}
+            <Sheet open={!!selectedCourseProfile} onOpenChange={(open) => !open && setSelectedCourseProfile(null)}>
+              <SheetContent className="w-[600px] sm:w-[800px] sm:max-w-[800px] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-3">
+                    {selectedCourseProfile?.imageUrl && (
+                      <div className="w-12 h-12 rounded-md overflow-hidden bg-muted">
+                        <OptimizedImage
+                          src={selectedCourseProfile.imageUrl}
+                          alt={selectedCourseProfile.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <span>{selectedCourseProfile?.name}</span>
+                      <p className="text-sm font-normal text-muted-foreground">
+                        {selectedCourseProfile?.city}, {selectedCourseProfile?.province}
+                      </p>
+                    </div>
+                  </SheetTitle>
+                  <SheetDescription>
+                    Manage course details, partnership info, and communications
+                  </SheetDescription>
+                </SheetHeader>
+
+                {selectedCourseProfile && (
+                  <Tabs value={profileTab} onValueChange={setProfileTab} className="mt-6">
+                    <TabsList className="grid w-full grid-cols-5">
+                      <TabsTrigger value="details" data-testid="profile-tab-details">Details</TabsTrigger>
+                      <TabsTrigger value="partnership" data-testid="profile-tab-partnership">Partnership</TabsTrigger>
+                      <TabsTrigger value="credentials" data-testid="profile-tab-credentials">Credentials</TabsTrigger>
+                      <TabsTrigger value="images" data-testid="profile-tab-images">Images</TabsTrigger>
+                      <TabsTrigger value="communications" data-testid="profile-tab-communications">Comms</TabsTrigger>
+                    </TabsList>
+
+                    {/* Details Tab */}
+                    <TabsContent value="details" className="space-y-4 mt-4">
+                      <Form {...courseForm}>
+                        <form onSubmit={courseForm.handleSubmit(handleSaveProfileDetails)} className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={courseForm.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Course Name</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-profile-name" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={courseForm.control}
+                              name="city"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>City</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-profile-city" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={courseForm.control}
+                              name="province"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Province</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-profile-province" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={courseForm.control}
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Email</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} type="email" data-testid="input-profile-email" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={courseForm.control}
+                              name="phone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Phone</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-profile-phone" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={courseForm.control}
+                              name="website"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Website</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-profile-website" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={courseForm.control}
+                            name="description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Description</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} className="min-h-[100px]" data-testid="textarea-profile-description" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button type="submit" disabled={updateCourseMutation.isPending} data-testid="button-save-profile-details">
+                            {updateCourseMutation.isPending ? "Saving..." : "Save Details"}
+                          </Button>
+                        </form>
+                      </Form>
+                    </TabsContent>
+
+                    {/* Partnership Tab */}
+                    <TabsContent value="partnership" className="space-y-4 mt-4">
+                      <Form {...onboardingForm}>
+                        <form onSubmit={onboardingForm.handleSubmit(handleSaveProfilePartnership)} className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={onboardingForm.control}
+                              name="contactPerson"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Contact Person</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-profile-contact-person" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={onboardingForm.control}
+                              name="contactEmail"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Contact Email</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} type="email" data-testid="input-profile-contact-email" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                              control={onboardingForm.control}
+                              name="contactPhone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Contact Phone</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} data-testid="input-profile-contact-phone" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={onboardingForm.control}
+                              name="agreedCommission"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Agreed Commission (%)</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      type="number" 
+                                      {...field} 
+                                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                      data-testid="input-profile-commission" 
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={onboardingForm.control}
+                            name="notes"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Notes</FormLabel>
+                                <FormControl>
+                                  <Textarea {...field} className="min-h-[100px]" data-testid="textarea-profile-notes" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button type="submit" disabled={updateOnboardingMutation.isPending} data-testid="button-save-profile-partnership">
+                            {updateOnboardingMutation.isPending ? "Saving..." : "Save Partnership Info"}
+                          </Button>
+                        </form>
+                      </Form>
+                    </TabsContent>
+
+                    {/* Credentials Tab */}
+                    <TabsContent value="credentials" className="space-y-4 mt-4">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Lock className="h-4 w-4" />
+                            Provider Credentials
+                          </CardTitle>
+                          <CardDescription>
+                            Golfmanager or TeeOne login credentials
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Username</Label>
+                              <Input 
+                                value={coursesWithOnboarding.find(c => c.id === selectedCourseProfile.id)?.provider?.username || ""} 
+                                disabled 
+                                placeholder="Not configured"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Password</Label>
+                              <Input 
+                                type="password" 
+                                value={coursesWithOnboarding.find(c => c.id === selectedCourseProfile.id)?.provider?.password || ""} 
+                                disabled 
+                                placeholder="Not configured"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Credentials are managed through the course provider configuration.
+                          </p>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Percent className="h-4 w-4" />
+                            Kickback Configuration
+                          </CardTitle>
+                          <CardDescription>
+                            Commission percentage for bookings
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Form {...courseForm}>
+                            <form onSubmit={courseForm.handleSubmit(handleSaveProfileDetails)} className="space-y-4">
+                              <FormField
+                                control={courseForm.control}
+                                name="kickbackPercentage"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Kickback Percentage</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        {...field} 
+                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                        data-testid="input-profile-kickback" 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Button type="submit" disabled={updateCourseMutation.isPending} data-testid="button-save-profile-kickback">
+                                {updateCourseMutation.isPending ? "Saving..." : "Save Kickback"}
+                              </Button>
+                            </form>
+                          </Form>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Images Tab */}
+                    <TabsContent value="images" className="space-y-4 mt-4">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">Main Image</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="flex items-start gap-4">
+                            <div className="w-32 h-32 rounded-md overflow-hidden bg-muted">
+                              <OptimizedImage
+                                src={selectedCourseProfile.imageUrl || undefined}
+                                alt={selectedCourseProfile.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <Input
+                                placeholder="Enter image URL..."
+                                value={courseImageUrls[selectedCourseProfile.id] || ""}
+                                onChange={(e) => setCourseImageUrls({
+                                  ...courseImageUrls,
+                                  [selectedCourseProfile.id]: e.target.value
+                                })}
+                                data-testid="input-profile-main-image-url"
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    const url = courseImageUrls[selectedCourseProfile.id];
+                                    if (url) {
+                                      updateCourseImageMutation.mutate({ 
+                                        courseId: selectedCourseProfile.id, 
+                                        imageUrl: url 
+                                      });
+                                    }
+                                  }}
+                                  disabled={!courseImageUrls[selectedCourseProfile.id] || updateCourseImageMutation.isPending}
+                                  data-testid="button-update-main-image"
+                                >
+                                  Update Image
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">Gallery Images</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-3 gap-3">
+                            {profileGalleryImages.map((image) => (
+                              <div key={image.id} className="relative group">
+                                <div className="aspect-video rounded-md overflow-hidden bg-muted">
+                                  <OptimizedImage
+                                    src={image.imageUrl}
+                                    alt={image.caption || "Gallery image"}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Add gallery image URL..."
+                              value={newGalleryImageUrl}
+                              onChange={(e) => setNewGalleryImageUrl(e.target.value)}
+                              data-testid="input-profile-gallery-url"
+                            />
+                            <Button
+                              onClick={() => {
+                                if (newGalleryImageUrl && selectedCourseProfile) {
+                                  addGalleryImageMutation.mutate({
+                                    courseId: selectedCourseProfile.id,
+                                    imageUrl: newGalleryImageUrl,
+                                    caption: newGalleryCaption
+                                  });
+                                }
+                              }}
+                              disabled={!newGalleryImageUrl || addGalleryImageMutation.isPending}
+                              data-testid="button-add-gallery-image"
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Communications Tab */}
+                    <TabsContent value="communications" className="space-y-4 mt-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add Communication
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <Form {...contactLogForm}>
+                            <form onSubmit={contactLogForm.handleSubmit(handleAddProfileContactLog)} className="space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <FormField
+                                  control={contactLogForm.control}
+                                  name="type"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Type</FormLabel>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                          <SelectTrigger data-testid="select-profile-contact-type">
+                                            <SelectValue placeholder="Select type" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="EMAIL">
+                                            <div className="flex items-center gap-2">
+                                              <Mail className="h-3 w-3" />
+                                              Email
+                                            </div>
+                                          </SelectItem>
+                                          <SelectItem value="PHONE">
+                                            <div className="flex items-center gap-2">
+                                              <PhoneCall className="h-3 w-3" />
+                                              Phone
+                                            </div>
+                                          </SelectItem>
+                                          <SelectItem value="IN_PERSON">
+                                            <div className="flex items-center gap-2">
+                                              <UserPlus className="h-3 w-3" />
+                                              In Person
+                                            </div>
+                                          </SelectItem>
+                                          <SelectItem value="NOTE">
+                                            <div className="flex items-center gap-2">
+                                              <FileText className="h-3 w-3" />
+                                              Note
+                                            </div>
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={contactLogForm.control}
+                                  name="direction"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Direction</FormLabel>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                          <SelectTrigger data-testid="select-profile-contact-direction">
+                                            <SelectValue placeholder="Select direction" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="OUTBOUND">Outbound (We contacted)</SelectItem>
+                                          <SelectItem value="INBOUND">Inbound (They contacted)</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <FormField
+                                control={contactLogForm.control}
+                                name="subject"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Subject</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} placeholder="Brief subject or title" data-testid="input-profile-contact-subject" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={contactLogForm.control}
+                                name="body"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Content</FormLabel>
+                                    <FormControl>
+                                      <Textarea {...field} placeholder="What was discussed..." className="min-h-[80px]" data-testid="textarea-profile-contact-body" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={contactLogForm.control}
+                                name="outcome"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Outcome</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger data-testid="select-profile-contact-outcome">
+                                          <SelectValue placeholder="Select outcome" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="POSITIVE">Positive</SelectItem>
+                                        <SelectItem value="NEUTRAL">Neutral</SelectItem>
+                                        <SelectItem value="NEGATIVE">Negative</SelectItem>
+                                        <SelectItem value="NO_RESPONSE">No Response</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Button type="submit" disabled={addContactLogMutation.isPending} className="w-full" data-testid="button-add-profile-contact">
+                                {addContactLogMutation.isPending ? "Adding..." : "Add Entry"}
+                              </Button>
+                            </form>
+                          </Form>
+                        </CardContent>
+                      </Card>
+
+                      <div className="border-t pt-4">
+                        <h4 className="text-sm font-medium mb-3">Communication History</h4>
+                        <ScrollArea className="h-[300px]">
+                          {isLoadingProfileContactLogs ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              Loading communication history...
+                            </div>
+                          ) : profileContactLogs && profileContactLogs.length > 0 ? (
+                            <div className="space-y-3">
+                              {profileContactLogs.map((log) => {
+                                const TypeIcon = log.type === "EMAIL" ? Mail 
+                                  : log.type === "PHONE" ? PhoneCall 
+                                  : log.type === "IN_PERSON" ? UserPlus 
+                                  : FileText;
+                                
+                                const DirectionIcon = log.direction === "OUTBOUND" ? ArrowUpRight : ArrowDownLeft;
+                                const directionColor = log.direction === "OUTBOUND" 
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800" 
+                                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+                                
+                                const outcomeColor = log.outcome === "POSITIVE" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                                  : log.outcome === "NEGATIVE" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                                  : log.outcome === "NEUTRAL" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                  : log.outcome === "NO_RESPONSE" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                                  : "";
+
+                                return (
+                                  <div 
+                                    key={log.id} 
+                                    className={`border rounded-md p-3 space-y-2 ${log.direction === "INBOUND" ? "bg-emerald-50/50 dark:bg-emerald-950/20" : ""}`}
+                                    data-testid={`profile-contact-log-${log.id}`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <TypeIcon className="h-4 w-4 text-muted-foreground" />
+                                        <Badge variant="outline">
+                                          {log.type.replace("_", " ")}
+                                        </Badge>
+                                        <Badge variant="outline" className={directionColor}>
+                                          <DirectionIcon className="h-3 w-3 mr-1" />
+                                          {log.direction === "OUTBOUND" ? "Sent" : "Received"}
+                                        </Badge>
+                                        {log.outcome && (
+                                          <Badge variant="secondary" className={outcomeColor}>
+                                            {log.outcome.replace("_", " ")}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {format(new Date(log.loggedAt), "PP p")}
+                                      </span>
+                                    </div>
+                                    {log.subject && (
+                                      <p className="font-medium text-sm">{log.subject}</p>
+                                    )}
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                      {log.body}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              No communication history yet
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                )}
+              </SheetContent>
+            </Sheet>
           </TabsContent>
 
           <TabsContent value="emails">
