@@ -34,7 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -47,7 +47,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { CommissionDashboard } from "@/components/CommissionDashboard";
 import { AdCampaigns } from "@/components/AdCampaigns";
-import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog } from "@shared/schema";
+import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog, CourseImage } from "@shared/schema";
 import { CONTACT_LOG_TYPES } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -187,6 +187,10 @@ export default function Admin() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [editingCourse, setEditingCourse] = useState<GolfCourse | null>(null);
   const [editCourseImageUrl, setEditCourseImageUrl] = useState("");
+  
+  // Gallery management state
+  const [newGalleryImageUrl, setNewGalleryImageUrl] = useState("");
+  const [newGalleryCaption, setNewGalleryCaption] = useState("");
   
   // Partnership Funnel state
   const [onboardingSearchQuery, setOnboardingSearchQuery] = useState("");
@@ -804,6 +808,99 @@ export default function Admin() {
       });
     },
   });
+
+  // Gallery images query
+  const { data: galleryImages = [], refetch: refetchGalleryImages } = useQuery<CourseImage[]>({
+    queryKey: ['/api/courses', editingCourse?.id, 'images'],
+    queryFn: async () => {
+      if (!editingCourse?.id) return [];
+      const res = await fetch(`/api/courses/${editingCourse.id}/images`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!editingCourse?.id,
+  });
+
+  // Add gallery image mutation
+  const addGalleryImageMutation = useMutation({
+    mutationFn: async ({ courseId, imageUrl, caption }: { courseId: string; imageUrl: string; caption?: string }) => {
+      return await apiRequest(`/api/courses/${courseId}/images`, "POST", { imageUrl, caption });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/courses', editingCourse?.id, 'images'] });
+      setNewGalleryImageUrl("");
+      setNewGalleryCaption("");
+      toast({
+        title: "Image Added",
+        description: "Gallery image has been added successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Add Image",
+        description: error.message || "Could not add gallery image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete gallery image mutation
+  const deleteGalleryImageMutation = useMutation({
+    mutationFn: async (imageId: string) => {
+      return await apiRequest(`/api/course-images/${imageId}`, "DELETE", undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/courses', editingCourse?.id, 'images'] });
+      toast({
+        title: "Image Deleted",
+        description: "Gallery image has been removed",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Delete Image",
+        description: error.message || "Could not delete gallery image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reorder gallery images mutation
+  const reorderGalleryImagesMutation = useMutation({
+    mutationFn: async ({ courseId, imageIds }: { courseId: string; imageIds: string[] }) => {
+      return await apiRequest(`/api/courses/${courseId}/images/reorder`, "PATCH", { imageIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/courses', editingCourse?.id, 'images'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Reorder Images",
+        description: error.message || "Could not reorder gallery images",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Move gallery image up or down
+  const handleMoveGalleryImage = (imageId: string, direction: 'up' | 'down') => {
+    if (!editingCourse?.id) return;
+    
+    const currentIndex = galleryImages.findIndex(img => img.id === imageId);
+    if (currentIndex === -1) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= galleryImages.length) return;
+    
+    const newOrder = [...galleryImages];
+    const [moved] = newOrder.splice(currentIndex, 1);
+    newOrder.splice(newIndex, 0, moved);
+    
+    reorderGalleryImagesMutation.mutate({
+      courseId: editingCourse.id,
+      imageIds: newOrder.map(img => img.id),
+    });
+  };
 
   // Page-level auth protection - Code from blueprint:javascript_log_in_with_replit
   useEffect(() => {
@@ -2033,6 +2130,131 @@ export default function Admin() {
                         </Button>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Gallery Images Section */}
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Images className="h-4 w-4" />
+                      Gallery Images
+                    </Label>
+                    <Badge variant="secondary" data-testid="badge-gallery-count">
+                      {galleryImages.length} images
+                    </Badge>
+                  </div>
+                  
+                  {/* Existing Gallery Images */}
+                  {galleryImages.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {galleryImages.map((image, index) => (
+                        <div 
+                          key={image.id} 
+                          className="flex items-center gap-2 p-2 bg-muted rounded-md"
+                          data-testid={`gallery-image-row-${index}`}
+                        >
+                          <div className="w-16 h-12 rounded overflow-hidden flex-shrink-0">
+                            <img 
+                              src={image.imageUrl} 
+                              alt={image.caption || `Image ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              data-testid={`gallery-image-preview-${index}`}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground truncate" data-testid={`gallery-image-url-${index}`}>
+                              {image.imageUrl}
+                            </p>
+                            {image.caption && (
+                              <p className="text-xs font-medium truncate" data-testid={`gallery-image-caption-${index}`}>
+                                {image.caption}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleMoveGalleryImage(image.id, 'up')}
+                              disabled={index === 0 || reorderGalleryImagesMutation.isPending}
+                              data-testid={`button-gallery-move-up-${index}`}
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleMoveGalleryImage(image.id, 'down')}
+                              disabled={index === galleryImages.length - 1 || reorderGalleryImagesMutation.isPending}
+                              data-testid={`button-gallery-move-down-${index}`}
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                              disabled={deleteGalleryImageMutation.isPending}
+                              data-testid={`button-gallery-delete-${index}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Add New Gallery Image */}
+                  <div className="space-y-2 pt-2">
+                    <Label className="text-xs text-muted-foreground">Add New Gallery Image</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <Input
+                        value={newGalleryImageUrl}
+                        onChange={(e) => setNewGalleryImageUrl(e.target.value)}
+                        placeholder="/stock_images/gallery.jpg"
+                        className="font-mono text-sm"
+                        data-testid="input-gallery-image-url"
+                      />
+                      <Input
+                        value={newGalleryCaption}
+                        onChange={(e) => setNewGalleryCaption(e.target.value)}
+                        placeholder="Caption (optional)"
+                        className="text-sm"
+                        data-testid="input-gallery-caption"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        if (!newGalleryImageUrl || !newGalleryImageUrl.trim()) {
+                          toast({
+                            title: "Invalid Input",
+                            description: "Please enter an image URL",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        addGalleryImageMutation.mutate({
+                          courseId: editingCourse.id,
+                          imageUrl: newGalleryImageUrl,
+                          caption: newGalleryCaption || undefined,
+                        });
+                      }}
+                      disabled={!newGalleryImageUrl || addGalleryImageMutation.isPending}
+                      data-testid="button-add-gallery-image"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {addGalleryImageMutation.isPending ? "Adding..." : "Add to Gallery"}
+                    </Button>
                   </div>
                 </div>
 

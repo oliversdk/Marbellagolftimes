@@ -72,6 +72,23 @@ export const insertGolfCourseSchema = createInsertSchema(golfCourses).omit({ id:
 export type InsertGolfCourse = z.infer<typeof insertGolfCourseSchema>;
 export type GolfCourse = typeof golfCourses.$inferSelect;
 
+// Course Gallery Images
+export const courseImages = pgTable("course_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  imageUrl: text("image_url").notNull(),
+  caption: text("caption"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCourseImageSchema = createInsertSchema(courseImages).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertCourseImage = z.infer<typeof insertCourseImageSchema>;
+export type CourseImage = typeof courseImages.$inferSelect;
+
 // Tee Time Providers
 export const teeTimeProviders = pgTable("tee_time_providers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

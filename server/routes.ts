@@ -713,6 +713,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/courses/:id/images - Get all gallery images for a course (Public)
+  app.get("/api/courses/:id/images", async (req, res) => {
+    try {
+      const course = await storage.getCourseById(req.params.id);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+      
+      const images = await storage.getImagesByCourseId(req.params.id);
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      res.json(images);
+    } catch (error) {
+      console.error("Failed to fetch course images:", error);
+      res.status(500).json({ error: "Failed to fetch course images" });
+    }
+  });
+
+  // POST /api/courses/:id/images - Add gallery image (Admin only)
+  app.post("/api/courses/:id/images", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { imageUrl, caption } = req.body;
+      
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return res.status(400).json({ error: "imageUrl is required" });
+      }
+
+      const course = await storage.getCourseById(req.params.id);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Get existing images to determine sort order
+      const existingImages = await storage.getImagesByCourseId(req.params.id);
+      const nextSortOrder = existingImages.length > 0 
+        ? Math.max(...existingImages.map(img => img.sortOrder)) + 1 
+        : 0;
+
+      const newImage = await storage.createCourseImage({
+        courseId: req.params.id,
+        imageUrl,
+        caption: caption || null,
+        sortOrder: nextSortOrder,
+      });
+
+      res.status(201).json(newImage);
+    } catch (error) {
+      console.error("Failed to create course image:", error);
+      res.status(500).json({ error: "Failed to create course image" });
+    }
+  });
+
+  // DELETE /api/course-images/:imageId - Delete gallery image (Admin only)
+  app.delete("/api/course-images/:imageId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteCourseImage(req.params.imageId);
+      if (!success) {
+        return res.status(404).json({ error: "Image not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete course image:", error);
+      res.status(500).json({ error: "Failed to delete course image" });
+    }
+  });
+
+  // PATCH /api/courses/:id/images/reorder - Reorder gallery images (Admin only)
+  app.patch("/api/courses/:id/images/reorder", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { imageIds } = req.body;
+      
+      if (!Array.isArray(imageIds) || imageIds.length === 0) {
+        return res.status(400).json({ error: "imageIds array is required" });
+      }
+
+      const course = await storage.getCourseById(req.params.id);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      await storage.reorderCourseImages(req.params.id, imageIds);
+      
+      const updatedImages = await storage.getImagesByCourseId(req.params.id);
+      res.json(updatedImages);
+    } catch (error) {
+      console.error("Failed to reorder course images:", error);
+      res.status(500).json({ error: "Failed to reorder course images" });
+    }
+  });
+
   // GET /api/weather/:lat/:lng - Get weather data for location (Open-Meteo API - Free, no API key required)
   app.get("/api/weather/:lat/:lng", async (req, res) => {
     try {

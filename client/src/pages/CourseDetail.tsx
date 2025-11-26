@@ -30,7 +30,15 @@ import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { WeatherWidget } from "@/components/WeatherWidget";
-import { MapPin, Phone, Mail, Globe, Star, Home, Calendar, Download } from "lucide-react";
+import { MapPin, Phone, Mail, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import type { CourseImage } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -81,6 +89,19 @@ export default function CourseDetail() {
     },
     enabled: !!id,
   });
+
+  const { data: galleryImages = [] } = useQuery<CourseImage[]>({
+    queryKey: ['/api/courses', id, 'images'],
+    queryFn: async () => {
+      if (!id) return [];
+      const res = await fetch(`/api/courses/${id}/images`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const reviewFormSchema = insertCourseReviewSchema
     .omit({ courseId: true, userId: true })
@@ -492,17 +513,84 @@ export default function CourseDetail() {
                     <CardTitle>{t('courseDetail.gallery')}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {course.imageUrl && (
-                      <OptimizedImage
-                        src={course.imageUrl}
-                        alt={course.name}
-                        className="w-full rounded-md object-cover aspect-video"
-                        data-testid="img-gallery-main"
-                      />
+                    {galleryImages.length > 0 ? (
+                      <div className="space-y-4">
+                        <Carousel 
+                          className="w-full" 
+                          opts={{ loop: true }}
+                          data-testid="carousel-gallery"
+                        >
+                          <CarouselContent>
+                            {galleryImages.map((image, index) => (
+                              <CarouselItem key={image.id} data-testid={`carousel-item-${index}`}>
+                                <div className="space-y-2">
+                                  <OptimizedImage
+                                    src={image.imageUrl}
+                                    alt={image.caption || `${course.name} - Image ${index + 1}`}
+                                    className="w-full rounded-md object-cover aspect-video"
+                                    data-testid={`img-gallery-${index}`}
+                                  />
+                                  {image.caption && (
+                                    <p 
+                                      className="text-sm text-muted-foreground text-center"
+                                      data-testid={`caption-gallery-${index}`}
+                                    >
+                                      {image.caption}
+                                    </p>
+                                  )}
+                                </div>
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselPrevious 
+                            className="left-2 bg-background/80 hover:bg-background"
+                            data-testid="button-gallery-prev"
+                          />
+                          <CarouselNext 
+                            className="right-2 bg-background/80 hover:bg-background"
+                            data-testid="button-gallery-next"
+                          />
+                        </Carousel>
+                        <div className="flex justify-center gap-2">
+                          {galleryImages.map((_, index) => (
+                            <div
+                              key={index}
+                              className={`h-2 w-2 rounded-full transition-colors ${
+                                index === currentImageIndex ? 'bg-primary' : 'bg-muted'
+                              }`}
+                              data-testid={`dot-gallery-${index}`}
+                            />
+                          ))}
+                        </div>
+                        <p 
+                          className="text-center text-sm text-muted-foreground"
+                          data-testid="text-image-count"
+                        >
+                          {galleryImages.length} {galleryImages.length === 1 ? 'image' : 'images'}
+                        </p>
+                      </div>
+                    ) : course.imageUrl ? (
+                      <div className="space-y-4">
+                        <OptimizedImage
+                          src={course.imageUrl}
+                          alt={course.name}
+                          className="w-full rounded-md object-cover aspect-video"
+                          data-testid="img-gallery-main"
+                        />
+                        <p className="text-center text-muted-foreground" data-testid="text-more-photos">
+                          {t('courseDetail.morePhotos')}
+                        </p>
+                      </div>
+                    ) : (
+                      <div 
+                        className="flex items-center justify-center h-64 bg-muted rounded-md"
+                        data-testid="gallery-no-images"
+                      >
+                        <p className="text-muted-foreground">
+                          {t('courseDetail.noImageAvailable')}
+                        </p>
+                      </div>
                     )}
-                    <p className="text-center text-muted-foreground" data-testid="text-more-photos">
-                      {t('courseDetail.morePhotos')}
-                    </p>
                   </CardContent>
                 </Card>
               </TabsContent>

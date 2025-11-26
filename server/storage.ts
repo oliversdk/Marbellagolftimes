@@ -21,6 +21,8 @@ import {
   type OnboardingStage,
   type CourseContactLog,
   type InsertCourseContactLog,
+  type CourseImage,
+  type InsertCourseImage,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -33,6 +35,7 @@ import {
   blogPosts,
   courseOnboarding,
   courseContactLogs,
+  courseImages,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -130,6 +133,12 @@ export interface IStorage {
   getContactLogsByCourseId(courseId: string): Promise<CourseContactLog[]>;
   createContactLog(log: InsertCourseContactLog): Promise<CourseContactLog>;
   deleteContactLog(id: string): Promise<boolean>;
+
+  // Course Gallery Images
+  getImagesByCourseId(courseId: string): Promise<CourseImage[]>;
+  createCourseImage(image: InsertCourseImage): Promise<CourseImage>;
+  deleteCourseImage(id: string): Promise<boolean>;
+  reorderCourseImages(courseId: string, imageIds: string[]): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -1608,6 +1617,23 @@ export class MemStorage implements IStorage {
   async deleteContactLog(id: string): Promise<boolean> {
     return false;
   }
+
+  // Course Gallery Images (stub implementation for MemStorage)
+  async getImagesByCourseId(courseId: string): Promise<CourseImage[]> {
+    return [];
+  }
+
+  async createCourseImage(image: InsertCourseImage): Promise<CourseImage> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async deleteCourseImage(id: string): Promise<boolean> {
+    return false;
+  }
+
+  async reorderCourseImages(courseId: string, imageIds: string[]): Promise<void> {
+    throw new Error("Not implemented in MemStorage");
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2250,6 +2276,34 @@ export class DatabaseStorage implements IStorage {
   async deleteContactLog(id: string): Promise<boolean> {
     const result = await db.delete(courseContactLogs).where(eq(courseContactLogs.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Course Gallery Images
+  async getImagesByCourseId(courseId: string): Promise<CourseImage[]> {
+    return await db
+      .select()
+      .from(courseImages)
+      .where(eq(courseImages.courseId, courseId))
+      .orderBy(courseImages.sortOrder);
+  }
+
+  async createCourseImage(image: InsertCourseImage): Promise<CourseImage> {
+    const result = await db.insert(courseImages).values(image).returning();
+    return result[0];
+  }
+
+  async deleteCourseImage(id: string): Promise<boolean> {
+    const result = await db.delete(courseImages).where(eq(courseImages.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async reorderCourseImages(courseId: string, imageIds: string[]): Promise<void> {
+    for (let i = 0; i < imageIds.length; i++) {
+      await db
+        .update(courseImages)
+        .set({ sortOrder: i })
+        .where(eq(courseImages.id, imageIds[i]));
+    }
   }
 }
 
