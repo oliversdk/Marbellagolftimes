@@ -1024,6 +1024,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/courses/:courseId/images/upload - Upload multiple images for a course (Admin only)
+  app.post("/api/courses/:courseId/images/upload", isAuthenticated, upload.array("images", 5), async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const files = req.files as Express.Multer.File[];
+      const { setAsMain } = req.body;
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
+      }
+
+      // Verify course exists
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      const uploadedImages: any[] = [];
+
+      // Process each uploaded file
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const imageUrl = `/stock_images/${file.filename}`;
+
+        // Add to course_images table
+        const galleryImage = await storage.addCourseImage({
+          courseId,
+          imageUrl,
+          caption: null,
+          sortOrder: i
+        });
+
+        uploadedImages.push({
+          id: galleryImage.id,
+          imageUrl,
+          filename: file.filename,
+          size: file.size
+        });
+
+        // Set first image as main if setAsMain is true or no main image exists
+        if (i === 0 && (setAsMain === "true" || !course.imageUrl)) {
+          await storage.updateCourseImage(courseId, imageUrl);
+        }
+      }
+
+      res.json({ 
+        success: true,
+        uploaded: uploadedImages.length,
+        images: uploadedImages
+      });
+    } catch (error: any) {
+      console.error("Error uploading course images:", error);
+      res.status(500).json({ error: error.message || "Failed to upload images" });
+    }
+  });
+
   // DELETE /api/images/:filename - Delete an image file (Admin only)
   app.delete("/api/images/:filename", isAuthenticated, async (req, res) => {
     try {

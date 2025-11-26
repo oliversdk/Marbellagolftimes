@@ -951,7 +951,7 @@ export default function Admin() {
     },
   });
 
-  // Upload course image mutation
+  // Upload course image mutation (single)
   const uploadImageMutation = useMutation({
     mutationFn: async ({ courseId, file }: { courseId: string; file: File }) => {
       const formData = new FormData();
@@ -974,6 +974,38 @@ export default function Admin() {
       await updateCourseImageMutation.mutateAsync({
         courseId: variables.courseId,
         imageUrl: data.imageUrl,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('admin.uploadFailedTitle'),
+        description: error.message || t('admin.uploadFailedDescription'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Upload multiple course images mutation
+  const uploadImagesMutation = useMutation({
+    mutationFn: async ({ courseId, formData }: { courseId: string; formData: FormData }) => {
+      const response = await fetch(`/api/courses/${courseId}/images/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data: { uploaded: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourseProfile?.id, "images"] });
+      toast({
+        title: "Images Uploaded",
+        description: `Successfully uploaded ${data.uploaded} image(s)`,
       });
     },
     onError: (error: any) => {
@@ -2014,99 +2046,134 @@ export default function Admin() {
                     <TabsContent value="images" className="space-y-4 mt-4">
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-base">Main Image</CardTitle>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Upload className="h-4 w-4" />
+                            Upload Images
+                          </CardTitle>
+                          <CardDescription>
+                            Upload up to 5 images at once. First image becomes main image if none exists.
+                          </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          <div className="flex items-start gap-4">
-                            <div className="w-32 h-32 rounded-md overflow-hidden bg-muted">
-                              <OptimizedImage
-                                src={selectedCourseProfile.imageUrl || undefined}
-                                alt={selectedCourseProfile.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div className="flex-1 space-y-2">
-                              <Input
-                                placeholder="Enter image URL..."
-                                value={courseImageUrls[selectedCourseProfile.id] || ""}
-                                onChange={(e) => setCourseImageUrls({
-                                  ...courseImageUrls,
-                                  [selectedCourseProfile.id]: e.target.value
-                                })}
-                                data-testid="input-profile-main-image-url"
-                              />
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    const url = courseImageUrls[selectedCourseProfile.id];
-                                    if (url) {
-                                      updateCourseImageMutation.mutate({ 
-                                        courseId: selectedCourseProfile.id, 
-                                        imageUrl: url 
-                                      });
-                                    }
-                                  }}
-                                  disabled={!courseImageUrls[selectedCourseProfile.id] || updateCourseImageMutation.isPending}
-                                  data-testid="button-update-main-image"
-                                >
-                                  Update Image
-                                </Button>
+                          <div
+                            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                              uploadImagesMutation.isPending ? "opacity-50" : "hover:border-primary cursor-pointer"
+                            }`}
+                            onClick={() => !uploadImagesMutation.isPending && document.getElementById("image-upload-input")?.click()}
+                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-primary", "bg-primary/5"); }}
+                            onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.classList.remove("border-primary", "bg-primary/5");
+                              const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/")).slice(0, 5);
+                              if (files.length > 0 && selectedCourseProfile) {
+                                const formData = new FormData();
+                                files.forEach(file => formData.append("images", file));
+                                formData.append("setAsMain", (!selectedCourseProfile.imageUrl).toString());
+                                uploadImagesMutation.mutate({ courseId: selectedCourseProfile.id, formData });
+                              }
+                            }}
+                            data-testid="dropzone-images"
+                          >
+                            <input
+                              id="image-upload-input"
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []).slice(0, 5);
+                                if (files.length > 0 && selectedCourseProfile) {
+                                  const formData = new FormData();
+                                  files.forEach(file => formData.append("images", file));
+                                  formData.append("setAsMain", (!selectedCourseProfile.imageUrl).toString());
+                                  uploadImagesMutation.mutate({ courseId: selectedCourseProfile.id, formData });
+                                  e.target.value = "";
+                                }
+                              }}
+                              data-testid="input-image-upload"
+                            />
+                            {uploadImagesMutation.isPending ? (
+                              <div className="space-y-2">
+                                <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+                                <p className="text-sm text-muted-foreground">Uploading images...</p>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <Images className="h-10 w-10 mx-auto text-muted-foreground" />
+                                <p className="font-medium">Drop images here or click to browse</p>
+                                <p className="text-sm text-muted-foreground">Max 5 images, JPG/PNG/WebP</p>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
 
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-base">Gallery Images</CardTitle>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-base">Current Images ({profileGalleryImages.length + (selectedCourseProfile.imageUrl ? 1 : 0)})</CardTitle>
+                          </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="grid grid-cols-3 gap-3">
-                            {profileGalleryImages.map((image) => (
-                              <div key={image.id} className="relative group">
-                                <div className="aspect-video rounded-md overflow-hidden bg-muted">
-                                  <OptimizedImage
-                                    src={image.imageUrl}
-                                    alt={image.caption || "Gallery image"}
-                                    className="w-full h-full object-cover"
-                                  />
+                        <CardContent>
+                          {selectedCourseProfile.imageUrl || profileGalleryImages.length > 0 ? (
+                            <div className="grid grid-cols-3 gap-3">
+                              {selectedCourseProfile.imageUrl && (
+                                <div className="relative group">
+                                  <div className="aspect-video rounded-md overflow-hidden bg-muted ring-2 ring-primary ring-offset-2">
+                                    <OptimizedImage
+                                      src={selectedCourseProfile.imageUrl}
+                                      alt="Main image"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
                                 </div>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => deleteGalleryImageMutation.mutate(image.id)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Add gallery image URL..."
-                              value={newGalleryImageUrl}
-                              onChange={(e) => setNewGalleryImageUrl(e.target.value)}
-                              data-testid="input-profile-gallery-url"
-                            />
-                            <Button
-                              onClick={() => {
-                                if (newGalleryImageUrl && selectedCourseProfile) {
-                                  addGalleryImageMutation.mutate({
-                                    courseId: selectedCourseProfile.id,
-                                    imageUrl: newGalleryImageUrl,
-                                    caption: newGalleryCaption
-                                  });
-                                }
-                              }}
-                              disabled={!newGalleryImageUrl || addGalleryImageMutation.isPending}
-                              data-testid="button-add-gallery-image"
-                            >
-                              Add
-                            </Button>
-                          </div>
+                              )}
+                              {profileGalleryImages.map((image) => (
+                                <div key={image.id} className="relative group">
+                                  <div className="aspect-video rounded-md overflow-hidden bg-muted">
+                                    <OptimizedImage
+                                      src={image.imageUrl}
+                                      alt={image.caption || "Gallery image"}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                      variant="secondary"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() => {
+                                        updateCourseImageMutation.mutate({ 
+                                          courseId: selectedCourseProfile.id, 
+                                          imageUrl: image.imageUrl 
+                                        });
+                                      }}
+                                      title="Set as main"
+                                      data-testid={`button-set-main-${image.id}`}
+                                    >
+                                      <CheckSquare className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                      data-testid={`button-delete-${image.id}`}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Images className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No images uploaded yet</p>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     </TabsContent>
