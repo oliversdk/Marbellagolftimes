@@ -129,7 +129,16 @@ export default function Home() {
     },
   });
 
-  // Fun personalized greetings for admins - memoized to prevent re-rolling on every render
+  // Session seed for greetings - changes each login but stays consistent during session
+  const [sessionSeed] = useState(() => {
+    const storedSeed = sessionStorage.getItem('greetingSeed');
+    if (storedSeed) return parseInt(storedSeed);
+    const newSeed = Math.floor(Math.random() * 100000);
+    sessionStorage.setItem('greetingSeed', newSeed.toString());
+    return newSeed;
+  });
+
+  // Fun personalized greetings for admins - changes each login
   const adminGreeting = useMemo(() => {
     if (!user || !revenueData) return null;
     
@@ -137,10 +146,8 @@ export default function Home() {
     const commission = revenueData.totalCommission;
     const roi = revenueData.roi;
     
-    // Seeded random based on date to keep consistent during session but change daily
-    const today = new Date().toDateString();
-    const seed = today.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    const pseudoRandom = (index: number) => ((seed + index) * 9301 + 49297) % 233280 / 233280;
+    // Use session seed so greeting changes each login but stays consistent during session
+    const pseudoRandom = (index: number) => ((sessionSeed + index) * 9301 + 49297) % 233280 / 233280;
     
     // Special greetings based on name
     const personalGreetings: Record<string, string[]> = {
@@ -217,7 +224,7 @@ export default function Home() {
     }
     
     return { baseGreeting, motivation };
-  }, [user?.firstName, revenueData?.totalCommission, revenueData?.roi]);
+  }, [user?.firstName, revenueData?.totalCommission, revenueData?.roi, sessionSeed]);
 
   // Activity feed for admins - shows recent events with team commentary
   type ActivityItem = {
@@ -262,16 +269,17 @@ export default function Home() {
     const recentBookings = activities.filter(a => a.type === 'booking');
     if (recentBookings.length > 0) {
       const latestBooking = recentBookings[0];
-      const courseName = latestBooking.data.courseName as string;
-      const customerName = (latestBooking.data.customerName as string)?.split(' ')[0];
+      const courseName = latestBooking.data.courseName as string || 'en bane';
+      const rawCustomerName = latestBooking.data.customerName as string;
+      const customerName = rawCustomerName?.split(' ')[0] || 'En kunde';
       const bookingComments = [
         `🎯 Ny booking på ${courseName}! ${customerName} er klar til golf!`,
         `💰 Cha-ching! ${customerName} har booket på ${courseName}!`,
         `🏌️ ${courseName} har lige fået en booking fra ${customerName}!`,
         `🔥 Det sker! ${customerName} booker ${courseName}!`,
       ];
-      const seed = new Date().getMinutes();
-      commentaries.push(bookingComments[seed % bookingComments.length]);
+      const seed = sessionSeed % bookingComments.length;
+      commentaries.push(bookingComments[seed]);
     }
     
     // Check partnerships progress
@@ -281,8 +289,7 @@ export default function Home() {
         `⭐ ${stats.totalPartnerships} baner med aftale! Keep crushing it!`,
         `💪 ${stats.totalPartnerships} partnerskaber! Det er fantastisk, ${firstName}!`,
       ];
-      const seed = new Date().getDate();
-      commentaries.push(partnershipComments[seed % partnershipComments.length]);
+      commentaries.push(partnershipComments[(sessionSeed + 1) % partnershipComments.length]);
     } else if (stats.totalPartnerships > 0) {
       commentaries.push(`📈 ${stats.totalPartnerships} partnerskaber indtil videre - kan vi nå 5 i dag?`);
     }
@@ -294,8 +301,7 @@ export default function Home() {
         `📋 Husk: ${stats.pendingBookings} bookings venter på bekræftelse!`,
         `🎯 ${stats.pendingBookings} kunder venter på svar - lad os gøre dem glade!`,
       ];
-      const seed = new Date().getHours();
-      commentaries.push(pendingComments[seed % pendingComments.length]);
+      commentaries.push(pendingComments[(sessionSeed + 2) % pendingComments.length]);
     }
     
     // Confirmed bookings celebration
@@ -304,7 +310,7 @@ export default function Home() {
     }
     
     return commentaries.length > 0 ? commentaries[0] : null;
-  }, [activityFeed, user?.firstName]);
+  }, [activityFeed, user?.firstName, sessionSeed]);
 
   // Reset visible count when filters or sort mode changes
   useEffect(() => {
