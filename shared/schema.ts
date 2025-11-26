@@ -235,6 +235,31 @@ export type CourseContactLog = typeof courseContactLogs.$inferSelect;
 export const CONTACT_LOG_TYPES = ["EMAIL", "PHONE", "IN_PERSON", "NOTE"] as const;
 export type ContactLogType = typeof CONTACT_LOG_TYPES[number];
 
+// Unmatched Inbound Emails (for emails that couldn't be matched to a course)
+export const unmatchedInboundEmails = pgTable("unmatched_inbound_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  toEmail: text("to_email"),
+  subject: text("subject"),
+  body: text("body"),
+  assignedToCourseId: varchar("assigned_to_course_id").references(() => golfCourses.id),
+  assignedByUserId: varchar("assigned_by_user_id").references(() => users.id),
+  assignedAt: timestamp("assigned_at"),
+  receivedAt: timestamp("received_at").notNull().defaultNow(),
+});
+
+export const insertUnmatchedInboundEmailSchema = createInsertSchema(unmatchedInboundEmails).omit({ 
+  id: true, 
+  receivedAt: true,
+  assignedToCourseId: true,
+  assignedByUserId: true,
+  assignedAt: true,
+});
+
+export type InsertUnmatchedInboundEmail = z.infer<typeof insertUnmatchedInboundEmailSchema>;
+export type UnmatchedInboundEmail = typeof unmatchedInboundEmails.$inferSelect;
+
 // Course Reviews
 export const courseReviews = pgTable("course_reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
