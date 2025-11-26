@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getPersonalFeedback } from "@/lib/personalFeedback";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { CommissionDashboard } from "@/components/CommissionDashboard";
 import { AdCampaigns } from "@/components/AdCampaigns";
@@ -234,7 +235,7 @@ export default function Admin() {
   const [courseSearchQuery, setCourseSearchQuery] = useState("");
   
   const { toast } = useToast();
-  const { isAuthenticated, isLoading, isAdmin } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin, user } = useAuth();
   const { t } = useI18n();
 
   // Fetch courses (public endpoint)
@@ -544,9 +545,10 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'user_updated');
       toast({
-        title: "User updated",
-        description: "User information has been updated successfully",
+        title: feedback.title,
+        description: feedback.description,
       });
       setEditingUser(null);
       editForm.reset();
@@ -578,9 +580,10 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'user_deleted');
       toast({
-        title: "User deleted",
-        description: "User has been deleted successfully",
+        title: feedback.title,
+        description: feedback.description,
       });
       setDeletingUser(null);
     },
@@ -669,9 +672,10 @@ export default function Admin() {
         );
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/analytics/commission"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'commission_updated');
       toast({
-        title: "Course Updated",
-        description: "Course settings have been updated successfully",
+        title: feedback.title,
+        description: feedback.description,
       });
       setEditingCourse(null);
       courseForm.reset();
@@ -754,9 +758,10 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'onboarding_updated');
       toast({
-        title: "Onboarding Updated",
-        description: "Course partnership details have been updated successfully",
+        title: feedback.title,
+        description: feedback.description,
       });
       setEditingOnboarding(null);
       onboardingForm.reset();
@@ -779,9 +784,10 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", contactLogsCourse?.courseId, "contact-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "contact-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", variables.courseId, "contact-logs"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'contact_logged');
       toast({
-        title: "Contact Log Added",
-        description: "New contact log entry has been added successfully",
+        title: feedback.title,
+        description: feedback.description,
       });
       contactLogForm.reset({
         type: "EMAIL",
@@ -893,9 +899,10 @@ export default function Admin() {
         return old.map((course) => course.id === data.id ? data : course);
       });
       setSelectedCourseProfile(data);
+      const feedback = getPersonalFeedback(user?.firstName, 'course_updated');
       toast({
-        title: "Details Updated",
-        description: "Course details have been saved successfully",
+        title: feedback.title,
+        description: feedback.description,
       });
     },
     onError: (error: any) => {
@@ -960,9 +967,10 @@ export default function Admin() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/affiliate-emails"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'email_sent');
       toast({
-        title: t('admin.emailsSentTitle'),
-        description: t('admin.emailsSentDescription', { count: data.sent || selectedCourseIds.length }),
+        title: feedback.title,
+        description: feedback.description,
       });
       setSelectedCourseIds([]);
     },
@@ -1064,9 +1072,10 @@ export default function Admin() {
     onSuccess: (data: { uploaded: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourseProfile?.id, "images"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'image_uploaded');
       toast({
-        title: "Images Uploaded",
-        description: `Successfully uploaded ${data.uploaded} image(s)`,
+        title: feedback.title,
+        description: feedback.description,
       });
     },
     onError: (error: any) => {
@@ -1086,9 +1095,10 @@ export default function Admin() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'image_deleted');
       toast({
-        title: t('admin.imageDeletedTitle'),
-        description: t('admin.imageDeletedDescription'),
+        title: feedback.title,
+        description: feedback.description,
       });
       // Update local state in dialog using state setter callback to avoid stale closure
       setEditingCourse((current) => {
@@ -1130,9 +1140,10 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ['/api/courses', editingCourse?.id, 'images'] });
       setNewGalleryImageUrl("");
       setNewGalleryCaption("");
+      const feedback = getPersonalFeedback(user?.firstName, 'image_uploaded');
       toast({
-        title: "Image Added",
-        description: "Gallery image has been added successfully",
+        title: feedback.title,
+        description: feedback.description,
       });
     },
     onError: (error: any) => {
@@ -1151,9 +1162,10 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/courses', editingCourse?.id, 'images'] });
+      const feedback = getPersonalFeedback(user?.firstName, 'image_deleted');
       toast({
-        title: "Image Deleted",
-        description: "Gallery image has been removed",
+        title: feedback.title,
+        description: feedback.description,
       });
     },
     onError: (error: any) => {
