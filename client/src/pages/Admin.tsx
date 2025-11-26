@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Header } from "@/components/Header";
@@ -31,7 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -1088,7 +1089,14 @@ export default function Admin() {
                             <TableRow key={course.courseId} data-testid={`row-onboarding-${course.courseId}`}>
                               <TableCell>
                                 <div>
-                                  <p className="font-medium">{course.courseName}</p>
+                                  <Link 
+                                    href={`/course/${course.courseId}`}
+                                    className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+                                    data-testid={`link-course-${course.courseId}`}
+                                  >
+                                    {course.courseName}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </Link>
                                   <p className="text-sm text-muted-foreground">{course.city}</p>
                                 </div>
                               </TableCell>
