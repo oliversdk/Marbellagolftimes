@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/hooks/useAuth";
@@ -108,7 +108,26 @@ export default function Home() {
   const { toast } = useToast();
   const { t } = useI18n();
   const { favorites } = useFavorites();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const isAdmin = user?.isAdmin === "true";
+
+  // Fetch revenue data for admin users
+  type ROIAnalytics = {
+    totalCommission: number;
+    totalAdSpend: number;
+    netProfit: number;
+    roi: number;
+  };
+  
+  const { data: revenueData } = useQuery<ROIAnalytics>({
+    queryKey: ['/api/admin/analytics/roi'],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const response = await fetch('/api/admin/analytics/roi');
+      if (!response.ok) throw new Error('Failed to fetch revenue');
+      return response.json();
+    },
+  });
 
   // Reset visible count when filters or sort mode changes
   useEffect(() => {
@@ -294,6 +313,49 @@ export default function Home() {
         structuredData={organizationSchema}
       />
       <Header />
+
+      {/* Admin Revenue Bar */}
+      {isAdmin && revenueData && (
+        <div className="bg-primary/5 border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Euro className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">Commission:</span>
+                  <span className="text-sm font-bold text-primary">€{revenueData.totalCommission.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Ad Spend:</span>
+                  <span className="text-sm">€{revenueData.totalAdSpend.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Net:</span>
+                  <span className={`text-sm font-bold ${revenueData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    €{revenueData.netProfit.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {revenueData.roi >= 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                  )}
+                  <span className="text-sm font-medium">ROI:</span>
+                  <span className={`text-sm font-bold ${revenueData.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {revenueData.roi >= 0 ? '+' : ''}{revenueData.roi.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+              <Link href="/admin">
+                <Button variant="outline" size="sm" data-testid="button-go-to-admin">
+                  View Full Dashboard
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <div className="relative h-[50vh] min-h-[450px] sm:h-[60vh] sm:min-h-[500px] w-full overflow-hidden">
