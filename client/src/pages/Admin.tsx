@@ -1252,10 +1252,6 @@ export default function Admin() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="commission" data-testid="tab-commission">
-              <DollarSign className="h-4 w-4 mr-2" />
-              Commission
-            </TabsTrigger>
             <TabsTrigger value="bookings" data-testid="tab-bookings">{t('admin.tabBookingRequests')}</TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="users" data-testid="tab-users">
@@ -1265,20 +1261,13 @@ export default function Admin() {
             )}
             <TabsTrigger value="courses" data-testid="tab-courses">
               <Handshake className="h-4 w-4 mr-2" />
-              Courses
+              Courses & Partnerships
             </TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
             <AnalyticsDashboard />
-          </TabsContent>
-
-          <TabsContent value="commission">
-            <div className="space-y-6">
-              <CommissionDashboard />
-              <AdCampaigns />
-            </div>
           </TabsContent>
 
           <TabsContent value="bookings">
@@ -1440,6 +1429,12 @@ export default function Admin() {
 
           <TabsContent value="courses">
             <div className="space-y-6">
+              {/* Commission & ROI Overview */}
+              <CommissionDashboard />
+              
+              {/* Ad Campaigns */}
+              <AdCampaigns />
+              
               {/* Funnel Stats Overview */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {ONBOARDING_STAGES.map((stage) => {
