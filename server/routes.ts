@@ -1522,7 +1522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/affiliate-emails/send - Send affiliate partnership emails (Admin only)
-  app.post("/api/affiliate-emails/send", isAuthenticated, async (req, res) => {
+  app.post("/api/affiliate-emails/send", isAuthenticated, async (req: any, res) => {
     try {
       const { courseIds, subject, body, senderName } = req.body;
 
@@ -1573,6 +1573,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "SENT",
             sentAt: new Date(),
           });
+          
+          // Automatically log the email in contact logs
+          const personalizedSubject = subject.replace(/\[COURSE_NAME\]/g, course.name);
+          const personalizedBody = body
+            .replace(/\[COURSE_NAME\]/g, course.name)
+            .replace(/\[SENDER_NAME\]/g, senderName);
+          
+          await storage.createContactLog({
+            courseId,
+            type: "EMAIL",
+            direction: "OUTBOUND",
+            subject: personalizedSubject,
+            body: personalizedBody,
+            outcome: null,
+            loggedByUserId: req.user?.id || null,
+          });
+          
           results.push({ courseId, courseName: course.name, success: true });
           sentCount++;
         } else {
