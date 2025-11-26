@@ -2055,52 +2055,6 @@ export default function Admin() {
                           </p>
                         </CardContent>
                       </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Percent className="h-4 w-4" />
-                            Kickback Configuration
-                          </CardTitle>
-                          <CardDescription>
-                            Commission percentage for bookings
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <Form {...courseForm}>
-                            <form onSubmit={courseForm.handleSubmit((data) => {
-                              if (selectedCourseProfile) {
-                                updateCourseMutation.mutate({
-                                  courseId: selectedCourseProfile.id,
-                                  ...data,
-                                });
-                              }
-                            })} className="space-y-4">
-                              <FormField
-                                control={courseForm.control}
-                                name="kickbackPercent"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Kickback Percentage</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        type="number" 
-                                        {...field} 
-                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                        data-testid="input-profile-kickback" 
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <Button type="submit" disabled={updateCourseMutation.isPending} data-testid="button-save-profile-kickback">
-                                {updateCourseMutation.isPending ? "Saving..." : "Save Kickback"}
-                              </Button>
-                            </form>
-                          </Form>
-                        </CardContent>
-                      </Card>
                     </TabsContent>
 
                     {/* Images Tab */}
