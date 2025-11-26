@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -110,6 +110,8 @@ type CourseProvider = {
   city: string;
   providerType: "golfmanager_v1" | "golfmanager_v3" | "teeone" | null;
   providerCode: string | null;
+  golfmanagerUser: string | null;
+  golfmanagerPassword: string | null;
 };
 
 type OnboardingStage = "NOT_CONTACTED" | "OUTREACH_SENT" | "INTERESTED" | "NOT_INTERESTED" | "PARTNERSHIP_ACCEPTED" | "CREDENTIALS_RECEIVED";
@@ -158,6 +160,16 @@ const editCourseSchema = z.object({
   kickbackPercent: z.number().min(0, "Must be at least 0").max(100, "Must be at most 100"),
   golfmanagerUser: z.string().optional(),
   golfmanagerPassword: z.string().optional(),
+});
+
+const courseDetailsSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  city: z.string().min(1, "City is required"),
+  province: z.string().optional(),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  phone: z.string().optional(),
+  websiteUrl: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 const editOnboardingSchema = z.object({
@@ -558,6 +570,20 @@ export default function Admin() {
     },
   });
 
+  // Course details form (name, city, etc.)
+  const courseDetailsForm = useForm<z.infer<typeof courseDetailsSchema>>({
+    resolver: zodResolver(courseDetailsSchema),
+    defaultValues: {
+      name: "",
+      city: "",
+      province: "",
+      email: "",
+      phone: "",
+      websiteUrl: "",
+      notes: "",
+    },
+  });
+
   // Update course (kickback + credentials) mutation
   const updateCourseMutation = useMutation({
     mutationFn: async ({ courseId, kickbackPercent, golfmanagerUser, golfmanagerPassword }: { 
@@ -768,16 +794,21 @@ export default function Admin() {
       agreedCommission: onboarding?.agreedCommission || 0,
       notes: onboarding?.notes || "",
     });
-    // Initialize course form
-    courseForm.reset({
+    // Initialize course details form
+    courseDetailsForm.reset({
       name: course.name || "",
       city: course.city || "",
       province: course.province || "",
-      website: course.website || "",
+      websiteUrl: course.websiteUrl || "",
       email: course.email || "",
       phone: course.phone || "",
-      description: course.description || "",
-      kickbackPercentage: course.kickbackPercentage || 0,
+      notes: course.notes || "",
+    });
+    // Initialize credentials/kickback form
+    courseForm.reset({
+      kickbackPercent: course.kickbackPercent || 0,
+      golfmanagerUser: course.golfmanagerUser || "",
+      golfmanagerPassword: course.golfmanagerPassword || "",
     });
     contactLogForm.reset({
       type: "EMAIL",
@@ -789,9 +820,35 @@ export default function Admin() {
   };
 
   // Handle save profile details (course info)
-  const handleSaveProfileDetails = (data: z.infer<typeof editCourseSchema>) => {
+  // Update course details mutation
+  const updateCourseDetailsMutation = useMutation({
+    mutationFn: async ({ courseId, data }: { courseId: string; data: z.infer<typeof courseDetailsSchema> }) => {
+      const response = await apiRequest(`/api/admin/courses/${courseId}/details`, "PATCH", data);
+      return await response.json() as GolfCourse;
+    },
+    onSuccess: (data: GolfCourse) => {
+      queryClient.setQueryData<GolfCourse[]>(["/api/courses"], (old) => {
+        if (!old) return old;
+        return old.map((course) => course.id === data.id ? data : course);
+      });
+      setSelectedCourseProfile(data);
+      toast({
+        title: "Details Updated",
+        description: "Course details have been saved successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update course details",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveProfileDetails = (data: z.infer<typeof courseDetailsSchema>) => {
     if (selectedCourseProfile) {
-      updateCourseMutation.mutate({
+      updateCourseDetailsMutation.mutate({
         courseId: selectedCourseProfile.id,
         data,
       });
@@ -1500,7 +1557,7 @@ export default function Admin() {
                           {filteredCourses.map((course) => {
                             const currentStage = ONBOARDING_STAGES.find(s => s.value === course.onboarding?.stage);
                             const StageIcon = currentStage?.icon || CircleDot;
-                            const hasCredentials = course.provider?.username && course.provider?.password;
+                            const hasCredentials = course.golfmanagerUser && course.golfmanagerPassword;
                             const hasKickback = (course.kickbackPercent ?? 0) > 0;
                             
                             return (
@@ -1675,11 +1732,11 @@ export default function Admin() {
 
                     {/* Details Tab */}
                     <TabsContent value="details" className="space-y-4 mt-4">
-                      <Form {...courseForm}>
-                        <form onSubmit={courseForm.handleSubmit(handleSaveProfileDetails)} className="space-y-4">
+                      <Form {...courseDetailsForm}>
+                        <form onSubmit={courseDetailsForm.handleSubmit(handleSaveProfileDetails)} className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">
                             <FormField
-                              control={courseForm.control}
+                              control={courseDetailsForm.control}
                               name="name"
                               render={({ field }) => (
                                 <FormItem>
@@ -1692,7 +1749,7 @@ export default function Admin() {
                               )}
                             />
                             <FormField
-                              control={courseForm.control}
+                              control={courseDetailsForm.control}
                               name="city"
                               render={({ field }) => (
                                 <FormItem>
@@ -1707,7 +1764,7 @@ export default function Admin() {
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <FormField
-                              control={courseForm.control}
+                              control={courseDetailsForm.control}
                               name="province"
                               render={({ field }) => (
                                 <FormItem>
@@ -1720,13 +1777,13 @@ export default function Admin() {
                               )}
                             />
                             <FormField
-                              control={courseForm.control}
+                              control={courseDetailsForm.control}
                               name="email"
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Email</FormLabel>
                                   <FormControl>
-                                    <Input {...field} type="email" data-testid="input-profile-email" />
+                                    <Input {...field} data-testid="input-profile-email" />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -1735,7 +1792,7 @@ export default function Admin() {
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <FormField
-                              control={courseForm.control}
+                              control={courseDetailsForm.control}
                               name="phone"
                               render={({ field }) => (
                                 <FormItem>
@@ -1748,8 +1805,8 @@ export default function Admin() {
                               )}
                             />
                             <FormField
-                              control={courseForm.control}
-                              name="website"
+                              control={courseDetailsForm.control}
+                              name="websiteUrl"
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Website</FormLabel>
@@ -1762,20 +1819,20 @@ export default function Admin() {
                             />
                           </div>
                           <FormField
-                            control={courseForm.control}
-                            name="description"
+                            control={courseDetailsForm.control}
+                            name="notes"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Description</FormLabel>
+                                <FormLabel>Notes</FormLabel>
                                 <FormControl>
-                                  <Textarea {...field} className="min-h-[100px]" data-testid="textarea-profile-description" />
+                                  <Textarea {...field} className="min-h-[100px]" data-testid="textarea-profile-notes" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                          <Button type="submit" disabled={updateCourseMutation.isPending} data-testid="button-save-profile-details">
-                            {updateCourseMutation.isPending ? "Saving..." : "Save Details"}
+                          <Button type="submit" disabled={updateCourseDetailsMutation.isPending} data-testid="button-save-profile-details">
+                            {updateCourseDetailsMutation.isPending ? "Saving..." : "Save Details"}
                           </Button>
                         </form>
                       </Form>
@@ -1883,23 +1940,25 @@ export default function Admin() {
                             <div className="space-y-2">
                               <Label>Username</Label>
                               <Input 
-                                value={coursesWithOnboarding.find(c => c.id === selectedCourseProfile.id)?.provider?.username || ""} 
+                                value={selectedCourseProfile?.golfmanagerUser || ""} 
                                 disabled 
                                 placeholder="Not configured"
+                                data-testid="input-profile-gm-user"
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Password</Label>
                               <Input 
                                 type="password" 
-                                value={coursesWithOnboarding.find(c => c.id === selectedCourseProfile.id)?.provider?.password || ""} 
+                                value={selectedCourseProfile?.golfmanagerPassword || ""} 
                                 disabled 
                                 placeholder="Not configured"
+                                data-testid="input-profile-gm-password"
                               />
                             </div>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Credentials are managed through the course provider configuration.
+                            Credentials are stored on the course. Use Edit Course dialog to update.
                           </p>
                         </CardContent>
                       </Card>
@@ -1916,10 +1975,17 @@ export default function Admin() {
                         </CardHeader>
                         <CardContent>
                           <Form {...courseForm}>
-                            <form onSubmit={courseForm.handleSubmit(handleSaveProfileDetails)} className="space-y-4">
+                            <form onSubmit={courseForm.handleSubmit((data) => {
+                              if (selectedCourseProfile) {
+                                updateCourseMutation.mutate({
+                                  courseId: selectedCourseProfile.id,
+                                  ...data,
+                                });
+                              }
+                            })} className="space-y-4">
                               <FormField
                                 control={courseForm.control}
-                                name="kickbackPercentage"
+                                name="kickbackPercent"
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormLabel>Kickback Percentage</FormLabel>

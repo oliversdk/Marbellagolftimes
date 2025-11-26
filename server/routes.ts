@@ -960,6 +960,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/admin/courses/:id/details - Update course details (name, city, etc.) (Admin only)
+  app.patch("/api/admin/courses/:id/details", isAdmin, async (req, res) => {
+    try {
+      const updateCourseDetailsSchema = z.object({
+        name: z.string().min(1).optional(),
+        city: z.string().min(1).optional(),
+        province: z.string().optional(),
+        email: z.string().email().optional().nullable(),
+        phone: z.string().optional().nullable(),
+        websiteUrl: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+      });
+
+      const result = updateCourseDetailsSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: "Invalid input", 
+          details: result.error.flatten() 
+        });
+      }
+
+      // Build updates object with only provided fields
+      const updates: Partial<GolfCourse> = {};
+      if (result.data.name !== undefined) updates.name = result.data.name;
+      if (result.data.city !== undefined) updates.city = result.data.city;
+      if (result.data.province !== undefined) updates.province = result.data.province;
+      if (result.data.email !== undefined) updates.email = result.data.email || null;
+      if (result.data.phone !== undefined) updates.phone = result.data.phone || null;
+      if (result.data.websiteUrl !== undefined) updates.websiteUrl = result.data.websiteUrl || null;
+      if (result.data.notes !== undefined) updates.notes = result.data.notes || null;
+
+      const updatedCourse = await storage.updateCourse(req.params.id, updates);
+      
+      if (!updatedCourse) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      res.json(updatedCourse);
+    } catch (error) {
+      console.error("Error updating course details:", error);
+      res.status(500).json({ error: "Failed to update course details" });
+    }
+  });
+
   // POST /api/upload/course-image - Upload a course image (Admin only)
   app.post("/api/upload/course-image", isAuthenticated, upload.single("image"), async (req, res) => {
     try {
