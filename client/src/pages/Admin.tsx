@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -32,7 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -45,11 +47,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { CommissionDashboard } from "@/components/CommissionDashboard";
 import { AdCampaigns } from "@/components/AdCampaigns";
-import type { GolfCourse, BookingRequest } from "@shared/schema";
+import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog } from "@shared/schema";
+import { CONTACT_LOG_TYPES } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
+import * as XLSX from "xlsx";
 
 const DEFAULT_EMAIL_TEMPLATE = {
   subject: "Green fee partnership proposal – new guests for [COURSE_NAME]",
@@ -155,6 +159,22 @@ const editCourseSchema = z.object({
   golfmanagerPassword: z.string().optional(),
 });
 
+const editOnboardingSchema = z.object({
+  contactPerson: z.string().optional(),
+  contactEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+  contactPhone: z.string().optional(),
+  agreedCommission: z.number().min(0, "Must be at least 0").max(100, "Must be at most 100").optional(),
+  notes: z.string().optional(),
+});
+
+const addContactLogSchema = z.object({
+  type: z.enum(["EMAIL", "PHONE", "IN_PERSON", "NOTE"]),
+  direction: z.enum(["OUTBOUND", "INBOUND"]),
+  subject: z.string().optional(),
+  body: z.string().min(1, "Content is required"),
+  outcome: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL", "NO_RESPONSE"]).optional(),
+});
+
 export default function Admin() {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [emailSubject, setEmailSubject] = useState(DEFAULT_EMAIL_TEMPLATE.subject);
@@ -167,6 +187,17 @@ export default function Admin() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [editingCourse, setEditingCourse] = useState<GolfCourse | null>(null);
   const [editCourseImageUrl, setEditCourseImageUrl] = useState("");
+  
+  // Partnership Funnel state
+  const [onboardingSearchQuery, setOnboardingSearchQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState<OnboardingStage | "ALL">("ALL");
+  const [providerFilter, setProviderFilter] = useState<string>("ALL");
+  const [selectedOnboardingIds, setSelectedOnboardingIds] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<"name" | "stage" | "lastContacted">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [editingOnboarding, setEditingOnboarding] = useState<CourseOnboardingData | null>(null);
+  const [contactLogsCourse, setContactLogsCourse] = useState<CourseOnboardingData | null>(null);
+  
   const { toast } = useToast();
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const { t } = useI18n();
@@ -245,6 +276,92 @@ export default function Admin() {
       (user.phoneNumber && user.phoneNumber.toLowerCase().includes(query))
     );
   });
+
+  // Filter and sort onboarding data
+  const filteredAndSortedOnboardingData = useMemo(() => {
+    if (!onboardingData) return [];
+    
+    let filtered = onboardingData.filter((item) => {
+      // Search filter
+      if (onboardingSearchQuery) {
+        const query = onboardingSearchQuery.toLowerCase();
+        const matchesSearch = 
+          item.courseName.toLowerCase().includes(query) ||
+          item.city.toLowerCase().includes(query) ||
+          (item.contactPerson?.toLowerCase().includes(query));
+        if (!matchesSearch) return false;
+      }
+      
+      // Stage filter
+      if (stageFilter !== "ALL") {
+        if (item.stage !== stageFilter) return false;
+      }
+      
+      // Provider filter
+      if (providerFilter !== "ALL") {
+        const itemProvider = item.providerType || "None";
+        if (itemProvider !== providerFilter) return false;
+      }
+      
+      return true;
+    });
+    
+    // Sort
+    filtered.sort((a, b) => {
+      if (!a || !b) return 0;
+      let comparison = 0;
+      
+      if (sortBy === "name") {
+        comparison = (a.courseName || "").localeCompare(b.courseName || "");
+      } else if (sortBy === "stage") {
+        comparison = (a.stage || "").localeCompare(b.stage || "");
+      } else if (sortBy === "lastContacted") {
+        const dateA = a.outreachSentAt ? new Date(a.outreachSentAt).getTime() : 0;
+        const dateB = b.outreachSentAt ? new Date(b.outreachSentAt).getTime() : 0;
+        comparison = dateA - dateB;
+      }
+      
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+    
+    return filtered;
+  }, [onboardingData, onboardingSearchQuery, stageFilter, providerFilter, sortBy, sortOrder]);
+
+  // Check if outreach is stale (more than 7 days in OUTREACH_SENT)
+  const isOutreachStale = (item: CourseOnboardingData) => {
+    if (item.stage !== "OUTREACH_SENT") return false;
+    if (!item.outreachSentAt) return false;
+    const daysSinceSent = differenceInDays(new Date(), new Date(item.outreachSentAt));
+    return daysSinceSent > 7;
+  };
+
+  // Toggle onboarding selection
+  const toggleOnboardingSelection = (courseId: string) => {
+    setSelectedOnboardingIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    );
+  };
+
+  // Select all visible onboarding items
+  const selectAllOnboarding = () => {
+    const allIds = filteredAndSortedOnboardingData.map((item) => item.courseId);
+    const allSelected = allIds.every((id) => selectedOnboardingIds.includes(id));
+    if (allSelected) {
+      setSelectedOnboardingIds([]);
+    } else {
+      setSelectedOnboardingIds(allIds);
+    }
+  };
+
+  // Toggle sort
+  const toggleSort = (column: "name" | "stage" | "lastContacted") => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+  };
 
   // Edit user form
   const editForm = useForm<z.infer<typeof editUserSchema>>({
@@ -422,6 +539,146 @@ export default function Admin() {
     if (filename && window.confirm(`Delete ${filename}? This cannot be undone.`)) {
       deleteImageMutation.mutate({ filename, courseId: editingCourse.id, directory });
     }
+  };
+
+  // Edit onboarding form
+  const onboardingForm = useForm<z.infer<typeof editOnboardingSchema>>({
+    resolver: zodResolver(editOnboardingSchema),
+    defaultValues: {
+      contactPerson: "",
+      contactEmail: "",
+      contactPhone: "",
+      agreedCommission: 0,
+      notes: "",
+    },
+  });
+
+  // Contact log form
+  const contactLogForm = useForm<z.infer<typeof addContactLogSchema>>({
+    resolver: zodResolver(addContactLogSchema),
+    defaultValues: {
+      type: "EMAIL",
+      direction: "OUTBOUND",
+      subject: "",
+      body: "",
+      outcome: undefined,
+    },
+  });
+
+  // Fetch contact logs for selected course
+  const { data: contactLogs, isLoading: isLoadingContactLogs } = useQuery<CourseContactLog[]>({
+    queryKey: ["/api/admin/courses", contactLogsCourse?.courseId, "contact-logs"],
+    enabled: !!contactLogsCourse,
+  });
+
+  // Update onboarding mutation
+  const updateOnboardingMutation = useMutation({
+    mutationFn: async ({ courseId, data }: { courseId: string; data: z.infer<typeof editOnboardingSchema> }) => {
+      return await apiRequest(`/api/admin/onboarding/${courseId}`, "PATCH", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
+      toast({
+        title: "Onboarding Updated",
+        description: "Course partnership details have been updated successfully",
+      });
+      setEditingOnboarding(null);
+      onboardingForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update onboarding details",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Add contact log mutation
+  const addContactLogMutation = useMutation({
+    mutationFn: async ({ courseId, data }: { courseId: string; data: z.infer<typeof addContactLogSchema> }) => {
+      return await apiRequest(`/api/admin/courses/${courseId}/contact-logs`, "POST", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", contactLogsCourse?.courseId, "contact-logs"] });
+      toast({
+        title: "Contact Log Added",
+        description: "New contact log entry has been added successfully",
+      });
+      contactLogForm.reset({
+        type: "EMAIL",
+        direction: "OUTBOUND",
+        subject: "",
+        body: "",
+        outcome: undefined,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Add failed",
+        description: error.message || "Failed to add contact log",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle edit onboarding - populate form
+  const handleEditOnboarding = (data: CourseOnboardingData) => {
+    setEditingOnboarding(data);
+    onboardingForm.reset({
+      contactPerson: data.contactPerson || "",
+      contactEmail: data.contactEmail || "",
+      contactPhone: data.contactPhone || "",
+      agreedCommission: data.agreedCommission || 0,
+      notes: data.notes || "",
+    });
+  };
+
+  // Handle save onboarding
+  const handleSaveOnboarding = (data: z.infer<typeof editOnboardingSchema>) => {
+    if (editingOnboarding) {
+      updateOnboardingMutation.mutate({
+        courseId: editingOnboarding.courseId,
+        data,
+      });
+    }
+  };
+
+  // Handle add contact log
+  const handleAddContactLog = (data: z.infer<typeof addContactLogSchema>) => {
+    if (contactLogsCourse) {
+      addContactLogMutation.mutate({
+        courseId: contactLogsCourse.courseId,
+        data,
+      });
+    }
+  };
+
+  // Export to Excel function
+  const exportToExcel = () => {
+    const exportData = filteredAndSortedOnboardingData.map((item) => ({
+      "Course Name": item.courseName,
+      "City": item.city,
+      "Stage": item.stage,
+      "Provider Type": item.providerType || "None",
+      "Contact Person": item.contactPerson || "",
+      "Contact Email": item.contactEmail || "",
+      "Contact Phone": item.contactPhone || "",
+      "Commission %": item.agreedCommission || 0,
+      "Notes": item.notes || "",
+      "Outreach Sent": item.outreachSentAt ? format(new Date(item.outreachSentAt), "PP") : "Never",
+      "Last Updated": item.updatedAt ? format(new Date(item.updatedAt), "PP") : "Never",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Partnership Funnel");
+    XLSX.writeFile(wb, `partnership-funnel-export-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    
+    toast({
+      title: "Export Complete",
+      description: `Exported ${exportData.length} courses to Excel`,
+    });
   };
 
   // Send affiliate emails mutation
@@ -1064,83 +1321,204 @@ export default function Admin() {
                     Track outreach progress and manage partnerships with golf courses
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {/* Search, Filters, and Export */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name, city, or contact..."
+                        value={onboardingSearchQuery}
+                        onChange={(e) => setOnboardingSearchQuery(e.target.value)}
+                        className="pl-9"
+                        data-testid="input-onboarding-search"
+                      />
+                    </div>
+                    
+                    <Select value={stageFilter} onValueChange={(value) => setStageFilter(value as OnboardingStage | "ALL")}>
+                      <SelectTrigger className="w-[180px]" data-testid="select-stage-filter">
+                        <SelectValue placeholder="All Stages" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Stages</SelectItem>
+                        {ONBOARDING_STAGES.map((stage) => {
+                          const Icon = stage.icon;
+                          return (
+                            <SelectItem key={stage.value} value={stage.value}>
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-3 w-3" />
+                                <span>{stage.label}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select value={providerFilter} onValueChange={setProviderFilter}>
+                      <SelectTrigger className="w-[140px]" data-testid="select-provider-filter">
+                        <SelectValue placeholder="All Providers" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Providers</SelectItem>
+                        <SelectItem value="golfmanager_v1">GM V1</SelectItem>
+                        <SelectItem value="golfmanager_v3">GM V3</SelectItem>
+                        <SelectItem value="teeone">TeeOne</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={exportToExcel}
+                      data-testid="button-export-excel"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+
+                  {/* Results count and selection info */}
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>
+                      Showing {filteredAndSortedOnboardingData.length} of {onboardingData?.length || 0} courses
+                      {selectedOnboardingIds.length > 0 && ` (${selectedOnboardingIds.length} selected)`}
+                    </span>
+                  </div>
+
                   {isLoadingOnboarding ? (
                     <div className="text-center py-12 text-muted-foreground">
                       Loading partnership data...
                     </div>
-                  ) : onboardingData && onboardingData.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Course</TableHead>
-                          <TableHead>Provider</TableHead>
-                          <TableHead>Contact</TableHead>
-                          <TableHead>Stage</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {onboardingData.map((course) => {
-                          const currentStage = ONBOARDING_STAGES.find(s => s.value === course.stage);
-                          const StageIcon = currentStage?.icon || CircleDot;
-                          
-                          return (
-                            <TableRow key={course.courseId} data-testid={`row-onboarding-${course.courseId}`}>
-                              <TableCell>
-                                <div>
-                                  <Link 
-                                    href={`/course/${course.courseId}`}
-                                    className="font-medium text-primary hover:underline inline-flex items-center gap-1"
-                                    data-testid={`link-course-${course.courseId}`}
-                                  >
-                                    {course.courseName}
-                                    <ExternalLink className="h-3 w-3" />
-                                  </Link>
-                                  <p className="text-sm text-muted-foreground">{course.city}</p>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {course.providerType === "golfmanager_v1" && (
-                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700">GM V1</Badge>
-                                )}
-                                {course.providerType === "golfmanager_v3" && (
-                                  <Badge variant="secondary" className="bg-indigo-100 text-indigo-700">GM V3</Badge>
-                                )}
-                                {course.providerType === "teeone" && (
-                                  <Badge variant="secondary" className="bg-green-100 text-green-700">TeeOne</Badge>
-                                )}
-                                {!course.providerType && (
-                                  <span className="text-muted-foreground text-sm">None</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  {course.email && (
-                                    <div className="flex items-center gap-1">
-                                      <Mail className="h-3 w-3" />
-                                      <span className="truncate max-w-32">{course.email}</span>
+                  ) : filteredAndSortedOnboardingData.length > 0 ? (
+                    <div className="border rounded-md overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[40px]">
+                              <Checkbox
+                                checked={
+                                  filteredAndSortedOnboardingData.length > 0 &&
+                                  filteredAndSortedOnboardingData.every((item) => selectedOnboardingIds.includes(item.courseId))
+                                }
+                                onCheckedChange={selectAllOnboarding}
+                                data-testid="checkbox-select-all-onboarding"
+                              />
+                            </TableHead>
+                            <TableHead>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 font-medium hover:bg-transparent"
+                                onClick={() => toggleSort("name")}
+                                data-testid="button-sort-name"
+                              >
+                                Course
+                                <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
+                            <TableHead>Provider</TableHead>
+                            <TableHead>Contact Person</TableHead>
+                            <TableHead>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 font-medium hover:bg-transparent"
+                                onClick={() => toggleSort("stage")}
+                                data-testid="button-sort-stage"
+                              >
+                                Stage
+                                <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
+                            <TableHead>Commission</TableHead>
+                            <TableHead>Notes</TableHead>
+                            <TableHead>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 font-medium hover:bg-transparent"
+                                onClick={() => toggleSort("lastContacted")}
+                                data-testid="button-sort-contacted"
+                              >
+                                Last Contacted
+                                <ArrowUpDown className="ml-1 h-3 w-3" />
+                              </Button>
+                            </TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredAndSortedOnboardingData.map((course) => {
+                            const currentStage = ONBOARDING_STAGES.find(s => s.value === course.stage);
+                            const StageIcon = currentStage?.icon || CircleDot;
+                            const stale = isOutreachStale(course);
+                            
+                            return (
+                              <TableRow key={course.courseId} data-testid={`row-onboarding-${course.courseId}`}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedOnboardingIds.includes(course.courseId)}
+                                    onCheckedChange={() => toggleOnboardingSelection(course.courseId)}
+                                    data-testid={`checkbox-onboarding-${course.courseId}`}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <div>
+                                      <Link 
+                                        href={`/course/${course.courseId}`}
+                                        className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+                                        data-testid={`link-course-${course.courseId}`}
+                                      >
+                                        {course.courseName}
+                                        <ExternalLink className="h-3 w-3" />
+                                      </Link>
+                                      <p className="text-sm text-muted-foreground">{course.city}</p>
                                     </div>
+                                    {stale && (
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Badge variant="destructive" className="ml-1" data-testid={`badge-stale-${course.courseId}`}>
+                                            <AlertTriangle className="h-3 w-3" />
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Outreach sent over 7 days ago with no response</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {course.providerType === "golfmanager_v1" && (
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
                                   )}
-                                  {course.phone && (
-                                    <div className="flex items-center gap-1 text-muted-foreground">
-                                      <Phone className="h-3 w-3" />
-                                      <span>{course.phone}</span>
-                                    </div>
+                                  {course.providerType === "golfmanager_v3" && (
+                                    <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
                                   )}
-                                  {!course.email && !course.phone && (
-                                    <span className="text-muted-foreground">No contact</span>
+                                  {course.providerType === "teeone" && (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
                                   )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary" className={currentStage?.color}>
-                                  <StageIcon className="h-3 w-3 mr-1" />
-                                  {currentStage?.label || course.stage}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
+                                  {!course.providerType && (
+                                    <span className="text-muted-foreground text-sm">None</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-sm">
+                                    {course.contactPerson ? (
+                                      <div>
+                                        <span className="font-medium">{course.contactPerson}</span>
+                                        {course.contactEmail && (
+                                          <p className="text-muted-foreground truncate max-w-[150px]">{course.contactEmail}</p>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground">Not set</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
                                   <Select
                                     value={course.stage}
                                     onValueChange={(value: OnboardingStage) => {
@@ -1151,10 +1529,13 @@ export default function Admin() {
                                     disabled={updateOnboardingStageMutation.isPending}
                                   >
                                     <SelectTrigger 
-                                      className="w-44" 
+                                      className="w-[160px]" 
                                       data-testid={`select-stage-${course.courseId}`}
                                     >
-                                      <SelectValue />
+                                      <Badge variant="secondary" className={currentStage?.color}>
+                                        <StageIcon className="h-3 w-3 mr-1" />
+                                        {currentStage?.label || course.stage}
+                                      </Badge>
                                     </SelectTrigger>
                                     <SelectContent>
                                       {ONBOARDING_STAGES.map((stage) => {
@@ -1174,16 +1555,80 @@ export default function Admin() {
                                       })}
                                     </SelectContent>
                                   </Select>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                                </TableCell>
+                                <TableCell>
+                                  {course.agreedCommission ? (
+                                    <Badge variant="outline">{course.agreedCommission}%</Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="max-w-[150px]">
+                                  {course.notes ? (
+                                    <Tooltip>
+                                      <TooltipTrigger className="text-left">
+                                        <span className="text-sm truncate block max-w-[140px]" data-testid={`text-notes-${course.courseId}`}>
+                                          {course.notes}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-[300px]">
+                                        <p className="whitespace-pre-wrap">{course.notes}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {course.outreachSentAt ? (
+                                    <span className="text-sm" data-testid={`text-contacted-${course.courseId}`}>
+                                      {format(new Date(course.outreachSentAt), "PP")}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">Never</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleEditOnboarding(course)}
+                                          data-testid={`button-edit-onboarding-${course.courseId}`}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Edit Details</TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => setContactLogsCourse(course)}
+                                          data-testid={`button-contact-logs-${course.courseId}`}
+                                        >
+                                          <History className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Contact History</TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
-                      No courses found
+                      {onboardingSearchQuery || stageFilter !== "ALL" || providerFilter !== "ALL" 
+                        ? "No courses match your filters" 
+                        : "No courses found"}
                     </div>
                   )}
                 </CardContent>
@@ -1774,6 +2219,402 @@ export default function Admin() {
                 variant="outline"
                 onClick={() => setViewingUserBookings(null)}
                 data-testid="button-close-bookings"
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Onboarding Dialog */}
+        <Dialog open={!!editingOnboarding} onOpenChange={(open) => !open && setEditingOnboarding(null)}>
+          <DialogContent className="max-w-lg" data-testid="dialog-edit-onboarding">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Edit Partnership Details
+              </DialogTitle>
+              <DialogDescription>
+                Update contact information and partnership details
+              </DialogDescription>
+            </DialogHeader>
+            {editingOnboarding && (
+              <div className="space-y-4">
+                <div className="rounded-md bg-muted p-3">
+                  <p className="font-medium">{editingOnboarding.courseName}</p>
+                  <p className="text-sm text-muted-foreground">{editingOnboarding.city}</p>
+                </div>
+
+                <Form {...onboardingForm}>
+                  <form onSubmit={onboardingForm.handleSubmit(handleSaveOnboarding)} className="space-y-4">
+                    <FormField
+                      control={onboardingForm.control}
+                      name="contactPerson"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Person</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="e.g., John Smith"
+                              data-testid="input-onboarding-contact-person"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={onboardingForm.control}
+                      name="contactEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="email"
+                              placeholder="e.g., contact@golfcourse.com"
+                              data-testid="input-onboarding-contact-email"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={onboardingForm.control}
+                      name="contactPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Phone</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="e.g., +34 123 456 789"
+                              data-testid="input-onboarding-contact-phone"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={onboardingForm.control}
+                      name="agreedCommission"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Agreed Commission (%)</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                {...field}
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                max="100"
+                                placeholder="20"
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                data-testid="input-onboarding-commission"
+                                className="pr-8"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                %
+                              </span>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={onboardingForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notes</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder="Add any relevant notes about the partnership..."
+                              className="min-h-[100px]"
+                              data-testid="input-onboarding-notes"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingOnboarding(null)}
+                        data-testid="button-cancel-edit-onboarding"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updateOnboardingMutation.isPending}
+                        data-testid="button-save-onboarding"
+                      >
+                        {updateOnboardingMutation.isPending ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Contact Logs Dialog */}
+        <Dialog open={!!contactLogsCourse} onOpenChange={(open) => !open && setContactLogsCourse(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh]" data-testid="dialog-contact-logs">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Contact History
+              </DialogTitle>
+              {contactLogsCourse && (
+                <DialogDescription>
+                  Communication history with {contactLogsCourse.courseName}
+                </DialogDescription>
+              )}
+            </DialogHeader>
+            {contactLogsCourse && (
+              <div className="space-y-4">
+                {/* Add New Contact Log Form */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add New Entry
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Form {...contactLogForm}>
+                      <form onSubmit={contactLogForm.handleSubmit(handleAddContactLog)} className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={contactLogForm.control}
+                            name="type"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Type</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger data-testid="select-contact-log-type">
+                                      <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="EMAIL">
+                                      <div className="flex items-center gap-2">
+                                        <Mail className="h-3 w-3" />
+                                        Email
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="PHONE">
+                                      <div className="flex items-center gap-2">
+                                        <PhoneCall className="h-3 w-3" />
+                                        Phone
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="IN_PERSON">
+                                      <div className="flex items-center gap-2">
+                                        <UserPlus className="h-3 w-3" />
+                                        In Person
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="NOTE">
+                                      <div className="flex items-center gap-2">
+                                        <FileText className="h-3 w-3" />
+                                        Note
+                                      </div>
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={contactLogForm.control}
+                            name="direction"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Direction</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger data-testid="select-contact-log-direction">
+                                      <SelectValue placeholder="Select direction" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="OUTBOUND">Outbound (We contacted)</SelectItem>
+                                    <SelectItem value="INBOUND">Inbound (They contacted)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={contactLogForm.control}
+                          name="subject"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Subject (Optional)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Brief subject or title"
+                                  data-testid="input-contact-log-subject"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={contactLogForm.control}
+                          name="body"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Content</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="What was discussed or communicated..."
+                                  className="min-h-[80px]"
+                                  data-testid="input-contact-log-body"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={contactLogForm.control}
+                          name="outcome"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Outcome (Optional)</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger data-testid="select-contact-log-outcome">
+                                    <SelectValue placeholder="Select outcome" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="POSITIVE">Positive</SelectItem>
+                                  <SelectItem value="NEUTRAL">Neutral</SelectItem>
+                                  <SelectItem value="NEGATIVE">Negative</SelectItem>
+                                  <SelectItem value="NO_RESPONSE">No Response</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <Button
+                          type="submit"
+                          disabled={addContactLogMutation.isPending}
+                          className="w-full"
+                          data-testid="button-add-contact-log"
+                        >
+                          {addContactLogMutation.isPending ? "Adding..." : "Add Entry"}
+                        </Button>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+
+                {/* Contact Logs Timeline */}
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium mb-3">History</h4>
+                  <ScrollArea className="h-[300px]">
+                    {isLoadingContactLogs ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        Loading contact history...
+                      </div>
+                    ) : contactLogs && contactLogs.length > 0 ? (
+                      <div className="space-y-3">
+                        {contactLogs.map((log) => {
+                          const TypeIcon = log.type === "EMAIL" ? Mail 
+                            : log.type === "PHONE" ? PhoneCall 
+                            : log.type === "IN_PERSON" ? UserPlus 
+                            : FileText;
+                          
+                          const outcomeColor = log.outcome === "POSITIVE" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                            : log.outcome === "NEGATIVE" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                            : log.outcome === "NEUTRAL" ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                            : log.outcome === "NO_RESPONSE" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                            : "";
+
+                          return (
+                            <div 
+                              key={log.id} 
+                              className="border rounded-md p-3 space-y-2"
+                              data-testid={`contact-log-${log.id}`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <TypeIcon className="h-4 w-4 text-muted-foreground" />
+                                  <Badge variant="outline">
+                                    {log.type.replace("_", " ")}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {log.direction === "OUTBOUND" ? "Sent" : "Received"}
+                                  </Badge>
+                                  {log.outcome && (
+                                    <Badge variant="secondary" className={outcomeColor}>
+                                      {log.outcome.replace("_", " ")}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {format(new Date(log.createdAt), "PP p")}
+                                </span>
+                              </div>
+                              {log.subject && (
+                                <p className="font-medium text-sm">{log.subject}</p>
+                              )}
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {log.body}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No contact history yet
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setContactLogsCourse(null)}
+                data-testid="button-close-contact-logs"
               >
                 Close
               </Button>
