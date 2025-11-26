@@ -157,6 +157,14 @@ export default function Home() {
         `Morten! Du ser godt ud i dag! 💪`,
         `Hey Morten - lad os tjene nogle penge! 💰`,
         `Morten! Champagnen venter - lad os gøre det! 🍾`,
+        `Morten! Er der nogen der har fortalt dig hvor god du er i dag? 🌟`,
+        `Hey Morten - du er simpelthen bare for sej! 🔥`,
+        `Morten! Vidste du at du er en legende? 👑`,
+        `Godmorgen verdens bedste golfentreprenør! 🏆`,
+        `Morten! Golfbanerne er heldige at have dig! ⭐`,
+        `Hey champ! Klar til at være fantastisk igen? 💫`,
+        `Morten! Du gør det bare så godt! 🎯`,
+        `Hej boss! Costa del Sol venter på dig! 🌴`,
       ],
       "Frida": [
         `Hej Frida, din lækre tøs! 🌟`,
@@ -164,6 +172,10 @@ export default function Home() {
         `Godmorgen Frida! Du er en stjerne! ⭐`,
         `Hey Frida - lad os gøre magien! 💫`,
         `Frida! Klar til at crushe det i dag? 🔥`,
+        `Frida! Er der nogen der har fortalt dig hvor fantastisk du er? 🌟`,
+        `Hey Frida - du er simpelthen bare for sej! 👑`,
+        `Frida! Du gør det bare så godt! 🎯`,
+        `Godmorgen smukke! Klar til at erobre verden? 💪`,
       ],
     };
     
