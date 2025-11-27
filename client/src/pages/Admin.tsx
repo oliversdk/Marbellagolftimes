@@ -1929,7 +1929,20 @@ export default function Admin() {
                                 <FormItem>
                                   <FormLabel>Website</FormLabel>
                                   <FormControl>
-                                    <Input {...field} data-testid="input-profile-website" />
+                                    <div className="flex gap-2">
+                                      <Input {...field} data-testid="input-profile-website" className="flex-1" />
+                                      {field.value && (
+                                        <a 
+                                          href={field.value.startsWith('http') ? field.value : `https://${field.value}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="flex items-center justify-center px-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                                          data-testid="link-profile-website"
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </a>
+                                      )}
+                                    </div>
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
