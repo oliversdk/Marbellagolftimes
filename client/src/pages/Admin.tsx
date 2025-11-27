@@ -2982,11 +2982,11 @@ export default function Admin() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Select
-                              value={selectedThread.courseId || ""}
+                              value={selectedThread.courseId || "__none__"}
                               onValueChange={(courseId) => {
                                 linkThreadToCourseMutation.mutate({ 
                                   threadId: selectedThread.id, 
-                                  courseId: courseId || null 
+                                  courseId: courseId === "__none__" ? null : courseId 
                                 });
                               }}
                             >
@@ -2994,7 +2994,7 @@ export default function Admin() {
                                 <SelectValue placeholder={t('inbox.linkToCourse')} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">{t('inbox.unlinked')}</SelectItem>
+                                <SelectItem value="__none__">{t('inbox.unlinked')}</SelectItem>
                                 {courses?.map((course) => (
                                   <SelectItem key={course.id} value={course.id}>
                                     {course.name}
