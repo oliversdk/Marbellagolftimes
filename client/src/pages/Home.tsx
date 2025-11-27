@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown, Flame, Sun, Sunset, Moon } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown, Flame, Sun, Sunset, Moon, MapPin, Car, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/hooks/useAuth";
@@ -109,6 +109,38 @@ function isHotDeal(slot: TeeTimeSlot, averagePrice: number): boolean {
 function getDiscountPercent(slotPrice: number, averagePrice: number): number {
   if (averagePrice === 0) return 0;
   return Math.round(((averagePrice - slotPrice) / averagePrice) * 100);
+}
+
+// Distance category classification
+type DistanceCategory = 'nearby' | 'shortDrive' | 'furtherAway';
+
+function getDistanceCategory(distanceKm: number | null | undefined): DistanceCategory {
+  if (distanceKm === null || distanceKm === undefined) return 'furtherAway';
+  if (distanceKm <= 15) return 'nearby';       // 0-15 km
+  if (distanceKm <= 40) return 'shortDrive';   // 15-40 km
+  return 'furtherAway';                         // 40+ km
+}
+
+function groupCoursesByDistance(courses: CourseWithSlots[]): Record<DistanceCategory, CourseWithSlots[]> {
+  const groups: Record<DistanceCategory, CourseWithSlots[]> = {
+    nearby: [],
+    shortDrive: [],
+    furtherAway: []
+  };
+  
+  courses.forEach(course => {
+    const category = getDistanceCategory(course.distanceKm);
+    groups[category].push(course);
+  });
+  
+  // Sort each group by distance
+  Object.keys(groups).forEach(key => {
+    groups[key as DistanceCategory].sort((a, b) => 
+      (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
+    );
+  });
+  
+  return groups;
 }
 
 // Utility: Sort courses by selected mode
@@ -843,6 +875,16 @@ export default function Home() {
                   );
                 }
                 
+                // Distance category configuration
+                const distanceCategoryConfig: { key: DistanceCategory; label: string; range: string; icon: typeof MapPin }[] = [
+                  { key: 'nearby', label: t('home.distanceNearby'), range: t('home.distanceNearbyRange'), icon: MapPin },
+                  { key: 'shortDrive', label: t('home.distanceShortDrive'), range: t('home.distanceShortDriveRange'), icon: Car },
+                  { key: 'furtherAway', label: t('home.distanceFurtherAway'), range: t('home.distanceFurtherAwayRange'), icon: Navigation },
+                ];
+                
+                // Group courses by distance
+                const groupedByDistance = groupCoursesByDistance(visibleCourses);
+                
                 return viewMode === "list" ? (
                   <>
                     {/* Showing X of Y Counter */}
@@ -855,8 +897,36 @@ export default function Home() {
                       </p>
                     </div>
 
-                    <div className="space-y-4" data-testid="available-slots-list">
-                      {visibleCourses.map((courseSlot) => {
+                    {/* Distance Category Groups */}
+                    <div className="space-y-8" data-testid="available-slots-list">
+                      {distanceCategoryConfig.map(({ key, label, range, icon: Icon }) => {
+                        const categoryCourses = groupedByDistance[key];
+                        if (categoryCourses.length === 0) return null;
+                        
+                        return (
+                          <div key={key} className="space-y-4" data-testid={`distance-category-${key}`}>
+                            {/* Distance Category Header */}
+                            <div className="flex items-center gap-3 pb-2 border-b">
+                              <div className={`p-2 rounded-lg ${
+                                key === 'nearby' ? 'bg-green-100 dark:bg-green-900/30' : 
+                                key === 'shortDrive' ? 'bg-blue-100 dark:bg-blue-900/30' : 
+                                'bg-orange-100 dark:bg-orange-900/30'
+                              }`}>
+                                <Icon className={`h-5 w-5 ${
+                                  key === 'nearby' ? 'text-green-600 dark:text-green-400' : 
+                                  key === 'shortDrive' ? 'text-blue-600 dark:text-blue-400' : 
+                                  'text-orange-600 dark:text-orange-400'
+                                }`} />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-lg">{label}</h3>
+                                <p className="text-xs text-muted-foreground">{range} • {categoryCourses.length} {categoryCourses.length === 1 ? 'course' : 'courses'}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Courses in this category */}
+                            <div className="space-y-4 pl-2">
+                              {categoryCourses.map((courseSlot) => {
                         const minPrice = getMinPrice(courseSlot.slots);
                         const courseImage = courseSlot.course?.imageUrl || placeholderImage;
                         const isBestDeal = hasBestDeal && minPrice !== null && minPrice === bestDealPrice;
@@ -1069,6 +1139,10 @@ export default function Home() {
                               </div>
                             </div>
                           </Card>
+                        );
+                      })}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
