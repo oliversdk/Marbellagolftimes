@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import express from "express";
+import { randomUUID } from "crypto";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
@@ -844,6 +845,311 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // INBOUND EMAIL INBOX SYSTEM
+  // ============================================
+
+  // GET /api/admin/inbox/count - Get count of unanswered emails (for badge)
+  app.get("/api/admin/inbox/count", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const count = await storage.getUnansweredThreadsCount();
+      res.json({ count });
+    } catch (error) {
+      console.error("Failed to get inbox count:", error);
+      res.status(500).json({ error: "Failed to get inbox count" });
+    }
+  });
+
+  // GET /api/admin/inbox - Get all inbound email threads (Admin only)
+  app.get("/api/admin/inbox", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const threads = await storage.getAllInboundThreads();
+      
+      // Enrich with course names
+      const enrichedThreads = await Promise.all(threads.map(async (thread) => {
+        let courseName = null;
+        if (thread.courseId) {
+          const course = await storage.getCourseById(thread.courseId);
+          courseName = course?.name || null;
+        }
+        return { ...thread, courseName };
+      }));
+      
+      res.json(enrichedThreads);
+    } catch (error) {
+      console.error("Failed to get inbox threads:", error);
+      res.status(500).json({ error: "Failed to get inbox threads" });
+    }
+  });
+
+  // GET /api/admin/inbox/:id - Get single thread with all messages (Admin only)
+  app.get("/api/admin/inbox/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      // Get all messages in thread
+      const messages = await storage.getEmailsByThreadId(thread.id);
+      
+      // Get course name if linked
+      let courseName = null;
+      if (thread.courseId) {
+        const course = await storage.getCourseById(thread.courseId);
+        courseName = course?.name || null;
+      }
+      
+      // Mark as read when viewing
+      if (thread.isRead !== "true") {
+        await storage.markThreadAsRead(thread.id);
+      }
+      
+      res.json({ ...thread, courseName, messages });
+    } catch (error) {
+      console.error("Failed to get inbox thread:", error);
+      res.status(500).json({ error: "Failed to get inbox thread" });
+    }
+  });
+
+  // POST /api/admin/inbox/:id/reply - Send reply to thread (Admin only)
+  app.post("/api/admin/inbox/:id/reply", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      const { body, subject } = req.body;
+      if (!body || typeof body !== "string") {
+        return res.status(400).json({ error: "Reply body is required" });
+      }
+      
+      const user = req.user as { id: string; email: string; firstName?: string; lastName?: string };
+      
+      // Generate unique message ID for threading
+      const messageId = `<${randomUUID()}@marbellagolftimes.com>`;
+      
+      // Create outbound email record
+      const outboundEmail = await storage.createInboundEmail({
+        threadId: thread.id,
+        direction: "OUT",
+        fromEmail: process.env.FROM_EMAIL || "info@marbellagolftimes.com",
+        toEmail: thread.fromEmail,
+        subject: subject || `Re: ${thread.subject}`,
+        bodyText: body,
+        bodyHtml: `<div style="font-family: sans-serif;">${body.replace(/\n/g, '<br>')}</div>`,
+        messageId: messageId,
+        inReplyTo: null, // Will reference the last inbound message
+      });
+      
+      // Actually send the email
+      const { sendEmail } = await import("./email");
+      await sendEmail({
+        to: thread.fromEmail,
+        subject: subject || `Re: ${thread.subject}`,
+        text: body,
+        html: `<div style="font-family: sans-serif;">${body.replace(/\n/g, '<br>')}</div>`,
+      });
+      
+      // Mark thread as replied
+      await storage.markThreadAsReplied(thread.id, user.id);
+      
+      res.json({ success: true, email: outboundEmail });
+    } catch (error) {
+      console.error("Failed to send reply:", error);
+      res.status(500).json({ error: "Failed to send reply" });
+    }
+  });
+
+  // PATCH /api/admin/inbox/:id/status - Update thread status (Admin only)
+  app.patch("/api/admin/inbox/:id/status", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      const { status, requiresResponse } = req.body;
+      
+      const updates: { status?: string; requiresResponse?: string } = {};
+      if (status && ["OPEN", "REPLIED", "CLOSED", "ARCHIVED"].includes(status)) {
+        updates.status = status;
+      }
+      if (typeof requiresResponse === "boolean") {
+        updates.requiresResponse = requiresResponse ? "true" : "false";
+      }
+      
+      const updatedThread = await storage.updateInboundThread(req.params.id, updates);
+      res.json(updatedThread);
+    } catch (error) {
+      console.error("Failed to update thread status:", error);
+      res.status(500).json({ error: "Failed to update thread status" });
+    }
+  });
+
+  // PATCH /api/admin/inbox/:id/link-course - Link thread to course (Admin only)
+  app.patch("/api/admin/inbox/:id/link-course", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      const { courseId } = req.body;
+      
+      // Verify course exists if provided
+      if (courseId) {
+        const course = await storage.getCourseById(courseId);
+        if (!course) {
+          return res.status(400).json({ error: "Course not found" });
+        }
+      }
+      
+      const updatedThread = await storage.updateInboundThread(req.params.id, { 
+        courseId: courseId || null 
+      });
+      res.json(updatedThread);
+    } catch (error) {
+      console.error("Failed to link thread to course:", error);
+      res.status(500).json({ error: "Failed to link thread to course" });
+    }
+  });
+
+  // GET /api/admin/inbox/settings - Get admin alert settings (Admin only)
+  app.get("/api/admin/inbox/settings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = req.user as { id: string };
+      const settings = await storage.getAdminAlertSettings(user.id);
+      
+      res.json(settings || {
+        emailAlerts: "true",
+        alertThresholdHours: 2,
+        alertEmail: null,
+      });
+    } catch (error) {
+      console.error("Failed to get alert settings:", error);
+      res.status(500).json({ error: "Failed to get alert settings" });
+    }
+  });
+
+  // PATCH /api/admin/inbox/settings - Update admin alert settings (Admin only)
+  app.patch("/api/admin/inbox/settings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const user = req.user as { id: string };
+      const { emailAlerts, alertThresholdHours, alertEmail } = req.body;
+      
+      const updates: { emailAlerts?: string; alertThresholdHours?: number; alertEmail?: string | null } = {};
+      if (typeof emailAlerts === "boolean") {
+        updates.emailAlerts = emailAlerts ? "true" : "false";
+      }
+      if (typeof alertThresholdHours === "number" && alertThresholdHours > 0) {
+        updates.alertThresholdHours = alertThresholdHours;
+      }
+      if (typeof alertEmail === "string" || alertEmail === null) {
+        updates.alertEmail = alertEmail;
+      }
+      
+      const settings = await storage.upsertAdminAlertSettings(user.id, updates);
+      res.json(settings);
+    } catch (error) {
+      console.error("Failed to update alert settings:", error);
+      res.status(500).json({ error: "Failed to update alert settings" });
+    }
+  });
+
+  // POST /api/webhooks/inbound-email - SendGrid Inbound Parse webhook
+  app.post("/api/webhooks/inbound-email", async (req, res) => {
+    try {
+      // SendGrid sends form-encoded data
+      const {
+        from,
+        to,
+        subject,
+        text,
+        html,
+        headers,
+      } = req.body;
+      
+      if (!from) {
+        return res.status(400).json({ error: "Missing from address" });
+      }
+      
+      // Parse email address from "Name <email@example.com>" format
+      const fromEmailMatch = from.match(/<([^>]+)>/) || [null, from];
+      const fromEmail = (fromEmailMatch[1] || from).toLowerCase().trim();
+      
+      // Parse headers for threading
+      const headerLines = (headers || "").split("\n");
+      let messageId: string | null = null;
+      let inReplyTo: string | null = null;
+      
+      for (const line of headerLines) {
+        if (line.toLowerCase().startsWith("message-id:")) {
+          messageId = line.substring(11).trim();
+        } else if (line.toLowerCase().startsWith("in-reply-to:")) {
+          inReplyTo = line.substring(12).trim();
+        }
+      }
+      
+      // Try to find existing thread
+      let thread = await storage.findThreadByEmailHeaders(messageId, inReplyTo, fromEmail);
+      
+      // Try to match to a course by email domain
+      let courseId: string | null = null;
+      const allCourses = await storage.getAllCourses();
+      const emailDomain = fromEmail.split("@")[1];
+      
+      for (const course of allCourses) {
+        if (course.email && course.email.toLowerCase().includes(emailDomain)) {
+          courseId = course.id;
+          break;
+        }
+      }
+      
+      // Create new thread if none exists
+      if (!thread) {
+        thread = await storage.createInboundThread({
+          courseId: courseId,
+          fromEmail: fromEmail,
+          subject: subject || "(No subject)",
+          status: "OPEN",
+          isRead: "false",
+          requiresResponse: "true",
+        });
+      } else {
+        // Update existing thread: reopen and mark as requiring response
+        await storage.updateInboundThread(thread.id, {
+          status: "OPEN",
+          requiresResponse: "true",
+          isRead: "false",
+        });
+      }
+      
+      // Create the inbound email message
+      await storage.createInboundEmail({
+        threadId: thread.id,
+        direction: "IN",
+        fromEmail: fromEmail,
+        toEmail: to || process.env.FROM_EMAIL || "info@marbellagolftimes.com",
+        subject: subject || "(No subject)",
+        bodyText: text || "",
+        bodyHtml: html || null,
+        messageId: messageId,
+        inReplyTo: inReplyTo,
+      });
+      
+      console.log(`[Inbox] New email from ${fromEmail}, thread ${thread.id}`);
+      
+      // Return 200 to acknowledge receipt to SendGrid
+      res.status(200).json({ success: true, threadId: thread.id });
+    } catch (error) {
+      console.error("Failed to process inbound email:", error);
+      // Still return 200 to prevent SendGrid retries
+      res.status(200).json({ success: false, error: "Processing failed" });
+    }
+  });
+
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
     try {
@@ -1209,7 +1515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const imageUrl = `/stock_images/${file.filename}`;
 
         // Add to course_images table
-        const galleryImage = await storage.addCourseImage({
+        const galleryImage = await storage.createCourseImage({
           courseId,
           imageUrl,
           caption: null,

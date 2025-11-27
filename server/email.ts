@@ -31,6 +31,48 @@ export function getEmailConfig(): EmailConfig | null {
   };
 }
 
+export interface SendEmailOptions {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}
+
+export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
+  const config = getEmailConfig();
+  if (!config) {
+    console.log("[Email] SMTP not configured, skipping email send to:", options.to);
+    return { success: false, error: "SMTP not configured" };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.port === 465,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+    });
+
+    await transporter.sendMail({
+      from: config.from,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+    });
+
+    console.log("[Email] Sent email to:", options.to, "Subject:", options.subject);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[Email] Failed to send email:", errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
 export async function sendAffiliateEmail(
   course: GolfCourse,
   subject: string,
