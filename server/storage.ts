@@ -25,6 +25,11 @@ import {
   type InsertCourseImage,
   type UnmatchedInboundEmail,
   type InsertUnmatchedInboundEmail,
+  type InboundEmailThread,
+  type InsertInboundEmailThread,
+  type InboundEmail,
+  type InsertInboundEmail,
+  type AdminAlertSettings,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -39,10 +44,13 @@ import {
   courseContactLogs,
   courseImages,
   unmatchedInboundEmails,
+  inboundEmailThreads,
+  inboundEmails,
+  adminAlertSettings,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc, sql as sqlFunc, sql, count, sum } from "drizzle-orm";
+import { eq, desc, sql as sqlFunc, sql, count, sum, and, or, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Golf Courses
@@ -148,6 +156,27 @@ export interface IStorage {
   createUnmatchedEmail(email: InsertUnmatchedInboundEmail): Promise<UnmatchedInboundEmail>;
   assignEmailToCourse(emailId: string, courseId: string, assignedByUserId: string): Promise<UnmatchedInboundEmail | undefined>;
   deleteUnmatchedEmail(id: string): Promise<boolean>;
+
+  // Inbound Email Threads
+  getAllInboundThreads(): Promise<InboundEmailThread[]>;
+  getInboundThreadById(id: string): Promise<InboundEmailThread | undefined>;
+  getInboundThreadByCourseId(courseId: string): Promise<InboundEmailThread[]>;
+  getUnansweredThreadsCount(): Promise<number>;
+  getUnansweredThreads(): Promise<InboundEmailThread[]>;
+  createInboundThread(thread: InsertInboundEmailThread): Promise<InboundEmailThread>;
+  updateInboundThread(id: string, updates: Partial<InboundEmailThread>): Promise<InboundEmailThread | undefined>;
+  markThreadAsRead(id: string): Promise<InboundEmailThread | undefined>;
+  markThreadAsReplied(id: string, userId: string): Promise<InboundEmailThread | undefined>;
+  
+  // Inbound Emails (messages within threads)
+  getEmailsByThreadId(threadId: string): Promise<InboundEmail[]>;
+  createInboundEmail(email: InsertInboundEmail): Promise<InboundEmail>;
+  findThreadByEmailHeaders(messageId: string | null, inReplyTo: string | null, fromEmail: string): Promise<InboundEmailThread | undefined>;
+  
+  // Admin Alert Settings
+  getAdminAlertSettings(userId: string): Promise<AdminAlertSettings | undefined>;
+  upsertAdminAlertSettings(userId: string, settings: Partial<AdminAlertSettings>): Promise<AdminAlertSettings>;
+  getAdminsForAlerts(): Promise<{ userId: string; email: string; alertEmail?: string | null }[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -2361,6 +2390,203 @@ export class DatabaseStorage implements IStorage {
   async deleteUnmatchedEmail(id: string): Promise<boolean> {
     const result = await db.delete(unmatchedInboundEmails).where(eq(unmatchedInboundEmails.id, id)).returning();
     return result.length > 0;
+  }
+
+  // Inbound Email Threads
+  async getAllInboundThreads(): Promise<InboundEmailThread[]> {
+    return await db
+      .select()
+      .from(inboundEmailThreads)
+      .orderBy(desc(inboundEmailThreads.lastActivityAt));
+  }
+
+  async getInboundThreadById(id: string): Promise<InboundEmailThread | undefined> {
+    const result = await db.select().from(inboundEmailThreads).where(eq(inboundEmailThreads.id, id));
+    return result[0];
+  }
+
+  async getInboundThreadByCourseId(courseId: string): Promise<InboundEmailThread[]> {
+    return await db
+      .select()
+      .from(inboundEmailThreads)
+      .where(eq(inboundEmailThreads.courseId, courseId))
+      .orderBy(desc(inboundEmailThreads.lastActivityAt));
+  }
+
+  async getUnansweredThreadsCount(): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(inboundEmailThreads)
+      .where(
+        and(
+          eq(inboundEmailThreads.requiresResponse, "true"),
+          eq(inboundEmailThreads.status, "OPEN")
+        )
+      );
+    return result[0]?.count ?? 0;
+  }
+
+  async getUnansweredThreads(): Promise<InboundEmailThread[]> {
+    return await db
+      .select()
+      .from(inboundEmailThreads)
+      .where(
+        and(
+          eq(inboundEmailThreads.requiresResponse, "true"),
+          eq(inboundEmailThreads.status, "OPEN")
+        )
+      )
+      .orderBy(desc(inboundEmailThreads.lastActivityAt));
+  }
+
+  async createInboundThread(thread: InsertInboundEmailThread): Promise<InboundEmailThread> {
+    const result = await db.insert(inboundEmailThreads).values(thread).returning();
+    return result[0];
+  }
+
+  async updateInboundThread(id: string, updates: Partial<InboundEmailThread>): Promise<InboundEmailThread | undefined> {
+    const result = await db
+      .update(inboundEmailThreads)
+      .set(updates)
+      .where(eq(inboundEmailThreads.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async markThreadAsRead(id: string): Promise<InboundEmailThread | undefined> {
+    const result = await db
+      .update(inboundEmailThreads)
+      .set({ isRead: "true" })
+      .where(eq(inboundEmailThreads.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async markThreadAsReplied(id: string, userId: string): Promise<InboundEmailThread | undefined> {
+    const result = await db
+      .update(inboundEmailThreads)
+      .set({
+        status: "REPLIED",
+        requiresResponse: "false",
+        respondedAt: new Date(),
+        respondedByUserId: userId,
+        lastActivityAt: new Date(),
+      })
+      .where(eq(inboundEmailThreads.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Inbound Emails (messages within threads)
+  async getEmailsByThreadId(threadId: string): Promise<InboundEmail[]> {
+    return await db
+      .select()
+      .from(inboundEmails)
+      .where(eq(inboundEmails.threadId, threadId))
+      .orderBy(inboundEmails.receivedAt);
+  }
+
+  async createInboundEmail(email: InsertInboundEmail): Promise<InboundEmail> {
+    const result = await db.insert(inboundEmails).values(email).returning();
+    
+    // Update thread's lastActivityAt
+    await db
+      .update(inboundEmailThreads)
+      .set({ lastActivityAt: new Date() })
+      .where(eq(inboundEmailThreads.id, email.threadId));
+    
+    return result[0];
+  }
+
+  async findThreadByEmailHeaders(messageId: string | null, inReplyTo: string | null, fromEmail: string): Promise<InboundEmailThread | undefined> {
+    // Try to find existing thread by In-Reply-To header matching our outbound Message-ID
+    if (inReplyTo) {
+      const emailWithMatchingId = await db
+        .select()
+        .from(inboundEmails)
+        .where(eq(inboundEmails.messageId, inReplyTo))
+        .limit(1);
+      
+      if (emailWithMatchingId.length > 0) {
+        const thread = await db
+          .select()
+          .from(inboundEmailThreads)
+          .where(eq(inboundEmailThreads.id, emailWithMatchingId[0].threadId))
+          .limit(1);
+        return thread[0];
+      }
+    }
+
+    // Try to find existing open thread from the same email address
+    const existingThread = await db
+      .select()
+      .from(inboundEmailThreads)
+      .where(
+        and(
+          eq(inboundEmailThreads.fromEmail, fromEmail),
+          eq(inboundEmailThreads.status, "OPEN")
+        )
+      )
+      .orderBy(desc(inboundEmailThreads.lastActivityAt))
+      .limit(1);
+    
+    return existingThread[0];
+  }
+
+  // Admin Alert Settings
+  async getAdminAlertSettings(userId: string): Promise<AdminAlertSettings | undefined> {
+    const result = await db
+      .select()
+      .from(adminAlertSettings)
+      .where(eq(adminAlertSettings.userId, userId));
+    return result[0];
+  }
+
+  async upsertAdminAlertSettings(userId: string, settings: Partial<AdminAlertSettings>): Promise<AdminAlertSettings> {
+    const existing = await this.getAdminAlertSettings(userId);
+    
+    if (existing) {
+      const result = await db
+        .update(adminAlertSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(adminAlertSettings.userId, userId))
+        .returning();
+      return result[0];
+    } else {
+      const result = await db
+        .insert(adminAlertSettings)
+        .values({ userId, ...settings })
+        .returning();
+      return result[0];
+    }
+  }
+
+  async getAdminsForAlerts(): Promise<{ userId: string; email: string; alertEmail?: string | null }[]> {
+    // Get all admin users who have email alerts enabled
+    const admins = await db
+      .select({
+        userId: users.id,
+        email: users.email,
+      })
+      .from(users)
+      .where(eq(users.isAdmin, "true"));
+
+    // Get their alert settings
+    const results = await Promise.all(
+      admins.map(async (admin) => {
+        const settings = await this.getAdminAlertSettings(admin.userId);
+        if (settings?.emailAlerts === "false") {
+          return null; // Skip if alerts are disabled
+        }
+        return {
+          userId: admin.userId,
+          email: admin.email,
+          alertEmail: settings?.alertEmail,
+        };
+      })
+    );
+
+    return results.filter((r): r is NonNullable<typeof r> => r !== null);
   }
 }
 

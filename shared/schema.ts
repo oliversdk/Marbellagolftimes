@@ -260,6 +260,106 @@ export const insertUnmatchedInboundEmailSchema = createInsertSchema(unmatchedInb
 export type InsertUnmatchedInboundEmail = z.infer<typeof insertUnmatchedInboundEmailSchema>;
 export type UnmatchedInboundEmail = typeof unmatchedInboundEmails.$inferSelect;
 
+// Inbound Email Threads (conversations with golf courses)
+export const inboundEmailThreads = pgTable("inbound_email_threads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").references(() => golfCourses.id), // Can be null for unmatched emails
+  subject: text("subject").notNull(),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  // Status tracking
+  status: text("status").notNull().default("OPEN"), // OPEN, REPLIED, CLOSED, ARCHIVED
+  isRead: text("is_read").notNull().default("false"),
+  requiresResponse: text("requires_response").notNull().default("true"),
+  // Response tracking
+  respondedAt: timestamp("responded_at"),
+  respondedByUserId: varchar("responded_by_user_id").references(() => users.id),
+  // Assignment
+  assignedToUserId: varchar("assigned_to_user_id").references(() => users.id),
+  // Alert tracking
+  lastAlertSentAt: timestamp("last_alert_sent_at"),
+  alertCount: integer("alert_count").notNull().default(0),
+  // Timestamps
+  lastActivityAt: timestamp("last_activity_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertInboundEmailThreadSchema = createInsertSchema(inboundEmailThreads).omit({ 
+  id: true, 
+  createdAt: true,
+  lastActivityAt: true,
+  respondedAt: true,
+  lastAlertSentAt: true,
+  alertCount: true,
+});
+
+export type InsertInboundEmailThread = z.infer<typeof insertInboundEmailThreadSchema>;
+export type InboundEmailThread = typeof inboundEmailThreads.$inferSelect;
+
+// Individual Email Messages within a thread
+export const inboundEmails = pgTable("inbound_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").notNull().references(() => inboundEmailThreads.id, { onDelete: "cascade" }),
+  direction: text("direction").notNull(), // INBOUND, OUTBOUND
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  toEmail: text("to_email"),
+  subject: text("subject"),
+  bodyText: text("body_text"),
+  bodyHtml: text("body_html"),
+  // Email metadata for threading
+  messageId: text("message_id"), // Email Message-ID header
+  inReplyTo: text("in_reply_to"), // In-Reply-To header
+  references: text("references"), // References header
+  // Tracking
+  sentByUserId: varchar("sent_by_user_id").references(() => users.id), // For outbound emails
+  receivedAt: timestamp("received_at").notNull().defaultNow(),
+});
+
+export const insertInboundEmailSchema = createInsertSchema(inboundEmails).omit({ 
+  id: true, 
+  receivedAt: true,
+});
+
+export type InsertInboundEmail = z.infer<typeof insertInboundEmailSchema>;
+export type InboundEmail = typeof inboundEmails.$inferSelect;
+
+// Thread statuses
+export const THREAD_STATUSES = ["OPEN", "REPLIED", "CLOSED", "ARCHIVED"] as const;
+export type ThreadStatus = typeof THREAD_STATUSES[number];
+
+// Email directions
+export const EMAIL_DIRECTIONS = ["INBOUND", "OUTBOUND"] as const;
+export type EmailDirection = typeof EMAIL_DIRECTIONS[number];
+
+// Admin Alert Settings (for email notification preferences)
+export const adminAlertSettings = pgTable("admin_alert_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  // Alert preferences
+  emailAlerts: text("email_alerts").notNull().default("true"),
+  alertEmail: text("alert_email"), // Override email for alerts
+  // Timing
+  slaHours: integer("sla_hours").notNull().default(2), // Hours before SLA breach alert
+  digestFrequency: text("digest_frequency").notNull().default("INSTANT"), // INSTANT, HOURLY, DAILY
+  // Quiet hours
+  quietHoursStart: text("quiet_hours_start"), // e.g., "22:00"
+  quietHoursEnd: text("quiet_hours_end"), // e.g., "08:00"
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAdminAlertSettingsSchema = createInsertSchema(adminAlertSettings).omit({ 
+  id: true, 
+  updatedAt: true,
+});
+
+export type InsertAdminAlertSettings = z.infer<typeof insertAdminAlertSettingsSchema>;
+export type AdminAlertSettings = typeof adminAlertSettings.$inferSelect;
+
+// Digest frequencies
+export const DIGEST_FREQUENCIES = ["INSTANT", "HOURLY", "DAILY"] as const;
+export type DigestFrequency = typeof DIGEST_FREQUENCIES[number];
+
 // Course Reviews
 export const courseReviews = pgTable("course_reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
