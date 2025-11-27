@@ -195,6 +195,9 @@ export default function Home() {
   const { favorites } = useFavorites();
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.isAdmin === "true";
+  
+  // Track selected tee per course (courseId -> teeName or null for "all")
+  const [selectedTees, setSelectedTees] = useState<Record<string, string | null>>({});
 
   // Fetch revenue data for admin users
   type ROIAnalytics = {
@@ -998,9 +1001,35 @@ export default function Home() {
 
                                 {/* Tee Times with Hot Deals and Time Periods */}
                                 {(() => {
-                                  const avgPrice = getAveragePrice(courseSlot.slots);
-                                  const hotDeals = courseSlot.slots.filter(s => isHotDeal(s, avgPrice));
-                                  const groupedSlots = groupSlotsByPeriod(courseSlot.slots);
+                                  // Get unique tee names from slots
+                                  const uniqueTees = Array.from(new Set(
+                                    courseSlot.slots
+                                      .map(s => s.teeName)
+                                      .filter((name): name is string => !!name)
+                                  )).sort();
+                                  
+                                  const hasMultipleTees = uniqueTees.length > 1;
+                                  const storedTee = selectedTees[courseSlot.courseId] ?? null;
+                                  
+                                  // Reset to "all" if stored tee no longer exists in available tees
+                                  const isStaleTee = storedTee !== null && !uniqueTees.includes(storedTee);
+                                  const selectedTee = isStaleTee ? null : storedTee;
+                                  
+                                  // Clear stale tee from state (schedule for next tick to avoid render loop)
+                                  if (isStaleTee) {
+                                    setTimeout(() => {
+                                      setSelectedTees(prev => ({ ...prev, [courseSlot.courseId]: null }));
+                                    }, 0);
+                                  }
+                                  
+                                  // Filter slots by selected tee (null = show all)
+                                  const filteredSlots = selectedTee 
+                                    ? courseSlot.slots.filter(s => s.teeName === selectedTee)
+                                    : courseSlot.slots;
+                                  
+                                  const avgPrice = getAveragePrice(filteredSlots);
+                                  const hotDeals = filteredSlots.filter(s => isHotDeal(s, avgPrice));
+                                  const groupedSlots = groupSlotsByPeriod(filteredSlots);
                                   
                                   const periodConfig: { key: TimePeriod; label: string; icon: typeof Sun }[] = [
                                     { key: 'morning', label: t('home.morningTimes'), icon: Sun },
@@ -1027,6 +1056,31 @@ export default function Home() {
                                           </Link>
                                         </Button>
                                       </div>
+                                      
+                                      {/* Tee Selector - only show if course has multiple tees */}
+                                      {hasMultipleTees && (
+                                        <div className="flex items-center gap-1.5 flex-wrap" data-testid={`tee-selector-${courseSlot.courseId}`}>
+                                          <Button
+                                            size="sm"
+                                            variant={selectedTee === null ? "default" : "outline"}
+                                            onClick={() => setSelectedTees(prev => ({ ...prev, [courseSlot.courseId]: null }))}
+                                            data-testid={`button-tee-all-${courseSlot.courseId}`}
+                                          >
+                                            {t('home.allTees')}
+                                          </Button>
+                                          {uniqueTees.map((teeName) => (
+                                            <Button
+                                              key={teeName}
+                                              size="sm"
+                                              variant={selectedTee === teeName ? "default" : "outline"}
+                                              onClick={() => setSelectedTees(prev => ({ ...prev, [courseSlot.courseId]: teeName }))}
+                                              data-testid={`button-tee-${courseSlot.courseId}-${teeName.replace(/\s+/g, '-')}`}
+                                            >
+                                              {teeName}
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      )}
                                       
                                       {/* Hot Deals Section */}
                                       {hotDeals.length > 0 && (
