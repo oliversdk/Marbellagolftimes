@@ -16,7 +16,17 @@ The frontend is built with React 18, TypeScript, and Vite. It uses Wouter for ro
 
 The Profile page offers advanced booking management, including "Upcoming" and "Past" booking tabs, an option to cancel bookings (with a 24-hour rule validation), and a "Book Again" feature for rebooking past tee times.
 
-An Admin dashboard provides tools for managing bookings, courses, images, and affiliate emails. The Courses tab displays all courses in a table layout with name, location, image thumbnail, kickback percentage, and a unified "Edit Course" button. The Edit Course dialog combines image management (upload/URL/delete) and commission percentage editing in a single interface with proper cache synchronization. The platform supports full internationalization (i18n) across 5 languages (English, Spanish, Danish, Swedish, Russian) with a language switcher.
+An Admin dashboard provides tools for managing bookings, courses, images, affiliate emails, and an **Inbox** for course email conversations. The Courses tab displays all courses in a table layout with name, location, image thumbnail, kickback percentage, and a unified "Edit Course" button. The Edit Course dialog combines image management (upload/URL/delete) and commission percentage editing in a single interface with proper cache synchronization. The platform supports full internationalization (i18n) across 5 languages (English, Spanish, Danish, Swedish, Russian) with a language switcher.
+
+The **Admin Inbox** tab provides a complete email thread management system for course communications. Features include:
+- Thread list with status filters (All, Unanswered, Open, Replied, Closed, Archived)
+- Visual indicators for unread threads and unanswered messages (red badge showing count)
+- Conversation view showing full email thread history
+- Reply functionality with inline compose
+- Thread status management (archive, close, reopen)
+- Course linking to associate threads with specific golf courses
+- Alert settings dialog for configuring email notifications on unanswered messages
+- Red notification badge in header showing unanswered email count (visible to admins only)
 
 A comprehensive reviews and social proof system allows authenticated users to submit course reviews with star ratings and optional photo uploads. "Top Rated" badges are displayed for highly-rated courses, and a testimonials carousel showcases customer feedback.
 
@@ -30,7 +40,7 @@ The backend is developed with Node.js and Express in TypeScript (ESM modules), p
 
 ### Data Storage Solutions
 
-The Drizzle ORM schema includes tables for `users`, `sessions`, `golf_courses`, `tee_time_providers`, `course_provider_links`, `booking_requests`, and `affiliate_emails`. `users` store `email`, `passwordHash`, `firstName`, `lastName`, `phoneNumber`, and `stripeCustomerId`. `golf_courses` have a unique `imageUrl` and a `kickbackPercent` field. `booking_requests` link to `userId` and include an `estimatedPrice` for revenue tracking. UUIDs are used for primary keys.
+The Drizzle ORM schema includes tables for `users`, `sessions`, `golf_courses`, `tee_time_providers`, `course_provider_links`, `booking_requests`, `affiliate_emails`, `inbound_email_threads`, and `inbound_email_messages`. `users` store `email`, `passwordHash`, `firstName`, `lastName`, `phoneNumber`, and `stripeCustomerId`. `golf_courses` have a unique `imageUrl` and a `kickbackPercent` field. `booking_requests` link to `userId` and include an `estimatedPrice` for revenue tracking. The inbox system uses `inbound_email_threads` to track conversation threads (with status, courseId link, and requiresResponse flags) and `inbound_email_messages` for individual emails with direction (IN/OUT) tracking. UUIDs are used for primary keys.
 
 ### Authentication and Authorization
 

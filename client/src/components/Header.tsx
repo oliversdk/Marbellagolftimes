@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin, User, LogOut, UserCircle, Shield, Menu } from "lucide-react";
+import { MapPin, User, LogOut, UserCircle, Shield, Menu, Mail } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { AuthDialog } from "@/components/AuthDialog";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,14 @@ export function Header() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Fetch unanswered email count for admin users
+  const { data: inboxData } = useQuery<{ count: number }>({
+    queryKey: ["/api/admin/inbox/count"],
+    enabled: isAdmin,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+  const unansweredCount = inboxData?.count ?? 0;
 
   const navigateAndCloseMobile = (path: string) => {
     setMobileMenuOpen(false);
@@ -73,16 +83,34 @@ export function Header() {
               </span>
             </Link>
             {isAdmin && (
-              <Link href="/admin">
-                <span
-                  className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${
-                    location === "/admin" ? "text-foreground" : "text-muted-foreground"
-                  }`}
-                  data-testid="link-admin"
-                >
-                  {t('header.admin')}
-                </span>
-              </Link>
+              <>
+                <Link href="/admin">
+                  <span
+                    className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer ${
+                      location === "/admin" ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                    data-testid="link-admin"
+                  >
+                    {t('header.admin')}
+                  </span>
+                </Link>
+                <Link href="/admin?tab=inbox">
+                  <div className="relative" data-testid="link-admin-inbox">
+                    <Mail className={`h-5 w-5 transition-colors hover:text-primary cursor-pointer ${
+                      location.includes("inbox") ? "text-foreground" : "text-muted-foreground"
+                    }`} />
+                    {unansweredCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-2 -right-2 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold"
+                        data-testid="badge-inbox-count"
+                      >
+                        {unansweredCount > 99 ? "99+" : unansweredCount}
+                      </Badge>
+                    )}
+                  </div>
+                </Link>
+              </>
             )}
           </nav>
 
@@ -190,16 +218,37 @@ export function Header() {
                         {t('profile.title')}
                       </Button>
                       {isAdmin && (
-                        <Button 
-                          variant="secondary" 
-                          size="lg" 
-                          className="w-full min-h-12"
-                          data-testid="button-admin-mobile-nav"
-                          onClick={() => navigateAndCloseMobile("/admin")}
-                        >
-                          <Shield className="mr-2 h-4 w-4" />
-                          {t('header.admin')}
-                        </Button>
+                        <>
+                          <Button 
+                            variant="secondary" 
+                            size="lg" 
+                            className="w-full min-h-12"
+                            data-testid="button-admin-mobile-nav"
+                            onClick={() => navigateAndCloseMobile("/admin")}
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            {t('header.admin')}
+                          </Button>
+                          <Button 
+                            variant="secondary" 
+                            size="lg" 
+                            className="w-full min-h-12 relative"
+                            data-testid="button-inbox-mobile-nav"
+                            onClick={() => navigateAndCloseMobile("/admin?tab=inbox")}
+                          >
+                            <Mail className="mr-2 h-4 w-4" />
+                            {t('inbox.title')}
+                            {unansweredCount > 0 && (
+                              <Badge 
+                                variant="destructive" 
+                                className="ml-2 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold"
+                                data-testid="badge-inbox-count-mobile"
+                              >
+                                {unansweredCount > 99 ? "99+" : unansweredCount}
+                              </Badge>
+                            )}
+                          </Button>
+                        </>
                       )}
                       <Button 
                         variant="outline" 

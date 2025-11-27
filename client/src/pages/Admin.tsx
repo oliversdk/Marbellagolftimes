@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -128,6 +128,46 @@ type UnmatchedEmail = {
   assignedByUserId: string | null;
   assignedAt: string | null;
   receivedAt: string;
+};
+
+type InboundEmailThread = {
+  id: string;
+  courseId: string | null;
+  courseName?: string | null;
+  fromEmail: string;
+  subject: string;
+  status: "OPEN" | "REPLIED" | "CLOSED" | "ARCHIVED";
+  isRead: string;
+  requiresResponse: string;
+  lastActivityAt: string;
+  respondedAt: string | null;
+  respondedByUserId: string | null;
+  lastAlertSentAt: string | null;
+  createdAt: string;
+};
+
+type InboundEmail = {
+  id: string;
+  threadId: string;
+  direction: "IN" | "OUT";
+  fromEmail: string;
+  fromName: string | null;
+  toEmail: string | null;
+  subject: string | null;
+  bodyText: string | null;
+  bodyHtml: string | null;
+  receivedAt: string;
+  sentByUserId: string | null;
+};
+
+type ThreadWithMessages = InboundEmailThread & {
+  messages: InboundEmail[];
+};
+
+type AlertSettings = {
+  emailAlerts: string;
+  alertThresholdHours: number;
+  alertEmail: string | null;
 };
 
 type CourseOnboardingData = {
@@ -240,9 +280,15 @@ export default function Admin() {
   const tabFromUrl = urlParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabFromUrl || "analytics");
   
+  // Inbox state
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unanswered" | "open" | "replied" | "closed" | "archived">("unanswered");
+  const [replyText, setReplyText] = useState("");
+  const [showAlertSettings, setShowAlertSettings] = useState(false);
+  
   // Update active tab when URL changes
   useEffect(() => {
-    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails"].includes(tabFromUrl)) {
+    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox"].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl]);
@@ -387,6 +433,154 @@ export default function Admin() {
       toast({
         title: "Delete failed",
         description: "Failed to delete email",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Fetch all email threads
+  const { data: inboxThreads = [], refetch: refetchInboxThreads } = useQuery<InboundEmailThread[]>({
+    queryKey: ["/api/admin/inbox"],
+    enabled: isAuthenticated && isAdmin,
+    refetchInterval: 30000, // Auto refresh every 30 seconds
+  });
+
+  // Inbox - Get selected thread with messages
+  const { data: selectedThread, isLoading: isLoadingThread } = useQuery<ThreadWithMessages>({
+    queryKey: ["/api/admin/inbox", selectedThreadId],
+    queryFn: async () => {
+      if (!selectedThreadId) return null;
+      const res = await fetch(`/api/admin/inbox/${selectedThreadId}`);
+      if (!res.ok) throw new Error("Failed to fetch thread");
+      return res.json();
+    },
+    enabled: !!selectedThreadId && isAuthenticated && isAdmin,
+  });
+
+  // Inbox - Get inbox count for badge (also used in Header)
+  const { data: inboxCountData } = useQuery<{ count: number }>({
+    queryKey: ["/api/admin/inbox/count"],
+    enabled: isAuthenticated && isAdmin,
+    refetchInterval: 30000,
+  });
+  const unansweredCount = inboxCountData?.count ?? 0;
+
+  // Inbox - Get alert settings
+  const { data: alertSettings } = useQuery<AlertSettings>({
+    queryKey: ["/api/admin/inbox/settings"],
+    enabled: isAuthenticated && isAdmin && showAlertSettings,
+  });
+
+  // Filter threads based on selected filter
+  const filteredThreads = useMemo(() => {
+    if (!inboxThreads) return [];
+    
+    switch (inboxFilter) {
+      case "unanswered":
+        return inboxThreads.filter(t => t.requiresResponse === "true" && t.status === "OPEN");
+      case "open":
+        return inboxThreads.filter(t => t.status === "OPEN");
+      case "replied":
+        return inboxThreads.filter(t => t.status === "REPLIED");
+      case "closed":
+        return inboxThreads.filter(t => t.status === "CLOSED");
+      case "archived":
+        return inboxThreads.filter(t => t.status === "ARCHIVED");
+      default:
+        return inboxThreads;
+    }
+  }, [inboxThreads, inboxFilter]);
+
+  // Inbox - Send reply mutation
+  const sendReplyMutation = useMutation({
+    mutationFn: async ({ threadId, body }: { threadId: string; body: string }) => {
+      return await apiRequest(`/api/admin/inbox/${threadId}/reply`, "POST", { body });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox/count"] });
+      if (selectedThreadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox", selectedThreadId] });
+      }
+      setReplyText("");
+      toast({
+        title: t('inbox.replySent'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToSendReply'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Update thread status mutation
+  const updateThreadStatusMutation = useMutation({
+    mutationFn: async ({ threadId, status, requiresResponse }: { threadId: string; status?: string; requiresResponse?: boolean }) => {
+      return await apiRequest(`/api/admin/inbox/${threadId}/status`, "PATCH", { status, requiresResponse });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox/count"] });
+      if (selectedThreadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox", selectedThreadId] });
+      }
+      toast({
+        title: t('inbox.statusUpdated'),
+        description: t('inbox.statusUpdatedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToUpdateStatus'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Link thread to course mutation
+  const linkThreadToCourseMutation = useMutation({
+    mutationFn: async ({ threadId, courseId }: { threadId: string; courseId: string | null }) => {
+      return await apiRequest(`/api/admin/inbox/${threadId}/link-course`, "PATCH", { courseId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox/count"] });
+      if (selectedThreadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox", selectedThreadId] });
+      }
+      toast({
+        title: t('inbox.threadLinked'),
+        description: t('inbox.threadLinkedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToLinkThread'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Update alert settings mutation
+  const updateAlertSettingsMutation = useMutation({
+    mutationFn: async (settings: Partial<AlertSettings>) => {
+      return await apiRequest(`/api/admin/inbox/settings`, "PATCH", settings);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox/settings"] });
+      toast({
+        title: t('inbox.settingsSaved'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToSaveSettings'),
         variant: "destructive",
       });
     },
@@ -1354,6 +1548,19 @@ export default function Admin() {
               Courses & Partnerships
             </TabsTrigger>
             <TabsTrigger value="emails" data-testid="tab-emails">{t('admin.tabAffiliateEmails')}</TabsTrigger>
+            <TabsTrigger value="inbox" data-testid="tab-inbox" className="relative">
+              <Inbox className="h-4 w-4 mr-2" />
+              {t('inbox.title')}
+              {unansweredCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="ml-2 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold"
+                  data-testid="badge-inbox-tab-count"
+                >
+                  {unansweredCount > 99 ? "99+" : unansweredCount}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics">
@@ -2633,6 +2840,324 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Inbox Tab - Course Email Conversations */}
+          <TabsContent value="inbox">
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Thread List */}
+              <div className="lg:col-span-1">
+                <Card className="h-[calc(100vh-300px)]">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Inbox className="h-5 w-5" />
+                        {t('inbox.title')}
+                        {unansweredCount > 0 && (
+                          <Badge variant="destructive" data-testid="badge-inbox-header-count">
+                            {unansweredCount}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowAlertSettings(true)}
+                        data-testid="button-inbox-settings"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1 pt-2">
+                      {(["unanswered", "all", "open", "replied", "closed", "archived"] as const).map((filter) => (
+                        <Button
+                          key={filter}
+                          variant={inboxFilter === filter ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setInboxFilter(filter)}
+                          data-testid={`button-filter-${filter}`}
+                        >
+                          {t(`inbox.${filter}`)}
+                          {filter === "unanswered" && unansweredCount > 0 && (
+                            <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 text-xs">
+                              {unansweredCount}
+                            </Badge>
+                          )}
+                        </Button>
+                      ))}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <ScrollArea className="h-[calc(100vh-450px)]">
+                      {filteredThreads.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground">
+                          {t('inbox.noEmails')}
+                        </div>
+                      ) : (
+                        <div className="divide-y">
+                          {filteredThreads.map((thread) => (
+                            <div
+                              key={thread.id}
+                              className={`p-3 cursor-pointer hover-elevate ${
+                                selectedThreadId === thread.id ? "bg-accent" : ""
+                              } ${thread.isRead !== "true" ? "bg-primary/5" : ""}`}
+                              onClick={() => setSelectedThreadId(thread.id)}
+                              data-testid={`row-thread-${thread.id}`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    {thread.isRead !== "true" && (
+                                      <div className="h-2 w-2 rounded-full bg-primary" />
+                                    )}
+                                    <span className={`text-sm font-medium truncate ${thread.isRead !== "true" ? "font-semibold" : ""}`}>
+                                      {thread.fromEmail}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm truncate text-muted-foreground">
+                                    {thread.subject}
+                                  </p>
+                                  {thread.courseName && (
+                                    <p className="text-xs text-primary truncate">
+                                      {thread.courseName}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(thread.lastActivityAt), "MMM d")}
+                                  </span>
+                                  <Badge 
+                                    variant={
+                                      thread.status === "OPEN" && thread.requiresResponse === "true" ? "destructive" :
+                                      thread.status === "OPEN" ? "secondary" :
+                                      thread.status === "REPLIED" ? "default" :
+                                      "outline"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {t(`inbox.${thread.status.toLowerCase()}`)}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Message View & Reply */}
+              <div className="lg:col-span-2">
+                <Card className="h-[calc(100vh-300px)]">
+                  {!selectedThreadId ? (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      <div className="text-center">
+                        <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>{t('inbox.viewThread')}</p>
+                      </div>
+                    </div>
+                  ) : isLoadingThread ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Clock className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : selectedThread ? (
+                    <div className="flex flex-col h-full">
+                      {/* Thread Header */}
+                      <CardHeader className="pb-3 border-b">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg truncate">{selectedThread.subject}</CardTitle>
+                            <CardDescription className="flex items-center gap-2 mt-1">
+                              <span>{selectedThread.fromEmail}</span>
+                              {selectedThread.courseName && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-primary">{selectedThread.courseName}</span>
+                                </>
+                              )}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={selectedThread.courseId || ""}
+                              onValueChange={(courseId) => {
+                                linkThreadToCourseMutation.mutate({ 
+                                  threadId: selectedThread.id, 
+                                  courseId: courseId || null 
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="w-[200px]" data-testid="select-link-course">
+                                <SelectValue placeholder={t('inbox.linkToCourse')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">{t('inbox.unlinked')}</SelectItem>
+                                {courses?.map((course) => (
+                                  <SelectItem key={course.id} value={course.id}>
+                                    {course.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateThreadStatusMutation.mutate({
+                                threadId: selectedThread.id,
+                                status: selectedThread.status === "ARCHIVED" ? "OPEN" : "ARCHIVED"
+                              })}
+                              data-testid="button-archive-thread"
+                            >
+                              <Archive className="h-4 w-4 mr-1" />
+                              {selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}
+                            </Button>
+                            
+                            {selectedThread.status !== "CLOSED" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateThreadStatusMutation.mutate({
+                                  threadId: selectedThread.id,
+                                  status: "CLOSED"
+                                })}
+                                data-testid="button-close-thread"
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                {t('inbox.close')}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      {/* Messages */}
+                      <ScrollArea className="flex-1 p-4">
+                        {!selectedThread.messages || selectedThread.messages.length === 0 ? (
+                          <div className="text-center text-muted-foreground py-8">
+                            {t('inbox.noMessages')}
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {selectedThread.messages.map((msg) => (
+                              <div
+                                key={msg.id}
+                                className={`p-4 rounded-lg ${
+                                  msg.direction === "OUT" 
+                                    ? "bg-primary/10 ml-8" 
+                                    : "bg-muted mr-8"
+                                }`}
+                                data-testid={`message-${msg.id}`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium">
+                                    {msg.direction === "OUT" ? t('inbox.you') : msg.fromEmail}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(msg.receivedAt), "PPp")}
+                                  </span>
+                                </div>
+                                <div className="text-sm whitespace-pre-wrap">
+                                  {msg.bodyText || t('inbox.noContent')}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </ScrollArea>
+
+                      {/* Reply Box */}
+                      <div className="p-4 border-t">
+                        <div className="flex gap-2">
+                          <Textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder={t('inbox.replyPlaceholder')}
+                            className="flex-1 min-h-[80px]"
+                            data-testid="textarea-reply"
+                          />
+                          <Button
+                            onClick={() => {
+                              if (selectedThreadId && replyText.trim()) {
+                                sendReplyMutation.mutate({ threadId: selectedThreadId, body: replyText });
+                              }
+                            }}
+                            disabled={!replyText.trim() || sendReplyMutation.isPending}
+                            data-testid="button-send-reply"
+                          >
+                            <Reply className="h-4 w-4 mr-1" />
+                            {t('inbox.sendReply')}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </Card>
+              </div>
+            </div>
+
+            {/* Alert Settings Dialog */}
+            <Dialog open={showAlertSettings} onOpenChange={setShowAlertSettings}>
+              <DialogContent data-testid="dialog-alert-settings">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5" />
+                    {t('inbox.alertSettings')}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {t('inbox.alertSettingsDescription')}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="flex items-center justify-between">
+                    <Label>{t('inbox.emailAlerts')}</Label>
+                    <Switch
+                      checked={alertSettings?.emailAlerts === "true"}
+                      onCheckedChange={(checked) => {
+                        updateAlertSettingsMutation.mutate({ emailAlerts: checked ? "true" : "false" });
+                      }}
+                      data-testid="switch-email-alerts"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('inbox.alertThreshold')}</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        max="72"
+                        value={alertSettings?.alertThresholdHours ?? 2}
+                        onChange={(e) => {
+                          const hours = parseInt(e.target.value);
+                          if (hours > 0 && hours <= 72) {
+                            updateAlertSettingsMutation.mutate({ alertThresholdHours: hours });
+                          }
+                        }}
+                        className="w-20"
+                        data-testid="input-alert-threshold"
+                      />
+                      <span className="text-sm text-muted-foreground">{t('inbox.hours')}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t('inbox.alertEmail')}</Label>
+                    <Input
+                      type="email"
+                      placeholder={t('inbox.useAccountEmail')}
+                      value={alertSettings?.alertEmail ?? ""}
+                      onChange={(e) => {
+                        updateAlertSettingsMutation.mutate({ alertEmail: e.target.value || null });
+                      }}
+                      data-testid="input-alert-email"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('inbox.useAccountEmail')}</p>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
 
