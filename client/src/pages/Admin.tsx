@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Header } from "@/components/Header";
@@ -233,6 +233,19 @@ export default function Admin() {
   const [selectedCourseProfile, setSelectedCourseProfile] = useState<GolfCourse | null>(null);
   const [profileTab, setProfileTab] = useState<string>("details");
   const [courseSearchQuery, setCourseSearchQuery] = useState("");
+  
+  // URL-based tab navigation
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const tabFromUrl = urlParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "analytics");
+  
+  // Update active tab when URL changes
+  useEffect(() => {
+    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails"].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
   
   const { toast } = useToast();
   const { isAuthenticated, isLoading, isAdmin, user } = useAuth();
@@ -1319,7 +1332,7 @@ export default function Admin() {
           </p>
         </div>
 
-        <Tabs defaultValue="analytics" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="analytics" data-testid="tab-analytics">
               <BarChart3 className="h-4 w-4 mr-2" />

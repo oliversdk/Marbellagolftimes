@@ -560,13 +560,21 @@ export default function Home() {
                     {revenueData.roi >= 0 ? '+' : ''}{revenueData.roi.toFixed(1)}%
                   </span>
                 </div>
-                {/* Quick Stats */}
+                {/* Quick Stats - Clickable */}
                 {activityFeed?.stats && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>•</span>
-                    <span>{activityFeed.stats.totalBookings} bookings</span>
+                    <Link href="/admin?tab=bookings">
+                      <span className="cursor-pointer hover:text-primary hover:underline transition-colors">
+                        {activityFeed.stats.totalBookings} bookings
+                      </span>
+                    </Link>
                     <span>•</span>
-                    <span>{activityFeed.stats.totalPartnerships} partners</span>
+                    <Link href="/admin?tab=courses">
+                      <span className="cursor-pointer hover:text-primary hover:underline transition-colors">
+                        {activityFeed.stats.totalPartnerships} partners
+                      </span>
+                    </Link>
                   </div>
                 )}
               </div>
