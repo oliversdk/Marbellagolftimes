@@ -393,6 +393,7 @@ export interface TeeTimeSlot {
   players: number;
   holes: number;
   source: string;
+  teeName?: string; // e.g., "TEE 1", "TEE 10", "Los Lagos", "Campo America"
 }
 
 export interface CourseWithSlots {

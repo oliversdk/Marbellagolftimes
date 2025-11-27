@@ -1334,8 +1334,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get Golfmanager configuration (always returns a config with mode)
       const golfmanagerConfig = getGolfmanagerConfig();
       
-      // Helper function to generate mock slots
-      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number, numHoles: number): TeeTimeSlot[] => {
+      // Multi-tee course configurations (like TeeTimesBooking.com)
+      const multiTeeConfigs: Record<string, string[]> = {
+        // Courses with multiple tees/layouts
+        "mijas golf": ["Los Lagos", "Los Olivos"],
+        "la cala": ["Campo America", "Campo Asia", "Campo Europa"],
+        "atalaya": ["Old Course", "New Course"],
+        "villa padierna": ["Flamingos", "Alferini", "Tramores"],
+        "la quinta": ["TEE 1", "TEE 10"],
+        "chaparral": ["TEE 1", "TEE 10"],
+        "calanova": ["TEE 1", "TEE 10"],
+        "estepona golf": ["18 Holes", "9 Holes"],
+        "la duquesa": ["TEE 1", "TEE 10"],
+        "la hacienda": ["Heathland", "Links"],
+        "cerrado del águila": ["18 Holes", "9 Holes"],
+        "la noria": ["18 Holes", "9 Holes"],
+        "los arqueros": ["18 Holes", "9 Holes"],
+      };
+      
+      // Get tee names for a course (returns ["TEE 1"] for single-tee courses)
+      const getTeeNames = (courseName: string): string[] => {
+        const lowerName = courseName.toLowerCase();
+        for (const [key, tees] of Object.entries(multiTeeConfigs)) {
+          if (lowerName.includes(key)) {
+            return tees;
+          }
+        }
+        return ["TEE 1"]; // Default single tee
+      };
+      
+      // Helper function to generate mock slots for a specific tee
+      const generateMockSlots = (searchDate: string, from: string, to: string, numPlayers: number, numHoles: number, teeName: string = "TEE 1"): TeeTimeSlot[] => {
         const slots: TeeTimeSlot[] = [];
         const [fromHour] = from.split(":").map(Number);
         const [toHour] = to.split(":").map(Number);
@@ -1355,6 +1384,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For 18 holes, distribute evenly throughout the day
         const useSeed = numHoles === 9;
         
+        // Use teeName as seed offset for different times per tee
+        const teeOffset = teeName.charCodeAt(0) % 30;
+        
         for (let i = 0; i < numSlots && i < 8; i++) { // Max 8 slots per course
           let hour: number;
           let minute: number;
@@ -1367,10 +1399,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } else {
               hour = Math.max(fromHour, toHour - 3) + Math.floor(Math.random() * 3);
             }
-            minute = (i * slotInterval) % 60;
+            minute = ((i * slotInterval) + teeOffset) % 60;
           } else {
-            // 18 holes: Even distribution
-            const totalMinutes = i * slotInterval;
+            // 18 holes: Even distribution with tee offset
+            const totalMinutes = (i * slotInterval) + teeOffset;
             hour = fromHour + Math.floor(totalMinutes / 60);
             minute = totalMinutes % 60;
           }
@@ -1390,10 +1422,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             players: numPlayers,
             holes: numHoles,
             source: "mock-provider",
+            teeName: teeName,
           });
         }
 
         return slots.sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime());
+      };
+      
+      // Generate all slots for a course (including multiple tees)
+      const generateAllTeeSlots = (courseName: string, searchDate: string, from: string, to: string, numPlayers: number, numHoles: number): TeeTimeSlot[] => {
+        const teeNames = getTeeNames(courseName);
+        const allSlots: TeeTimeSlot[] = [];
+        
+        for (const teeName of teeNames) {
+          const teeSlots = generateMockSlots(searchDate, from, to, numPlayers, numHoles, teeName);
+          allSlots.push(...teeSlots);
+        }
+        
+        return allSlots.sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime());
       };
 
       // Filter and sort courses by distance
@@ -1436,7 +1482,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               courseName: course.name,
               distanceKm: Math.round(distance * 10) / 10,
               bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
-              slots: generateMockSlots(
+              slots: generateAllTeeSlots(
+                course.name,
                 date as string || new Date().toISOString(),
                 fromTime as string || "07:00",
                 toTime as string || "20:00",
@@ -1472,7 +1519,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             courseName: course.name,
             distanceKm: Math.round(distance * 10) / 10,
             bookingUrl: course.bookingUrl || course.websiteUrl,
-            slots: generateMockSlots(
+            slots: generateAllTeeSlots(
+              course.name,
               date as string || new Date().toISOString(),
               fromTime as string || "07:00",
               toTime as string || "20:00",
