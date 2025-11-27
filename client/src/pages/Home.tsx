@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown, Flame, Sun, Sunset, Moon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,6 +56,59 @@ function getCheapestSlot(slots: TeeTimeSlot[]): TeeTimeSlot | null {
   return slots.reduce((cheapest, current) => 
     current.greenFee < cheapest.greenFee ? current : cheapest
   );
+}
+
+// Time period classification for tee times
+type TimePeriod = 'morning' | 'midday' | 'afternoon' | 'twilight';
+
+function getTimePeriod(teeTime: Date): TimePeriod {
+  const hour = teeTime.getHours();
+  if (hour < 11) return 'morning';      // Before 11:00
+  if (hour < 14) return 'midday';       // 11:00 - 13:59
+  if (hour < 17) return 'afternoon';    // 14:00 - 16:59
+  return 'twilight';                     // 17:00+
+}
+
+function groupSlotsByPeriod(slots: TeeTimeSlot[]): Record<TimePeriod, TeeTimeSlot[]> {
+  const groups: Record<TimePeriod, TeeTimeSlot[]> = {
+    morning: [],
+    midday: [],
+    afternoon: [],
+    twilight: []
+  };
+  
+  slots.forEach(slot => {
+    const period = getTimePeriod(new Date(slot.teeTime));
+    groups[period].push(slot);
+  });
+  
+  // Sort each group by time
+  Object.keys(groups).forEach(key => {
+    groups[key as TimePeriod].sort((a, b) => 
+      new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime()
+    );
+  });
+  
+  return groups;
+}
+
+// Calculate average price to determine if a slot is a "hot deal"
+function getAveragePrice(slots: TeeTimeSlot[]): number {
+  if (slots.length === 0) return 0;
+  return slots.reduce((sum, s) => sum + s.greenFee, 0) / slots.length;
+}
+
+// Check if slot is significantly cheaper than average (20%+ discount)
+function isHotDeal(slot: TeeTimeSlot, averagePrice: number): boolean {
+  if (averagePrice === 0) return false;
+  const discountPercent = ((averagePrice - slot.greenFee) / averagePrice) * 100;
+  return discountPercent >= 15; // 15%+ cheaper = hot deal
+}
+
+// Calculate discount percentage
+function getDiscountPercent(slotPrice: number, averagePrice: number): number {
+  if (averagePrice === 0) return 0;
+  return Math.round(((averagePrice - slotPrice) / averagePrice) * 100);
 }
 
 // Utility: Sort courses by selected mode
@@ -873,58 +926,139 @@ export default function Home() {
                                   </div>
                                 </div>
 
-                                {/* Inline Tee Times - Horizontal Scroll */}
-                                <div>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                                      {t('home.availableTeeTimes')}
-                                    </p>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      asChild
-                                      data-testid={`button-details-${courseSlot.courseId}`}
-                                    >
-                                      <Link href={`/course/${courseSlot.courseId}`}>
-                                        {t('home.viewDetails')}
-                                      </Link>
-                                    </Button>
-                                  </div>
-                                  <div className="overflow-x-auto pb-2" data-testid={`slots-container-${courseSlot.courseId}`}>
-                                    <div className="flex gap-2">
-                                      {courseSlot.slots
-                                        .sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime())
-                                        .map((slot, idx) => {
-                                          const slotTime = new Date(slot.teeTime);
-                                          const formattedTime = slotTime.toLocaleTimeString("en-US", { 
-                                            hour: "2-digit", 
-                                            minute: "2-digit", 
-                                            hour12: false 
-                                          });
-                                          const formattedPrice = new Intl.NumberFormat('en-US', { 
-                                            style: 'currency', 
-                                            currency: 'EUR',
-                                            minimumFractionDigits: 0,
-                                            maximumFractionDigits: 0
-                                          }).format(slot.greenFee);
+                                {/* Tee Times with Hot Deals and Time Periods */}
+                                {(() => {
+                                  const avgPrice = getAveragePrice(courseSlot.slots);
+                                  const hotDeals = courseSlot.slots.filter(s => isHotDeal(s, avgPrice));
+                                  const groupedSlots = groupSlotsByPeriod(courseSlot.slots);
+                                  
+                                  const periodConfig: { key: TimePeriod; label: string; icon: typeof Sun }[] = [
+                                    { key: 'morning', label: t('home.morningTimes'), icon: Sun },
+                                    { key: 'midday', label: t('home.middayTimes'), icon: Sun },
+                                    { key: 'afternoon', label: t('home.afternoonTimes'), icon: Sunset },
+                                    { key: 'twilight', label: t('home.twilightTimes'), icon: Moon },
+                                  ];
+                                  
+                                  return (
+                                    <div className="space-y-3">
+                                      {/* Header with View Details */}
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                                          {t('home.availableTeeTimes')}
+                                        </p>
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          asChild
+                                          data-testid={`button-details-${courseSlot.courseId}`}
+                                        >
+                                          <Link href={`/course/${courseSlot.courseId}`}>
+                                            {t('home.viewDetails')}
+                                          </Link>
+                                        </Button>
+                                      </div>
+                                      
+                                      {/* Hot Deals Section */}
+                                      {hotDeals.length > 0 && (
+                                        <div className="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-3 border border-orange-200 dark:border-orange-800" data-testid={`hot-deals-${courseSlot.courseId}`}>
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Flame className="h-4 w-4 text-orange-500" />
+                                            <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">
+                                              {t('home.hotDealsTitle')}
+                                            </span>
+                                          </div>
+                                          <div className="flex gap-2 overflow-x-auto pb-1">
+                                            {hotDeals
+                                              .sort((a, b) => a.greenFee - b.greenFee)
+                                              .slice(0, 5)
+                                              .map((slot, idx) => {
+                                                const slotTime = new Date(slot.teeTime);
+                                                const formattedTime = slotTime.toLocaleTimeString("en-US", { 
+                                                  hour: "2-digit", minute: "2-digit", hour12: false 
+                                                });
+                                                const discount = getDiscountPercent(slot.greenFee, avgPrice);
+                                                
+                                                return (
+                                                  <Button
+                                                    key={`hot-${idx}`}
+                                                    size="sm"
+                                                    onClick={() => handleBookCourse(courseSlot, slot)}
+                                                    className="flex-shrink-0 flex flex-col items-start px-3 py-2 h-auto bg-orange-500 hover:bg-orange-600 text-white border-orange-600"
+                                                    data-testid={`button-hot-deal-${courseSlot.courseId}-${idx}`}
+                                                  >
+                                                    <div className="flex items-center gap-1">
+                                                      <Flame className="h-3 w-3" />
+                                                      <span className="font-semibold text-sm">{formattedTime}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-xs font-bold">€{slot.greenFee}</span>
+                                                      {discount > 0 && (
+                                                        <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-white/20 text-white border-0">
+                                                          -{discount}%
+                                                        </Badge>
+                                                      )}
+                                                    </div>
+                                                  </Button>
+                                                );
+                                              })}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Time Period Sections */}
+                                      <div className="space-y-2" data-testid={`slots-container-${courseSlot.courseId}`}>
+                                        {periodConfig.map(({ key, label, icon: Icon }) => {
+                                          const periodSlots = groupedSlots[key];
+                                          if (periodSlots.length === 0) return null;
                                           
                                           return (
-                                            <Button
-                                              key={idx}
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={() => handleBookCourse(courseSlot, slot)}
-                                              className="flex-shrink-0 flex flex-col items-start px-3 py-2 h-auto"
-                                              data-testid={`button-slot-${courseSlot.courseId}-${idx}`}
-                                            >
-                                              <span className="font-semibold text-sm">{formattedTime}</span>
-                                              <span className="text-xs text-muted-foreground">{formattedPrice}</span>
-                                            </Button>
+                                            <div key={key} className="flex items-start gap-2">
+                                              <div className="flex items-center gap-1 min-w-[90px] pt-1">
+                                                <Icon className="h-3 w-3 text-muted-foreground" />
+                                                <span className="text-xs text-muted-foreground">{label}</span>
+                                              </div>
+                                              <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1">
+                                                {periodSlots.slice(0, 6).map((slot, idx) => {
+                                                  const slotTime = new Date(slot.teeTime);
+                                                  const formattedTime = slotTime.toLocaleTimeString("en-US", { 
+                                                    hour: "2-digit", minute: "2-digit", hour12: false 
+                                                  });
+                                                  const slotIsHotDeal = isHotDeal(slot, avgPrice);
+                                                  
+                                                  return (
+                                                    <Button
+                                                      key={`${key}-${idx}`}
+                                                      size="sm"
+                                                      variant={slotIsHotDeal ? "default" : "outline"}
+                                                      onClick={() => handleBookCourse(courseSlot, slot)}
+                                                      className={`flex-shrink-0 flex flex-col items-start px-2 py-1.5 h-auto ${slotIsHotDeal ? 'bg-orange-500 hover:bg-orange-600 border-orange-600' : ''}`}
+                                                      data-testid={`button-slot-${courseSlot.courseId}-${key}-${idx}`}
+                                                    >
+                                                      <span className="font-medium text-xs">{formattedTime}</span>
+                                                      <span className={`text-[10px] ${slotIsHotDeal ? 'text-white/80' : 'text-muted-foreground'}`}>€{slot.greenFee}</span>
+                                                    </Button>
+                                                  );
+                                                })}
+                                                {periodSlots.length > 6 && (
+                                                  <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    asChild
+                                                    className="flex-shrink-0 px-2 py-1.5 h-auto text-xs"
+                                                  >
+                                                    <Link href={`/course/${courseSlot.courseId}`}>
+                                                      +{periodSlots.length - 6}
+                                                    </Link>
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </div>
                                           );
                                         })}
+                                      </div>
                                     </div>
-                                  </div>
-                                </div>
+                                  );
+                                })()}
 
                                 {/* Optional: Note */}
                                 {courseSlot.note && (
