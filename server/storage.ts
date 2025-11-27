@@ -50,7 +50,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc, sql as sqlFunc, sql, count, sum, and, or, isNull } from "drizzle-orm";
+import { eq, desc, sql as sqlFunc, sql, count, sum, and, or, isNull, lt } from "drizzle-orm";
 
 export interface IStorage {
   // Golf Courses
@@ -177,6 +177,7 @@ export interface IStorage {
   getAdminAlertSettings(userId: string): Promise<AdminAlertSettings | undefined>;
   upsertAdminAlertSettings(userId: string, settings: Partial<AdminAlertSettings>): Promise<AdminAlertSettings>;
   getAdminsForAlerts(): Promise<{ userId: string; email: string; alertEmail?: string | null }[]>;
+  getOverdueThreads(slaHours: number): Promise<InboundEmailThread[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -2587,6 +2588,23 @@ export class DatabaseStorage implements IStorage {
     );
 
     return results.filter((r): r is NonNullable<typeof r> => r !== null);
+  }
+
+  async getOverdueThreads(slaHours: number): Promise<InboundEmailThread[]> {
+    const slaDeadline = new Date(Date.now() - slaHours * 60 * 60 * 1000);
+    
+    return await db
+      .select()
+      .from(inboundEmailThreads)
+      .where(
+        and(
+          eq(inboundEmailThreads.requiresResponse, "true"),
+          eq(inboundEmailThreads.status, "OPEN"),
+          // Only include threads where lastActivityAt is not null and is before deadline
+          sqlFunc`${inboundEmailThreads.lastActivityAt} IS NOT NULL AND ${inboundEmailThreads.lastActivityAt} < ${slaDeadline}`
+        )
+      )
+      .orderBy(inboundEmailThreads.lastActivityAt);
   }
 }
 
