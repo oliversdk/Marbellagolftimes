@@ -3172,7 +3172,7 @@ export default function Admin() {
                     <Switch
                       checked={alertSettings?.emailAlerts === "true"}
                       onCheckedChange={(checked) => {
-                        updateAlertSettingsMutation.mutate({ emailAlerts: checked ? "true" : "false" });
+                        updateAlertSettingsMutation.mutate({ emailAlerts: checked });
                       }}
                       data-testid="switch-email-alerts"
                     />
