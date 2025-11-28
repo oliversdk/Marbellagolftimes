@@ -17,14 +17,14 @@ async function generatePDF() {
   const page = await browser.newPage();
   
   // Load the HTML file
-  const htmlPath = path.join(__dirname, 'update-report-nov2025.html');
+  const htmlPath = path.join(__dirname, 'progress-report-english.html');
   await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle0' });
   
   // Wait for fonts to load
   await new Promise(resolve => setTimeout(resolve, 2000));
   
   // Generate PDF
-  const pdfPath = path.join(__dirname, 'Marbella-Golf-Times-Opdateringer-Nov2025.pdf');
+  const pdfPath = path.join(__dirname, 'Marbella-Golf-Times-Progress-Report-Nov2025.pdf');
   await page.pdf({
     path: pdfPath,
     format: 'A4',
