@@ -173,7 +173,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // GET /api/login - Redirect to login page (for email links)
   app.get("/api/login", (req, res) => {
-    const returnTo = req.query.returnTo as string || "/";
+    let returnTo = req.query.returnTo as string || "/";
+    
+    // Security: Only allow same-origin paths (prevent open redirect attacks)
+    // Must start with "/" and not "//" to prevent protocol-relative URLs
+    if (!returnTo.startsWith("/") || returnTo.startsWith("//")) {
+      returnTo = "/";
+    }
+    
     // If already logged in, redirect directly to destination
     if (req.session?.userId) {
       return res.redirect(returnTo);

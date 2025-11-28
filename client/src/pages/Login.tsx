@@ -25,7 +25,12 @@ export default function Login() {
   
   // Parse returnTo from URL query params
   const searchParams = new URLSearchParams(searchString);
-  const returnTo = searchParams.get("returnTo") || "/";
+  let returnTo = searchParams.get("returnTo") || "/";
+  
+  // Security: Only allow same-origin paths (prevent open redirect attacks)
+  if (!returnTo.startsWith("/") || returnTo.startsWith("//")) {
+    returnTo = "/";
+  }
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),

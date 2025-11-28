@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -169,6 +169,12 @@ type AlertSettings = {
   emailAlerts: string;
   alertThresholdHours: number;
   alertEmail: string | null;
+};
+
+type AlertSettingsUpdate = {
+  emailAlerts?: boolean;
+  alertThresholdHours?: number;
+  alertEmail?: string | null;
 };
 
 type CourseOnboardingData = {
@@ -602,7 +608,7 @@ export default function Admin() {
 
   // Inbox - Update alert settings mutation
   const updateAlertSettingsMutation = useMutation({
-    mutationFn: async (settings: Partial<AlertSettings>) => {
+    mutationFn: async (settings: AlertSettingsUpdate) => {
       return await apiRequest(`/api/admin/inbox/settings`, "PATCH", settings);
     },
     onSuccess: () => {
@@ -2878,14 +2884,14 @@ export default function Admin() {
 
           {/* Inbox Tab - Course Email Conversations */}
           <TabsContent value="inbox">
-            <div className="grid lg:grid-cols-3 gap-6">
-              {/* Thread List */}
-              <div className="lg:col-span-1">
-                <Card className="h-[calc(100vh-300px)]">
-                  <CardHeader className="pb-3">
+            <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
+              {/* Thread List - Hidden on mobile when viewing a thread */}
+              <div className={`lg:col-span-1 ${selectedThreadId ? 'hidden lg:block' : 'block'}`}>
+                <Card className="h-[calc(100vh-200px)] lg:h-[calc(100vh-300px)]">
+                  <CardHeader className="pb-3 px-3 lg:px-6">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <Inbox className="h-5 w-5" />
+                      <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
+                        <Inbox className="h-4 w-4 lg:h-5 lg:w-5" />
                         {t('inbox.title')}
                         {unansweredCount > 0 && (
                           <Badge variant="destructive" data-testid="badge-inbox-header-count">
@@ -2908,6 +2914,7 @@ export default function Admin() {
                           key={filter}
                           variant={inboxFilter === filter ? "default" : "outline"}
                           size="sm"
+                          className="text-xs lg:text-sm px-2 lg:px-3"
                           onClick={() => setInboxFilter(filter)}
                           data-testid={`button-filter-${filter}`}
                         >
@@ -2922,7 +2929,7 @@ export default function Admin() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <ScrollArea className="h-[calc(100vh-450px)]">
+                    <ScrollArea className="h-[calc(100vh-350px)] lg:h-[calc(100vh-450px)]">
                       {filteredThreads.length === 0 ? (
                         <div className="p-4 text-center text-muted-foreground">
                           {t('inbox.noEmails')}
@@ -2932,7 +2939,7 @@ export default function Admin() {
                           {filteredThreads.map((thread) => (
                             <div
                               key={thread.id}
-                              className={`p-3 cursor-pointer hover-elevate ${
+                              className={`p-3 lg:p-3 cursor-pointer hover-elevate ${
                                 selectedThreadId === thread.id ? "bg-accent" : ""
                               } ${thread.isRead !== "true" ? "bg-primary/5" : ""}`}
                               onClick={() => setSelectedThreadId(thread.id)}
@@ -2942,7 +2949,7 @@ export default function Admin() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     {thread.isRead !== "true" && (
-                                      <div className="h-2 w-2 rounded-full bg-primary" />
+                                      <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
                                     )}
                                     <span className={`text-sm font-medium truncate ${thread.isRead !== "true" ? "font-semibold" : ""}`}>
                                       {thread.fromEmail}
@@ -2957,7 +2964,7 @@ export default function Admin() {
                                     </p>
                                   )}
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
+                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                   <div className="flex items-center gap-1">
                                     {thread.isMuted === "true" && (
                                       <BellOff className="h-3 w-3 text-muted-foreground" />
@@ -2988,9 +2995,9 @@ export default function Admin() {
                 </Card>
               </div>
 
-              {/* Message View & Reply */}
-              <div className="lg:col-span-2">
-                <Card className="h-[calc(100vh-300px)]">
+              {/* Message View & Reply - Full screen on mobile when viewing a thread */}
+              <div className={`lg:col-span-2 ${selectedThreadId ? 'block' : 'hidden lg:block'}`}>
+                <Card className="h-[calc(100vh-200px)] lg:h-[calc(100vh-300px)]">
                   {!selectedThreadId ? (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
                       <div className="text-center">
@@ -2998,28 +3005,55 @@ export default function Admin() {
                         <p>{t('inbox.viewThread')}</p>
                       </div>
                     </div>
-                  ) : isLoadingThread ? (
-                    <div className="flex items-center justify-center h-full">
-                      <Clock className="h-6 w-6 animate-spin" />
-                    </div>
-                  ) : selectedThread ? (
+                  ) : isLoadingThread || !selectedThread ? (
                     <div className="flex flex-col h-full">
-                      {/* Thread Header */}
-                      <CardHeader className="pb-3 border-b">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg truncate">{selectedThread.subject}</CardTitle>
-                            <CardDescription className="flex items-center gap-2 mt-1">
-                              <span>{selectedThread.fromEmail}</span>
-                              {selectedThread.courseName && (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-primary">{selectedThread.courseName}</span>
-                                </>
-                              )}
-                            </CardDescription>
-                          </div>
+                      {/* Mobile back button during loading */}
+                      <div className="p-3 lg:hidden border-b">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedThreadId(null)}
+                          data-testid="button-back-to-list-loading"
+                        >
+                          <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-center flex-1">
+                        <Clock className="h-6 w-6 animate-spin" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col h-full">
+                      {/* Thread Header - Mobile optimized */}
+                      <CardHeader className="pb-2 lg:pb-3 border-b px-3 lg:px-6">
+                        <div className="flex flex-col gap-2">
+                          {/* Mobile back button and title row */}
                           <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="lg:hidden flex-shrink-0"
+                              onClick={() => setSelectedThreadId(null)}
+                              data-testid="button-back-to-list"
+                            >
+                              <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base lg:text-lg truncate">{selectedThread.subject}</CardTitle>
+                              <CardDescription className="flex items-center gap-2 mt-1 text-sm truncate">
+                                <span className="truncate">{selectedThread.fromEmail}</span>
+                                {selectedThread.courseName && (
+                                  <>
+                                    <span className="hidden sm:inline">•</span>
+                                    <span className="text-primary truncate hidden sm:inline">{selectedThread.courseName}</span>
+                                  </>
+                                )}
+                              </CardDescription>
+                            </div>
+                          </div>
+                          
+                          {/* Action buttons - scrollable on mobile */}
+                          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                             <Select
                               value={selectedThread.courseId || "__none__"}
                               onValueChange={(courseId) => {
@@ -3029,7 +3063,7 @@ export default function Admin() {
                                 });
                               }}
                             >
-                              <SelectTrigger className="w-[200px]" data-testid="select-link-course">
+                              <SelectTrigger className="w-[140px] lg:w-[200px] flex-shrink-0" data-testid="select-link-course">
                                 <SelectValue placeholder={t('inbox.linkToCourse')} />
                               </SelectTrigger>
                               <SelectContent>
@@ -3045,19 +3079,21 @@ export default function Admin() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="flex-shrink-0"
                               onClick={() => updateThreadStatusMutation.mutate({
                                 threadId: selectedThread.id,
                                 status: selectedThread.status === "ARCHIVED" ? "OPEN" : "ARCHIVED"
                               })}
                               data-testid="button-archive-thread"
                             >
-                              <Archive className="h-4 w-4 mr-1" />
-                              {selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}
+                              <Archive className="h-4 w-4 lg:mr-1" />
+                              <span className="hidden lg:inline">{selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}</span>
                             </Button>
                             
                             <Button
                               variant={selectedThread.isMuted === "true" ? "default" : "outline"}
                               size="sm"
+                              className="flex-shrink-0"
                               onClick={() => muteThreadMutation.mutate({
                                 threadId: selectedThread.id,
                                 muted: selectedThread.isMuted !== "true"
@@ -3066,13 +3102,13 @@ export default function Admin() {
                             >
                               {selectedThread.isMuted === "true" ? (
                                 <>
-                                  <Bell className="h-4 w-4 mr-1" />
-                                  {t('inbox.unmute')}
+                                  <Bell className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{t('inbox.unmute')}</span>
                                 </>
                               ) : (
                                 <>
-                                  <BellOff className="h-4 w-4 mr-1" />
-                                  {t('inbox.mute')}
+                                  <BellOff className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{t('inbox.mute')}</span>
                                 </>
                               )}
                             </Button>
@@ -3081,14 +3117,15 @@ export default function Admin() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                className="flex-shrink-0"
                                 onClick={() => updateThreadStatusMutation.mutate({
                                   threadId: selectedThread.id,
                                   status: "CLOSED"
                                 })}
                                 data-testid="button-close-thread"
                               >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                {t('inbox.close')}
+                                <XCircle className="h-4 w-4 lg:mr-1" />
+                                <span className="hidden lg:inline">{t('inbox.close')}</span>
                               </Button>
                             )}
                           </div>
@@ -3096,32 +3133,32 @@ export default function Admin() {
                       </CardHeader>
 
                       {/* Messages */}
-                      <ScrollArea className="flex-1 p-4">
+                      <ScrollArea className="flex-1 p-3 lg:p-4">
                         {!selectedThread.messages || selectedThread.messages.length === 0 ? (
                           <div className="text-center text-muted-foreground py-8">
                             {t('inbox.noMessages')}
                           </div>
                         ) : (
-                          <div className="space-y-4">
+                          <div className="space-y-3 lg:space-y-4">
                             {selectedThread.messages.map((msg) => (
                               <div
                                 key={msg.id}
-                                className={`p-4 rounded-lg ${
+                                className={`p-3 lg:p-4 rounded-lg ${
                                   msg.direction === "OUT" 
-                                    ? "bg-primary/10 ml-8" 
-                                    : "bg-muted mr-8"
+                                    ? "bg-primary/10 ml-4 lg:ml-8" 
+                                    : "bg-muted mr-4 lg:mr-8"
                                 }`}
                                 data-testid={`message-${msg.id}`}
                               >
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-medium">
+                                <div className="flex items-center justify-between mb-2 gap-2">
+                                  <span className="text-sm font-medium truncate">
                                     {msg.direction === "OUT" ? t('inbox.you') : msg.fromEmail}
                                   </span>
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                                     {format(new Date(msg.receivedAt), "PPp")}
                                   </span>
                                 </div>
-                                <div className="text-sm whitespace-pre-wrap">
+                                <div className="text-sm whitespace-pre-wrap break-words">
                                   {msg.bodyText || t('inbox.noContent')}
                                 </div>
                               </div>
@@ -3130,17 +3167,18 @@ export default function Admin() {
                         )}
                       </ScrollArea>
 
-                      {/* Reply Box */}
-                      <div className="p-4 border-t">
-                        <div className="flex gap-2">
+                      {/* Reply Box - Mobile optimized */}
+                      <div className="p-3 lg:p-4 border-t">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Textarea
                             value={replyText}
                             onChange={(e) => setReplyText(e.target.value)}
                             placeholder={t('inbox.replyPlaceholder')}
-                            className="flex-1 min-h-[80px]"
+                            className="flex-1 min-h-[60px] lg:min-h-[80px]"
                             data-testid="textarea-reply"
                           />
                           <Button
+                            className="w-full sm:w-auto"
                             onClick={() => {
                               if (selectedThreadId && replyText.trim()) {
                                 sendReplyMutation.mutate({ threadId: selectedThreadId, body: replyText });
@@ -3155,7 +3193,7 @@ export default function Admin() {
                         </div>
                       </div>
                     </div>
-                  ) : null}
+                  )}
                 </Card>
               </div>
             </div>
