@@ -139,6 +139,7 @@ type InboundEmailThread = {
   status: "OPEN" | "REPLIED" | "CLOSED" | "ARCHIVED";
   isRead: string;
   requiresResponse: string;
+  isMuted: string;
   lastActivityAt: string;
   respondedAt: string | null;
   respondedByUserId: string | null;
@@ -2951,9 +2952,14 @@ export default function Admin() {
                                   )}
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(new Date(thread.lastActivityAt), "MMM d")}
-                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    {thread.isMuted === "true" && (
+                                      <BellOff className="h-3 w-3 text-muted-foreground" />
+                                    )}
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(new Date(thread.lastActivityAt), "MMM d")}
+                                    </span>
+                                  </div>
                                   <Badge 
                                     variant={
                                       thread.status === "OPEN" && thread.requiresResponse === "true" ? "destructive" :

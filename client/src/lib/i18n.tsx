@@ -1107,6 +1107,13 @@ const translations: Record<Language, Translations> = {
       failedToUpdateStatus: 'Kunne ikke opdatere trådstatus',
       failedToLinkThread: 'Kunne ikke linke tråd til bane',
       failedToSaveSettings: 'Kunne ikke gemme indstillinger',
+      mute: 'Slå fra',
+      unmute: 'Slå til',
+      threadMuted: 'Tråd slået fra',
+      threadMutedDescription: 'Du modtager ikke længere alarmer for denne tråd',
+      threadUnmuted: 'Tråd slået til',
+      threadUnmutedDescription: 'Du modtager igen alarmer for denne tråd',
+      failedToMuteThread: 'Kunne ikke slå tråd fra',
     },
     profile: {
       title: 'Min Profil',
