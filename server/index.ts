@@ -83,7 +83,7 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Start the inbox alert scheduler
-    startAlertScheduler();
+    // Alert scheduler disabled - too many emails being sent
+    // startAlertScheduler();
   });
 })();
