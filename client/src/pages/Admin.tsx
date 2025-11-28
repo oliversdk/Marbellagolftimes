@@ -1770,7 +1770,7 @@ export default function Admin() {
                     )}
                   </div>
                   
-                  <TableCard<BookingRequest & { courseName?: string }>
+                  <TableCard
                     columns={[
                       {
                         key: "teeTime",
@@ -1809,8 +1809,8 @@ export default function Admin() {
                         render: (value) => value ? `€${(value as number).toFixed(0)}` : "-",
                       },
                     ] as TableCardColumn<BookingRequest & { courseName?: string }>[]}
-                    data={filteredBookings}
-                    onRowClick={(booking) => setSelectedBooking(booking)}
+                    data={filteredBookings as (BookingRequest & { courseName?: string })[]}
+                    onRowClick={(booking) => setSelectedBooking(booking as BookingRequest)}
                     emptyMessage={t('admin.noBookings')}
                     keyExtractor={(row) => row.id}
                   />
@@ -1934,12 +1934,12 @@ export default function Admin() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Showing {filteredUsers.length} of {users?.length || 0} users
                     </p>
-                    <TableCard<User>
+                    <TableCard
                       columns={[
                         {
                           key: "name" as keyof User,
                           label: "Name",
-                          render: (_value, row) => (
+                          render: (_value, row: User) => (
                             <span className="font-medium">
                               {row.firstName} {row.lastName}
                             </span>
@@ -1971,7 +1971,7 @@ export default function Admin() {
                         {
                           key: "id" as keyof User,
                           label: "Actions",
-                          render: (_value, row) => (
+                          render: (_value, row: User) => (
                             <>
                               {/* Desktop: Show all buttons */}
                               <div className="hidden sm:flex justify-end gap-2">
@@ -2057,8 +2057,8 @@ export default function Admin() {
                             </>
                           ),
                         },
-                      ]}
-                      data={filteredUsers}
+                      ] as TableCardColumn<User>[]}
+                      data={filteredUsers as User[]}
                       keyExtractor={(row) => row.id}
                       emptyMessage="No users found"
                     />
@@ -4340,7 +4340,7 @@ export default function Admin() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Total bookings: {userBookings.length}
                   </p>
-                  <TableCard<BookingRequest>
+                  <TableCard
                     columns={[
                       {
                         key: "courseId" as keyof BookingRequest,
@@ -4375,8 +4375,8 @@ export default function Admin() {
                           </span>
                         ),
                       },
-                    ]}
-                    data={userBookings}
+                    ] as TableCardColumn<BookingRequest>[]}
+                    data={userBookings as BookingRequest[]}
                     keyExtractor={(row) => row.id}
                     emptyMessage="No bookings found for this user"
                   />
