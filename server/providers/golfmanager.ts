@@ -70,7 +70,6 @@ export class GolfmanagerProvider {
     console.log(`[Golfmanager] Base URL: ${config.baseUrl}`);
     console.log(`[Golfmanager] Tenant: ${config.tenant}`);
     console.log(`[Golfmanager] User: ${config.user}`);
-    console.log(`[Golfmanager] Has Password: ${!!config.password}`);
   }
 
   /**
