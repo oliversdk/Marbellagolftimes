@@ -452,7 +452,10 @@ export default function Admin() {
       if (!selectedThreadId) return null;
       const res = await fetch(`/api/admin/inbox/${selectedThreadId}`);
       if (!res.ok) throw new Error("Failed to fetch thread");
-      return res.json();
+      const thread = await res.json();
+      // Backend marks thread as read - refresh the list to update visual state
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      return thread;
     },
     enabled: !!selectedThreadId && isAuthenticated && isAdmin,
   });
