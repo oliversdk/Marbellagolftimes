@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,11 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function Login() {
   const { t } = useI18n();
   const { toast } = useToast();
+  const searchString = useSearch();
+  
+  // Parse returnTo from URL query params
+  const searchParams = new URLSearchParams(searchString);
+  const returnTo = searchParams.get("returnTo") || "/";
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -37,7 +42,8 @@ export default function Login() {
         title: t('common.success'),
         description: t('auth.loginSuccess'),
       });
-      window.location.href = "/";
+      // Redirect to returnTo URL after successful login
+      window.location.href = returnTo;
     } catch (error: any) {
       toast({
         variant: "destructive",

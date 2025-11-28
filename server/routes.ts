@@ -171,6 +171,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // GET /api/login - Redirect to login page (for email links)
+  app.get("/api/login", (req, res) => {
+    const returnTo = req.query.returnTo as string || "/";
+    // If already logged in, redirect directly to destination
+    if (req.session?.userId) {
+      return res.redirect(returnTo);
+    }
+    // Otherwise redirect to login page with returnTo param
+    res.redirect(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+  });
+
   // GET /api/auth/user - Get current user
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {
     try {

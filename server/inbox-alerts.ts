@@ -209,7 +209,7 @@ This is an automated alert. You can adjust alert settings in the Admin Inbox.
     
     <p>Please log in to your Admin dashboard to respond to these emails promptly.</p>
     
-    <a href="https://marbellagolftimes.com/admin" class="cta">Open Admin Dashboard</a>
+    <a href="https://marbellagolftimes.com/api/login?returnTo=/admin?tab=inbox" class="cta">Open Inbox</a>
     
     <div class="footer">
       <p>This is an automated alert from Marbella Golf Times.<br>
