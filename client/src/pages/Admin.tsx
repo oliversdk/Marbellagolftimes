@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { Header } from "@/components/Header";
 import { CourseCard } from "@/components/CourseCard";
 import { OptimizedImage } from "@/components/OptimizedImage";
@@ -35,7 +36,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
+import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -293,6 +298,12 @@ export default function Admin() {
   const [replyText, setReplyText] = useState("");
   const [showAlertSettings, setShowAlertSettings] = useState(false);
   
+  // Bookings tab state
+  const [bookingSearchQuery, setBookingSearchQuery] = useState("");
+  const [bookingStatusFilter, setBookingStatusFilter] = useState<string>("ALL");
+  const [bookingDateFilter, setBookingDateFilter] = useState<Date | undefined>(undefined);
+  const [selectedBooking, setSelectedBooking] = useState<BookingRequest | null>(null);
+  
   // Update active tab when URL changes
   useEffect(() => {
     if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox"].includes(tabFromUrl)) {
@@ -303,6 +314,7 @@ export default function Admin() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, isAdmin, user } = useAuth();
   const { t } = useI18n();
+  const { isMobile } = useBreakpoint();
 
   // Fetch courses (public endpoint)
   const { data: courses } = useQuery<GolfCourse[]>({
@@ -378,6 +390,40 @@ export default function Admin() {
       (user.phoneNumber && user.phoneNumber.toLowerCase().includes(query))
     );
   });
+
+  // Filter bookings based on search, status, and date
+  const filteredBookings = useMemo(() => {
+    if (!bookings) return [];
+    return bookings.filter((booking) => {
+      const matchesSearch = !bookingSearchQuery || 
+        booking.customerName.toLowerCase().includes(bookingSearchQuery.toLowerCase()) ||
+        booking.customerEmail.toLowerCase().includes(bookingSearchQuery.toLowerCase()) ||
+        (booking.customerPhone && booking.customerPhone.includes(bookingSearchQuery));
+      
+      const matchesStatus = bookingStatusFilter === "ALL" || booking.status === bookingStatusFilter;
+      
+      const matchesDate = !bookingDateFilter || 
+        format(new Date(booking.teeTime), "yyyy-MM-dd") === format(bookingDateFilter, "yyyy-MM-dd");
+      
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [bookings, bookingSearchQuery, bookingStatusFilter, bookingDateFilter]);
+
+  // Calculate booking stats
+  const bookingStats = useMemo(() => {
+    const total = bookings?.length || 0;
+    const pending = bookings?.filter(b => b.status === "PENDING").length || 0;
+    const confirmed = bookings?.filter(b => b.status === "CONFIRMED").length || 0;
+    const cancelled = bookings?.filter(b => b.status === "CANCELLED").length || 0;
+    const totalRevenue = bookings?.reduce((sum, b) => sum + (b.estimatedPrice || 0), 0) || 0;
+    return { total, pending, confirmed, cancelled, totalRevenue };
+  }, [bookings]);
+
+  // Get course name by ID
+  const getCourseNameById = (courseId: string) => {
+    const course = courses?.find(c => c.id === courseId);
+    return course?.name || courseId;
+  };
 
   // Fetch contact logs for selected course profile
   const { data: profileContactLogs, isLoading: isLoadingProfileContactLogs } = useQuery<CourseContactLog[]>({
@@ -1615,50 +1661,231 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="bookings">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('admin.recentBookingRequests')}</CardTitle>
-                <CardDescription>
-                  {t('admin.bookingRequestsDescription')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {bookings && bookings.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('admin.tableHeaderCustomer')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderCourse')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderTeeTime')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderPlayers')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderStatus')}</TableHead>
-                        <TableHead>{t('admin.tableHeaderContact')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bookings.map((booking) => (
-                        <TableRow key={booking.id} data-testid={`row-booking-${booking.id}`}>
-                          <TableCell className="font-medium">{booking.customerName}</TableCell>
-                          <TableCell>{booking.courseId}</TableCell>
-                          <TableCell>
-                            {format(new Date(booking.teeTime), "PPp")}
-                          </TableCell>
-                          <TableCell>{booking.players}</TableCell>
-                          <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {booking.customerEmail}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    {t('admin.noBookings')}
+            <div className="space-y-6">
+              <MobileCardGrid columns={{ mobile: 1, tablet: 2, desktop: 4 }} gap="md">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Total Bookings</span>
+                    </div>
+                    <p className="text-2xl font-bold" data-testid="stat-total-bookings">{bookingStats.total}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Clock className="h-4 w-4 text-yellow-600" />
+                      <span className="text-sm font-medium text-muted-foreground">Pending</span>
+                    </div>
+                    <p className="text-2xl font-bold text-yellow-600" data-testid="stat-pending-bookings">{bookingStats.pending}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-muted-foreground">Confirmed</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-600" data-testid="stat-confirmed-bookings">{bookingStats.confirmed}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-muted-foreground">Est. Revenue</span>
+                    </div>
+                    <p className="text-2xl font-bold" data-testid="stat-total-revenue">€{bookingStats.totalRevenue.toFixed(0)}</p>
+                  </CardContent>
+                </Card>
+              </MobileCardGrid>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('admin.recentBookingRequests')}</CardTitle>
+                  <CardDescription>
+                    {t('admin.bookingRequestsDescription')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-4 sm:items-center">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name, email, phone..."
+                        value={bookingSearchQuery}
+                        onChange={(e) => setBookingSearchQuery(e.target.value)}
+                        className="pl-9"
+                        data-testid="input-booking-search"
+                      />
+                    </div>
+                    <Select value={bookingStatusFilter} onValueChange={setBookingStatusFilter}>
+                      <SelectTrigger className="w-full sm:w-[150px]" data-testid="select-booking-status">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Status</SelectItem>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-[200px] justify-start text-left font-normal" data-testid="button-date-filter">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {bookingDateFilter ? format(bookingDateFilter, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={bookingDateFilter}
+                          onSelect={setBookingDateFilter}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {(bookingSearchQuery || bookingStatusFilter !== "ALL" || bookingDateFilter) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setBookingSearchQuery("");
+                          setBookingStatusFilter("ALL");
+                          setBookingDateFilter(undefined);
+                        }}
+                        className="w-full sm:w-auto"
+                        data-testid="button-clear-filters"
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <TableCard<BookingRequest & { courseName?: string }>
+                    columns={[
+                      {
+                        key: "teeTime",
+                        label: "Date",
+                        render: (value) => format(new Date(value as string), "PP"),
+                      },
+                      {
+                        key: "teeTime",
+                        label: "Time",
+                        hideOnMobile: true,
+                        render: (value) => format(new Date(value as string), "p"),
+                      },
+                      {
+                        key: "courseId",
+                        label: "Course",
+                        render: (value) => getCourseNameById(value as string),
+                      },
+                      {
+                        key: "customerName",
+                        label: "Customer",
+                      },
+                      {
+                        key: "players",
+                        label: "Players",
+                        hideOnMobile: true,
+                      },
+                      {
+                        key: "status",
+                        label: "Status",
+                        render: (value) => getStatusBadge(value as string),
+                      },
+                      {
+                        key: "estimatedPrice",
+                        label: "Price",
+                        hideOnMobile: true,
+                        render: (value) => value ? `€${(value as number).toFixed(0)}` : "-",
+                      },
+                    ] as TableCardColumn<BookingRequest & { courseName?: string }>[]}
+                    data={filteredBookings}
+                    onRowClick={(booking) => setSelectedBooking(booking)}
+                    emptyMessage={t('admin.noBookings')}
+                    keyExtractor={(row) => row.id}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            <Dialog open={!!selectedBooking} onOpenChange={(open) => !open && setSelectedBooking(null)}>
+              <DialogContent className="w-full max-w-[95vw] sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Booking Details</DialogTitle>
+                  <DialogDescription>
+                    Booking #{selectedBooking?.id?.slice(0, 8)}
+                  </DialogDescription>
+                </DialogHeader>
+                {selectedBooking && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Customer</Label>
+                        <p className="font-medium">{selectedBooking.customerName}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Email</Label>
+                        <p className="text-sm">{selectedBooking.customerEmail}</p>
+                      </div>
+                      {selectedBooking.customerPhone && (
+                        <div className="space-y-1">
+                          <Label className="text-muted-foreground text-xs">Phone</Label>
+                          <p className="text-sm">{selectedBooking.customerPhone}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Course</Label>
+                        <p className="font-medium">{getCourseNameById(selectedBooking.courseId)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Players</Label>
+                        <p className="font-medium">{selectedBooking.players}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Date</Label>
+                        <p className="font-medium">{format(new Date(selectedBooking.teeTime), "PPP")}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Time</Label>
+                        <p className="font-medium">{format(new Date(selectedBooking.teeTime), "p")}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Status</Label>
+                        <div>{getStatusBadge(selectedBooking.status)}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Est. Price</Label>
+                        <p className="font-medium">{selectedBooking.estimatedPrice ? `€${selectedBooking.estimatedPrice.toFixed(0)}` : "-"}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-muted-foreground text-xs">Created</Label>
+                      <p className="text-sm text-muted-foreground">{format(new Date(selectedBooking.createdAt), "PPpp")}</p>
+                    </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+                <DialogFooter className="flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedBooking(null)}
+                    className="w-full sm:w-auto"
+                    data-testid="button-close-booking-dialog"
+                  >
+                    Close
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="users">
