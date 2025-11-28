@@ -167,6 +167,7 @@ export interface IStorage {
   updateInboundThread(id: string, updates: Partial<InboundEmailThread>): Promise<InboundEmailThread | undefined>;
   markThreadAsRead(id: string): Promise<InboundEmailThread | undefined>;
   markThreadAsReplied(id: string, userId: string): Promise<InboundEmailThread | undefined>;
+  muteThread(id: string, muted: boolean): Promise<InboundEmailThread | undefined>;
   
   // Inbound Emails (messages within threads)
   getEmailsByThreadId(threadId: string): Promise<InboundEmail[]>;
@@ -2473,6 +2474,15 @@ export class DatabaseStorage implements IStorage {
         respondedByUserId: userId,
         lastActivityAt: new Date(),
       })
+      .where(eq(inboundEmailThreads.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async muteThread(id: string, muted: boolean): Promise<InboundEmailThread | undefined> {
+    const result = await db
+      .update(inboundEmailThreads)
+      .set({ isMuted: muted ? "true" : "false" })
       .where(eq(inboundEmailThreads.id, id))
       .returning();
     return result[0];

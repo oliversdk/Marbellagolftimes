@@ -1016,6 +1016,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/admin/inbox/:id/mute - Mute/unmute thread alerts (Admin only)
+  app.patch("/api/admin/inbox/:id/mute", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      const { muted } = req.body;
+      if (typeof muted !== "boolean") {
+        return res.status(400).json({ error: "muted must be a boolean" });
+      }
+      
+      const updatedThread = await storage.muteThread(req.params.id, muted);
+      res.json(updatedThread);
+    } catch (error) {
+      console.error("Failed to mute thread:", error);
+      res.status(500).json({ error: "Failed to mute thread" });
+    }
+  });
+
   // GET /api/admin/inbox/settings - Get admin alert settings (Admin only)
   app.get("/api/admin/inbox/settings", isAuthenticated, isAdmin, async (req, res) => {
     try {

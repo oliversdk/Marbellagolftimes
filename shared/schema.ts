@@ -279,6 +279,7 @@ export const inboundEmailThreads = pgTable("inbound_email_threads", {
   // Alert tracking
   lastAlertSentAt: timestamp("last_alert_sent_at"),
   alertCount: integer("alert_count").notNull().default(0),
+  isMuted: text("is_muted").notNull().default("false"), // Mute alerts for this thread
   // Timestamps
   lastActivityAt: timestamp("last_activity_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -564,6 +564,30 @@ export default function Admin() {
       toast({
         title: t('inbox.error'),
         description: t('inbox.failedToLinkThread'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Mute/unmute thread mutation
+  const muteThreadMutation = useMutation({
+    mutationFn: async ({ threadId, muted }: { threadId: string; muted: boolean }) => {
+      return await apiRequest(`/api/admin/inbox/${threadId}/mute`, "PATCH", { muted });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      if (selectedThreadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox", selectedThreadId] });
+      }
+      toast({
+        title: variables.muted ? t('inbox.threadMuted') : t('inbox.threadUnmuted'),
+        description: variables.muted ? t('inbox.threadMutedDescription') : t('inbox.threadUnmutedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToMuteThread'),
         variant: "destructive",
       });
     },
@@ -3017,6 +3041,28 @@ export default function Admin() {
                             >
                               <Archive className="h-4 w-4 mr-1" />
                               {selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}
+                            </Button>
+                            
+                            <Button
+                              variant={selectedThread.isMuted === "true" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => muteThreadMutation.mutate({
+                                threadId: selectedThread.id,
+                                muted: selectedThread.isMuted !== "true"
+                              })}
+                              data-testid="button-mute-thread"
+                            >
+                              {selectedThread.isMuted === "true" ? (
+                                <>
+                                  <Bell className="h-4 w-4 mr-1" />
+                                  {t('inbox.unmute')}
+                                </>
+                              ) : (
+                                <>
+                                  <BellOff className="h-4 w-4 mr-1" />
+                                  {t('inbox.mute')}
+                                </>
+                              )}
                             </Button>
                             
                             {selectedThread.status !== "CLOSED" && (

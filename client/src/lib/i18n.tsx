@@ -322,6 +322,13 @@ const translations: Record<Language, Translations> = {
       failedToUpdateStatus: 'Failed to update thread status',
       failedToLinkThread: 'Failed to link thread to course',
       failedToSaveSettings: 'Failed to save settings',
+      mute: 'Mute',
+      unmute: 'Unmute',
+      threadMuted: 'Thread muted',
+      threadMutedDescription: 'You will no longer receive alerts for this thread',
+      threadUnmuted: 'Thread unmuted',
+      threadUnmutedDescription: 'You will receive alerts for this thread again',
+      failedToMuteThread: 'Failed to mute thread',
     },
     profile: {
       title: 'My Profile',

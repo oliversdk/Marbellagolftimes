@@ -64,7 +64,13 @@ export async function checkAndSendAlerts(): Promise<{ sent: number; errors: numb
         }
 
         // Filter out threads we've recently alerted THIS admin about (per-admin cooldown)
+        // Also filter out muted threads
         const threadsToAlert = overdueThreads.filter(thread => {
+          // Skip muted threads
+          if (thread.isMuted === "true") {
+            return false;
+          }
+          
           // Skip threads with null lastActivityAt
           if (!thread.lastActivityAt) {
             return false;
