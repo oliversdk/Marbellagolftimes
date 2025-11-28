@@ -3454,11 +3454,19 @@ export default function Admin() {
                                       thread.status === "OPEN" && thread.requiresResponse === "true" ? "destructive" :
                                       thread.status === "OPEN" ? "secondary" :
                                       thread.status === "REPLIED" ? "default" :
+                                      thread.status === "CLOSED" ? "outline" :
                                       "outline"
                                     }
-                                    className="text-xs"
+                                    className={`text-xs ${
+                                      thread.status === "REPLIED" ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" :
+                                      thread.status === "CLOSED" ? "bg-slate-500 hover:bg-slate-600 text-white border-slate-500" :
+                                      thread.status === "ARCHIVED" ? "bg-slate-300 hover:bg-slate-400 text-slate-700 border-slate-300 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600" :
+                                      ""
+                                    }`}
                                   >
-                                    {t(`inbox.${thread.status.toLowerCase()}`)}
+                                    {thread.status === "OPEN" && thread.requiresResponse === "true" 
+                                      ? t('inbox.needsResponse') || "Needs Response"
+                                      : t(`inbox.${thread.status.toLowerCase()}`)}
                                   </Badge>
                                 </div>
                               </div>
