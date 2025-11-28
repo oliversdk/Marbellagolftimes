@@ -159,24 +159,24 @@ export function BookingModal({
 
   const renderTimeSelection = () => (
     <>
-      <DialogHeader>
-        <DialogTitle className="font-serif">{t('booking.title')}</DialogTitle>
+      <DialogHeader className="pb-2">
+        <DialogTitle className="font-serif text-lg sm:text-xl">{t('booking.title')}</DialogTitle>
         <DialogDescription>
           {course && (
-            <span className="font-medium text-foreground block">
+            <span className="font-medium text-foreground block text-sm sm:text-base">
               {course.name} - {course.city}
             </span>
           )}
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-4 py-4">
+      <div className="space-y-4 py-2 sm:py-4 flex-1 overflow-y-auto">
         <div className="grid grid-cols-3 gap-2">
           <Button
             variant={searchDate.toDateString() === new Date().toDateString() ? "default" : "outline"}
             onClick={() => setSearchDate(new Date())}
             size="default"
-            className="flex-1 min-h-11"
+            className="flex-1 min-h-[44px] text-xs sm:text-sm"
             data-testid="button-date-today"
           >
             {t('common.today')}
@@ -185,7 +185,7 @@ export function BookingModal({
             variant={searchDate.toDateString() === addDays(new Date(), 1).toDateString() ? "default" : "outline"}
             onClick={() => setSearchDate(addDays(new Date(), 1))}
             size="default"
-            className="flex-1 min-h-11"
+            className="flex-1 min-h-[44px] text-xs sm:text-sm"
             data-testid="button-date-tomorrow"
           >
             {t('common.tomorrow')}
@@ -194,7 +194,7 @@ export function BookingModal({
             variant={searchDate.toDateString() === addDays(new Date(), 2).toDateString() ? "default" : "outline"}
             onClick={() => setSearchDate(addDays(new Date(), 2))}
             size="default"
-            className="flex-1 min-h-11"
+            className="flex-1 min-h-[44px] text-xs sm:text-sm"
             data-testid="button-date-day-after"
           >
             {format(addDays(new Date(), 2), 'EEE')}
@@ -202,14 +202,14 @@ export function BookingModal({
         </div>
 
         <div className="space-y-2">
-          <Label>{t('booking.numberOfPlayers')}</Label>
+          <Label className="text-sm">{t('booking.numberOfPlayers')}</Label>
           <Select value={players} onValueChange={setPlayers}>
-            <SelectTrigger data-testid="select-players-search" className="min-h-11">
+            <SelectTrigger data-testid="select-players-search" className="min-h-[44px] text-base sm:text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {[1, 2, 3, 4].map((num) => (
-                <SelectItem key={num} value={num.toString()}>
+                <SelectItem key={num} value={num.toString()} className="min-h-[44px]">
                   {num} {num === 1 ? t('search.player') : t('search.players')}
                 </SelectItem>
               ))}
@@ -217,8 +217,8 @@ export function BookingModal({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>{t('booking.availableTimes')}</Label>
+        <div className="space-y-2 flex-1">
+          <Label className="text-sm">{t('booking.availableTimes')}</Label>
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
@@ -226,7 +226,7 @@ export function BookingModal({
               ))}
             </div>
           ) : courseSlots && courseSlots.slots.length > 0 ? (
-            <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2" data-testid="list-available-slots">
+            <div className="max-h-[40vh] sm:max-h-[300px] overflow-y-auto space-y-2 pr-1" data-testid="list-available-slots">
               {courseSlots.slots.map((slot, index) => (
                 <Card
                   key={index}
@@ -234,11 +234,11 @@ export function BookingModal({
                   onClick={() => handleSlotSelect(slot)}
                   data-testid={`slot-option-${index}`}
                 >
-                  <CardContent className="flex items-center justify-between p-4 min-h-16">
-                    <div className="flex items-center gap-3">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
+                  <CardContent className="flex items-center justify-between p-3 sm:p-4 min-h-[56px] sm:min-h-16">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                       <div>
-                        <div className="font-medium">
+                        <div className="font-medium text-sm sm:text-base">
                           {format(new Date(slot.teeTime), 'HH:mm')}
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -247,7 +247,7 @@ export function BookingModal({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-primary">
+                      <span className="font-medium text-primary text-sm sm:text-base">
                         €{slot.greenFee}
                       </span>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -258,7 +258,7 @@ export function BookingModal({
             </div>
           ) : (
             <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
+              <CardContent className="p-4 sm:p-6 text-center text-sm text-muted-foreground">
                 {t('home.noTeeTimesMessage')}
               </CardContent>
             </Card>
@@ -266,13 +266,13 @@ export function BookingModal({
         </div>
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="pt-2 sm:pt-4">
         <Button
           type="button"
           variant="outline"
           onClick={() => onOpenChange(false)}
           data-testid="button-cancel-booking"
-          className="min-h-11"
+          className="w-full sm:w-auto min-h-[44px]"
         >
           {t('common.cancel')}
         </Button>
@@ -282,16 +282,16 @@ export function BookingModal({
 
   const renderDetailsForm = () => (
     <>
-      <DialogHeader>
-        <DialogTitle className="font-serif">{t('booking.title')}</DialogTitle>
+      <DialogHeader className="pb-2">
+        <DialogTitle className="font-serif text-lg sm:text-xl">{t('booking.title')}</DialogTitle>
         <DialogDescription>
           {course && (
             <>
-              <span className="font-medium text-foreground block">
+              <span className="font-medium text-foreground block text-sm sm:text-base">
                 {course.name} - {course.city}
               </span>
               {selectedSlot && (
-                <span className="text-sm text-primary mt-1 block">
+                <span className="text-xs sm:text-sm text-primary mt-1 block">
                   {format(new Date(selectedSlot.teeTime), "PPp")} • €{selectedSlot.greenFee}
                 </span>
               )}
@@ -300,9 +300,9 @@ export function BookingModal({
         </DialogDescription>
       </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 flex-1 py-2 sm:py-4">
         <div className="space-y-2">
-          <Label htmlFor="customer-name">{t('booking.name')}</Label>
+          <Label htmlFor="customer-name" className="text-sm">{t('booking.name')}</Label>
           <Input
             id="customer-name"
             value={customerName}
@@ -310,12 +310,12 @@ export function BookingModal({
             placeholder={t('placeholders.name')}
             required
             data-testid="input-customer-name"
-            className="min-h-11"
+            className="min-h-[44px] text-base sm:text-sm"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="customer-email">{t('booking.email')}</Label>
+          <Label htmlFor="customer-email" className="text-sm">{t('booking.email')}</Label>
           <Input
             id="customer-email"
             type="email"
@@ -324,12 +324,12 @@ export function BookingModal({
             placeholder={t('placeholders.email')}
             required
             data-testid="input-customer-email"
-            className="min-h-11"
+            className="min-h-[44px] text-base sm:text-sm"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="customer-phone">{t('booking.phone')}</Label>
+          <Label htmlFor="customer-phone" className="text-sm">{t('booking.phone')}</Label>
           <Input
             id="customer-phone"
             type="tel"
@@ -337,11 +337,11 @@ export function BookingModal({
             onChange={(e) => setCustomerPhone(e.target.value)}
             placeholder={t('placeholders.phone')}
             data-testid="input-customer-phone"
-            className="min-h-11"
+            className="min-h-[44px] text-base sm:text-sm"
           />
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 pt-2 sm:pt-4">
           {!preSelectedSlot && (
             <Button
               type="button"
@@ -349,7 +349,7 @@ export function BookingModal({
               onClick={handleBackToSlots}
               disabled={isPending}
               data-testid="button-back-to-slots"
-              className="min-h-11"
+              className="w-full sm:w-auto min-h-[44px]"
             >
               {t('common.back')}
             </Button>
@@ -360,7 +360,7 @@ export function BookingModal({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
             data-testid="button-cancel-booking"
-            className="min-h-11"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             {t('common.cancel')}
           </Button>
@@ -368,7 +368,7 @@ export function BookingModal({
             type="submit"
             disabled={isPending}
             data-testid="button-submit-booking"
-            className="min-h-11"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             {isPending ? t('common.loading') : t('booking.submitBooking')}
           </Button>
@@ -379,7 +379,10 @@ export function BookingModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto" data-testid="dialog-booking">
+      <DialogContent 
+        className="w-full h-full max-h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-[500px] rounded-none sm:rounded-lg overflow-y-auto p-4 sm:p-6" 
+        data-testid="dialog-booking"
+      >
         {step === 'select-time' ? renderTimeSelection() : renderDetailsForm()}
       </DialogContent>
     </Dialog>

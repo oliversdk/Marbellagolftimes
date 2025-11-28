@@ -17,7 +17,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown, Flame, Sun, Sunset, Moon, MapPin, Car, Navigation } from "lucide-react";
+import { MobileSheet } from "@/components/ui/mobile-sheet";
+import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown, Flame, Sun, Sunset, Moon, MapPin, Car, Navigation, SlidersHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/hooks/useAuth";
@@ -190,10 +193,12 @@ export default function Home() {
     email: string;
     phone: string;
   } | null>(null);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const { toast } = useToast();
   const { t } = useI18n();
   const { favorites } = useFavorites();
   const { isAuthenticated, user } = useAuth();
+  const { isMobile, isTablet, isDesktop } = useBreakpoint();
   const isAdmin = user?.isAdmin === "true";
   
   // Track selected tee per course (courseId -> teeName or null for "all")
@@ -676,35 +681,46 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero Section */}
-      <div className="relative h-[50vh] min-h-[450px] sm:h-[60vh] sm:min-h-[500px] w-full overflow-hidden">
+      {/* Hero Section - Responsive heights and mobile optimizations */}
+      <div className="relative h-[40vh] min-h-[350px] sm:h-[50vh] sm:min-h-[450px] md:h-[60vh] md:min-h-[500px] w-full overflow-hidden">
         <div className="absolute inset-0">
-          <video
-            src={golfVideo}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="w-full h-full object-cover"
-            data-testid="video-hero"
-          />
+          {/* Show poster image on mobile for performance, video on desktop */}
+          {isMobile ? (
+            <img
+              src={heroImage}
+              alt="Costa del Sol Golf Course"
+              className="w-full h-full object-cover"
+              data-testid="img-hero-mobile"
+            />
+          ) : (
+            <video
+              src={golfVideo}
+              autoPlay
+              muted
+              loop
+              playsInline
+              poster={heroImage}
+              className="w-full h-full object-cover"
+              data-testid="video-hero"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
         </div>
 
-        <div className="relative h-full flex items-center justify-center px-4">
-          <div className="max-w-3xl mx-auto text-center space-y-4 sm:space-y-6">
-            <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight px-2">
+        <div className="relative h-full flex items-center justify-center px-3 sm:px-4">
+          <div className="max-w-3xl mx-auto text-center space-y-3 sm:space-y-4 md:space-y-6">
+            <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight px-1">
               {t('home.heroTitle')}
             </h1>
-            <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-2">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto px-1">
               {t('home.heroDescription')}
             </p>
 
             <Card className="bg-white/95 backdrop-blur-md border-0 shadow-xl max-w-xl mx-auto">
-              <CardHeader className="pb-4 sm:pb-6">
-                <CardTitle className="text-center text-lg sm:text-xl">{t('home.startSearchTitle')}</CardTitle>
+              <CardHeader className="pb-3 sm:pb-4 md:pb-6 px-3 sm:px-6">
+                <CardTitle className="text-center text-base sm:text-lg md:text-xl">{t('home.startSearchTitle')}</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 <LocationSearch onLocationSelected={handleLocationSelected} />
               </CardContent>
             </Card>
@@ -712,22 +728,59 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Search Filters */}
+      {/* Search Filters - Mobile drawer vs Desktop inline */}
       {userLocation && (
         <div className="border-b bg-card lg:relative lg:z-auto sticky top-16 z-40 lg:shadow-none shadow-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 touch-manipulation">
-            <SearchFilters currentFilters={searchFilters} onSearch={handleFiltersApplied} />
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6 touch-manipulation">
+            {/* Mobile: Show Filters button that opens drawer */}
+            {isMobile ? (
+              <div className="flex items-center justify-between gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setMobileFiltersOpen(true)}
+                  className="min-h-11 flex-1"
+                  data-testid="button-open-mobile-filters"
+                >
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  Filters
+                  {(searchFilters.date || searchFilters.courseSearch) && (
+                    <Badge variant="secondary" className="ml-2">
+                      Active
+                    </Badge>
+                  )}
+                </Button>
+                <MobileSheet
+                  open={mobileFiltersOpen}
+                  onOpenChange={setMobileFiltersOpen}
+                  title={t('search.filters')}
+                  description={t('search.filtersDescription') || "Adjust your search criteria"}
+                >
+                  <div className="space-y-4">
+                    <SearchFilters 
+                      currentFilters={searchFilters} 
+                      onSearch={(filters) => {
+                        handleFiltersApplied(filters);
+                        setMobileFiltersOpen(false);
+                      }} 
+                    />
+                  </div>
+                </MobileSheet>
+              </div>
+            ) : (
+              /* Desktop/Tablet: Show inline filters */
+              <SearchFilters currentFilters={searchFilters} onSearch={handleFiltersApplied} />
+            )}
           </div>
         </div>
       )}
 
       {/* Available Tee Times */}
       {userLocation && (availableSlots || slotsLoading) && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="mb-6">
-            <h2 className="font-serif text-3xl font-bold mb-2">{t('home.resultsTitle')}</h2>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{t('home.resultsTitle')}</h2>
             {availableSlots && (
-              <p className="text-muted-foreground font-semibold">
+              <p className="text-sm sm:text-base text-muted-foreground font-semibold">
                 {t('home.resultsCount', { count: availableSlots.length })}
               </p>
             )}
@@ -736,23 +789,27 @@ export default function Home() {
           {isSearching ? (
             <>
               {/* Show view toggle even during loading */}
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 <div className="flex gap-2 mb-4">
                   <Button 
                     variant={viewMode === "list" ? "default" : "outline"}
                     onClick={() => setViewMode("list")}
+                    className="min-h-11 flex-1 sm:flex-none"
                     data-testid="button-view-list"
                   >
                     <LayoutGrid className="mr-2 h-4 w-4" />
-                    {t('search.viewList')}
+                    <span className="hidden xs:inline">{t('search.viewList')}</span>
+                    <span className="xs:hidden">List</span>
                   </Button>
                   <Button 
                     variant={viewMode === "map" ? "default" : "outline"}
                     onClick={() => setViewMode("map")}
+                    className="min-h-11 flex-1 sm:flex-none"
                     data-testid="button-view-map"
                   >
                     <Map className="mr-2 h-4 w-4" />
-                    {t('search.viewMap')}
+                    <span className="hidden xs:inline">{t('search.viewMap')}</span>
+                    <span className="xs:hidden">Map</span>
                   </Button>
                 </div>
               </div>
@@ -767,28 +824,28 @@ export default function Home() {
           ) : availableSlots && availableSlots.length > 0 ? (
             <>
               {/* View Toggle + Sorting Controls */}
-              <div className="mb-6 touch-manipulation">
-                {/* View Mode Toggle */}
-                <div className="flex gap-2 mb-4 flex-wrap">
+              <div className="mb-4 sm:mb-6 touch-manipulation">
+                {/* View Mode Toggle - Touch-friendly 44px+ targets */}
+                <div className="flex gap-2 mb-3 sm:mb-4">
                   <Button 
                     variant={viewMode === "list" ? "default" : "outline"}
                     onClick={() => setViewMode("list")}
                     data-testid="button-view-list"
-                    className="min-h-11 flex-1 sm:flex-none"
+                    className="min-h-11 min-w-11 flex-1 sm:flex-none"
                   >
                     <LayoutGrid className="mr-2 h-4 w-4" />
-                    <span className="hidden xs:inline">{t('search.viewList')}</span>
-                    <span className="inline xs:hidden">List</span>
+                    <span className="hidden sm:inline">{t('search.viewList')}</span>
+                    <span className="sm:hidden">List</span>
                   </Button>
                   <Button 
                     variant={viewMode === "map" ? "default" : "outline"}
                     onClick={() => setViewMode("map")}
                     data-testid="button-view-map"
-                    className="min-h-11 flex-1 sm:flex-none"
+                    className="min-h-11 min-w-11 flex-1 sm:flex-none"
                   >
                     <Map className="mr-2 h-4 w-4" />
-                    <span className="hidden xs:inline">{t('search.viewMap')}</span>
-                    <span className="inline xs:hidden">Map</span>
+                    <span className="hidden sm:inline">{t('search.viewMap')}</span>
+                    <span className="sm:hidden">Map</span>
                   </Button>
                 </div>
                 
@@ -797,7 +854,7 @@ export default function Home() {
                   <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2" data-testid="sort-controls">
                     <button
                       onClick={() => setSortMode("distance-asc")}
-                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
+                      className={`px-2 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
                         sortMode === "distance-asc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -808,7 +865,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("distance-desc")}
-                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
+                      className={`px-2 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
                         sortMode === "distance-desc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -819,7 +876,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("price-asc")}
-                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
+                      className={`px-2 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
                         sortMode === "price-asc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -830,7 +887,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => setSortMode("price-desc")}
-                      className={`px-3 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors ${
+                      className={`px-2 sm:px-4 py-2 min-h-11 rounded-md border text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
                         sortMode === "price-desc"
                           ? "bg-primary text-primary-foreground"
                           : "bg-background hover-elevate"
@@ -1248,73 +1305,74 @@ export default function Home() {
       {!userLocation && (
         <>
           {/* Our Service */}
-          <div className="bg-muted/30 py-16">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="text-center mb-12">
-                <h2 className="font-serif text-3xl md:text-4xl font-bold mb-4">{t('home.personalConciergeTitle')}</h2>
-                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <div className="bg-muted/30 py-8 sm:py-12 md:py-16">
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+              <div className="text-center mb-6 sm:mb-8 md:mb-12">
+                <h2 className="font-serif text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4">{t('home.personalConciergeTitle')}</h2>
+                <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
                   {t('home.personalConciergeDescription')}
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <MobileCardGrid columns={{ mobile: 1, tablet: 2, desktop: 3 }} gap="md">
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />
+                  <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Clock className="h-5 w-5 text-primary flex-shrink-0" />
                       {t('home.realTimeTitle')}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
+                  <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                    <p className="text-sm sm:text-base text-muted-foreground">
                       {t('home.realTimeDescription')}
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Mail className="h-5 w-5 text-primary" />
+                  <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Mail className="h-5 w-5 text-primary flex-shrink-0" />
                       {t('home.personalServiceTitle')}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
+                  <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                    <p className="text-sm sm:text-base text-muted-foreground">
                       {t('home.personalServiceDescription')}
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                  <CardHeader className="px-4 py-4 sm:px-6 sm:py-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
                       {t('home.premiumCoursesTitle')}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">
+                  <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                    <p className="text-sm sm:text-base text-muted-foreground">
                       {t('home.premiumCoursesDescription')}
                     </p>
                   </CardContent>
                 </Card>
-              </div>
+              </MobileCardGrid>
             </div>
           </div>
 
           {/* Call to Action */}
-          <div className="py-16">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <h2 className="font-serif text-3xl md:text-4xl font-bold mb-6">
+          <div className="py-8 sm:py-12 md:py-16">
+            <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 text-center">
+              <h2 className="font-serif text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 md:mb-6 px-2">
                 Ready to Find Your Perfect Tee Time?
               </h2>
-              <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
+              <p className="text-sm sm:text-base md:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
                 Start your search above and discover real-time availability across Costa del Sol's premier courses.
               </p>
               <Button 
                 size="lg" 
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="min-h-11 w-full sm:w-auto"
                 data-testid="button-scroll-to-search"
               >
                 Start Your Search

@@ -348,7 +348,7 @@ export default function CourseDetail() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative h-[40vh] md:h-[50vh] overflow-hidden bg-muted">
+      <div className="relative h-[35vh] sm:h-[40vh] md:h-[50vh] overflow-hidden bg-muted">
         {course.imageUrl ? (
           <OptimizedImage
             src={course.imageUrl}
@@ -365,25 +365,25 @@ export default function CourseDetail() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/50 to-transparent" />
         
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center gap-3 flex-wrap mb-2">
+            <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-wrap mb-2">
               <h1
-                className="font-serif text-4xl md:text-5xl font-bold text-foreground"
+                className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-tight"
                 data-testid="text-course-name"
               >
                 {course.name}
               </h1>
               {(course as any).averageRating >= 4.5 && (course as any).reviewCount > 0 && (
-                <Badge variant="secondary" className="gap-1 h-fit" data-testid="badge-top-rated-detail">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  Top Rated
+                <Badge variant="secondary" className="gap-1 h-fit shrink-0" data-testid="badge-top-rated-detail">
+                  <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-yellow-400 text-yellow-400" />
+                  <span className="text-xs sm:text-sm">Top Rated</span>
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-4 flex-wrap text-muted-foreground mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm sm:text-base text-muted-foreground mb-4">
               <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
+                <MapPin className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span data-testid="text-course-location">
                   {course.city}, {course.province}
                 </span>
@@ -391,7 +391,7 @@ export default function CourseDetail() {
               {(course as any).reviewCount > 0 && (
                 <div className="flex items-center gap-1" data-testid="text-course-rating">
                   <StarRating rating={(course as any).averageRating} size="sm" />
-                  <span className="text-sm font-medium">
+                  <span className="text-xs sm:text-sm font-medium">
                     {(course as any).averageRating.toFixed(1)} ({(course as any).reviewCount} {(course as any).reviewCount === 1 ? 'review' : 'reviews'})
                   </span>
                 </div>
@@ -401,6 +401,7 @@ export default function CourseDetail() {
               <Button
                 size="lg"
                 onClick={handleBookingModalOpen}
+                className="min-h-[48px] text-sm sm:text-base"
                 data-testid="button-book-tee-time"
               >
                 {t('courseDetail.bookTeeTime')}
@@ -417,20 +418,38 @@ export default function CourseDetail() {
           {/* Main Content - Tabs */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="overview" data-testid="tabs-course-detail">
-              <TabsList className="grid w-full grid-cols-4" data-testid="tabs-list">
-                <TabsTrigger value="overview" data-testid="tab-overview">
-                  {t('courseDetail.overview')}
-                </TabsTrigger>
-                <TabsTrigger value="facilities" data-testid="tab-facilities">
-                  {t('courseDetail.facilities')}
-                </TabsTrigger>
-                <TabsTrigger value="gallery" data-testid="tab-gallery">
-                  {t('courseDetail.gallery')}
-                </TabsTrigger>
-                <TabsTrigger value="reviews" data-testid="tab-reviews">
-                  {t('courseDetail.reviews')}
-                </TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-4 h-auto p-1" data-testid="tabs-list">
+                  <TabsTrigger 
+                    value="overview" 
+                    className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
+                    data-testid="tab-overview"
+                  >
+                    {t('courseDetail.overview')}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="facilities" 
+                    className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
+                    data-testid="tab-facilities"
+                  >
+                    {t('courseDetail.facilities')}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="gallery" 
+                    className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
+                    data-testid="tab-gallery"
+                  >
+                    {t('courseDetail.gallery')}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="reviews" 
+                    className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
+                    data-testid="tab-reviews"
+                  >
+                    {t('courseDetail.reviews')}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               {/* Overview Tab */}
               <TabsContent value="overview" className="space-y-6" data-testid="content-overview">
@@ -446,32 +465,32 @@ export default function CourseDetail() {
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle>{t('courseDetail.specifications')}</CardTitle>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg">{t('courseDetail.specifications')}</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4" data-testid="content-specifications">
-                      <div className="text-center p-4 bg-muted rounded-md">
-                        <p className="text-2xl font-serif font-bold" data-testid="text-holes">
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4" data-testid="content-specifications">
+                      <div className="text-center p-3 sm:p-4 bg-muted rounded-md">
+                        <p className="text-xl sm:text-2xl font-serif font-bold" data-testid="text-holes">
                           18
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {t('courseDetail.holes')}
                         </p>
                       </div>
-                      <div className="text-center p-4 bg-muted rounded-md">
-                        <p className="text-2xl font-serif font-bold" data-testid="text-par">
+                      <div className="text-center p-3 sm:p-4 bg-muted rounded-md">
+                        <p className="text-xl sm:text-2xl font-serif font-bold" data-testid="text-par">
                           72
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {t('courseDetail.par')}
                         </p>
                       </div>
-                      <div className="text-center p-4 bg-muted rounded-md">
-                        <p className="text-2xl font-serif font-bold" data-testid="text-length">
+                      <div className="text-center p-3 sm:p-4 bg-muted rounded-md">
+                        <p className="text-xl sm:text-2xl font-serif font-bold" data-testid="text-length">
                           6,200m
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground">
                           {t('courseDetail.length')}
                         </p>
                       </div>
@@ -483,19 +502,19 @@ export default function CourseDetail() {
               {/* Facilities Tab */}
               <TabsContent value="facilities" data-testid="content-facilities">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>{t('courseDetail.facilities')}</CardTitle>
-                    <CardDescription>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg">{t('courseDetail.facilities')}</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       {t('courseDetail.availableAmenities')}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
                       {(course.facilities || []).map((facility, index) => (
                         <Badge
                           key={index}
                           variant="secondary"
-                          className="justify-center py-2"
+                          className="justify-center py-2.5 sm:py-2 text-xs sm:text-sm min-h-[40px]"
                           data-testid={`badge-facility-${index}`}
                         >
                           {getFacilityTranslation(facility)}
@@ -509,10 +528,10 @@ export default function CourseDetail() {
               {/* Gallery Tab */}
               <TabsContent value="gallery" data-testid="content-gallery">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>{t('courseDetail.gallery')}</CardTitle>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg">{t('courseDetail.gallery')}</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-4">
                     {galleryImages.length > 0 ? (
                       <div className="space-y-4">
                         <Carousel 
@@ -520,9 +539,9 @@ export default function CourseDetail() {
                           opts={{ loop: true }}
                           data-testid="carousel-gallery"
                         >
-                          <CarouselContent>
+                          <CarouselContent className="-ml-2 sm:-ml-4">
                             {galleryImages.map((image, index) => (
-                              <CarouselItem key={image.id} data-testid={`carousel-item-${index}`}>
+                              <CarouselItem key={image.id} className="pl-2 sm:pl-4" data-testid={`carousel-item-${index}`}>
                                 <div className="space-y-2">
                                   <OptimizedImage
                                     src={image.imageUrl}
@@ -532,7 +551,7 @@ export default function CourseDetail() {
                                   />
                                   {image.caption && (
                                     <p 
-                                      className="text-sm text-muted-foreground text-center"
+                                      className="text-xs sm:text-sm text-muted-foreground text-center px-2"
                                       data-testid={`caption-gallery-${index}`}
                                     >
                                       {image.caption}
@@ -543,11 +562,11 @@ export default function CourseDetail() {
                             ))}
                           </CarouselContent>
                           <CarouselPrevious 
-                            className="left-2 bg-background/80 hover:bg-background"
+                            className="left-1 sm:left-2 h-10 w-10 sm:h-8 sm:w-8 bg-background/90 hover:bg-background"
                             data-testid="button-gallery-prev"
                           />
                           <CarouselNext 
-                            className="right-2 bg-background/80 hover:bg-background"
+                            className="right-1 sm:right-2 h-10 w-10 sm:h-8 sm:w-8 bg-background/90 hover:bg-background"
                             data-testid="button-gallery-next"
                           />
                         </Carousel>
@@ -597,15 +616,15 @@ export default function CourseDetail() {
 
               {/* Reviews Tab */}
               <TabsContent value="reviews" data-testid="content-reviews">
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Review Submission Form */}
                   {isAuthenticated ? (
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Write a Review</CardTitle>
-                        <CardDescription>Share your experience with this course</CardDescription>
+                      <CardHeader className="p-4 sm:p-6">
+                        <CardTitle className="text-base sm:text-lg">Write a Review</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">Share your experience with this course</CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                         <Form {...reviewForm}>
                           <form onSubmit={reviewForm.handleSubmit(handleReviewSubmit)} className="space-y-4">
                             <FormField
@@ -613,9 +632,9 @@ export default function CourseDetail() {
                               name="rating"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Rating *</FormLabel>
+                                  <FormLabel className="text-sm">Rating *</FormLabel>
                                   <FormControl>
-                                    <div>
+                                    <div className="py-2">
                                       <StarRating
                                         rating={field.value}
                                         size="lg"
@@ -636,10 +655,11 @@ export default function CourseDetail() {
                               name="title"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Title</FormLabel>
+                                  <FormLabel className="text-sm">Title</FormLabel>
                                   <FormControl>
                                     <Input
                                       placeholder="Summarize your experience"
+                                      className="min-h-[44px] text-base sm:text-sm"
                                       {...field}
                                       data-testid="input-review-title"
                                     />
@@ -653,11 +673,11 @@ export default function CourseDetail() {
                               name="review"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Review</FormLabel>
+                                  <FormLabel className="text-sm">Review</FormLabel>
                                   <FormControl>
                                     <Textarea
                                       placeholder="Tell us about your experience at this course..."
-                                      className="min-h-32"
+                                      className="min-h-32 text-base sm:text-sm"
                                       {...field}
                                       data-testid="input-review-text"
                                     />
@@ -669,6 +689,7 @@ export default function CourseDetail() {
                             <Button
                               type="submit"
                               disabled={reviewMutation.isPending}
+                              className="w-full sm:w-auto min-h-[44px]"
                               data-testid="button-submit-review"
                             >
                               {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
@@ -679,10 +700,10 @@ export default function CourseDetail() {
                     </Card>
                   ) : (
                     <Card>
-                      <CardContent className="py-6">
-                        <p className="text-center text-muted-foreground">
+                      <CardContent className="py-6 px-4 sm:px-6">
+                        <p className="text-center text-sm sm:text-base text-muted-foreground">
                           Please{" "}
-                          <Link href="/login" className="text-primary hover:underline">
+                          <Link href="/login" className="text-primary hover:underline font-medium">
                             log in
                           </Link>{" "}
                           to write a review
@@ -693,41 +714,41 @@ export default function CourseDetail() {
 
                   {/* Existing Reviews */}
                   <Card>
-                    <CardHeader>
-                      <CardTitle>
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-base sm:text-lg">
                         {reviews.length > 0
                           ? `Reviews (${reviews.length})`
                           : t('courseDetail.reviews')}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                       {reviewsLoading ? (
                         <div className="text-center py-8">
-                          <p className="text-muted-foreground">Loading reviews...</p>
+                          <p className="text-sm text-muted-foreground">Loading reviews...</p>
                         </div>
                       ) : reviews.length > 0 ? (
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6">
                           {reviews.map((review: any) => (
                             <div
                               key={review.id}
-                              className="border-b pb-6 last:border-b-0 last:pb-0"
+                              className="border-b pb-4 sm:pb-6 last:border-b-0 last:pb-0"
                               data-testid={`review-${review.id}`}
                             >
-                              <div className="flex items-start justify-between mb-2">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
                                 <div>
                                   <StarRating rating={review.rating} size="sm" />
                                   {review.title && (
-                                    <h4 className="font-medium mt-1" data-testid="text-review-title">
+                                    <h4 className="font-medium mt-1 text-sm sm:text-base" data-testid="text-review-title">
                                       {review.title}
                                     </h4>
                                   )}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-xs sm:text-sm text-muted-foreground">
                                   {new Date(review.createdAt).toLocaleDateString()}
                                 </p>
                               </div>
                               {review.review && (
-                                <p className="text-sm text-muted-foreground mt-2" data-testid="text-review-content">
+                                <p className="text-xs sm:text-sm text-muted-foreground mt-2 leading-relaxed" data-testid="text-review-content">
                                   {review.review}
                                 </p>
                               )}
@@ -735,9 +756,9 @@ export default function CourseDetail() {
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-12">
-                          <Star className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-                          <p className="text-muted-foreground" data-testid="text-no-reviews">
+                        <div className="text-center py-8 sm:py-12">
+                          <Star className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-muted-foreground/30 mb-4" />
+                          <p className="text-sm text-muted-foreground" data-testid="text-no-reviews">
                             {t('courseDetail.noReviews')}
                           </p>
                         </div>
@@ -750,64 +771,67 @@ export default function CourseDetail() {
           </div>
 
           {/* Sidebar - Contact Info */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>{t('courseDetail.contactInformation')}</CardTitle>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">{t('courseDetail.contactInformation')}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-4">
                 {course.email && (
-                  <div className="flex items-start gap-3" data-testid="contact-email">
-                    <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <a 
+                    href={`mailto:${course.email}`}
+                    className="flex items-start gap-3 p-2 -m-2 rounded-md hover-elevate min-h-[44px]"
+                    data-testid="contact-email"
+                  >
+                    <Mail className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{t('courseDetail.email')}</p>
-                      <a
-                        href={`mailto:${course.email}`}
-                        className="text-sm text-muted-foreground hover:text-primary transition-colors break-all"
-                      >
+                      <p className="text-xs sm:text-sm font-medium">{t('courseDetail.email')}</p>
+                      <span className="text-xs sm:text-sm text-muted-foreground break-all">
                         {course.email}
-                      </a>
+                      </span>
                     </div>
-                  </div>
+                  </a>
                 )}
                 
                 {course.phone && (
-                  <div className="flex items-start gap-3" data-testid="contact-phone">
-                    <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <a 
+                    href={`tel:${course.phone}`}
+                    className="flex items-start gap-3 p-2 -m-2 rounded-md hover-elevate min-h-[44px]"
+                    data-testid="contact-phone"
+                  >
+                    <Phone className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{t('courseDetail.phone')}</p>
-                      <a
-                        href={`tel:${course.phone}`}
-                        className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                      >
+                      <p className="text-xs sm:text-sm font-medium">{t('courseDetail.phone')}</p>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
                         {course.phone}
-                      </a>
+                      </span>
                     </div>
-                  </div>
+                  </a>
                 )}
                 
                 {course.websiteUrl && (
-                  <div className="flex items-start gap-3" data-testid="contact-website">
-                    <Globe className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <a 
+                    href={course.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-3 p-2 -m-2 rounded-md hover-elevate min-h-[44px]"
+                    data-testid="contact-website"
+                  >
+                    <Globe className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{t('courseDetail.website')}</p>
-                      <a
-                        href={course.websiteUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-muted-foreground hover:text-primary transition-colors break-all"
-                      >
+                      <p className="text-xs sm:text-sm font-medium">{t('courseDetail.website')}</p>
+                      <span className="text-xs sm:text-sm text-muted-foreground break-all">
                         {t('courseDetail.visitWebsite')}
-                      </a>
+                      </span>
                     </div>
-                  </div>
+                  </a>
                 )}
 
-                <div className="flex items-start gap-3" data-testid="contact-location">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex items-start gap-3 p-2 -m-2" data-testid="contact-location">
+                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">{t('courseDetail.location')}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm font-medium">{t('courseDetail.location')}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       {course.city}, {course.province}
                     </p>
                   </div>
@@ -820,16 +844,16 @@ export default function CourseDetail() {
             )}
 
             <Card>
-              <CardContent className="pt-6 space-y-2">
+              <CardContent className="p-4 sm:pt-6 space-y-2">
                 <Button
-                  className="w-full"
+                  className="w-full min-h-[48px]"
                   size="lg"
                   onClick={handleBookingModalOpen}
                   data-testid="button-book-sidebar"
                 >
                   {t('courseDetail.bookTeeTime')}
                 </Button>
-                <ShareMenu course={course} size="lg" variant="outline" className="w-full" />
+                <ShareMenu course={course} size="lg" variant="outline" className="w-full min-h-[44px]" />
               </CardContent>
             </Card>
           </div>
@@ -847,18 +871,18 @@ export default function CourseDetail() {
 
       {/* Success Dialog with Calendar Options */}
       <AlertDialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-        <AlertDialogContent className="sm:max-w-[500px]" data-testid="dialog-booking-success">
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-w-[500px] rounded-lg sm:rounded-xl" data-testid="dialog-booking-success">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif text-2xl text-center">
+            <AlertDialogTitle className="font-serif text-xl sm:text-2xl text-center">
               {t('home.bookingSuccessTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center space-y-3 pt-2">
-              <div className="text-base">
+              <div className="text-sm sm:text-base">
                 {t('home.bookingSuccessDescription')}
               </div>
-              <div className="bg-muted p-4 rounded-md">
-                <p className="text-sm font-medium text-foreground mb-1 flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
+              <div className="bg-muted p-3 sm:p-4 rounded-md">
+                <p className="text-xs sm:text-sm font-medium text-foreground mb-1 flex items-center justify-center gap-2">
+                  <Mail className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   {t('booking.emailConfirmationSent')}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -869,26 +893,26 @@ export default function CourseDetail() {
           </AlertDialogHeader>
           
           <div className="space-y-3 py-4">
-            <p className="text-sm font-medium text-center text-muted-foreground">
+            <p className="text-xs sm:text-sm font-medium text-center text-muted-foreground">
               {t('booking.addToCalendar')}
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <Button
                 variant="outline"
                 onClick={handleAddToGoogleCalendar}
                 data-testid="button-add-google-calendar"
-                className="w-full"
+                className="w-full min-h-[44px] text-xs sm:text-sm"
               >
-                <Calendar className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 h-4 w-4 shrink-0" />
                 Google Calendar
               </Button>
               <Button
                 variant="outline"
                 onClick={handleDownloadICS}
                 data-testid="button-download-ics"
-                className="w-full"
+                className="w-full min-h-[44px] text-xs sm:text-sm"
               >
-                <Download className="mr-2 h-4 w-4" />
+                <Download className="mr-2 h-4 w-4 shrink-0" />
                 {t('booking.downloadICS')}
               </Button>
             </div>
@@ -901,7 +925,7 @@ export default function CourseDetail() {
             <AlertDialogAction
               onClick={() => setSuccessDialogOpen(false)}
               data-testid="button-close-success"
-              className="w-full"
+              className="w-full min-h-[44px]"
             >
               {t('common.close')}
             </AlertDialogAction>

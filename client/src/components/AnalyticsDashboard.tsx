@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import {
   BarChart,
   Bar,
@@ -23,6 +25,7 @@ type PopularCourse = { courseId: string; courseName: string; bookingCount: numbe
 
 export function AnalyticsDashboard() {
   const [bookingsPeriod, setBookingsPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const { isMobile } = useBreakpoint();
 
   // Fetch bookings analytics
   const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError } = useQuery<BookingsAnalytics>({
@@ -56,7 +59,7 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card data-testid="card-total-revenue">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -142,9 +145,10 @@ export function AnalyticsDashboard() {
         </Card>
       </div>
 
-      <Card data-testid="card-bookings-chart">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card data-testid="card-bookings-chart">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Booking Trends</CardTitle>
               <CardDescription>Number of bookings over time</CardDescription>
@@ -236,8 +240,8 @@ export function AnalyticsDashboard() {
                 <YAxis 
                   dataKey="courseName" 
                   type="category" 
-                  width={200}
-                  tick={{ fontSize: 12 }}
+                  width={isMobile ? 100 : 200}
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
                 />
                 <Tooltip />
                 <Legend />
@@ -255,6 +259,7 @@ export function AnalyticsDashboard() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

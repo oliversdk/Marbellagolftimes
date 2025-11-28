@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { motion, PanInfo } from "framer-motion";
 import type { GolfCourse } from "@shared/schema";
 import { OptimizedImage } from "./OptimizedImage";
 import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 
 interface CourseCardProps {
   course: GolfCourse;
@@ -25,7 +26,14 @@ interface CourseCardProps {
 export const CourseCard = memo(function CourseCard({ course, distance, price, priceRange, isBestDeal, providerName, onBook, onViewDetails }: CourseCardProps) {
   const { t } = useI18n();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { isMobile } = useBreakpoint();
   const [swipePosition, setSwipePosition] = useState(0);
+  
+  useEffect(() => {
+    if (isMobile) {
+      setSwipePosition(0);
+    }
+  }, [isMobile]);
   
   const isFav = isFavorite(course.id.toString());
 
@@ -43,17 +51,8 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
     e.preventDefault();
     toggleFavorite(course.id.toString());
   }, [course.id, toggleFavorite]);
-  
-  return (
-    <motion.div
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.2}
-      onDrag={(_event, info) => setSwipePosition(info.offset.x)}
-      onDragEnd={handleDragEnd}
-      style={{ touchAction: 'none' }}
-      data-testid={`card-course-wrapper-${course.id}`}
-    >
+
+  const cardContent = (
       <Card className="overflow-visible hover-elevate relative" data-testid={`card-course-${course.id}`}>
         {swipePosition !== 0 && (
           <div
@@ -76,40 +75,40 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
       <CardHeader className="p-3 sm:p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h3 className="font-serif font-semibold text-base sm:text-lg leading-tight" data-testid={`text-course-name-${course.id}`}>
-                {course.name}
-              </h3>
+            <h3 className="font-serif font-semibold text-sm sm:text-base md:text-lg leading-tight mb-1" data-testid={`text-course-name-${course.id}`}>
+              {course.name}
+            </h3>
+            <div className="flex items-center gap-1.5 flex-wrap mb-2">
               {providerName === "golfmanager" && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400" data-testid={`badge-gm-${course.id}`}>
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 shrink-0 bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400" data-testid={`badge-gm-${course.id}`}>
                   GM
                 </Badge>
               )}
               {isBestDeal && (
-                <Badge variant="default" data-testid={`badge-best-deal-${course.id}`}>
+                <Badge variant="default" className="shrink-0" data-testid={`badge-best-deal-${course.id}`}>
                   {t('course.bestDeal')}
                 </Badge>
               )}
               {(course as any).averageRating >= 4.5 && (course as any).reviewCount > 0 && (
-                <Badge variant="secondary" className="gap-1" data-testid={`badge-top-rated-${course.id}`}>
+                <Badge variant="secondary" className="gap-1 shrink-0" data-testid={`badge-top-rated-${course.id}`}>
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                   Top Rated
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" />
-              <span data-testid={`text-course-location-${course.id}`}>
+            <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate" data-testid={`text-course-location-${course.id}`}>
                 {course.city}, {course.province}
               </span>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-1 shrink-0">
             <Button
               size="icon"
               variant="ghost"
               onClick={handleFavoriteClick}
-              className="min-h-11 min-w-11 p-0"
+              className="h-11 w-11 min-h-[44px] min-w-[44px] p-0"
               data-testid={`button-favorite-${course.id}`}
               aria-label={isFav ? t('course.removeFromFavorites') : t('course.addToFavorites')}
             >
@@ -118,20 +117,20 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
               />
             </Button>
             {distance !== undefined && (
-              <Badge variant="secondary" data-testid={`badge-distance-${course.id}`}>
+              <Badge variant="secondary" className="text-xs" data-testid={`badge-distance-${course.id}`}>
                 {t('course.distance', { distance: distance.toFixed(1) })}
               </Badge>
             )}
             {(price !== undefined || priceRange) && (
               <div className="text-right" data-testid={`text-price-${course.id}`}>
                 {priceRange ? (
-                  <div className="text-xl font-bold">
+                  <div className="text-lg sm:text-xl font-bold">
                     {t('course.priceRange', { min: priceRange.min, max: priceRange.max })}
                   </div>
                 ) : price !== undefined ? (
                   <div className="space-y-0.5">
                     <div className="text-xs text-muted-foreground">{t('course.from')}</div>
-                    <div className="text-xl font-bold">€{price}</div>
+                    <div className="text-lg sm:text-xl font-bold">€{price}</div>
                   </div>
                 ) : null}
               </div>
@@ -194,6 +193,26 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
         )}
       </CardFooter>
     </Card>
+  );
+
+  if (isMobile) {
+    return (
+      <div data-testid={`card-course-wrapper-${course.id}`}>
+        {cardContent}
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.2}
+      onDrag={(_event, info) => setSwipePosition(info.offset.x)}
+      onDragEnd={handleDragEnd}
+      data-testid={`card-course-wrapper-${course.id}`}
+    >
+      {cardContent}
     </motion.div>
   );
 });

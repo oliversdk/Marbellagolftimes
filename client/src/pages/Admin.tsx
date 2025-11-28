@@ -40,7 +40,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -48,6 +48,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getPersonalFeedback } from "@/lib/personalFeedback";
@@ -1900,20 +1906,24 @@ export default function Admin() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Search users by name, email, or phone..."
-                    value={userSearchQuery}
-                    onChange={(e) => setUserSearchQuery(e.target.value)}
-                    data-testid="input-search-users"
-                    className="max-w-md"
-                  />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users by name, email, or phone..."
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      data-testid="input-search-users"
+                      className="pl-9 w-full"
+                    />
+                  </div>
                   {userSearchQuery && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setUserSearchQuery("")}
                       data-testid="button-clear-search"
+                      className="w-full sm:w-auto"
                     >
                       Clear
                     </Button>
@@ -1921,41 +1931,58 @@ export default function Admin() {
                 </div>
                 {filteredUsers && filteredUsers.length > 0 ? (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-sm text-muted-foreground mb-3">
                       Showing {filteredUsers.length} of {users?.length || 0} users
                     </p>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredUsers.map((user) => (
-                          <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                            <TableCell className="font-medium">
-                              {user.firstName} {user.lastName}
-                            </TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell>{user.phoneNumber || "—"}</TableCell>
-                            <TableCell>
-                              {user.isAdmin === "true" ? (
-                                <Badge variant="default">Admin</Badge>
-                              ) : (
-                                <Badge variant="secondary">User</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
+                    <TableCard<User>
+                      columns={[
+                        {
+                          key: "name" as keyof User,
+                          label: "Name",
+                          render: (_value, row) => (
+                            <span className="font-medium">
+                              {row.firstName} {row.lastName}
+                            </span>
+                          ),
+                        },
+                        {
+                          key: "email",
+                          label: "Email",
+                          render: (value) => (
+                            <span className="text-sm truncate max-w-[200px] block">{value as string}</span>
+                          ),
+                        },
+                        {
+                          key: "phoneNumber",
+                          label: "Phone",
+                          hideOnMobile: true,
+                          render: (value) => (value as string) || "—",
+                        },
+                        {
+                          key: "isAdmin",
+                          label: "Role",
+                          render: (value) =>
+                            value === "true" ? (
+                              <Badge variant="default">Admin</Badge>
+                            ) : (
+                              <Badge variant="secondary">User</Badge>
+                            ),
+                        },
+                        {
+                          key: "id" as keyof User,
+                          label: "Actions",
+                          render: (_value, row) => (
+                            <>
+                              {/* Desktop: Show all buttons */}
+                              <div className="hidden sm:flex justify-end gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setViewingUserBookings(user)}
-                                  data-testid={`button-view-bookings-${user.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewingUserBookings(row);
+                                  }}
+                                  data-testid={`button-view-bookings-${row.id}`}
                                 >
                                   <Clock className="h-4 w-4 mr-1" />
                                   View Bookings
@@ -1963,8 +1990,11 @@ export default function Admin() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleEditUser(user)}
-                                  data-testid={`button-edit-user-${user.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditUser(row);
+                                  }}
+                                  data-testid={`button-edit-user-${row.id}`}
                                 >
                                   <Edit className="h-4 w-4 mr-1" />
                                   Edit
@@ -1972,18 +2002,66 @@ export default function Admin() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setDeletingUser(user)}
-                                  data-testid={`button-delete-user-${user.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingUser(row);
+                                  }}
+                                  data-testid={`button-delete-user-${row.id}`}
                                 >
                                   <Trash2 className="h-4 w-4 mr-1" />
                                   Delete
                                 </Button>
                               </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                              {/* Mobile: Dropdown menu */}
+                              <div className="sm:hidden flex justify-end">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-10 w-10"
+                                      onClick={(e) => e.stopPropagation()}
+                                      data-testid={`button-user-actions-${row.id}`}
+                                    >
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem
+                                      onClick={() => setViewingUserBookings(row)}
+                                      className="py-3"
+                                      data-testid={`menu-view-bookings-${row.id}`}
+                                    >
+                                      <Clock className="h-4 w-4 mr-2" />
+                                      View Bookings
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleEditUser(row)}
+                                      className="py-3"
+                                      data-testid={`menu-edit-user-${row.id}`}
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edit User
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => setDeletingUser(row)}
+                                      className="py-3 text-destructive focus:text-destructive"
+                                      data-testid={`menu-delete-user-${row.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete User
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </>
+                          ),
+                        },
+                      ]}
+                      data={filteredUsers}
+                      keyExtractor={(row) => row.id}
+                      emptyMessage="No users found"
+                    />
                   </div>
                 ) : userSearchQuery ? (
                   <div className="text-center py-12 text-muted-foreground">
@@ -2099,53 +2177,10 @@ export default function Admin() {
                       Loading course data...
                     </div>
                   ) : filteredCourses.length > 0 ? (
-                    <div className="border rounded-md overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Image</TableHead>
-                            <TableHead>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-0 font-medium hover:bg-transparent"
-                                onClick={() => toggleSort("name")}
-                                data-testid="button-sort-name"
-                              >
-                                Course
-                                <ArrowUpDown className="ml-1 h-3 w-3" />
-                              </Button>
-                            </TableHead>
-                            <TableHead>Provider</TableHead>
-                            <TableHead>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-0 font-medium hover:bg-transparent"
-                                onClick={() => toggleSort("stage")}
-                                data-testid="button-sort-stage"
-                              >
-                                Stage
-                                <ArrowUpDown className="ml-1 h-3 w-3" />
-                              </Button>
-                            </TableHead>
-                            <TableHead>Kickback</TableHead>
-                            <TableHead>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-0 font-medium hover:bg-transparent"
-                                onClick={() => toggleSort("lastContacted")}
-                                data-testid="button-sort-contacted"
-                              >
-                                Last Contact
-                                <ArrowUpDown className="ml-1 h-3 w-3" />
-                              </Button>
-                            </TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                    <>
+                      {/* Mobile/Tablet Card View */}
+                      <div className="lg:hidden">
+                        <MobileCardGrid columns={{ mobile: 1, tablet: 2, desktop: 3 }} gap="md">
                           {filteredCourses.map((course) => {
                             const currentStage = ONBOARDING_STAGES.find(s => s.value === course.onboarding?.stage);
                             const StageIcon = currentStage?.icon || CircleDot;
@@ -2153,128 +2188,282 @@ export default function Admin() {
                             const hasKickback = (course.kickbackPercent ?? 0) > 0;
                             
                             return (
-                              <TableRow 
-                                key={course.id} 
-                                data-testid={`row-course-${course.id}`}
+                              <Card 
+                                key={course.id}
                                 className="cursor-pointer hover-elevate"
                                 onClick={() => openCourseProfile(course)}
+                                data-testid={`card-course-${course.id}`}
                               >
-                                <TableCell>
-                                  <div className="w-12 h-12 rounded-md overflow-hidden bg-muted">
-                                    <OptimizedImage
-                                      src={course.imageUrl || undefined}
-                                      alt={course.name}
-                                      className="w-full h-full object-cover"
-                                      data-testid={`img-course-thumb-${course.id}`}
-                                    />
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <div>
-                                      <span className="font-medium">{course.name}</span>
-                                      <p className="text-sm text-muted-foreground">{course.city}, {course.province}</p>
+                                <CardContent className="p-3">
+                                  <div className="flex gap-3">
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                                      <OptimizedImage
+                                        src={course.imageUrl || undefined}
+                                        alt={course.name}
+                                        className="w-full h-full object-cover"
+                                        data-testid={`img-course-thumb-${course.id}`}
+                                      />
                                     </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {course.provider?.providerType === "golfmanager_v1" && (
-                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
-                                  )}
-                                  {course.provider?.providerType === "golfmanager_v3" && (
-                                    <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
-                                  )}
-                                  {course.provider?.providerType === "teeone" && (
-                                    <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
-                                  )}
-                                  {!course.provider?.providerType && (
-                                    <span className="text-muted-foreground text-sm">None</span>
-                                  )}
-                                </TableCell>
-                                <TableCell onClick={(e) => e.stopPropagation()}>
-                                  <Select
-                                    value={course.onboarding?.stage || "NOT_CONTACTED"}
-                                    onValueChange={(value: OnboardingStage) => {
-                                      if (value !== course.onboarding?.stage) {
-                                        updateOnboardingStageMutation.mutate({ courseId: course.id, stage: value });
-                                      }
-                                    }}
-                                    disabled={updateOnboardingStageMutation.isPending}
-                                  >
-                                    <SelectTrigger 
-                                      className="w-[140px]" 
-                                      data-testid={`select-stage-${course.id}`}
-                                    >
-                                      <Badge variant="secondary" className={currentStage?.color}>
-                                        <StageIcon className="h-3 w-3 mr-1" />
-                                        {currentStage?.label || "Not Contacted"}
-                                      </Badge>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {ONBOARDING_STAGES.map((stage) => {
-                                        const Icon = stage.icon;
-                                        return (
-                                          <SelectItem 
-                                            key={stage.value} 
-                                            value={stage.value}
-                                            data-testid={`option-stage-${stage.value}-${course.id}`}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <Icon className="h-3 w-3" />
-                                              <span>{stage.label}</span>
-                                            </div>
-                                          </SelectItem>
-                                        );
-                                      })}
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell>
-                                  {hasKickback ? (
-                                    <Badge variant="outline">{course.kickbackPercent}%</Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground text-sm">-</span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  {course.onboarding?.outreachSentAt ? (
-                                    <span className="text-sm">
-                                      {format(new Date(course.onboarding.outreachSentAt), "PP")}
-                                    </span>
-                                  ) : (
-                                    <span className="text-muted-foreground text-sm">Never</span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    {hasKickback && (
-                                      <Tooltip>
-                                        <TooltipTrigger>
-                                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
-                                            <DollarSign className="h-3 w-3" />
-                                          </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Kickback configured</TooltipContent>
-                                      </Tooltip>
-                                    )}
-                                    {hasCredentials && (
-                                      <Tooltip>
-                                        <TooltipTrigger>
-                                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                                    <div className="flex-1 min-w-0 space-y-2">
+                                      <div>
+                                        <p className="font-medium text-sm sm:text-base truncate">{course.name}</p>
+                                        <p className="text-xs sm:text-sm text-muted-foreground truncate">{course.city}, {course.province}</p>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        {course.provider?.providerType === "golfmanager_v1" && (
+                                          <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
+                                        )}
+                                        {course.provider?.providerType === "golfmanager_v3" && (
+                                          <Badge variant="secondary" className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
+                                        )}
+                                        {course.provider?.providerType === "teeone" && (
+                                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
+                                        )}
+                                        {hasKickback && (
+                                          <Badge variant="outline" className="text-xs">{course.kickbackPercent}%</Badge>
+                                        )}
+                                        {hasCredentials && (
+                                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
                                             <Lock className="h-3 w-3" />
                                           </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Credentials set</TooltipContent>
-                                      </Tooltip>
-                                    )}
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                </TableCell>
-                              </TableRow>
+                                  <div className="mt-3 pt-3 border-t flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                      value={course.onboarding?.stage || "NOT_CONTACTED"}
+                                      onValueChange={(value: OnboardingStage) => {
+                                        if (value !== course.onboarding?.stage) {
+                                          updateOnboardingStageMutation.mutate({ courseId: course.id, stage: value });
+                                        }
+                                      }}
+                                      disabled={updateOnboardingStageMutation.isPending}
+                                    >
+                                      <SelectTrigger 
+                                        className="flex-1 h-9" 
+                                        data-testid={`select-stage-${course.id}`}
+                                      >
+                                        <Badge variant="secondary" className={`${currentStage?.color} text-xs`}>
+                                          <StageIcon className="h-3 w-3 mr-1" />
+                                          <span className="truncate">{currentStage?.label || "Not Contacted"}</span>
+                                        </Badge>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {ONBOARDING_STAGES.map((stage) => {
+                                          const Icon = stage.icon;
+                                          return (
+                                            <SelectItem 
+                                              key={stage.value} 
+                                              value={stage.value}
+                                              data-testid={`option-stage-${stage.value}-${course.id}`}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <Icon className="h-3 w-3" />
+                                                <span>{stage.label}</span>
+                                              </div>
+                                            </SelectItem>
+                                          );
+                                        })}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingCourse(course);
+                                      }}
+                                      data-testid={`button-edit-course-${course.id}`}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
                             );
                           })}
-                        </TableBody>
-                      </Table>
-                    </div>
+                        </MobileCardGrid>
+                      </div>
+
+                      {/* Desktop Table View */}
+                      <div className="hidden lg:block border rounded-md overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Image</TableHead>
+                              <TableHead>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-0 font-medium hover:bg-transparent"
+                                  onClick={() => toggleSort("name")}
+                                  data-testid="button-sort-name"
+                                >
+                                  Course
+                                  <ArrowUpDown className="ml-1 h-3 w-3" />
+                                </Button>
+                              </TableHead>
+                              <TableHead>Provider</TableHead>
+                              <TableHead>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-0 font-medium hover:bg-transparent"
+                                  onClick={() => toggleSort("stage")}
+                                  data-testid="button-sort-stage"
+                                >
+                                  Stage
+                                  <ArrowUpDown className="ml-1 h-3 w-3" />
+                                </Button>
+                              </TableHead>
+                              <TableHead>Kickback</TableHead>
+                              <TableHead>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-0 font-medium hover:bg-transparent"
+                                  onClick={() => toggleSort("lastContacted")}
+                                  data-testid="button-sort-contacted"
+                                >
+                                  Last Contact
+                                  <ArrowUpDown className="ml-1 h-3 w-3" />
+                                </Button>
+                              </TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredCourses.map((course) => {
+                              const currentStage = ONBOARDING_STAGES.find(s => s.value === course.onboarding?.stage);
+                              const StageIcon = currentStage?.icon || CircleDot;
+                              const hasCredentials = course.golfmanagerUser && course.golfmanagerPassword;
+                              const hasKickback = (course.kickbackPercent ?? 0) > 0;
+                              
+                              return (
+                                <TableRow 
+                                  key={course.id} 
+                                  data-testid={`row-course-${course.id}`}
+                                  className="cursor-pointer hover-elevate"
+                                  onClick={() => openCourseProfile(course)}
+                                >
+                                  <TableCell>
+                                    <div className="w-12 h-12 rounded-md overflow-hidden bg-muted">
+                                      <OptimizedImage
+                                        src={course.imageUrl || undefined}
+                                        alt={course.name}
+                                        className="w-full h-full object-cover"
+                                        data-testid={`img-course-thumb-${course.id}`}
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <div>
+                                        <span className="font-medium">{course.name}</span>
+                                        <p className="text-sm text-muted-foreground">{course.city}, {course.province}</p>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {course.provider?.providerType === "golfmanager_v1" && (
+                                      <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
+                                    )}
+                                    {course.provider?.providerType === "golfmanager_v3" && (
+                                      <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
+                                    )}
+                                    {course.provider?.providerType === "teeone" && (
+                                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
+                                    )}
+                                    {!course.provider?.providerType && (
+                                      <span className="text-muted-foreground text-sm">None</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                      value={course.onboarding?.stage || "NOT_CONTACTED"}
+                                      onValueChange={(value: OnboardingStage) => {
+                                        if (value !== course.onboarding?.stage) {
+                                          updateOnboardingStageMutation.mutate({ courseId: course.id, stage: value });
+                                        }
+                                      }}
+                                      disabled={updateOnboardingStageMutation.isPending}
+                                    >
+                                      <SelectTrigger 
+                                        className="w-[140px]" 
+                                        data-testid={`select-stage-${course.id}`}
+                                      >
+                                        <Badge variant="secondary" className={currentStage?.color}>
+                                          <StageIcon className="h-3 w-3 mr-1" />
+                                          {currentStage?.label || "Not Contacted"}
+                                        </Badge>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {ONBOARDING_STAGES.map((stage) => {
+                                          const Icon = stage.icon;
+                                          return (
+                                            <SelectItem 
+                                              key={stage.value} 
+                                              value={stage.value}
+                                              data-testid={`option-stage-${stage.value}-${course.id}`}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <Icon className="h-3 w-3" />
+                                                <span>{stage.label}</span>
+                                              </div>
+                                            </SelectItem>
+                                          );
+                                        })}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    {hasKickback ? (
+                                      <Badge variant="outline">{course.kickbackPercent}%</Badge>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">-</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {course.onboarding?.outreachSentAt ? (
+                                      <span className="text-sm">
+                                        {format(new Date(course.onboarding.outreachSentAt), "PP")}
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">Never</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      {hasKickback && (
+                                        <Tooltip>
+                                          <TooltipTrigger>
+                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                                              <DollarSign className="h-3 w-3" />
+                                            </Badge>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Kickback configured</TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                      {hasCredentials && (
+                                        <Tooltip>
+                                          <TooltipTrigger>
+                                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                                              <Lock className="h-3 w-3" />
+                                            </Badge>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Credentials set</TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
                       {courseSearchQuery || stageFilter !== "ALL" || providerFilter !== "ALL" 
@@ -2288,7 +2477,7 @@ export default function Admin() {
 
             {/* Course Profile Sheet */}
             <Sheet open={!!selectedCourseProfile} onOpenChange={(open) => !open && setSelectedCourseProfile(null)}>
-              <SheetContent className="w-[600px] sm:w-[800px] sm:max-w-[800px] overflow-y-auto">
+              <SheetContent className="w-full max-w-[100vw] sm:max-w-[600px] md:max-w-[800px] overflow-y-auto p-4 sm:p-6">
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-3">
                     {selectedCourseProfile?.imageUrl && (
@@ -2313,13 +2502,13 @@ export default function Admin() {
                 </SheetHeader>
 
                 {selectedCourseProfile && (
-                  <Tabs value={profileTab} onValueChange={setProfileTab} className="mt-6">
-                    <TabsList className="grid w-full grid-cols-5">
-                      <TabsTrigger value="details" data-testid="profile-tab-details">Details</TabsTrigger>
-                      <TabsTrigger value="partnership" data-testid="profile-tab-partnership">Partnership</TabsTrigger>
-                      <TabsTrigger value="credentials" data-testid="profile-tab-credentials">Credentials</TabsTrigger>
-                      <TabsTrigger value="images" data-testid="profile-tab-images">Images</TabsTrigger>
-                      <TabsTrigger value="communications" data-testid="profile-tab-communications">Comms</TabsTrigger>
+                  <Tabs value={profileTab} onValueChange={setProfileTab} className="mt-4 sm:mt-6">
+                    <TabsList className="flex w-full overflow-x-auto sm:grid sm:grid-cols-5 scrollbar-hide">
+                      <TabsTrigger value="details" className="flex-shrink-0" data-testid="profile-tab-details">Details</TabsTrigger>
+                      <TabsTrigger value="partnership" className="flex-shrink-0" data-testid="profile-tab-partnership">Partnership</TabsTrigger>
+                      <TabsTrigger value="credentials" className="flex-shrink-0" data-testid="profile-tab-credentials">Credentials</TabsTrigger>
+                      <TabsTrigger value="images" className="flex-shrink-0" data-testid="profile-tab-images">Images</TabsTrigger>
+                      <TabsTrigger value="communications" className="flex-shrink-0" data-testid="profile-tab-communications">Comms</TabsTrigger>
                     </TabsList>
 
                     {/* Details Tab */}
@@ -2637,64 +2826,122 @@ export default function Admin() {
                       </Card>
 
                       <Card>
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between gap-2">
                             <CardTitle className="text-base">Current Images ({profileGalleryImages.length + (selectedCourseProfile.imageUrl ? 1 : 0)})</CardTitle>
                           </div>
                         </CardHeader>
                         <CardContent>
                           {selectedCourseProfile.imageUrl || profileGalleryImages.length > 0 ? (
-                            <div className="grid grid-cols-3 gap-3">
-                              {selectedCourseProfile.imageUrl && (
-                                <div className="relative group">
-                                  <div className="aspect-video rounded-md overflow-hidden bg-muted ring-2 ring-primary ring-offset-2">
-                                    <OptimizedImage
-                                      src={selectedCourseProfile.imageUrl}
-                                      alt="Main image"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                  <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
+                            <>
+                              {/* Mobile: Horizontal scrolling gallery */}
+                              <div className="sm:hidden -mx-4 px-4">
+                                <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
+                                  {selectedCourseProfile.imageUrl && (
+                                    <div className="flex-shrink-0 w-36 snap-start relative">
+                                      <div className="aspect-video rounded-md overflow-hidden bg-muted ring-2 ring-primary ring-offset-1">
+                                        <OptimizedImage
+                                          src={selectedCourseProfile.imageUrl}
+                                          alt="Main image"
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
+                                    </div>
+                                  )}
+                                  {profileGalleryImages.map((image) => (
+                                    <div key={image.id} className="flex-shrink-0 w-36 snap-start relative">
+                                      <div className="aspect-video rounded-md overflow-hidden bg-muted">
+                                        <OptimizedImage
+                                          src={image.imageUrl}
+                                          alt={image.caption || "Gallery image"}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <div className="absolute bottom-1 right-1 flex gap-1">
+                                        <Button
+                                          variant="secondary"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => {
+                                            updateCourseImageMutation.mutate({ 
+                                              courseId: selectedCourseProfile.id, 
+                                              imageUrl: image.imageUrl 
+                                            });
+                                          }}
+                                          title="Set as main"
+                                          data-testid={`button-set-main-${image.id}`}
+                                        >
+                                          <CheckSquare className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="destructive"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                          data-testid={`button-delete-${image.id}`}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              )}
-                              {profileGalleryImages.map((image) => (
-                                <div key={image.id} className="relative group">
-                                  <div className="aspect-video rounded-md overflow-hidden bg-muted">
-                                    <OptimizedImage
-                                      src={image.imageUrl}
-                                      alt={image.caption || "Gallery image"}
-                                      className="w-full h-full object-cover"
-                                    />
+                              </div>
+                              
+                              {/* Desktop: Grid layout */}
+                              <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {selectedCourseProfile.imageUrl && (
+                                  <div className="relative group">
+                                    <div className="aspect-video rounded-md overflow-hidden bg-muted ring-2 ring-primary ring-offset-2">
+                                      <OptimizedImage
+                                        src={selectedCourseProfile.imageUrl}
+                                        alt="Main image"
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
                                   </div>
-                                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                      variant="secondary"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={() => {
-                                        updateCourseImageMutation.mutate({ 
-                                          courseId: selectedCourseProfile.id, 
-                                          imageUrl: image.imageUrl 
-                                        });
-                                      }}
-                                      title="Set as main"
-                                      data-testid={`button-set-main-${image.id}`}
-                                    >
-                                      <CheckSquare className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      size="icon"
-                                      className="h-6 w-6"
-                                      onClick={() => deleteGalleryImageMutation.mutate(image.id)}
-                                      data-testid={`button-delete-${image.id}`}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
+                                )}
+                                {profileGalleryImages.map((image) => (
+                                  <div key={image.id} className="relative group">
+                                    <div className="aspect-video rounded-md overflow-hidden bg-muted">
+                                      <OptimizedImage
+                                        src={image.imageUrl}
+                                        alt={image.caption || "Gallery image"}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button
+                                        variant="secondary"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => {
+                                          updateCourseImageMutation.mutate({ 
+                                            courseId: selectedCourseProfile.id, 
+                                            imageUrl: image.imageUrl 
+                                          });
+                                        }}
+                                        title="Set as main"
+                                        data-testid={`button-set-main-${image.id}`}
+                                      >
+                                        <CheckSquare className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                        data-testid={`button-delete-${image.id}`}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
+                                ))}
+                              </div>
+                            </>
                           ) : (
                             <div className="text-center py-8 text-muted-foreground">
                               <Images className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -3004,13 +3251,14 @@ export default function Admin() {
                       ))}
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 border-t">
                       <p className="text-sm text-muted-foreground">
                         {selectedCourseIds.length} course{selectedCourseIds.length !== 1 && "s"} selected
                       </p>
                       <Button
                         onClick={handleSendEmails}
                         disabled={selectedCourseIds.length === 0 || sendEmailsMutation.isPending}
+                        className="w-full sm:w-auto"
                         data-testid="button-send-emails"
                       >
                         <Send className="h-4 w-4 mr-2" />
@@ -3072,13 +3320,13 @@ export default function Admin() {
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                             <Select
                               onValueChange={(courseId) => {
                                 assignEmailMutation.mutate({ emailId: email.id, courseId });
                               }}
                             >
-                              <SelectTrigger className="w-[280px]" data-testid={`select-assign-course-${email.id}`}>
+                              <SelectTrigger className="w-full sm:w-[280px]" data-testid={`select-assign-course-${email.id}`}>
                                 <SelectValue placeholder="Assign to course..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -3095,6 +3343,7 @@ export default function Admin() {
                               size="icon"
                               onClick={() => deleteUnmatchedEmailMutation.mutate(email.id)}
                               disabled={deleteUnmatchedEmailMutation.isPending}
+                              className="self-end sm:self-auto"
                               data-testid={`button-delete-email-${email.id}`}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
@@ -3489,7 +3738,7 @@ export default function Admin() {
 
         {/* Edit User Dialog */}
         <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-          <DialogContent data-testid="dialog-edit-user">
+          <DialogContent className="max-w-[95vw] sm:max-w-md" data-testid="dialog-edit-user">
             <DialogHeader>
               <DialogTitle>Edit User</DialogTitle>
               <DialogDescription>
@@ -3571,12 +3820,13 @@ export default function Admin() {
                     </FormItem>
                   )}
                 />
-                <DialogFooter>
+                <DialogFooter className="flex-col gap-2 sm:flex-row">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setEditingUser(null)}
                     data-testid="button-cancel-edit"
+                    className="w-full sm:w-auto"
                   >
                     Cancel
                   </Button>
@@ -3584,6 +3834,7 @@ export default function Admin() {
                     type="submit"
                     disabled={updateUserMutation.isPending}
                     data-testid="button-save-user"
+                    className="w-full sm:w-auto"
                   >
                     {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
                   </Button>
@@ -3595,7 +3846,7 @@ export default function Admin() {
 
         {/* Delete User Dialog */}
         <Dialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
-          <DialogContent data-testid="dialog-delete-user">
+          <DialogContent className="max-w-[95vw] sm:max-w-md" data-testid="dialog-delete-user">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-5 w-5" />
@@ -3610,7 +3861,7 @@ export default function Admin() {
                 <p className="font-medium">
                   {deletingUser.firstName} {deletingUser.lastName}
                 </p>
-                <p className="text-sm text-muted-foreground">{deletingUser.email}</p>
+                <p className="text-sm text-muted-foreground break-all">{deletingUser.email}</p>
                 <div>
                   {deletingUser.isAdmin === "true" ? (
                     <Badge variant="default">Admin</Badge>
@@ -3620,12 +3871,13 @@ export default function Admin() {
                 </div>
               </div>
             )}
-            <DialogFooter>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setDeletingUser(null)}
                 data-testid="button-cancel-delete"
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
@@ -3635,6 +3887,7 @@ export default function Admin() {
                 onClick={() => deletingUser && deleteUserMutation.mutate(deletingUser.id)}
                 disabled={deleteUserMutation.isPending}
                 data-testid="button-confirm-delete"
+                className="w-full sm:w-auto"
               >
                 {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
               </Button>
@@ -3644,7 +3897,7 @@ export default function Admin() {
 
         {/* Edit Course Dialog */}
         <Dialog open={!!editingCourse} onOpenChange={(open) => !open && setEditingCourse(null)}>
-          <DialogContent className="max-w-2xl" data-testid="dialog-edit-course">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-course">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Edit className="h-5 w-5" />
@@ -3655,10 +3908,10 @@ export default function Admin() {
               </DialogDescription>
             </DialogHeader>
             {editingCourse && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div className="rounded-md bg-muted p-3">
-                  <p className="font-medium">{editingCourse.name}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-medium text-sm sm:text-base">{editingCourse.name}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     {editingCourse.city}, {editingCourse.province}
                   </p>
                 </div>
@@ -3666,12 +3919,12 @@ export default function Admin() {
                 {/* Course Image Section */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Course Image</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Current Image</Label>
                       {editingCourse.imageUrl ? (
                         <div className="space-y-2">
-                          <div className="relative w-full h-32 rounded-md overflow-hidden bg-muted">
+                          <div className="relative w-full h-32 sm:h-32 rounded-md overflow-hidden bg-muted">
                             <OptimizedImage
                               src={editingCourse.imageUrl}
                               alt={editingCourse.name}
@@ -3682,11 +3935,11 @@ export default function Admin() {
                           <Button
                             size="sm"
                             variant="destructive"
-                            className="w-full"
+                            className="w-full min-h-[44px]"
                             onClick={handleDeleteCourseImage}
                             data-testid="button-delete-course-image"
                           >
-                            <Trash2 className="h-3 w-3 mr-2" />
+                            <Trash2 className="h-4 w-4 mr-2" />
                             Delete Image
                           </Button>
                         </div>
@@ -3712,7 +3965,7 @@ export default function Admin() {
                       <p className="text-xs text-muted-foreground">
                         Path must start with /stock_images/ or /generated_images/
                       </p>
-                      <div className="flex gap-2 pt-1">
+                      <div className="flex flex-col sm:flex-row gap-2 pt-1">
                         <Button
                           size="sm"
                           variant="outline"
@@ -3729,7 +3982,7 @@ export default function Admin() {
                             input.click();
                           }}
                           disabled={uploadImageMutation.isPending}
-                          className="flex-1"
+                          className="flex-1 min-h-[44px]"
                           data-testid="button-upload-course-image"
                         >
                           <Upload className="h-4 w-4 mr-2" />
@@ -3768,7 +4021,7 @@ export default function Admin() {
                             !editCourseImageUrl || 
                             updateCourseImageMutation.isPending
                           }
-                          className="flex-1"
+                          className="flex-1 min-h-[44px]"
                           data-testid="button-save-course-image"
                         >
                           <Save className="h-4 w-4 mr-2" />
@@ -3791,77 +4044,120 @@ export default function Admin() {
                     </Badge>
                   </div>
                   
-                  {/* Existing Gallery Images */}
+                  {/* Existing Gallery Images - Horizontal scroll on mobile, vertical list on desktop */}
                   {galleryImages.length > 0 && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {galleryImages.map((image, index) => (
-                        <div 
-                          key={image.id} 
-                          className="flex items-center gap-2 p-2 bg-muted rounded-md"
-                          data-testid={`gallery-image-row-${index}`}
-                        >
-                          <div className="w-16 h-12 rounded overflow-hidden flex-shrink-0">
-                            <img 
-                              src={image.imageUrl} 
-                              alt={image.caption || `Image ${index + 1}`}
-                              className="w-full h-full object-cover"
-                              data-testid={`gallery-image-preview-${index}`}
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground truncate" data-testid={`gallery-image-url-${index}`}>
-                              {image.imageUrl}
-                            </p>
-                            {image.caption && (
-                              <p className="text-xs font-medium truncate" data-testid={`gallery-image-caption-${index}`}>
-                                {image.caption}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              onClick={() => handleMoveGalleryImage(image.id, 'up')}
-                              disabled={index === 0 || reorderGalleryImagesMutation.isPending}
-                              data-testid={`button-gallery-move-up-${index}`}
+                    <>
+                      {/* Mobile: Horizontal scrolling gallery */}
+                      <div className="sm:hidden -mx-3 px-3">
+                        <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
+                          {galleryImages.map((image, index) => (
+                            <div 
+                              key={image.id} 
+                              className="flex-shrink-0 w-32 snap-start"
+                              data-testid={`gallery-image-card-${index}`}
                             >
-                              <ChevronUp className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              onClick={() => handleMoveGalleryImage(image.id, 'down')}
-                              disabled={index === galleryImages.length - 1 || reorderGalleryImagesMutation.isPending}
-                              data-testid={`button-gallery-move-down-${index}`}
-                            >
-                              <ChevronDown className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => deleteGalleryImageMutation.mutate(image.id)}
-                              disabled={deleteGalleryImageMutation.isPending}
-                              data-testid={`button-gallery-delete-${index}`}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                              <div className="relative aspect-[4/3] rounded-md overflow-hidden bg-muted">
+                                <img 
+                                  src={image.imageUrl} 
+                                  alt={image.caption || `Image ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                  data-testid={`gallery-image-preview-${index}`}
+                                />
+                                <div className="absolute bottom-1 right-1 flex gap-1">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="secondary"
+                                    className="h-8 w-8"
+                                    onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                    disabled={deleteGalleryImageMutation.isPending}
+                                    data-testid={`button-gallery-delete-${index}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                              {image.caption && (
+                                <p className="text-xs mt-1 truncate" data-testid={`gallery-image-caption-${index}`}>
+                                  {image.caption}
+                                </p>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                      
+                      {/* Desktop: Vertical list */}
+                      <div className="hidden sm:block space-y-2 max-h-48 overflow-y-auto">
+                        {galleryImages.map((image, index) => (
+                          <div 
+                            key={image.id} 
+                            className="flex items-center gap-2 p-2 bg-muted rounded-md"
+                            data-testid={`gallery-image-row-${index}`}
+                          >
+                            <div className="w-16 h-12 rounded overflow-hidden flex-shrink-0">
+                              <img 
+                                src={image.imageUrl} 
+                                alt={image.caption || `Image ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                data-testid={`gallery-image-preview-${index}`}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground truncate" data-testid={`gallery-image-url-${index}`}>
+                                {image.imageUrl}
+                              </p>
+                              {image.caption && (
+                                <p className="text-xs font-medium truncate" data-testid={`gallery-image-caption-${index}`}>
+                                  {image.caption}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => handleMoveGalleryImage(image.id, 'up')}
+                                disabled={index === 0 || reorderGalleryImagesMutation.isPending}
+                                data-testid={`button-gallery-move-up-${index}`}
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                onClick={() => handleMoveGalleryImage(image.id, 'down')}
+                                disabled={index === galleryImages.length - 1 || reorderGalleryImagesMutation.isPending}
+                                data-testid={`button-gallery-move-down-${index}`}
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                disabled={deleteGalleryImageMutation.isPending}
+                                data-testid={`button-gallery-delete-${index}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
                   
                   {/* Add New Gallery Image */}
                   <div className="space-y-2 pt-2">
                     <Label className="text-xs text-muted-foreground">Add New Gallery Image</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-2">
                       <Input
                         value={newGalleryImageUrl}
                         onChange={(e) => setNewGalleryImageUrl(e.target.value)}
@@ -3880,6 +4176,7 @@ export default function Admin() {
                     <Button
                       type="button"
                       size="sm"
+                      className="w-full sm:w-auto min-h-[44px]"
                       onClick={() => {
                         if (!newGalleryImageUrl || !newGalleryImageUrl.trim()) {
                           toast({
@@ -4017,14 +4314,14 @@ export default function Admin() {
 
         {/* View User Bookings Dialog */}
         <Dialog open={!!viewingUserBookings} onOpenChange={(open) => !open && setViewingUserBookings(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto" data-testid="dialog-user-bookings">
+          <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[80vh] overflow-y-auto" data-testid="dialog-user-bookings">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
                 Booking History
               </DialogTitle>
               {viewingUserBookings && (
-                <DialogDescription>
+                <DialogDescription className="break-all">
                   Showing all bookings for {viewingUserBookings.firstName} {viewingUserBookings.lastName} ({viewingUserBookings.email})
                 </DialogDescription>
               )}
@@ -4043,37 +4340,46 @@ export default function Admin() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Total bookings: {userBookings.length}
                   </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Course</TableHead>
-                        <TableHead>Tee Time</TableHead>
-                        <TableHead>Players</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Requested</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {userBookings.map((booking) => {
-                        const course = courses?.find(c => c.id === booking.courseId);
-                        return (
-                          <TableRow key={booking.id} data-testid={`row-user-booking-${booking.id}`}>
-                            <TableCell className="font-medium">
-                              {course?.name || booking.courseId}
-                            </TableCell>
-                            <TableCell>
-                              {format(new Date(booking.teeTime), "PPp")}
-                            </TableCell>
-                            <TableCell>{booking.players}</TableCell>
-                            <TableCell>{getStatusBadge(booking.status)}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {format(new Date(booking.createdAt), "PP")}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  <TableCard<BookingRequest>
+                    columns={[
+                      {
+                        key: "courseId" as keyof BookingRequest,
+                        label: "Course",
+                        render: (value) => {
+                          const course = courses?.find(c => c.id === value);
+                          return <span className="font-medium">{course?.name || (value as string)}</span>;
+                        },
+                      },
+                      {
+                        key: "teeTime",
+                        label: "Tee Time",
+                        render: (value) => format(new Date(value as string), "PPp"),
+                      },
+                      {
+                        key: "players",
+                        label: "Players",
+                        hideOnMobile: true,
+                      },
+                      {
+                        key: "status",
+                        label: "Status",
+                        render: (value) => getStatusBadge(value as string),
+                      },
+                      {
+                        key: "createdAt",
+                        label: "Requested",
+                        hideOnMobile: true,
+                        render: (value) => (
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(value as string), "PP")}
+                          </span>
+                        ),
+                      },
+                    ]}
+                    data={userBookings}
+                    keyExtractor={(row) => row.id}
+                    emptyMessage="No bookings found for this user"
+                  />
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
@@ -4081,12 +4387,13 @@ export default function Admin() {
                 </div>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setViewingUserBookings(null)}
                 data-testid="button-close-bookings"
+                className="w-full sm:w-auto"
               >
                 Close
               </Button>
