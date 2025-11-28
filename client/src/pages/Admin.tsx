@@ -3451,21 +3451,25 @@ export default function Admin() {
                                   </div>
                                   <Badge 
                                     variant={
-                                      thread.status === "OPEN" && thread.requiresResponse === "true" ? "destructive" :
+                                      thread.status === "OPEN" && thread.requiresResponse === "true" && thread.isRead !== "true" ? "destructive" :
+                                      thread.status === "OPEN" && thread.requiresResponse === "true" && thread.isRead === "true" ? "secondary" :
                                       thread.status === "OPEN" ? "secondary" :
                                       thread.status === "REPLIED" ? "default" :
                                       thread.status === "CLOSED" ? "outline" :
                                       "outline"
                                     }
                                     className={`text-xs ${
+                                      thread.status === "OPEN" && thread.requiresResponse === "true" && thread.isRead === "true" ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" :
                                       thread.status === "REPLIED" ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" :
                                       thread.status === "CLOSED" ? "bg-slate-500 hover:bg-slate-600 text-white border-slate-500" :
                                       thread.status === "ARCHIVED" ? "bg-slate-300 hover:bg-slate-400 text-slate-700 border-slate-300 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600" :
                                       ""
                                     }`}
                                   >
-                                    {thread.status === "OPEN" && thread.requiresResponse === "true" 
+                                    {thread.status === "OPEN" && thread.requiresResponse === "true" && thread.isRead !== "true"
                                       ? t('inbox.needsResponse') || "Needs Response"
+                                      : thread.status === "OPEN" && thread.requiresResponse === "true" && thread.isRead === "true"
+                                      ? t('inbox.open')
                                       : t(`inbox.${thread.status.toLowerCase()}`)}
                                   </Badge>
                                 </div>
