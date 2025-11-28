@@ -447,19 +447,25 @@ export default function Admin() {
   });
 
   // Inbox - Get selected thread with messages
-  const { data: selectedThread, isLoading: isLoadingThread } = useQuery<ThreadWithMessages>({
+  const { data: selectedThread, isLoading: isLoadingThread, dataUpdatedAt } = useQuery<ThreadWithMessages>({
     queryKey: ["/api/admin/inbox", selectedThreadId],
     queryFn: async () => {
       if (!selectedThreadId) return null;
       const res = await fetch(`/api/admin/inbox/${selectedThreadId}`);
       if (!res.ok) throw new Error("Failed to fetch thread");
-      const thread = await res.json();
-      // Backend marks thread as read - refresh the list to update visual state
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
-      return thread;
+      return res.json();
     },
     enabled: !!selectedThreadId && isAuthenticated && isAdmin,
   });
+  
+  // When a thread is fetched (and marked as read by backend), refresh the inbox list
+  useEffect(() => {
+    if (dataUpdatedAt && selectedThreadId) {
+      // Refresh the inbox list to show updated read status
+      refetchInboxThreads();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox/count"] });
+    }
+  }, [dataUpdatedAt]);
 
   // Inbox - Get inbox count for badge (also used in Header)
   const { data: inboxCountData } = useQuery<{ count: number }>({
