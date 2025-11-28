@@ -900,12 +900,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         courseName = course?.name || null;
       }
       
-      // Mark as read when viewing
+      // Mark as read when viewing and get updated thread
+      let updatedThread = thread;
       if (thread.isRead !== "true") {
-        await storage.markThreadAsRead(thread.id);
+        const marked = await storage.markThreadAsRead(thread.id);
+        if (marked) {
+          updatedThread = marked;
+        }
       }
       
-      res.json({ ...thread, courseName, messages });
+      res.json({ ...updatedThread, courseName, messages });
     } catch (error) {
       console.error("Failed to get inbox thread:", error);
       res.status(500).json({ error: "Failed to get inbox thread" });
