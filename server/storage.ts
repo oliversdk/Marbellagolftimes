@@ -50,7 +50,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc, sql as sqlFunc, sql, count, sum, and, or, isNull, lt } from "drizzle-orm";
+import { eq, ne, desc, sql as sqlFunc, sql, count, sum, and, or, isNull, lt } from "drizzle-orm";
 
 export interface IStorage {
   // Golf Courses
@@ -159,7 +159,8 @@ export interface IStorage {
   deleteUnmatchedEmail(id: string): Promise<boolean>;
 
   // Inbound Email Threads
-  getAllInboundThreads(): Promise<InboundEmailThread[]>;
+  getAllInboundThreads(includeDeleted?: boolean): Promise<InboundEmailThread[]>;
+  getDeletedInboundThreads(): Promise<InboundEmailThread[]>;
   getInboundThreadById(id: string): Promise<InboundEmailThread | undefined>;
   getInboundThreadByCourseId(courseId: string): Promise<InboundEmailThread[]>;
   getUnansweredThreadsCount(): Promise<number>;
@@ -169,6 +170,9 @@ export interface IStorage {
   markThreadAsRead(id: string): Promise<InboundEmailThread | undefined>;
   markThreadAsReplied(id: string, userId: string): Promise<InboundEmailThread | undefined>;
   muteThread(id: string, muted: boolean): Promise<InboundEmailThread | undefined>;
+  deleteThread(id: string): Promise<InboundEmailThread | undefined>;
+  restoreThread(id: string): Promise<InboundEmailThread | undefined>;
+  permanentlyDeleteThread(id: string): Promise<boolean>;
   
   // Inbound Emails (messages within threads)
   getEmailsByThreadId(threadId: string): Promise<InboundEmail[]>;
@@ -1704,6 +1708,93 @@ export class MemStorage implements IStorage {
   async deleteUnmatchedEmail(id: string): Promise<boolean> {
     return false;
   }
+
+  // Inbound Email Threads (stub implementation for MemStorage)
+  async getAllInboundThreads(includeDeleted?: boolean): Promise<InboundEmailThread[]> {
+    return [];
+  }
+
+  async getDeletedInboundThreads(): Promise<InboundEmailThread[]> {
+    return [];
+  }
+
+  async getInboundThreadById(id: string): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  async getInboundThreadByCourseId(courseId: string): Promise<InboundEmailThread[]> {
+    return [];
+  }
+
+  async getUnansweredThreadsCount(): Promise<number> {
+    return 0;
+  }
+
+  async getUnansweredThreads(): Promise<InboundEmailThread[]> {
+    return [];
+  }
+
+  async createInboundThread(thread: InsertInboundEmailThread): Promise<InboundEmailThread> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async updateInboundThread(id: string, updates: Partial<InboundEmailThread>): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  async markThreadAsRead(id: string): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  async markThreadAsReplied(id: string, userId: string): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  async muteThread(id: string, muted: boolean): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  async deleteThread(id: string): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  async restoreThread(id: string): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  async permanentlyDeleteThread(id: string): Promise<boolean> {
+    return false;
+  }
+
+  // Inbound Emails (stub implementation for MemStorage)
+  async getEmailsByThreadId(threadId: string): Promise<InboundEmail[]> {
+    return [];
+  }
+
+  async createInboundEmail(email: InsertInboundEmail): Promise<InboundEmail> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async findThreadByEmailHeaders(messageId: string | null, inReplyTo: string | null, fromEmail: string): Promise<InboundEmailThread | undefined> {
+    return undefined;
+  }
+
+  // Admin Alert Settings (stub implementation for MemStorage)
+  async getAdminAlertSettings(userId: string): Promise<AdminAlertSettings | undefined> {
+    return undefined;
+  }
+
+  async upsertAdminAlertSettings(userId: string, settings: Partial<AdminAlertSettings>): Promise<AdminAlertSettings> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async getAdminsForAlerts(): Promise<{ userId: string; email: string; alertEmail?: string | null }[]> {
+    return [];
+  }
+
+  async getOverdueThreads(slaHours: number): Promise<InboundEmailThread[]> {
+    return [];
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2417,10 +2508,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Inbound Email Threads
-  async getAllInboundThreads(): Promise<InboundEmailThread[]> {
+  async getAllInboundThreads(includeDeleted: boolean = false): Promise<InboundEmailThread[]> {
+    if (includeDeleted) {
+      return await db
+        .select()
+        .from(inboundEmailThreads)
+        .orderBy(desc(inboundEmailThreads.lastActivityAt));
+    }
     return await db
       .select()
       .from(inboundEmailThreads)
+      .where(ne(inboundEmailThreads.status, "DELETED"))
+      .orderBy(desc(inboundEmailThreads.lastActivityAt));
+  }
+
+  async getDeletedInboundThreads(): Promise<InboundEmailThread[]> {
+    return await db
+      .select()
+      .from(inboundEmailThreads)
+      .where(eq(inboundEmailThreads.status, "DELETED"))
       .orderBy(desc(inboundEmailThreads.lastActivityAt));
   }
 
@@ -2508,6 +2614,32 @@ export class DatabaseStorage implements IStorage {
       .where(eq(inboundEmailThreads.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteThread(id: string): Promise<InboundEmailThread | undefined> {
+    const result = await db
+      .update(inboundEmailThreads)
+      .set({ status: "DELETED" })
+      .where(eq(inboundEmailThreads.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async restoreThread(id: string): Promise<InboundEmailThread | undefined> {
+    const result = await db
+      .update(inboundEmailThreads)
+      .set({ status: "OPEN" })
+      .where(eq(inboundEmailThreads.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async permanentlyDeleteThread(id: string): Promise<boolean> {
+    // First delete all emails in the thread
+    await db.delete(inboundEmails).where(eq(inboundEmails.threadId, id));
+    // Then delete the thread itself
+    const result = await db.delete(inboundEmailThreads).where(eq(inboundEmailThreads.id, id)).returning();
+    return result.length > 0;
   }
 
   // Inbound Emails (messages within threads)
