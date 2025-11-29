@@ -38,6 +38,11 @@ export interface SendEmailOptions {
   html?: string;
 }
 
+// Get Reply-To email for routing replies through SendGrid
+function getReplyToEmail(): string {
+  return process.env.REPLY_TO_EMAIL || process.env.FROM_EMAIL || "info@reply.marbellagolftimes.com";
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
   const config = getEmailConfig();
   if (!config) {
@@ -56,15 +61,18 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
       },
     });
 
+    const replyTo = getReplyToEmail();
+    
     await transporter.sendMail({
       from: config.from,
+      replyTo: replyTo,
       to: options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
     });
 
-    console.log("[Email] Sent email to:", options.to, "Subject:", options.subject);
+    console.log("[Email] Sent email to:", options.to, "Subject:", options.subject, "Reply-To:", replyTo);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -101,13 +109,17 @@ export async function sendAffiliateEmail(
       .replace(/\[COURSE_NAME\]/g, course.name)
       .replace(/\[SENDER_NAME\]/g, senderName);
 
+    const replyTo = getReplyToEmail();
+
     await transporter.sendMail({
       from: config.from,
+      replyTo: replyTo,
       to: course.email,
       subject: personalizedSubject,
       text: personalizedBody,
     });
 
+    console.log("[Email] Sent affiliate email to:", course.email, "Reply-To:", replyTo);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
