@@ -586,13 +586,16 @@ export default function Admin() {
     mutationFn: async ({ threadId, body }: { threadId: string; body: string }) => {
       return await apiRequest(`/api/admin/inbox/${threadId}/reply`, "POST", { body });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox/count"] });
-      if (selectedThreadId) {
-        queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox", selectedThreadId] });
-      }
+    onSuccess: async () => {
+      // Force immediate refetch of all inbox data to update status and count
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/admin/inbox"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/admin/inbox/count"] }),
+        selectedThreadId ? queryClient.refetchQueries({ queryKey: ["/api/admin/inbox", selectedThreadId] }) : Promise.resolve(),
+      ]);
       setReplyText("");
+      // Switch to "replied" filter so user can see the status changed
+      setInboxFilter("replied");
       toast({
         title: t('inbox.replySent'),
       });
