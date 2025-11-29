@@ -497,6 +497,28 @@ export default function Admin() {
     },
   });
 
+  // Update booking status mutation (Admin)
+  const updateBookingStatusMutation = useMutation({
+    mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
+      return await apiRequest(`/api/booking-requests/${bookingId}/status`, "PATCH", { status });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
+      setSelectedBooking(data);
+      toast({
+        title: "Status opdateret",
+        description: `Booking status ændret til ${data.status}`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Fejl",
+        description: "Kunne ikke opdatere booking status",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Inbox - Fetch all email threads
   const { data: inboxThreads = [], refetch: refetchInboxThreads } = useQuery<InboundEmailThread[]>({
     queryKey: ["/api/admin/inbox"],
@@ -1597,6 +1619,10 @@ export default function Admin() {
     switch (status) {
       case "PENDING":
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />{t('admin.statusPending')}</Badge>;
+      case "ACCEPTED":
+        return <Badge variant="default" className="bg-blue-500"><CheckCircle2 className="h-3 w-3 mr-1" />Accepted</Badge>;
+      case "FULFILLED":
+        return <Badge variant="default" className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />Fulfilled</Badge>;
       case "CONFIRMED":
         return <Badge variant="default"><CheckCircle2 className="h-3 w-3 mr-1" />{t('admin.statusConfirmed')}</Badge>;
       case "CANCELLED":
@@ -1867,7 +1893,27 @@ export default function Admin() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <Label className="text-muted-foreground text-xs">Status</Label>
-                        <div>{getStatusBadge(selectedBooking.status)}</div>
+                        <Select
+                          value={selectedBooking.status}
+                          onValueChange={(value) => {
+                            updateBookingStatusMutation.mutate({
+                              bookingId: selectedBooking.id,
+                              status: value,
+                            });
+                          }}
+                          disabled={updateBookingStatusMutation.isPending}
+                        >
+                          <SelectTrigger className="w-full" data-testid="select-booking-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="ACCEPTED">Accepted</SelectItem>
+                            <SelectItem value="FULFILLED">Fulfilled</SelectItem>
+                            <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-muted-foreground text-xs">Est. Price</Label>

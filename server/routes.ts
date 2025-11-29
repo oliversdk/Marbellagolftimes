@@ -2430,6 +2430,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/booking-requests/:id/status - Update booking status (Admin only)
+  app.patch("/api/booking-requests/:id/status", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      const validStatuses = ["PENDING", "ACCEPTED", "FULFILLED", "CONFIRMED", "CANCELLED"];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` });
+      }
+
+      // Get booking to check if it exists
+      const booking = await storage.getBookingById(id);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      // Update status
+      const updatedBooking = await storage.updateBookingStatus(id, status);
+      res.json(updatedBooking);
+    } catch (error) {
+      console.error("Error updating booking status:", error);
+      res.status(500).json({ error: "Failed to update booking status" });
+    }
+  });
+
   // POST /api/booking-requests/:id/rebook - Create new booking based on existing one (Authenticated)
   app.post("/api/booking-requests/:id/rebook", isAuthenticated, async (req: any, res) => {
     try {

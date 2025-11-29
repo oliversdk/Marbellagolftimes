@@ -76,6 +76,7 @@ export interface IStorage {
   getBookingsByUserId(userId: string): Promise<(BookingRequest & { courseName?: string })[]>;
   createBooking(booking: InsertBookingRequest): Promise<BookingRequest>;
   cancelBooking(id: string, reason?: string): Promise<BookingRequest | undefined>;
+  updateBookingStatus(id: string, status: string): Promise<BookingRequest | undefined>;
 
   // Affiliate Emails
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
@@ -1208,6 +1209,18 @@ export class MemStorage implements IStorage {
     return updatedBooking;
   }
 
+  async updateBookingStatus(id: string, status: string): Promise<BookingRequest | undefined> {
+    const booking = this.bookings.get(id);
+    if (!booking) return undefined;
+    
+    const updatedBooking = {
+      ...booking,
+      status,
+    };
+    this.bookings.set(id, updatedBooking);
+    return updatedBooking;
+  }
+
   // Affiliate Emails
   async getAllAffiliateEmails(): Promise<AffiliateEmail[]> {
     return Array.from(this.affiliateEmails.values());
@@ -1811,6 +1824,15 @@ export class DatabaseStorage implements IStorage {
         cancelledAt: new Date(),
         cancellationReason: reason || null,
       })
+      .where(eq(bookingRequests.id, id))
+      .returning();
+    return booking;
+  }
+
+  async updateBookingStatus(id: string, status: string): Promise<BookingRequest | undefined> {
+    const [booking] = await db
+      .update(bookingRequests)
+      .set({ status })
       .where(eq(bookingRequests.id, id))
       .returning();
     return booking;
