@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
+import { GolfLoader } from "@/components/GolfLoader";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/not-found";
 
@@ -19,10 +20,7 @@ const Signup = lazy(() => import("@/pages/Signup"));
 function LoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center" data-testid="loading-fallback">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" data-testid="loading-spinner" />
-        <p className="text-sm text-muted-foreground" data-testid="loading-text">Loading...</p>
-      </div>
+      <GolfLoader size="lg" text="Loading..." />
     </div>
   );
 }

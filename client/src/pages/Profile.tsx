@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { SEO } from "@/components/SEO";
+import { GolfLoader } from "@/components/GolfLoader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -440,7 +441,7 @@ export default function Profile() {
   if (authLoading || !typedUser) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <p className="text-muted-foreground">{t('common.loading')}</p>
+        <GolfLoader size="lg" text={t('common.loading')} />
       </div>
     );
   }
@@ -508,8 +509,8 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
             {bookingsLoading ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">{t('common.loading')}</p>
+              <div className="py-8">
+                <GolfLoader size="md" text={t('common.loading')} />
               </div>
             ) : bookings && bookings.length > 0 ? (
               <Tabs defaultValue="upcoming" className="w-full">
@@ -720,8 +721,8 @@ export default function Profile() {
             </CardHeader>
             <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
               {usersLoading ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">{t('common.loading')}</p>
+                <div className="py-8">
+                  <GolfLoader size="md" text={t('common.loading')} />
                 </div>
               ) : allUsers && allUsers.length > 0 ? (
                 isMobile ? (

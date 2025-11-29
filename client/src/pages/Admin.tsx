@@ -41,6 +41,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
 import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal } from "lucide-react";
+import { GolfLoader } from "@/components/GolfLoader";
 import {
   Select,
   SelectContent,
@@ -1561,10 +1562,7 @@ export default function Admin() {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">{t('common.loading')}</p>
-          </div>
+          <GolfLoader size="lg" text={t('common.loading')} />
         </div>
       </div>
     );
@@ -2228,8 +2226,8 @@ export default function Admin() {
                   </div>
 
                   {isLoadingOnboarding ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      Loading course data...
+                    <div className="py-12">
+                      <GolfLoader size="md" text="Loading course data..." />
                     </div>
                   ) : filteredCourses.length > 0 ? (
                     <>
@@ -2865,10 +2863,7 @@ export default function Admin() {
                               data-testid="input-image-upload"
                             />
                             {uploadImagesMutation.isPending ? (
-                              <div className="space-y-2">
-                                <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-                                <p className="text-sm text-muted-foreground">Uploading images...</p>
-                              </div>
+                              <GolfLoader size="sm" text="Uploading images..." />
                             ) : (
                               <div className="space-y-2">
                                 <Images className="h-10 w-10 mx-auto text-muted-foreground" />
@@ -3146,8 +3141,8 @@ export default function Admin() {
                         <h4 className="text-sm font-medium mb-3">Communication History</h4>
                         <ScrollArea className="h-[300px]">
                           {isLoadingProfileContactLogs ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                              Loading communication history...
+                            <div className="py-8">
+                              <GolfLoader size="sm" text="Loading communication history..." />
                             </div>
                           ) : profileContactLogs && profileContactLogs.length > 0 ? (
                             <div className="space-y-3">
@@ -3562,38 +3557,7 @@ export default function Admin() {
                         </Button>
                       </div>
                       <div className="flex items-center justify-center flex-1">
-                        {/* Golf swing loading animation */}
-                        <div className="relative w-24 h-24">
-                          <svg viewBox="0 0 100 100" className="w-full h-full">
-                            {/* Golfer body silhouette */}
-                            <g fill="currentColor" className="text-primary opacity-80">
-                              {/* Head */}
-                              <circle cx="50" cy="20" r="8" />
-                              {/* Body */}
-                              <path d="M50 28 L50 55 L42 80 M50 55 L58 80" strokeWidth="4" stroke="currentColor" fill="none" strokeLinecap="round" />
-                              {/* Arms with swing animation */}
-                              <g className="origin-[50px_35px]" style={{ animation: "golfSwing 1s ease-in-out infinite" }}>
-                                <path d="M50 35 L30 25 L20 15" strokeWidth="3" stroke="currentColor" fill="none" strokeLinecap="round" />
-                                {/* Golf club */}
-                                <path d="M20 15 L10 5" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" />
-                                <rect x="6" y="2" width="8" height="4" rx="1" fill="currentColor" transform="rotate(-45 10 4)" />
-                              </g>
-                            </g>
-                            {/* Golf ball with flying animation */}
-                            <circle cx="75" cy="75" r="4" fill="currentColor" className="text-muted-foreground" style={{ animation: "golfBall 1s ease-out infinite" }} />
-                          </svg>
-                          <style>{`
-                            @keyframes golfSwing {
-                              0%, 100% { transform: rotate(-30deg); }
-                              50% { transform: rotate(60deg); }
-                            }
-                            @keyframes golfBall {
-                              0%, 40% { opacity: 0; transform: translate(0, 0) scale(1); }
-                              50% { opacity: 1; transform: translate(0, 0) scale(1); }
-                              100% { opacity: 0; transform: translate(20px, -30px) scale(0.5); }
-                            }
-                          `}</style>
-                        </div>
+                        <GolfLoader size="md" />
                       </div>
                     </div>
                   ) : (
@@ -4426,8 +4390,8 @@ export default function Admin() {
             </DialogHeader>
             <div className="space-y-4">
               {isLoadingUserBookings ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  Loading bookings...
+                <div className="py-12">
+                  <GolfLoader size="md" text="Loading bookings..." />
                 </div>
               ) : userBookingsError ? (
                 <div className="text-center py-12 text-destructive">
@@ -4821,8 +4785,8 @@ export default function Admin() {
                   <h4 className="text-sm font-medium mb-3">History</h4>
                   <ScrollArea className="h-[300px]">
                     {isLoadingContactLogs ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        Loading contact history...
+                      <div className="py-8">
+                        <GolfLoader size="sm" text="Loading contact history..." />
                       </div>
                     ) : contactLogs && contactLogs.length > 0 ? (
                       <div className="space-y-3">
