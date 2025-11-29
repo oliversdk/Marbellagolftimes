@@ -409,7 +409,7 @@ export default function Admin() {
       const matchesStatus = bookingStatusFilter === "ALL" || booking.status === bookingStatusFilter;
       
       const matchesDate = !bookingDateFilter || 
-        format(new Date(booking.teeTime), "yyyy-MM-dd") === format(bookingDateFilter, "yyyy-MM-dd");
+        (booking.teeTime && format(new Date(booking.teeTime), "yyyy-MM-dd") === format(bookingDateFilter, "yyyy-MM-dd"));
       
       return matchesSearch && matchesStatus && matchesDate;
     });
@@ -1801,13 +1801,13 @@ export default function Admin() {
                       {
                         key: "teeTime",
                         label: "Date",
-                        render: (value) => format(new Date(value as string), "PP"),
+                        render: (value) => value ? format(new Date(value as string), "PP") : "-",
                       },
                       {
                         key: "teeTime",
                         label: "Time",
                         hideOnMobile: true,
-                        render: (value) => format(new Date(value as string), "p"),
+                        render: (value) => value ? format(new Date(value as string), "p") : "-",
                       },
                       {
                         key: "courseId",
@@ -1883,11 +1883,15 @@ export default function Admin() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <Label className="text-muted-foreground text-xs">Date</Label>
-                        <p className="font-medium">{format(new Date(selectedBooking.teeTime), "PPP")}</p>
+                        <p className="font-medium">
+                          {selectedBooking.teeTime ? format(new Date(selectedBooking.teeTime), "PPP") : "-"}
+                        </p>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-muted-foreground text-xs">Time</Label>
-                        <p className="font-medium">{format(new Date(selectedBooking.teeTime), "p")}</p>
+                        <p className="font-medium">
+                          {selectedBooking.teeTime ? format(new Date(selectedBooking.teeTime), "p") : "-"}
+                        </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -1922,7 +1926,9 @@ export default function Admin() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-muted-foreground text-xs">Created</Label>
-                      <p className="text-sm text-muted-foreground">{format(new Date(selectedBooking.createdAt), "PPpp")}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedBooking.createdAt ? format(new Date(selectedBooking.createdAt), "PPpp") : "-"}
+                      </p>
                     </div>
                   </div>
                 )}
