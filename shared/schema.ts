@@ -326,7 +326,7 @@ export type InsertInboundEmail = z.infer<typeof insertInboundEmailSchema>;
 export type InboundEmail = typeof inboundEmails.$inferSelect;
 
 // Thread statuses
-export const THREAD_STATUSES = ["OPEN", "REPLIED", "CLOSED", "ARCHIVED"] as const;
+export const THREAD_STATUSES = ["OPEN", "REPLIED", "CLOSED", "ARCHIVED", "DELETED"] as const;
 export type ThreadStatus = typeof THREAD_STATUSES[number];
 
 // Email directions
