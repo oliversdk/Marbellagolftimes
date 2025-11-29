@@ -503,7 +503,7 @@ export default function Admin() {
       return await apiRequest(`/api/booking-requests/${bookingId}/status`, "PATCH", { status });
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/booking-requests"] });
       setSelectedBooking(data);
       toast({
         title: "Status opdateret",
