@@ -3562,7 +3562,38 @@ export default function Admin() {
                         </Button>
                       </div>
                       <div className="flex items-center justify-center flex-1">
-                        <Clock className="h-6 w-6 animate-spin" />
+                        {/* Golf swing loading animation */}
+                        <div className="relative w-24 h-24">
+                          <svg viewBox="0 0 100 100" className="w-full h-full">
+                            {/* Golfer body silhouette */}
+                            <g fill="currentColor" className="text-primary opacity-80">
+                              {/* Head */}
+                              <circle cx="50" cy="20" r="8" />
+                              {/* Body */}
+                              <path d="M50 28 L50 55 L42 80 M50 55 L58 80" strokeWidth="4" stroke="currentColor" fill="none" strokeLinecap="round" />
+                              {/* Arms with swing animation */}
+                              <g className="origin-[50px_35px]" style={{ animation: "golfSwing 1s ease-in-out infinite" }}>
+                                <path d="M50 35 L30 25 L20 15" strokeWidth="3" stroke="currentColor" fill="none" strokeLinecap="round" />
+                                {/* Golf club */}
+                                <path d="M20 15 L10 5" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" />
+                                <rect x="6" y="2" width="8" height="4" rx="1" fill="currentColor" transform="rotate(-45 10 4)" />
+                              </g>
+                            </g>
+                            {/* Golf ball with flying animation */}
+                            <circle cx="75" cy="75" r="4" fill="currentColor" className="text-muted-foreground" style={{ animation: "golfBall 1s ease-out infinite" }} />
+                          </svg>
+                          <style>{`
+                            @keyframes golfSwing {
+                              0%, 100% { transform: rotate(-30deg); }
+                              50% { transform: rotate(60deg); }
+                            }
+                            @keyframes golfBall {
+                              0%, 40% { opacity: 0; transform: translate(0, 0) scale(1); }
+                              50% { opacity: 1; transform: translate(0, 0) scale(1); }
+                              100% { opacity: 0; transform: translate(20px, -30px) scale(0.5); }
+                            }
+                          `}</style>
+                        </div>
                       </div>
                     </div>
                   ) : (
