@@ -884,7 +884,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/admin/inbox - Get all inbound email threads (Admin only)
   app.get("/api/admin/inbox", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const threads = await storage.getAllInboundThreads();
+      // Include deleted threads so frontend can show them in trash filter
+      const threads = await storage.getAllInboundThreads(true);
       
       // Enrich with course names
       const enrichedThreads = await Promise.all(threads.map(async (thread) => {
