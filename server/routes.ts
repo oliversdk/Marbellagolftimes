@@ -1138,6 +1138,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/admin/inbox/:id - Soft delete thread (move to trash) (Admin only)
+  app.delete("/api/admin/inbox/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      const deletedThread = await storage.deleteThread(req.params.id);
+      res.json(deletedThread);
+    } catch (error) {
+      console.error("Failed to delete thread:", error);
+      res.status(500).json({ error: "Failed to delete thread" });
+    }
+  });
+
+  // PATCH /api/admin/inbox/:id/restore - Restore deleted thread (Admin only)
+  app.patch("/api/admin/inbox/:id/restore", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      if (thread.status !== "DELETED") {
+        return res.status(400).json({ error: "Thread is not deleted" });
+      }
+      
+      const restoredThread = await storage.restoreThread(req.params.id);
+      res.json(restoredThread);
+    } catch (error) {
+      console.error("Failed to restore thread:", error);
+      res.status(500).json({ error: "Failed to restore thread" });
+    }
+  });
+
+  // DELETE /api/admin/inbox/:id/permanent - Permanently delete thread (Admin only)
+  app.delete("/api/admin/inbox/:id/permanent", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const thread = await storage.getInboundThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      
+      const success = await storage.permanentlyDeleteThread(req.params.id);
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: "Failed to permanently delete thread" });
+      }
+    } catch (error) {
+      console.error("Failed to permanently delete thread:", error);
+      res.status(500).json({ error: "Failed to permanently delete thread" });
+    }
+  });
+
   // GET /api/admin/inbox/settings - Get admin alert settings (Admin only)
   app.get("/api/admin/inbox/settings", isAuthenticated, isAdmin, async (req, res) => {
     try {
