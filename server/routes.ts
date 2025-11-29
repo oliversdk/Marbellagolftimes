@@ -952,7 +952,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique message ID for threading
       const messageId = `<${randomUUID()}@marbellagolftimes.com>`;
       
-      // Create outbound email record
+      // Actually send the email FIRST (before creating record)
+      const { sendEmail } = await import("./email");
+      console.log("[Inbox Reply] Attempting to send reply to:", thread.fromEmail);
+      
+      const emailResult = await sendEmail({
+        to: thread.fromEmail,
+        subject: subject || `Re: ${thread.subject}`,
+        text: body,
+        html: `<div style="font-family: sans-serif;">${body.replace(/\n/g, '<br>')}</div>`,
+      });
+      
+      if (!emailResult.success) {
+        console.error("[Inbox Reply] Email send failed:", emailResult.error);
+        return res.status(500).json({ error: `Failed to send email: ${emailResult.error}` });
+      }
+      
+      console.log("[Inbox Reply] Email sent successfully, creating record");
+      
+      // Create outbound email record only after successful send
       const outboundEmail = await storage.createInboundEmail({
         threadId: thread.id,
         direction: "OUT",
@@ -965,22 +983,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         inReplyTo: null, // Will reference the last inbound message
       });
       
-      // Actually send the email
-      const { sendEmail } = await import("./email");
-      await sendEmail({
-        to: thread.fromEmail,
-        subject: subject || `Re: ${thread.subject}`,
-        text: body,
-        html: `<div style="font-family: sans-serif;">${body.replace(/\n/g, '<br>')}</div>`,
-      });
-      
       // Mark thread as replied
       await storage.markThreadAsReplied(thread.id, user.id);
       
+      console.log("[Inbox Reply] Reply completed successfully");
       res.json({ success: true, email: outboundEmail });
     } catch (error) {
-      console.error("Failed to send reply:", error);
-      res.status(500).json({ error: "Failed to send reply" });
+      console.error("[Inbox Reply] Failed to send reply:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      res.status(500).json({ error: `Failed to send reply: ${errorMessage}` });
     }
   });
 
