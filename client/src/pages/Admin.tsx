@@ -301,7 +301,7 @@ export default function Admin() {
   
   // Inbox state
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const [inboxFilter, setInboxFilter] = useState<"all" | "unanswered" | "open" | "replied" | "closed" | "archived">("unanswered");
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unanswered" | "open" | "replied" | "closed" | "archived" | "deleted">("unanswered");
   const [replyText, setReplyText] = useState("");
   const [showAlertSettings, setShowAlertSettings] = useState(false);
   
@@ -577,8 +577,11 @@ export default function Admin() {
         return inboxThreads.filter(t => t.status === "CLOSED");
       case "archived":
         return inboxThreads.filter(t => t.status === "ARCHIVED");
+      case "deleted":
+        return inboxThreads.filter(t => t.status === "DELETED");
       default:
-        return inboxThreads;
+        // "all" filter - exclude deleted threads
+        return inboxThreads.filter(t => t.status !== "DELETED");
     }
   }, [inboxThreads, inboxFilter]);
 
@@ -699,6 +702,74 @@ export default function Admin() {
       toast({
         title: t('inbox.error'),
         description: t('inbox.failedToSaveSettings'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Delete thread mutation (soft delete)
+  const deleteThreadMutation = useMutation({
+    mutationFn: async (threadId: string) => {
+      return await apiRequest(`/api/admin/inbox/${threadId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      setSelectedThreadId(null);
+      toast({
+        title: t('inbox.threadDeleted'),
+        description: t('inbox.threadDeletedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToDeleteThread'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Restore deleted thread mutation
+  const restoreThreadMutation = useMutation({
+    mutationFn: async (threadId: string) => {
+      return await apiRequest(`/api/admin/inbox/${threadId}/restore`, "PATCH");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      if (selectedThreadId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox", selectedThreadId] });
+      }
+      toast({
+        title: t('inbox.threadRestored'),
+        description: t('inbox.threadRestoredDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToRestoreThread'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Inbox - Permanently delete thread mutation
+  const permanentlyDeleteThreadMutation = useMutation({
+    mutationFn: async (threadId: string) => {
+      return await apiRequest(`/api/admin/inbox/${threadId}/permanent`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inbox"] });
+      setSelectedThreadId(null);
+      toast({
+        title: t('inbox.threadPermanentlyDeleted'),
+        description: t('inbox.threadPermanentlyDeletedDescription'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('inbox.error'),
+        description: t('inbox.failedToDeleteThread'),
         variant: "destructive",
       });
     },
@@ -3435,20 +3506,29 @@ export default function Admin() {
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-1 pt-2">
-                      {(["unanswered", "all", "open", "replied", "closed", "archived"] as const).map((filter) => (
+                      {(["unanswered", "all", "open", "replied", "closed", "archived", "deleted"] as const).map((filter) => (
                         <Button
                           key={filter}
                           variant={inboxFilter === filter ? "default" : "outline"}
                           size="sm"
-                          className="text-xs lg:text-sm px-2 lg:px-3"
+                          className={`text-xs lg:text-sm px-2 lg:px-3 ${filter === "deleted" ? "text-destructive border-destructive/50" : ""}`}
                           onClick={() => setInboxFilter(filter)}
                           data-testid={`button-filter-${filter}`}
                         >
-                          {t(`inbox.${filter}`)}
-                          {filter === "unanswered" && unansweredCount > 0 && (
-                            <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 text-xs">
-                              {unansweredCount}
-                            </Badge>
+                          {filter === "deleted" ? (
+                            <>
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              {t('inbox.deleted')}
+                            </>
+                          ) : (
+                            <>
+                              {t(`inbox.${filter}`)}
+                              {filter === "unanswered" && unansweredCount > 0 && (
+                                <Badge variant="destructive" className="ml-1 h-4 min-w-4 p-0 text-xs">
+                                  {unansweredCount}
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </Button>
                       ))}
@@ -3506,6 +3586,7 @@ export default function Admin() {
                                       thread.status === "OPEN" ? "secondary" :
                                       thread.status === "REPLIED" ? "default" :
                                       thread.status === "CLOSED" ? "outline" :
+                                      thread.status === "DELETED" ? "destructive" :
                                       "outline"
                                     }
                                     className={`text-xs ${
@@ -3513,6 +3594,7 @@ export default function Admin() {
                                       thread.status === "REPLIED" ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" :
                                       thread.status === "CLOSED" ? "bg-slate-500 hover:bg-slate-600 text-white border-slate-500" :
                                       thread.status === "ARCHIVED" ? "bg-slate-300 hover:bg-slate-400 text-slate-700 border-slate-300 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600" :
+                                      thread.status === "DELETED" ? "bg-red-500 hover:bg-red-600 text-white border-red-500" :
                                       ""
                                     }`}
                                   >
@@ -3614,57 +3696,103 @@ export default function Admin() {
                               </SelectContent>
                             </Select>
                             
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-shrink-0"
-                              onClick={() => updateThreadStatusMutation.mutate({
-                                threadId: selectedThread.id,
-                                status: selectedThread.status === "ARCHIVED" ? "OPEN" : "ARCHIVED"
-                              })}
-                              data-testid="button-archive-thread"
-                            >
-                              <Archive className="h-4 w-4 lg:mr-1" />
-                              <span className="hidden lg:inline">{selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}</span>
-                            </Button>
-                            
-                            <Button
-                              variant={selectedThread.isMuted === "true" ? "default" : "outline"}
-                              size="sm"
-                              className="flex-shrink-0"
-                              onClick={() => muteThreadMutation.mutate({
-                                threadId: selectedThread.id,
-                                muted: selectedThread.isMuted !== "true"
-                              })}
-                              data-testid="button-mute-thread"
-                            >
-                              {selectedThread.isMuted === "true" ? (
-                                <>
-                                  <Bell className="h-4 w-4 lg:mr-1" />
-                                  <span className="hidden lg:inline">{t('inbox.unmute')}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <BellOff className="h-4 w-4 lg:mr-1" />
-                                  <span className="hidden lg:inline">{t('inbox.mute')}</span>
-                                </>
-                              )}
-                            </Button>
-                            
-                            {selectedThread.status !== "CLOSED" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-shrink-0"
-                                onClick={() => updateThreadStatusMutation.mutate({
-                                  threadId: selectedThread.id,
-                                  status: "CLOSED"
-                                })}
-                                data-testid="button-close-thread"
-                              >
-                                <XCircle className="h-4 w-4 lg:mr-1" />
-                                <span className="hidden lg:inline">{t('inbox.close')}</span>
-                              </Button>
+                            {selectedThread.status === "DELETED" ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-shrink-0"
+                                  onClick={() => restoreThreadMutation.mutate(selectedThread.id)}
+                                  disabled={restoreThreadMutation.isPending}
+                                  data-testid="button-restore-thread"
+                                >
+                                  <Archive className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{t('inbox.restore')}</span>
+                                </Button>
+                                
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="flex-shrink-0"
+                                  onClick={() => {
+                                    if (confirm(t('inbox.confirmPermanentDelete'))) {
+                                      permanentlyDeleteThreadMutation.mutate(selectedThread.id);
+                                    }
+                                  }}
+                                  disabled={permanentlyDeleteThreadMutation.isPending}
+                                  data-testid="button-permanent-delete-thread"
+                                >
+                                  <Trash2 className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{t('inbox.permanentDelete')}</span>
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-shrink-0"
+                                  onClick={() => updateThreadStatusMutation.mutate({
+                                    threadId: selectedThread.id,
+                                    status: selectedThread.status === "ARCHIVED" ? "OPEN" : "ARCHIVED"
+                                  })}
+                                  data-testid="button-archive-thread"
+                                >
+                                  <Archive className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}</span>
+                                </Button>
+                                
+                                <Button
+                                  variant={selectedThread.isMuted === "true" ? "default" : "outline"}
+                                  size="sm"
+                                  className="flex-shrink-0"
+                                  onClick={() => muteThreadMutation.mutate({
+                                    threadId: selectedThread.id,
+                                    muted: selectedThread.isMuted !== "true"
+                                  })}
+                                  data-testid="button-mute-thread"
+                                >
+                                  {selectedThread.isMuted === "true" ? (
+                                    <>
+                                      <Bell className="h-4 w-4 lg:mr-1" />
+                                      <span className="hidden lg:inline">{t('inbox.unmute')}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <BellOff className="h-4 w-4 lg:mr-1" />
+                                      <span className="hidden lg:inline">{t('inbox.mute')}</span>
+                                    </>
+                                  )}
+                                </Button>
+                                
+                                {selectedThread.status !== "CLOSED" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-shrink-0"
+                                    onClick={() => updateThreadStatusMutation.mutate({
+                                      threadId: selectedThread.id,
+                                      status: "CLOSED"
+                                    })}
+                                    data-testid="button-close-thread"
+                                  >
+                                    <XCircle className="h-4 w-4 lg:mr-1" />
+                                    <span className="hidden lg:inline">{t('inbox.close')}</span>
+                                  </Button>
+                                )}
+                                
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-shrink-0 text-destructive hover:text-destructive"
+                                  onClick={() => deleteThreadMutation.mutate(selectedThread.id)}
+                                  disabled={deleteThreadMutation.isPending}
+                                  data-testid="button-delete-thread"
+                                >
+                                  <Trash2 className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{t('inbox.delete')}</span>
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
