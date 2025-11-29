@@ -1103,6 +1103,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // POST /api/webhooks/inbound-email - SendGrid Inbound Parse webhook
   app.post("/api/webhooks/inbound-email", async (req, res) => {
+    console.log("[Webhook] Inbound email received!");
+    console.log("[Webhook] Headers:", JSON.stringify(req.headers, null, 2));
+    console.log("[Webhook] Body keys:", Object.keys(req.body || {}));
+    console.log("[Webhook] Body preview:", JSON.stringify(req.body, null, 2).substring(0, 1000));
+    
     try {
       // SendGrid sends form-encoded data
       const {
@@ -1115,6 +1120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } = req.body;
       
       if (!from) {
+        console.log("[Webhook] ERROR: Missing from address");
         return res.status(400).json({ error: "Missing from address" });
       }
       
