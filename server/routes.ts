@@ -952,15 +952,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique message ID for threading
       const messageId = `<${randomUUID()}@marbellagolftimes.com>`;
       
+      // Fetch all messages in the thread to build conversation history
+      const messages = await storage.getEmailsByThreadId(thread.id);
+      
+      // Build quoted conversation history (oldest to newest, reversed for quoting)
+      const sortedMessages = [...messages].sort((a, b) => 
+        new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+      );
+      
+      // Format date for email quote header
+      const formatQuoteDate = (date: Date | string | null) => {
+        if (!date) return "";
+        const d = new Date(date);
+        return d.toLocaleDateString('en-US', { 
+          weekday: 'short', 
+          day: 'numeric', 
+          month: 'short', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      };
+      
+      // Build conversation history in text format
+      let textHistory = "";
+      let htmlHistory = "";
+      
+      for (const msg of sortedMessages) {
+        const sender = msg.direction === "IN" ? msg.fromEmail : "Marbella Golf Times";
+        const dateStr = formatQuoteDate(msg.createdAt);
+        const msgBody = msg.bodyText || "";
+        
+        // Text version with > prefix
+        textHistory += `\n\n---------- ${msg.direction === "IN" ? "Original Message" : "Previous Reply"} ----------\n`;
+        textHistory += `From: ${sender}\n`;
+        textHistory += `Date: ${dateStr}\n`;
+        textHistory += `Subject: ${msg.subject}\n\n`;
+        textHistory += msgBody.split('\n').map(line => `> ${line}`).join('\n');
+        
+        // HTML version with blockquote styling
+        htmlHistory += `
+          <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e0e0e0;">
+            <p style="color: #666; font-size: 12px; margin-bottom: 10px;">
+              On ${dateStr}, <strong>${sender}</strong> wrote:
+            </p>
+            <blockquote style="margin: 0 0 0 10px; padding-left: 10px; border-left: 2px solid #d9d9d9; color: #555;">
+              ${(msg.bodyHtml || msg.bodyText || "").replace(/\n/g, '<br>')}
+            </blockquote>
+          </div>
+        `;
+      }
+      
+      // Compose full email with new reply + history
+      const fullTextBody = body + textHistory;
+      const fullHtmlBody = `
+        <div style="font-family: sans-serif;">
+          <div style="margin-bottom: 20px;">
+            ${body.replace(/\n/g, '<br>')}
+          </div>
+          ${htmlHistory}
+        </div>
+      `;
+      
       // Actually send the email FIRST (before creating record)
       const { sendEmail } = await import("./email");
-      console.log("[Inbox Reply] Attempting to send reply to:", thread.fromEmail);
+      console.log("[Inbox Reply] Attempting to send reply to:", thread.fromEmail, "with", messages.length, "messages in history");
       
       const emailResult = await sendEmail({
         to: thread.fromEmail,
         subject: subject || `Re: ${thread.subject}`,
-        text: body,
-        html: `<div style="font-family: sans-serif;">${body.replace(/\n/g, '<br>')}</div>`,
+        text: fullTextBody,
+        html: fullHtmlBody,
       });
       
       if (!emailResult.success) {
@@ -970,17 +1032,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("[Inbox Reply] Email sent successfully, creating record");
       
-      // Create outbound email record only after successful send
+      // Create outbound email record - store only the new reply body for the dashboard
       const outboundEmail = await storage.createInboundEmail({
         threadId: thread.id,
         direction: "OUT",
         fromEmail: process.env.FROM_EMAIL || "info@marbellagolftimes.com",
         toEmail: thread.fromEmail,
         subject: subject || `Re: ${thread.subject}`,
-        bodyText: body,
+        bodyText: body, // Only store new reply in database for clean dashboard view
         bodyHtml: `<div style="font-family: sans-serif;">${body.replace(/\n/g, '<br>')}</div>`,
         messageId: messageId,
-        inReplyTo: null, // Will reference the last inbound message
+        inReplyTo: sortedMessages.length > 0 ? sortedMessages[sortedMessages.length - 1].messageId : null,
       });
       
       // Mark thread as replied
