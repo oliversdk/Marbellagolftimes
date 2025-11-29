@@ -1186,103 +1186,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/webhooks/inbound-email - SendGrid Inbound Parse webhook
-  app.post("/api/webhooks/inbound-email", async (req, res) => {
-    console.log("[Webhook] Inbound email received!");
-    console.log("[Webhook] Headers:", JSON.stringify(req.headers, null, 2));
-    console.log("[Webhook] Body keys:", Object.keys(req.body || {}));
-    console.log("[Webhook] Body preview:", JSON.stringify(req.body, null, 2).substring(0, 1000));
-    
-    try {
-      // SendGrid sends form-encoded data
-      const {
-        from,
-        to,
-        subject,
-        text,
-        html,
-        headers,
-      } = req.body;
-      
-      if (!from) {
-        console.log("[Webhook] ERROR: Missing from address");
-        return res.status(400).json({ error: "Missing from address" });
-      }
-      
-      // Parse email address from "Name <email@example.com>" format
-      const fromEmailMatch = from.match(/<([^>]+)>/) || [null, from];
-      const fromEmail = (fromEmailMatch[1] || from).toLowerCase().trim();
-      
-      // Parse headers for threading
-      const headerLines = (headers || "").split("\n");
-      let messageId: string | null = null;
-      let inReplyTo: string | null = null;
-      
-      for (const line of headerLines) {
-        if (line.toLowerCase().startsWith("message-id:")) {
-          messageId = line.substring(11).trim();
-        } else if (line.toLowerCase().startsWith("in-reply-to:")) {
-          inReplyTo = line.substring(12).trim();
-        }
-      }
-      
-      // Try to find existing thread
-      let thread = await storage.findThreadByEmailHeaders(messageId, inReplyTo, fromEmail);
-      
-      // Try to match to a course by email domain
-      let courseId: string | null = null;
-      const allCourses = await storage.getAllCourses();
-      const emailDomain = fromEmail.split("@")[1];
-      
-      for (const course of allCourses) {
-        if (course.email && course.email.toLowerCase().includes(emailDomain)) {
-          courseId = course.id;
-          break;
-        }
-      }
-      
-      // Create new thread if none exists
-      if (!thread) {
-        thread = await storage.createInboundThread({
-          courseId: courseId,
-          fromEmail: fromEmail,
-          subject: subject || "(No subject)",
-          status: "OPEN",
-          isRead: "false",
-          requiresResponse: "true",
-        });
-      } else {
-        // Update existing thread: reopen and mark as requiring response
-        await storage.updateInboundThread(thread.id, {
-          status: "OPEN",
-          requiresResponse: "true",
-          isRead: "false",
-        });
-      }
-      
-      // Create the inbound email message
-      await storage.createInboundEmail({
-        threadId: thread.id,
-        direction: "IN",
-        fromEmail: fromEmail,
-        toEmail: to || process.env.FROM_EMAIL || "info@marbellagolftimes.com",
-        subject: subject || "(No subject)",
-        bodyText: text || "",
-        bodyHtml: html || null,
-        messageId: messageId,
-        inReplyTo: inReplyTo,
-      });
-      
-      console.log(`[Inbox] New email from ${fromEmail}, thread ${thread.id}`);
-      
-      // Return 200 to acknowledge receipt to SendGrid
-      res.status(200).json({ success: true, threadId: thread.id });
-    } catch (error) {
-      console.error("Failed to process inbound email:", error);
-      // Still return 200 to prevent SendGrid retries
-      res.status(200).json({ success: false, error: "Processing failed" });
-    }
-  });
+  // NOTE: The actual inbound email webhook is defined below with multer middleware
+  // to handle SendGrid's multipart form data
 
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
@@ -2666,119 +2571,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== SENDGRID INBOUND EMAIL WEBHOOK =====
   // This endpoint receives parsed inbound emails from SendGrid Inbound Parse
-  // and logs them as INBOUND contact entries for the matching golf course
-  // Uses a separate multer instance with memory storage to handle attachments
+  // Uses multer to handle SendGrid's multipart form data
   const inboundEmailParser = multer({ storage: multer.memoryStorage() });
   
   app.post("/api/webhooks/inbound-email", inboundEmailParser.any(), async (req, res) => {
+    console.log("[Webhook] Inbound email received!");
+    console.log("[Webhook] Body keys:", Object.keys(req.body || {}));
+    
     try {
-      const { from, to, subject, text, html } = req.body;
+      const { from, to, subject, text, html, headers } = req.body;
       
-      console.log("Received inbound email:", { from, to, subject });
-      
-      // Extract email address from various formats:
-      // "Name <email@domain.com>", "<email@domain.com>", or "email@domain.com"
+      // Extract email address from various formats
       const extractEmail = (emailStr: string): string => {
         if (!emailStr) return "";
-        // Remove display name quotes and trim
         const cleaned = emailStr.replace(/^["']|["']$/g, "").trim();
-        // Match email in angle brackets first
         const bracketMatch = cleaned.match(/<([^>]+)>/);
         if (bracketMatch) return bracketMatch[1].toLowerCase().trim();
-        // Otherwise, check if it looks like an email
         const emailMatch = cleaned.match(/[\w.-]+@[\w.-]+\.\w+/);
         return emailMatch ? emailMatch[0].toLowerCase().trim() : "";
       };
       
-      // Extract domain from email
-      const extractDomain = (email: string): string => {
-        const parts = email.split("@");
-        return parts.length > 1 ? parts[1].toLowerCase() : "";
-      };
+      const fromEmail = extractEmail(from);
       
-      const senderEmail = extractEmail(from);
-      const senderDomain = extractDomain(senderEmail);
-      
-      if (!senderEmail) {
-        console.log("No sender email found in inbound email");
+      if (!fromEmail) {
+        console.log("[Webhook] ERROR: No sender email found");
         return res.status(200).send("OK");
       }
       
-      // Try to match sender email to a golf course with multiple strategies:
-      // 1. Exact email match
-      // 2. Domain match (same domain as course email)
-      // 3. Local part contains course name fragment
-      const courses = await storage.getAllCourses();
-      let matchedCourse = null;
+      console.log(`[Webhook] Processing email from ${fromEmail}, subject: ${subject}`);
       
-      // Strategy 1: Exact email match
-      matchedCourse = courses.find(course => {
-        if (!course.email) return false;
-        return extractEmail(course.email) === senderEmail;
-      });
+      // Parse headers for threading
+      const headerLines = (headers || "").split("\n");
+      let messageId: string | null = null;
+      let inReplyTo: string | null = null;
       
-      // Strategy 2: Same domain as course email
-      if (!matchedCourse && senderDomain) {
-        matchedCourse = courses.find(course => {
-          if (!course.email) return false;
-          const courseDomain = extractDomain(extractEmail(course.email));
-          return courseDomain === senderDomain;
-        });
+      for (const line of headerLines) {
+        if (line.toLowerCase().startsWith("message-id:")) {
+          messageId = line.substring(11).trim();
+        } else if (line.toLowerCase().startsWith("in-reply-to:")) {
+          inReplyTo = line.substring(12).trim();
+        }
       }
       
-      // Strategy 3: Course name appears in sender email or domain
-      if (!matchedCourse) {
-        matchedCourse = courses.find(course => {
-          const courseSlug = course.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-          const emailSlug = senderEmail.replace(/[^a-z0-9]/g, "");
-          return emailSlug.includes(courseSlug) || courseSlug.includes(emailSlug.split("@")[0]);
-        });
+      console.log(`[Webhook] Email headers - messageId: ${messageId}, inReplyTo: ${inReplyTo}`);
+      
+      // Try to find existing thread by email headers
+      let thread = await storage.findThreadByEmailHeaders(messageId, inReplyTo, fromEmail);
+      
+      // Try to match to a course by email
+      let courseId: string | null = null;
+      const allCourses = await storage.getAllCourses();
+      const emailDomain = fromEmail.split("@")[1];
+      
+      for (const course of allCourses) {
+        if (course.email) {
+          const courseEmail = extractEmail(course.email);
+          const courseDomain = courseEmail.split("@")[1];
+          if (courseEmail === fromEmail || courseDomain === emailDomain) {
+            courseId = course.id;
+            break;
+          }
+        }
       }
       
-      // Get email body - prefer plain text, fall back to HTML with tags stripped
+      // Get email body
       let emailBody = text;
       if (!emailBody && html) {
-        // Strip HTML tags for cleaner display
         emailBody = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
       }
       emailBody = emailBody || "(No content)";
       
-      if (matchedCourse) {
-        // Log the inbound email as a contact log entry
-        await storage.createContactLog({
-          courseId: matchedCourse.id,
-          type: "EMAIL",
-          direction: "INBOUND",
+      // Create new thread if none exists
+      if (!thread) {
+        thread = await storage.createInboundThread({
+          courseId: courseId,
+          fromEmail: fromEmail,
           subject: subject || "(No subject)",
-          body: emailBody,
-          outcome: null, // To be reviewed by admin
-          loggedByUserId: null, // System-generated
+          status: "OPEN",
+          isRead: "false",
+          requiresResponse: "true",
         });
-        
-        console.log(`Inbound email logged for course: ${matchedCourse.name}`);
+        console.log(`[Webhook] Created new thread ${thread.id}`);
       } else {
-        // Store unmatched email for manual assignment
-        const extractName = (emailStr: string): string | null => {
-          if (!emailStr) return null;
-          const match = emailStr.match(/^["']?([^<"']+)["']?\s*<.*>/);
-          return match ? match[1].trim() : null;
-        };
-        
-        await storage.createUnmatchedEmail({
-          fromEmail: senderEmail,
-          fromName: extractName(from),
-          toEmail: to || null,
-          subject: subject || null,
-          body: emailBody,
+        // Update existing thread: reopen and mark as requiring response
+        await storage.updateInboundThread(thread.id, {
+          status: "OPEN",
+          requiresResponse: "true",
+          isRead: "false",
         });
-        
-        console.log(`Unmatched inbound email stored for sender: ${senderEmail}`);
+        console.log(`[Webhook] Updated existing thread ${thread.id}`);
       }
       
+      // Create the inbound email message
+      await storage.createInboundEmail({
+        threadId: thread.id,
+        direction: "IN",
+        fromEmail: fromEmail,
+        toEmail: to || process.env.FROM_EMAIL || "info@marbellagolftimes.com",
+        subject: subject || "(No subject)",
+        bodyText: emailBody,
+        bodyHtml: html || null,
+        messageId: messageId,
+        inReplyTo: inReplyTo,
+      });
+      
+      console.log(`[Webhook] Email saved to thread ${thread.id}`);
+      
       // Always return 200 to SendGrid to acknowledge receipt
-      res.status(200).send("OK");
+      res.status(200).json({ success: true, threadId: thread.id });
     } catch (error) {
-      console.error("Error processing inbound email:", error);
+      console.error("[Webhook] Error processing inbound email:", error);
       // Still return 200 to prevent SendGrid retries
       res.status(200).send("OK");
     }
