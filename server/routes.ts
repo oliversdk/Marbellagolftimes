@@ -823,8 +823,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "courseId is required" });
       }
       
-      const user = req.user as { id: string };
-      const updatedEmail = await storage.assignEmailToCourse(id, courseId, user.id);
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      const updatedEmail = await storage.assignEmailToCourse(id, courseId, userId);
       
       if (!updatedEmail) {
         return res.status(404).json({ error: "Email not found" });
@@ -838,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject: updatedEmail.subject || "(No subject)",
         body: updatedEmail.body || "(No content)",
         outcome: null,
-        loggedByUserId: user.id,
+        loggedByUserId: userId,
       });
       
       res.json(updatedEmail);
@@ -947,7 +950,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Reply body is required" });
       }
       
-      const user = req.user as { id: string; email: string; firstName?: string; lastName?: string };
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
       
       // Generate unique message ID for threading
       const messageId = `<${randomUUID()}@marbellagolftimes.com>`;
@@ -1046,7 +1052,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Mark thread as replied
-      await storage.markThreadAsReplied(thread.id, user.id);
+      await storage.markThreadAsReplied(thread.id, userId);
       
       console.log("[Inbox Reply] Reply completed successfully");
       res.json({ success: true, email: outboundEmail });
@@ -1135,8 +1141,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/admin/inbox/settings - Get admin alert settings (Admin only)
   app.get("/api/admin/inbox/settings", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const user = req.user as { id: string };
-      const settings = await storage.getAdminAlertSettings(user.id);
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      const settings = await storage.getAdminAlertSettings(userId);
       
       res.json(settings || {
         emailAlerts: "true",
@@ -1152,7 +1161,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PATCH /api/admin/inbox/settings - Update admin alert settings (Admin only)
   app.patch("/api/admin/inbox/settings", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const user = req.user as { id: string };
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
       const { emailAlerts, alertThresholdHours, alertEmail } = req.body;
       
       const updates: { emailAlerts?: string; alertThresholdHours?: number; alertEmail?: string | null } = {};
@@ -1166,7 +1178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.alertEmail = alertEmail;
       }
       
-      const settings = await storage.upsertAdminAlertSettings(user.id, updates);
+      const settings = await storage.upsertAdminAlertSettings(userId, updates);
       res.json(settings);
     } catch (error) {
       console.error("Failed to update alert settings:", error);
