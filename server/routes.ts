@@ -647,7 +647,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      res.setHeader('Cache-Control', 'public, max-age=300');
+      // Vary caching by admin status - admins get no cache to see all courses including members-only
+      if (isAdminUser) {
+        res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=300');
+      }
       res.json(coursesWithRatings);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch courses" });
