@@ -446,6 +446,27 @@
       grid-template-columns: 1fr 1fr;
       gap: 30px;
       margin: 25px 0;
+      page-break-inside: avoid;
+    }
+    
+    /* Prevent page breaks inside important sections */
+    .feature-grid,
+    .feature-card,
+    .info-box,
+    .warning-box,
+    .stats-grid,
+    .table-container,
+    .diagram,
+    .next-steps {
+      page-break-inside: avoid;
+    }
+    
+    h2 {
+      page-break-after: avoid;
+    }
+    
+    .checklist {
+      page-break-inside: avoid;
     }
     
     .diagram {
