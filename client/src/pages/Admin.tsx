@@ -303,6 +303,7 @@ export default function Admin() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [inboxFilter, setInboxFilter] = useState<"all" | "unanswered" | "open" | "replied" | "closed" | "archived" | "deleted">("unanswered");
   const [replyText, setReplyText] = useState("");
+  const [pendingMembersOnlyUpdates, setPendingMembersOnlyUpdates] = useState<Set<string>>(new Set());
   const [showAlertSettings, setShowAlertSettings] = useState(false);
   
   // Bookings tab state
@@ -380,12 +381,20 @@ export default function Admin() {
     },
   });
 
-  // Set members-only status mutation
+  // Set members-only status mutation with double-click protection
   const setMembersOnlyMutation = useMutation({
     mutationFn: async ({ courseId, membersOnly }: { courseId: string; membersOnly: boolean }) => {
+      // Add to pending set to prevent double mutations
+      setPendingMembersOnlyUpdates(prev => new Set(prev).add(courseId));
       return await apiRequest(`/api/admin/courses/${courseId}/members-only`, "PATCH", { membersOnly });
     },
-    onSuccess: () => {
+    onSuccess: (_, { courseId }) => {
+      // Remove from pending set
+      setPendingMembersOnlyUpdates(prev => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
       toast({
@@ -393,7 +402,13 @@ export default function Admin() {
         description: "Course visibility has been updated",
       });
     },
-    onError: () => {
+    onError: (_, { courseId }) => {
+      // Remove from pending set on error too
+      setPendingMembersOnlyUpdates(prev => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
       toast({
         title: "Update failed",
         description: "Failed to update course visibility",
@@ -2594,8 +2609,12 @@ export default function Admin() {
                                           <div className="flex items-center gap-1">
                                             <Switch
                                               checked={!isMembersOnly}
-                                              onCheckedChange={(checked) => setMembersOnlyMutation.mutate({ courseId: course.id, membersOnly: !checked })}
-                                              disabled={setMembersOnlyMutation.isPending}
+                                              onCheckedChange={(checked) => {
+                                                // Prevent double mutations for this course
+                                                if (pendingMembersOnlyUpdates.has(course.id)) return;
+                                                setMembersOnlyMutation.mutate({ courseId: course.id, membersOnly: !checked });
+                                              }}
+                                              disabled={pendingMembersOnlyUpdates.has(course.id)}
                                               data-testid={`switch-public-${course.id}`}
                                             />
                                             <span className="text-xs text-muted-foreground">
