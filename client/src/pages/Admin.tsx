@@ -324,10 +324,11 @@ export default function Admin() {
   const { t } = useI18n();
   const { isMobile } = useBreakpoint();
 
-  // Fetch courses - use admin-specific cache key to ensure members-only courses are included
+  // Fetch ALL courses including members-only for admin dashboard
+  // Wait for auth to fully load before fetching to avoid 401 errors
   const { data: courses } = useQuery<GolfCourse[]>({
-    queryKey: ["/api/courses", isAdmin ? "admin" : "public"],
-    enabled: isAuthenticated,
+    queryKey: ["/api/admin/courses"],
+    enabled: !isLoading && isAuthenticated && isAdmin,
   });
 
   // Fetch course providers (admin only)
@@ -396,6 +397,7 @@ export default function Admin() {
         next.delete(courseId);
         return next;
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
       toast({
@@ -1423,6 +1425,7 @@ export default function Admin() {
       return await apiRequest(`/api/courses/${courseId}/image`, "PATCH", { imageUrl });
     },
     onSuccess: (data: any, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       const courseName = courses?.find(c => c.id === variables.courseId)?.name || "course";
       toast({
@@ -1504,6 +1507,7 @@ export default function Admin() {
       return response.json();
     },
     onSuccess: (data: { uploaded: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourseProfile?.id, "images"] });
       const feedback = getPersonalFeedback(user?.firstName, 'image_uploaded');
@@ -1528,6 +1532,7 @@ export default function Admin() {
       return await apiRequest(`/api/images/${encodedFilename}?courseId=${encodeURIComponent(courseId)}&directory=${encodeURIComponent(directory)}`, "DELETE", undefined);
     },
     onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       const feedback = getPersonalFeedback(user?.firstName, 'image_deleted');
       toast({

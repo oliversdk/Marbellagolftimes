@@ -668,6 +668,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/courses - Get ALL courses including members-only (Admin only)
+  app.get("/api/admin/courses", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const courses = await storage.getAllCourses();
+      
+      // Add average rating and review count to each course
+      const coursesWithRatings = await Promise.all(
+        courses.map(async (course) => {
+          const reviews = await storage.getAllReviewsByCourseId(course.id);
+          const avgRating = reviews.length > 0
+            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+            : 0;
+          
+          return {
+            ...course,
+            averageRating: avgRating,
+            reviewCount: reviews.length,
+          };
+        })
+      );
+      
+      res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+      res.json(coursesWithRatings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch courses" });
+    }
+  });
+
   // GET /api/admin/course-providers - Get all courses with provider info (Admin only)
   app.get("/api/admin/course-providers", isAuthenticated, isAdmin, async (req, res) => {
     try {
