@@ -86,6 +86,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // PDF Reports download endpoint
+  app.get('/api/reports/progress-report', async (req, res) => {
+    try {
+      const pdfPath = path.join(__dirname, '../reports/Marbella-Golf-Times-Progress-Report-Nov2025.pdf');
+      const fileExists = await fs.access(pdfPath).then(() => true).catch(() => false);
+      
+      if (!fileExists) {
+        return res.status(404).json({ message: 'Report not found' });
+      }
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="Marbella-Golf-Times-Progress-Report-Nov2025.pdf"');
+      
+      const fileBuffer = await fs.readFile(pdfPath);
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error('Error serving PDF:', error);
+      res.status(500).json({ message: 'Failed to serve report' });
+    }
+  });
+
   // Session setup
   app.set("trust proxy", 1);
   app.use(getSession());
