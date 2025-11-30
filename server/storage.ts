@@ -55,10 +55,12 @@ import { eq, ne, desc, sql as sqlFunc, sql, count, sum, and, or, isNull, lt } fr
 export interface IStorage {
   // Golf Courses
   getAllCourses(): Promise<GolfCourse[]>;
+  getPublicCourses(): Promise<GolfCourse[]>; // Excludes members-only courses
   getCourseById(id: string): Promise<GolfCourse | undefined>;
   createCourse(course: InsertGolfCourse): Promise<GolfCourse>;
   updateCourse(id: string, updates: Partial<GolfCourse>): Promise<GolfCourse | undefined>;
   updateCourseImage(courseId: string, imageUrl: string | null): Promise<GolfCourse | undefined>;
+  toggleMembersOnly(courseId: string): Promise<GolfCourse | undefined>;
 
   // Tee Time Providers
   getAllProviders(): Promise<TeeTimeProvider[]>;
@@ -1108,6 +1110,19 @@ export class MemStorage implements IStorage {
     return updatedCourse;
   }
 
+  async getPublicCourses(): Promise<GolfCourse[]> {
+    return Array.from(this.courses.values()).filter(c => c.membersOnly !== "true");
+  }
+
+  async toggleMembersOnly(courseId: string): Promise<GolfCourse | undefined> {
+    const course = this.courses.get(courseId);
+    if (!course) return undefined;
+
+    const updatedCourse = { ...course, membersOnly: course.membersOnly === "true" ? "false" : "true" };
+    this.courses.set(courseId, updatedCourse);
+    return updatedCourse;
+  }
+
   // Tee Time Providers
   async getAllProviders(): Promise<TeeTimeProvider[]> {
     return Array.from(this.providers.values());
@@ -1826,6 +1841,23 @@ export class DatabaseStorage implements IStorage {
     const results = await db
       .update(golfCourses)
       .set({ imageUrl })
+      .where(eq(golfCourses.id, courseId))
+      .returning();
+    return results[0];
+  }
+
+  async getPublicCourses(): Promise<GolfCourse[]> {
+    return await db.select().from(golfCourses).where(ne(golfCourses.membersOnly, "true"));
+  }
+
+  async toggleMembersOnly(courseId: string): Promise<GolfCourse | undefined> {
+    const course = await this.getCourseById(courseId);
+    if (!course) return undefined;
+    
+    const newValue = course.membersOnly === "true" ? "false" : "true";
+    const results = await db
+      .update(golfCourses)
+      .set({ membersOnly: newValue })
       .where(eq(golfCourses.id, courseId))
       .returning();
     return results[0];
