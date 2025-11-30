@@ -1615,6 +1615,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/admin/courses/:id/members-only - Toggle members-only status (Admin only)
+  app.patch("/api/admin/courses/:id/members-only", isAdmin, async (req, res) => {
+    try {
+      const updatedCourse = await storage.toggleMembersOnly(req.params.id);
+      
+      if (!updatedCourse) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      res.json(updatedCourse);
+    } catch (error) {
+      console.error("Error toggling members-only status:", error);
+      res.status(500).json({ error: "Failed to toggle members-only status" });
+    }
+  });
+
   // POST /api/upload/course-image - Upload a course image (Admin only)
   app.post("/api/upload/course-image", isAuthenticated, upload.single("image"), async (req, res) => {
     try {
