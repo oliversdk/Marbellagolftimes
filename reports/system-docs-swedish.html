@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marbella Golf Times - Systemdokumentation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      color: #1a1a2e;
+      background: #fff;
+    }
+    
+    .page {
+      padding: 50px;
+      page-break-after: always;
+      page-break-inside: avoid;
+      min-height: 100vh;
+    }
+    
+    .page:last-child {
+      page-break-after: avoid;
+    }
+    
+    .feature-grid,
+    .feature-card,
+    .info-box,
+    .warning-box,
+    .stats-grid,
+    .stat-card,
+    .table-container,
+    .diagram,
+    .next-steps,
+    .two-column,
+    .three-column,
+    .checklist,
+    .timeline,
+    .timeline-item,
+    .screenshot,
+    .screenshot-grid,
+    .toc,
+    .intro-text,
+    .mobile-screenshots,
+    .tech-stack,
+    .api-section,
+    table,
+    tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    h1, h2, h3, h4 {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+    
+    li {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    p {
+      orphans: 3;
+      widows: 3;
+    }
+    
+    .section-break {
+      page-break-before: always !important;
+      break-before: always !important;
+    }
+    
+    .keep-together {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    /* Cover Page */
+    .cover {
+      background: linear-gradient(135deg, #2F4C3A 0%, #3d6b4a 50%, #2F4C3A 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/></svg>');
+      background-size: 200px;
+      opacity: 0.3;
+    }
+    
+    .cover-content {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 52px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .tagline {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 50px;
+      opacity: 0.9;
+    }
+    
+    .report-title {
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+    
+    .report-subtitle {
+      font-size: 16px;
+      opacity: 0.8;
+      margin-bottom: 35px;
+    }
+    
+    .report-date {
+      font-size: 14px;
+      opacity: 0.7;
+      border-top: 1px solid rgba(255,255,255,0.3);
+      padding-top: 25px;
+      margin-top: 35px;
+    }
+    
+    .doc-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 30px;
+    }
+    
+    /* Content Pages */
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      color: #2F4C3A;
+      margin-bottom: 25px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid #2F4C3A;
+    }
+    
+    h2 {
+      font-size: 22px;
+      color: #2F4C3A;
+      margin: 30px 0 18px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    h2 .icon {
+      width: 28px;
+      height: 28px;
+      background: #2F4C3A;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+    }
+    
+    h3 {
+      font-size: 16px;
+      color: #333;
+      margin: 20px 0 12px 0;
+    }
+    
+    p {
+      margin-bottom: 12px;
+      color: #444;
+      font-size: 14px;
+    }
+    
+    .intro-text {
+      font-size: 15px;
+      color: #555;
+      margin-bottom: 25px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border-left: 4px solid #2F4C3A;
+    }
+    
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin: 25px 0;
+    }
+    
+    .feature-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    
+    .feature-card h4 {
+      color: #2F4C3A;
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .feature-card p {
+      font-size: 13px;
+      color: #666;
+      margin: 0;
+    }
+    
+    .screenshot {
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      border: 1px solid #e0e0e0;
+    }
+    
+    .screenshot img {
+      width: 100%;
+      display: block;
+    }
+    
+    .screenshot-caption {
+      background: #f8f9fa;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #666;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .screenshot-caption strong {
+      color: #2F4C3A;
+    }
+    
+    .screenshot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin: 20px 0;
+    }
+    
+    .screenshot-grid .screenshot {
+      margin: 0;
+    }
+    
+    .info-box {
+      background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+      border: 1px solid #c8e6c9;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .info-box h4 {
+      color: #2e7d32;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .info-box p {
+      color: #555;
+      margin: 0;
+      font-size: 13px;
+    }
+    
+    .warning-box {
+      background: linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%);
+      border: 1px solid #ffe082;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .warning-box h4 {
+      color: #f57c00;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin: 25px 0;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #2F4C3A 0%, #3d6b4a 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      display: block;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+    
+    .timeline {
+      margin: 25px 0;
+      padding-left: 25px;
+      border-left: 3px solid #2F4C3A;
+    }
+    
+    .timeline-item {
+      margin-bottom: 20px;
+      position: relative;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -32px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      background: #2F4C3A;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px #2F4C3A;
+    }
+    
+    .checklist {
+      list-style: none;
+      margin: 15px 0;
+    }
+    
+    .checklist li {
+      padding: 10px 0 10px 30px;
+      position: relative;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    
+    .checklist li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 20px;
+      height: 20px;
+      background: #4caf50;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
+    .checklist li.pending::before {
+      content: '○';
+      background: #ff9800;
+    }
+    
+    .table-container {
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e0e0e0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      background: #2F4C3A;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+    
+    tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 15px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .status-live {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status-ready {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+    
+    .status-pending {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+    
+    .next-steps {
+      background: #f5f5f5;
+      border-radius: 10px;
+      padding: 25px;
+      margin: 25px 0;
+    }
+    
+    .next-steps h3 {
+      color: #2F4C3A;
+      margin-bottom: 15px;
+      font-size: 15px;
+    }
+    
+    .next-steps ol {
+      margin-left: 18px;
+      font-size: 13px;
+    }
+    
+    .next-steps li {
+      margin-bottom: 10px;
+      color: #555;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 35px;
+      color: #888;
+      font-size: 13px;
+      border-top: 1px solid #eee;
+      margin-top: 35px;
+    }
+    
+    .toc {
+      margin: 25px 0;
+    }
+    
+    .toc-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px dotted #ccc;
+      font-size: 14px;
+    }
+    
+    .toc-item span:first-child {
+      font-weight: 500;
+    }
+    
+    .toc-item span:last-child {
+      color: #888;
+    }
+    
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin: 25px 0;
+    }
+    
+    .three-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      margin: 25px 0;
+    }
+    
+    .diagram {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 25px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .diagram-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .diagram-box {
+      background: white;
+      border: 2px solid #2F4C3A;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .diagram-arrow {
+      color: #2F4C3A;
+      font-size: 18px;
+    }
+    
+    .mobile-screenshots {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    .mobile-screenshot {
+      width: 180px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      border: 8px solid #222;
+    }
+    
+    .mobile-screenshot img {
+      width: 100%;
+      display: block;
+    }
+    
+    .tech-stack {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 25px 0;
+    }
+    
+    .tech-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .tech-card .tech-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    
+    .tech-card h4 {
+      color: #2F4C3A;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    
+    .tech-card p {
+      font-size: 12px;
+      color: #666;
+      margin: 0;
+    }
+    
+    .api-section {
+      background: #1e1e1e;
+      color: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    
+    .api-section code {
+      color: #8FAE8D;
+    }
+    
+    .page-number {
+      position: absolute;
+      bottom: 20px;
+      right: 50px;
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .language-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .language-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+    }
+    
+    .language-card .flag {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .language-card h5 {
+      font-size: 13px;
+      color: #2F4C3A;
+      margin-bottom: 4px;
+    }
+    
+    .language-card p {
+      font-size: 11px;
+      color: #888;
+      margin: 0;
+    }
+    
+    .workflow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 20px;
+    }
+    
+    .workflow-step {
+      background: #2F4C3A;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .workflow-arrow {
+      color: #2F4C3A;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SIDA 1: FRAMSIDA -->
+  <div class="page cover">
+    <div class="cover-content">
+      <div class="logo">Marbella Golf Times</div>
+      <div class="tagline">Förstklassiga Starttider på Costa del Sol</div>
+      
+      <div class="report-title">Systemdokumentation</div>
+      <div class="report-subtitle">Komplett Plattformsguide & Funktionsreferens</div>
+      
+      <div class="doc-badge">Teknisk Dokumentation</div>
+      
+      <div class="report-date">
+        November 2025<br>
+        <span style="font-size: 13px; opacity: 0.7;">Version 1.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 2: INNEHÅLLSFÖRTECKNING -->
+  <div class="page">
+    <h1>Innehållsförteckning</h1>
+    
+    <div class="toc">
+      <div class="toc-item"><span>1. Sammanfattning</span><span>3</span></div>
+      <div class="toc-item"><span>2. Startsida & Banupptäckt</span><span>4-5</span></div>
+      <div class="toc-item"><span>3. Sökfilter & Sortering</span><span>6</span></div>
+      <div class="toc-item"><span>4. Golfbanedetaljer</span><span>7-8</span></div>
+      <div class="toc-item"><span>5. Bokning av Starttider</span><span>9</span></div>
+      <div class="toc-item"><span>6. Användarautentisering</span><span>10-11</span></div>
+      <div class="toc-item"><span>7. Användarprofil & Bokningar</span><span>12</span></div>
+      <div class="toc-item"><span>8. Administratörspanel - Översikt</span><span>13</span></div>
+      <div class="toc-item"><span>9. Admin - Bokningshantering</span><span>14</span></div>
+      <div class="toc-item"><span>10. Admin - Golfbanehantering</span><span>15</span></div>
+      <div class="toc-item"><span>11. Admin - Användarhantering</span><span>16</span></div>
+      <div class="toc-item"><span>12. E-postinkorgsystem</span><span>17-18</span></div>
+      <div class="toc-item"><span>13. Flerspråkigt Stöd</span><span>19</span></div>
+      <div class="toc-item"><span>14. Mobilupplevelse</span><span>20</span></div>
+      <div class="toc-item"><span>15. Teknisk Arkitektur</span><span>21</span></div>
+    </div>
+    
+    <div class="info-box" style="margin-top: 40px;">
+      <h4>Om Denna Dokumentation</h4>
+      <p>Denna omfattande systemdokumentation täcker alla funktioner i Marbella Golf Times-plattformen. Den fungerar som referens för administratörer, utvecklare och intressenter för att förstå den kompletta funktionaliteten i bokningssystemet för starttider.</p>
+    </div>
+    
+    <div class="stats-grid" style="margin-top: 30px;">
+      <div class="stat-card">
+        <span class="stat-number">47</span>
+        <span class="stat-label">Golfbanor</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">5</span>
+        <span class="stat-label">Språk</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">26</span>
+        <span class="stat-label">Leverantörslänkar</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">100%</span>
+        <span class="stat-label">Responsiv</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 3: SAMMANFATTNING -->
+  <div class="page">
+    <h1>1. Sammanfattning</h1>
+    
+    <div class="intro-text">
+      Marbella Golf Times är en förstklassig bokningsplattform för starttider, specifikt utformad för Costa del Sol-regionen i Spanien. Plattformen fungerar som en personlig concierge-tjänst som samlar starttider från över 40 golfbanor och ger golfare en sömlös upplevelse för att hitta, jämföra och boka sin perfekta runda.
+    </div>
+    
+    <h2><span class="icon">🎯</span> Plattformens Syfte</h2>
+    <p>Plattformen överbryggar klyftan mellan golfare som söker starttider och de främsta golfbanorna i södra Spanien. Genom att samla tillgänglighet från flera bokningsleverantörer (Golfmanager, TeeOne) och direkta banpartnerskap erbjuder vi omfattande täckning av Costa del Sols golfscen.</p>
+    
+    <h2><span class="icon">👥</span> Målgrupper</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Besökande Golfare</h4>
+        <p>Turister och semesterfirare som söker starttider på Costa del Sols finaste banor. De värdesätter enkel upptäckt, transparent prissättning och pålitlig bokning.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Lokala Invånare</h4>
+        <p>Expats och lokala som regelbundet spelar golf och vill utforska olika banor med bekvämligheten av en enda plattform.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Golfgrupper</h4>
+        <p>Organiserade golfsällskap och grupper som planerar resor med flera rundor och behöver koordinera bokningar över flera banor.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Banadministratörer</h4>
+        <p>Golfbanepersonal som hanterar sina banlistningar, svarar på bokningsförfrågningar och spårar provisioner.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">✨</span> Nyckelfunktioner</h2>
+    
+    <ul class="checklist">
+      <li><strong>Banupptäckt:</strong> Bläddra bland 47 banor med foton, beskrivningar och tillgänglighet i realtid</li>
+      <li><strong>Smart Sökning:</strong> Filtrera efter datum, tid, spelare, prisintervall och plats</li>
+      <li><strong>Väderintegration:</strong> 5-dagars prognos för varje banplats</li>
+      <li><strong>Flerspråkigt:</strong> Fullt stöd för engelska, spanska, danska, svenska och ryska</li>
+      <li><strong>Mobiloptimerad:</strong> Responsiv design fungerar perfekt på alla enheter</li>
+      <li><strong>Administratörspanel:</strong> Komplett hanteringsgränssnitt för bokningar, banor och kommunikation</li>
+      <li><strong>E-postsystem:</strong> Integrerad inkorg för kommunikation med banpartners</li>
+      <li><strong>Provisionsspårning:</strong> Övervaka affiliateintäkter från varje banpartnerskap</li>
+    </ul>
+  </div>
+
+  <!-- SIDA 4: STARTSIDA & BANUPPTÄCKT -->
+  <div class="page">
+    <h1>2. Startsida & Banupptäckt</h1>
+    
+    <p class="intro-text">
+      Startsidan fungerar som huvudingång för golfare och visar alla tillgängliga banor med en förstklassig, boutique-design som speglar kvaliteten på Costa del Sols golf. Hjältesektionen har en fantastisk bakgrund med ett integrerat sökgränssnitt.
+    </p>
+    
+    <h2><span class="icon">🏠</span> Hjältesektion</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/91-swedish-homepage.png" alt="Startsidans Hjältesektion på Svenska">
+      <div class="screenshot-caption">
+        <strong>Hjältesektion (Svenska):</strong> Landningsupplevelsen på svenska med fullbredd hjältebild och sökgränssnitt tydligt visat. Taglinjen "Förstklassiga Starttider på Costa del Sol" etablerar varumärkespositioneringen.
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔍</span> Sökgränssnittets Komponenter</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📅 Datumväljare</h4>
+        <p>Välj valfritt datum för att se tillgängliga starttider. Standard är dagens datum för omedelbar tillgänglighet.</p>
+      </div>
+      <div class="feature-card">
+        <h4>👥 Antal Spelare</h4>
+        <p>Välj 1-4 spelare. Resultaten filtreras för att endast visa starttider med tillräcklig tillgänglighet.</p>
+      </div>
+      <div class="feature-card">
+        <h4>⏰ Tidsfönster</h4>
+        <p>Förmiddag (före 12:00), Eftermiddag (12-16:00) eller Kväll (efter 16:00) preferenser.</p>
+      </div>
+      <div class="feature-card">
+        <h4>⛳ Hålval</h4>
+        <p>Filtrera för 9-håls eller 18-håls rundor med motsvarande prissättning visad.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 5: BANLISTNINGAR -->
+  <div class="page">
+    <h1>2. Startsida & Banupptäckt (fortsättning)</h1>
+    
+    <h2><span class="icon">📋</span> Banlistningsrutnät</h2>
+    
+    <p>Under hjältesektionen visas banor i en responsiv rutnätslayout. Varje bankort ger väsentlig information vid en blick, vilket gör det möjligt för golfare att snabbt jämföra alternativ.</p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-01-homepage.png" alt="Banlistningsrutnät">
+      <div class="screenshot-caption">
+        <strong>Bankort:</strong> Rutnätslayouten visar banor med högkvalitativa bilder, namn, platser och startpriser. Premiumbanor markeras med speciella märken.
+      </div>
+    </div>
+    
+    <h2><span class="icon">🗺️</span> Visningsalternativ</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>Listvy (Standard)</h3>
+        <p>Standardrutnätsvyn presenterar banor i ett överskådligt format optimerat för bläddring. På skrivbord visas banor i ett 3-kolumnsrutnät som anpassas till 2 kolumner på surfplattor och en kolumn på mobil.</p>
+        <ul class="checklist">
+          <li>Banbild med kvalitetsindikator</li>
+          <li>Bannamn och plats</li>
+          <li>Startpris tydligt visat</li>
+          <li>Snabb åtkomst till detaljer</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Kartvy</h3>
+        <p>Växla till kartvy för att se banplatser geografiskt. Interaktiva markörer visar banpositioner över Costa del Sol-regionen.</p>
+        <ul class="checklist">
+          <li>Interaktiv Leaflet-kartintegration</li>
+          <li>Klicka på markörer för baninformation</li>
+          <li>Zooma för att utforska specifika områden</li>
+          <li>Avståndsberäkningar tillgängliga</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-02-more-courses.png" alt="Fler Banor">
+      <div class="screenshot-caption">
+        <strong>Utökad Banlista:</strong> Scrollning avslöjar ytterligare banor. Layouten bibehåller konsekvens medan den effektivt visar hela katalogen.
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 6: SÖKFILTER & SORTERING -->
+  <div class="page">
+    <h1>3. Sökfilter & Sortering</h1>
+    
+    <p class="intro-text">
+      Plattformen erbjuder omfattande filtrerings- och sorteringsalternativ för att hjälpa golfare att hitta exakt det de letar efter. Filter kan kombineras för precisa resultat.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/03-search-filters.png" alt="Sökfilter">
+      <div class="screenshot-caption">
+        <strong>Filtergränssnitt:</strong> Sidhuvudet innehåller alla primära sökkontroller. Ytterligare sorteringsalternativ visas när sökresultat visas.
+      </div>
+    </div>
+    
+    <h2><span class="icon">🎚️</span> Tillgängliga Filter</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Filter</th>
+            <th>Alternativ</th>
+            <th>Beskrivning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Datum</strong></td>
+            <td>Valfritt datum från idag</td>
+            <td>Välj dagen du vill spela</td>
+          </tr>
+          <tr>
+            <td><strong>Spelare</strong></td>
+            <td>1, 2, 3 eller 4</td>
+            <td>Antal golfare i ditt sällskap</td>
+          </tr>
+          <tr>
+            <td><strong>Tid</strong></td>
+            <td>Förmiddag, Eftermiddag, Kväll</td>
+            <td>Önskat tidsfönster för starttid</td>
+          </tr>
+          <tr>
+            <td><strong>Hål</strong></td>
+            <td>9 eller 18</td>
+            <td>Preferens för rundlängd</td>
+          </tr>
+          <tr>
+            <td><strong>Prisintervall</strong></td>
+            <td>Min - Max reglage</td>
+            <td>Filtrera efter greenfee-budget</td>
+          </tr>
+          <tr>
+            <td><strong>Plats</strong></td>
+            <td>Avstånd från dig</td>
+            <td>Närbaserad filtrering när plats delas</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">↕️</span> Sorteringsalternativ</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📍 Avstånd (Närmast)</h4>
+        <p>Sortera banor efter närhet när webbläsarplats delas. Visar uppskattningar av köravstånd.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📍 Avstånd (Längst bort)</h4>
+        <p>Omvänd avståndssortering för att utforska banor längre bort.</p>
+      </div>
+      <div class="feature-card">
+        <h4>💰 Pris (Lägst till Högst)</h4>
+        <p>Budgetvänlig ordning som visar mest prisvärda greenfees först.</p>
+      </div>
+      <div class="feature-card">
+        <h4>💰 Pris (Högst till Lägst)</h4>
+        <p>Premiumordning för de som söker de finaste banorna oavsett kostnad.</p>
+      </div>
+    </div>
+    
+    <div class="info-box">
+      <h4>Platsbaserade Funktioner</h4>
+      <p>När användare delar sin webbläsarplats beräknar plattformen verkliga köravstånd till varje bana. Detta möjliggör avståndsbaserad sortering och möjligheten att filtrera banor inom en specifik radie (t.ex. "inom 30 minuters körning").</p>
+    </div>
+  </div>
+
+  <!-- SIDA 7: GOLFBANEDETALJER -->
+  <div class="page">
+    <h1>4. Golfbanedetaljer</h1>
+    
+    <p class="intro-text">
+      Varje golfbana har en dedikerad detaljsida som ger omfattande information för att hjälpa golfare att fatta informerade bokningsbeslut. Sidan kombinerar väsentliga detaljer med vackra bilder och praktiska bokningsverktyg.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-03-course-1.png" alt="Golfbanedetaljer">
+      <div class="screenshot-caption">
+        <strong>Bandetaljer - El Paraíso Golf Club:</strong> Hjältesektionen visar banbilden med nyckelinformation som överlägg. Väsentliga detaljer som pris, plats och faciliteter är omedelbart synliga.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Sidsektioner</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>🖼️ Hjältegalleri</h4>
+        <p>Fullbredd hjältebild som visar banans signaturvyer. Ytterligare galleribilder tillgängliga vid scrollning.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📍 Plats & Karta</h4>
+        <p>Interaktiv karta som visar exakt banplats med navigationsintegration för vägbeskrivningar.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🌤️ Väderwidget</h4>
+        <p>5-dagars väderprognos specifik för banplatsen, hjälper golfare att planera sin runda.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🏢 Facilitetslista</h4>
+        <p>Omfattande lista över tillgängliga bekvämligheter: driving range, proshop, restaurang, golfbilsuthyrning, etc.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 8: GOLFBANEDETALJER FORTSÄTTNING -->
+  <div class="page">
+    <h1>4. Golfbanedetaljer (fortsättning)</h1>
+    
+    <h2><span class="icon">📖</span> Baninformationsvisning</h2>
+    
+    <p>Scrollning nedåt på bansidan avslöjar ytterligare informationssektioner, alla utformade för att ge golfare fullständigt förtroende för sitt bokningsbeslut.</p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-03-course-1-scroll.png" alt="Golfbanedetaljer Scrollad">
+      <div class="screenshot-caption">
+        <strong>Utökad Baninformation:</strong> Under hjälten finns detaljerade beskrivningar, facilitetsinformation och bokningsgränssnittet.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📝</span> Informationskategorier</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Sektion</th>
+            <th>Innehåll</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Banbeskrivning</strong></td>
+            <td>Detaljerad översikt av bandesign, historia och anmärkningsvärda funktioner</td>
+          </tr>
+          <tr>
+            <td><strong>Tekniska Detaljer</strong></td>
+            <td>Par, längd, antal hål, banbetyg, slope</td>
+          </tr>
+          <tr>
+            <td><strong>Faciliteter</strong></td>
+            <td>Driving range, puttinggreen, proshop, restaurang, bar, omklädningsrum</td>
+          </tr>
+          <tr>
+            <td><strong>Tjänster</strong></td>
+            <td>Klubbuthyrning, golfbilsuthyrning, caddietjänst, lektioner tillgängliga</td>
+          </tr>
+          <tr>
+            <td><strong>Prissättning</strong></td>
+            <td>Greenfees för 9 och 18 hål, twilight-priser, medlemspriser</td>
+          </tr>
+          <tr>
+            <td><strong>Kontakt</strong></td>
+            <td>Telefon, e-post, webbplats, fysisk adress</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="info-box">
+      <h4>Fotogalleri</h4>
+      <p>Varje bana har flera högkvalitativa bilder som visar signaturhål, klubbhusfaciliteter och banvyer. Bilderna är optimerade för snabb laddning samtidigt som visuell kvalitet bibehålls.</p>
+    </div>
+  </div>
+
+  <!-- SIDA 9: BOKNING AV STARTTIDER -->
+  <div class="page">
+    <h1>5. Bokning av Starttider</h1>
+    
+    <p class="intro-text">
+      Bokningssystemet ger en strömlinjeformad upplevelse för att reservera starttider. Processen anpassas baserat på bokningsleverantörsintegrationen för varje bana.
+    </p>
+    
+    <h2><span class="icon">📅</span> Bokningsflöde</h2>
+    
+    <div class="diagram">
+      <div class="workflow-diagram">
+        <div class="workflow-step">Välj Datum</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Välj Tid</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Ange Uppgifter</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Bekräfta</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Ta Emot E-post</div>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📝</span> Bokningsformulärsfält</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>Obligatorisk Information</h3>
+        <ul class="checklist">
+          <li>Speldatum</li>
+          <li>Önskad starttid</li>
+          <li>Antal spelare</li>
+          <li>Huvudbokares namn</li>
+          <li>E-postadress</li>
+          <li>Telefonnummer</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Valfria Fält</h3>
+        <ul class="checklist">
+          <li>Ytterligare spelarnamn</li>
+          <li>Utrustningsuthyrningsförfrågningar</li>
+          <li>Golfbilsreservation</li>
+          <li>Särskilda krav</li>
+          <li>Handicapinformation</li>
+        </ul>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔗</span> Bokningsleverantörstyper</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Direkt API-integration</h4>
+        <p>Tillgänglighet i realtid och omedelbar bokningsbekräftelse genom Golfmanager eller TeeOne API-anslutningar.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Djuplänksbokning</h4>
+        <p>Sömlös omdirigering till banans eget bokningssystem med förifyld information.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Bokningsförfrågan</h4>
+        <p>Skicka bokningsförfrågan som manuellt behandlas av vårt team och bekräftas via e-post.</p>
+      </div>
+      <div class="feature-card">
+        <h4>E-postbekräftelse</h4>
+        <p>Alla bokningar genererar bekräftelsemail med bokningsdetaljer, baninformation och avbokningsregler.</p>
+      </div>
+    </div>
+    
+    <div class="warning-box">
+      <h4>Bokningsbekräftelser</h4>
+      <p>Bekräftelsemail skickas omedelbart för API-integrerade banor. Förfrågningsbaserade bokningar bekräftas vanligtvis inom 2-4 timmar under kontorstid.</p>
+    </div>
+  </div>
+
+  <!-- SIDA 10: ANVÄNDARAUTENTISERING -->
+  <div class="page">
+    <h1>6. Användarautentisering</h1>
+    
+    <p class="intro-text">
+      Plattformen tillhandahåller ett säkert autentiseringssystem som gör det möjligt för användare att skapa konton, logga in och hantera sina bokningar. Autentisering är valfritt för bläddring men krävs för bokningshantering.
+    </p>
+    
+    <h2><span class="icon">🔐</span> Inloggningssida</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/20-login-page.png" alt="Inloggningssida">
+      <div class="screenshot-caption">
+        <strong>Inloggningsgränssnitt:</strong> Ren, fokuserad design med e-post- och lösenordsfält. Länkar till registrering och lösenordsåterställning är tydligt synliga.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Inloggningsfunktioner</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📧 E-postautentisering</h4>
+        <p>Standard e-post- och lösenordsinloggning med säker sessionshantering.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔄 Kom Ihåg Mig</h4>
+        <p>Valfri beständig session för återkommande användare på betrodda enheter.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔑 Lösenordsåterställning</h4>
+        <p>Självbetjäning för lösenordsåterställning via e-postverifieringslänk.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🛡️ Sessionssäkerhet</h4>
+        <p>Säkra cookie-baserade sessioner med automatisk timeout för inaktiva användare.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 11: REGISTRERINGSSIDA -->
+  <div class="page">
+    <h1>6. Användarautentisering (fortsättning)</h1>
+    
+    <h2><span class="icon">📝</span> Registreringssida</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/21-signup-page.png" alt="Registreringssida">
+      <div class="screenshot-caption">
+        <strong>Registreringsformulär:</strong> Ny användarregistrering med obligatoriska fält för kontoskapande. Formulärvalidering säkerställer datakvalitet.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Registreringsfält</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Fält</th>
+            <th>Obligatoriskt</th>
+            <th>Validering</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fullständigt Namn</td>
+            <td>Ja</td>
+            <td>Minst 2 tecken</td>
+          </tr>
+          <tr>
+            <td>E-postadress</td>
+            <td>Ja</td>
+            <td>Giltigt e-postformat, unikt i systemet</td>
+          </tr>
+          <tr>
+            <td>Lösenord</td>
+            <td>Ja</td>
+            <td>Minst 8 tecken</td>
+          </tr>
+          <tr>
+            <td>Bekräfta Lösenord</td>
+            <td>Ja</td>
+            <td>Måste matcha lösenordsfältet</td>
+          </tr>
+          <tr>
+            <td>Telefonnummer</td>
+            <td>Valfritt</td>
+            <td>Giltigt telefonformat</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">🔒</span> Sessionshantering</h2>
+    
+    <div class="info-box">
+      <h4>Säkerhetsimplementering</h4>
+      <p>Sessioner hanteras med säkra HTTP-only cookies med PostgreSQL-backad sessionslagring. Lösenord hashas med bcrypt med lämpliga salt-rundor. Sessioner upphör automatiskt efter 24 timmars inaktivitet.</p>
+    </div>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Automatisk Utloggning</h4>
+        <p>Sessioner upphör efter längre inaktivitet för att skydda användarkonton på delade enheter.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Åtkomst från Flera Enheter</h4>
+        <p>Användare kan logga in från flera enheter med oberoende sessionshantering.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 12: ANVÄNDARPROFIL -->
+  <div class="page">
+    <h1>7. Användarprofil & Bokningar</h1>
+    
+    <p class="intro-text">
+      Registrerade användare har tillgång till en personlig profilsida där de kan visa och hantera sina bokningar, uppdatera kontoinformation och få tillgång till sin bokningshistorik.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/70-profile-page.png" alt="Profilsida">
+      <div class="screenshot-caption">
+        <strong>Användarprofil:</strong> Profilsidan visar användarinformation tillsammans med bokningshanteringsfunktioner.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Profilfunktioner</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>👤 Kontoinformation</h4>
+        <p>Visa och redigera personliga uppgifter inklusive namn, e-post och kontaktpreferenser.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📅 Kommande Bokningar</h4>
+        <p>Lista över bekräftade framtida starttider med snabb åtkomst till bokningsdetaljer.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📖 Bokningshistorik</h4>
+        <p>Komplett register över tidigare bokningar för referens och ombokning.</p>
+      </div>
+      <div class="feature-card">
+        <h4>❌ Avboka Bokning</h4>
+        <p>Självbetjäning för avbokning av kommande bokningar inom avbokningsreglernas tidsfönster.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔄</span> Bokningshantering</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>Kommande Bokningar</h3>
+        <ul class="checklist">
+          <li>Visa bokningsbekräftelsedetaljer</li>
+          <li>Se baninformation och vägbeskrivningar</li>
+          <li>Kontrollera väderprognos för speldatum</li>
+          <li>Avboka eller ändra bokning</li>
+          <li>Ladda ner kalenderinbjudan</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Tidigare Bokningar</h3>
+        <ul class="checklist">
+          <li>Granska bokningshistorik</li>
+          <li>Omboka samma bana enkelt</li>
+          <li>Visa betalningsuppgifter</li>
+          <li>Få tillgång till bandetaljer</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="info-box">
+      <h4>Ombokningsfunktion</h4>
+      <p>Användare kan snabbt omboka en tidigare besökt bana med ett klick. Systemet förifyller bokningsdetaljer baserat på tidigare reservation, vilket gör återbesök enkla.</p>
+    </div>
+  </div>
+
+  <!-- SIDA 13: ADMINISTRATÖRSPANEL ÖVERSIKT -->
+  <div class="page">
+    <h1>8. Administratörspanel - Översikt</h1>
+    
+    <p class="intro-text">
+      Administratörspanelen tillhandahåller ett omfattande hanteringsgränssnitt för plattformsadministratörer. Det konsoliderar alla hanteringsfunktioner i ett flikbaserat gränssnitt för effektiv drift.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/30-admin-dashboard.png" alt="Administratörspanel">
+      <div class="screenshot-caption">
+        <strong>Panelöversikt:</strong> Huvudadminvyn visar nyckelstatistik och ger snabb åtkomst till alla hanteringsfunktioner genom fliknavigering.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📊</span> Panelstatistik</h2>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-number">47</span>
+        <span class="stat-label">Totalt Antal Banor</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">156</span>
+        <span class="stat-label">Aktiva Bokningar</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">1 240</span>
+        <span class="stat-label">Registrerade Användare</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">12</span>
+        <span class="stat-label">Väntande E-post</span>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📑</span> Adminflikar</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Flik</th>
+            <th>Funktion</th>
+            <th>Nyckelåtgärder</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Översikt</strong></td>
+            <td>Översiktsstatistik och varningar</td>
+            <td>Visa mätvärden, kontrollera varningar</td>
+          </tr>
+          <tr>
+            <td><strong>Bokningar</strong></td>
+            <td>Hantera alla reservationer</td>
+            <td>Bekräfta, avboka, ändra bokningar</td>
+          </tr>
+          <tr>
+            <td><strong>Golfbanor</strong></td>
+            <td>Bankataloghantering</td>
+            <td>Redigera detaljer, hantera provisioner</td>
+          </tr>
+          <tr>
+            <td><strong>Användare</strong></td>
+            <td>Användarkontohantering</td>
+            <td>Visa konton, hantera åtkomst</td>
+          </tr>
+          <tr>
+            <td><strong>E-post</strong></td>
+            <td>Kommunikationsinkorg</td>
+            <td>Läs, svara, hantera trådar</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SIDA 14: ADMIN BOKNINGSHANTERING -->
+  <div class="page">
+    <h1>9. Admin - Bokningshantering</h1>
+    
+    <p class="intro-text">
+      Bokningsfliken ger omfattande kontroll över alla reservationer i systemet. Administratörer kan visa, filtrera och hantera bokningar över alla banor.
+    </p>
+    
+    <h2><span class="icon">📋</span> Bokningslistfunktioner</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>🔍 Sök & Filtrera</h4>
+        <p>Sök bokningar efter kundnamn, e-post, bana eller bokningsreferens. Filtrera efter status, datumintervall eller bana.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📊 Statusspårning</h4>
+        <p>Visuella statusindikatorer: Väntande, Bekräftad, Avbokad, Genomförd. Snabba statusuppdateringar tillgängliga.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📧 Kommunikation</h4>
+        <p>Skicka bokningsbekräftelser, påminnelser och uppdateringar direkt från bokningsposten.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📝 Bokningsdetaljer</h4>
+        <p>Fullständig bokningsinformation inklusive kunduppgifter, bana, datum, tid, spelare och särskilda önskemål.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📊</span> Bokningsstatustyper</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Beskrivning</th>
+            <th>Tillgängliga Åtgärder</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="status-badge status-pending">Väntande</span></td>
+            <td>Väntar på bekräftelse från banan</td>
+            <td>Bekräfta, Avboka, Kontakta Kund</td>
+          </tr>
+          <tr>
+            <td><span class="status-badge status-live">Bekräftad</span></td>
+            <td>Bokning bekräftad och aktiv</td>
+            <td>Ändra, Avboka, Skicka Påminnelse</td>
+          </tr>
+          <tr>
+            <td><span class="status-badge status-ready">Genomförd</span></td>
+            <td>Rundan har spelats</td>
+            <td>Visa Detaljer, Begär Recension</td>
+          </tr>
+          <tr>
+            <td><span class="status-badge" style="background:#ffebee;color:#c62828;">Avbokad</span></td>
+            <td>Bokningen avbokades</td>
+            <td>Visa Detaljer, Omboka</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">⚡</span> Snabbåtgärder</h2>
+    
+    <ul class="checklist">
+      <li><strong>Massbekräfta:</strong> Bekräfta flera väntande bokningar samtidigt</li>
+      <li><strong>Exportera Data:</strong> Ladda ner bokningsdata som CSV för rapportering</li>
+      <li><strong>Skicka Påminnelser:</strong> Massutskick av påminnelsemail för kommande bokningar</li>
+      <li><strong>Kalendervy:</strong> Visuell kalender som visar bokningar per datum</li>
+    </ul>
+  </div>
+
+  <!-- SIDA 15: ADMIN GOLFBANEHANTERING -->
+  <div class="page">
+    <h1>10. Admin - Golfbanehantering</h1>
+    
+    <p class="intro-text">
+      Golfbanefliken gör det möjligt för administratörer att hantera golfbanekatalogen, inklusive bandetaljer, bilder, prissättning och provisionsspårning för varje anläggning.
+    </p>
+    
+    <h2><span class="icon">⛳</span> Banlista</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📝 Bandetaljer</h4>
+        <p>Redigera bannamn, beskrivning, plats, faciliteter och kontaktinformation.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🖼️ Bildhantering</h4>
+        <p>Ladda upp och hantera banfoton, ställ in utvalda bilder, ordna om galleri.</p>
+      </div>
+      <div class="feature-card">
+        <h4>💰 Prissättning</h4>
+        <p>Ställ in och uppdatera greenfees för 9 och 18 hål, twilight-priser och säsongspriser.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔗 Leverantörsinställningar</h4>
+        <p>Konfigurera bokningsleverantör (Golfmanager, TeeOne, djuplänk eller manuell).</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">💵</span> Provisionsspårning</h2>
+    
+    <p>Varje bana kan ha en konfigurerad provisionsgrad som spårar affiliateintäkter från bokningar.</p>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Bana</th>
+            <th>Provisionsgrad</th>
+            <th>Denna Månad</th>
+            <th>Totalt Intjänat</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Finca Cortesín</td>
+            <td>8%</td>
+            <td>€1 240</td>
+            <td>€12 450</td>
+          </tr>
+          <tr>
+            <td>Real Club Valderrama</td>
+            <td>10%</td>
+            <td>€2 100</td>
+            <td>€18 900</td>
+          </tr>
+          <tr>
+            <td>La Cala Resort</td>
+            <td>7%</td>
+            <td>€890</td>
+            <td>€9 340</td>
+          </tr>
+          <tr>
+            <td>Marbella Club Golf</td>
+            <td>8%</td>
+            <td>€1 560</td>
+            <td>€14 200</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="info-box">
+      <h4>Provisionskonfiguration</h4>
+      <p>Provisionsgrader ställs in per bana och kan justeras när som helst. Systemet beräknar automatiskt intäkter baserat på bekräftade bokningar och spårar betalningsstatus.</p>
+    </div>
+  </div>
+
+  <!-- SIDA 16: ADMIN ANVÄNDARHANTERING -->
+  <div class="page">
+    <h1>11. Admin - Användarhantering</h1>
+    
+    <p class="intro-text">
+      Användarfliken ger administrativ kontroll över användarkonton, vilket gör det möjligt för administratörer att visa användarinformation, hantera åtkomstnivåer och hantera kontoproblem.
+    </p>
+    
+    <h2><span class="icon">👥</span> Användarlistfunktioner</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>🔍 Sök Användare</h4>
+        <p>Hitta användare efter namn, e-post eller bokningshistorik. Filtrera efter registreringsdatum eller kontostatus.</p>
+      </div>
+      <div class="feature-card">
+        <h4>👤 Visa Profil</h4>
+        <p>Få tillgång till fullständig användarprofil inklusive kontaktuppgifter, bokningshistorik och kontoaktivitet.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔐 Åtkomstkontroll</h4>
+        <p>Hantera användarroller: standardanvändare, bankontrollant eller administratör.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📧 Kontakta Användare</h4>
+        <p>Skicka direktmail till användare angående deras konto eller bokningar.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🛡️</span> Användarroller</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Roll</th>
+            <th>Behörigheter</th>
+            <th>Åtkomstnivå</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Användare</strong></td>
+            <td>Boka starttider, hantera egen profil, visa historik</td>
+            <td>Endast offentligt område</td>
+          </tr>
+          <tr>
+            <td><strong>Bankontrollant</strong></td>
+            <td>Hantera tilldelade banor, visa banbokningar</td>
+            <td>Begränsad adminåtkomst</td>
+          </tr>
+          <tr>
+            <td><strong>Administratör</strong></td>
+            <td>Full systemåtkomst, alla hanteringsfunktioner</td>
+            <td>Fullständig adminåtkomst</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">📊</span> Användarstatistik</h2>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-number">1 240</span>
+        <span class="stat-label">Totalt Antal Användare</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">89</span>
+        <span class="stat-label">Nya Denna Månad</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">67%</span>
+        <span class="stat-label">Återbesöksfrekvens</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">2,4</span>
+        <span class="stat-label">Snitt Bokn./Användare</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDA 17: E-POSTINKORGSYSTEM -->
+  <div class="page">
+    <h1>12. E-postinkorgsystem</h1>
+    
+    <p class="intro-text">
+      Det integrerade e-postsystemet gör det möjligt för administratörer att hantera all kommunikation med golfbanor och kunder. Det ger en enhetlig inkorg för att spåra konversationer och säkerställa snabba svar.
+    </p>
+    
+    <h2><span class="icon">📬</span> Inkorgsöversikt</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📥 Enhetlig Inkorg</h4>
+        <p>Alla inkommande e-postmeddelanden från banor och kunder visas i en enda, organiserad inkorgsvy.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🧵 Trådvy</h4>
+        <p>Konversationer grupperas i trådar och visar hela e-postutbyteshistoriken.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📤 Skriv & Svara</h4>
+        <p>Skicka nya e-postmeddelanden och svara på befintliga trådar direkt från admingränssnittet.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔔 Varningssystem</h4>
+        <p>Konfigurerbara varningar meddelar administratörer om obesvarade e-postmeddelanden som kräver uppmärksamhet.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🏷️</span> Statusindikatorer</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Beskrivning</th>
+            <th>Visuell Indikator</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Obesvarad</strong></td>
+            <td>Nytt e-postmeddelande som kräver svar</td>
+            <td><span class="status-badge" style="background:#ffebee;color:#c62828;">Röd</span></td>
+          </tr>
+          <tr>
+            <td><strong>Öppen</strong></td>
+            <td>Konversation pågår</td>
+            <td><span class="status-badge status-pending">Orange</span></td>
+          </tr>
+          <tr>
+            <td><strong>Besvarad</strong></td>
+            <td>Svar skickat, väntar på svar</td>
+            <td><span class="status-badge status-ready">Blå</span></td>
+          </tr>
+          <tr>
+            <td><strong>Stängd</strong></td>
+            <td>Konversation avslutad</td>
+            <td><span class="status-badge status-live">Grön</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">🔍</span> Filtrering & Sökning</h2>
+    
+    <ul class="checklist">
+      <li>Filtrera efter status (Obesvarad, Öppen, Besvarad, Stängd)</li>
+      <li>Sök efter avsändar-e-post eller ämnesrad</li>
+      <li>Filtrera efter associerad bana</li>
+      <li>Sortera efter datum (nyast/äldst först)</li>
+      <li>Visa endast stjärnmärkta/viktiga meddelanden</li>
+    </ul>
+  </div>
+
+  <!-- SIDA 18: E-POSTSYSTEM FORTSÄTTNING -->
+  <div class="page">
+    <h1>12. E-postinkorgsystem (fortsättning)</h1>
+    
+    <h2><span class="icon">💬</span> Konversationsvy</h2>
+    
+    <p>Klick på en e-posttråd öppnar den fullständiga konversationsvyn och visar alla meddelanden i kronologisk ordning med tydlig avsändaridentifiering.</p>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📧 Meddelandevisning</h4>
+        <p>Varje meddelande visar avsändare, tidsstämpel och fullständigt innehåll med bevarad formatering.</p>
+      </div>
+      <div class="feature-card">
+        <h4>↩️ Snabbsvar</h4>
+        <p>Svarsruta längst ner i konversationen för omedelbart svar utan att lämna vyn.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📎 Bilagor</h4>
+        <p>Visa och ladda ner bilagor från mottagna e-postmeddelanden; bifoga filer till utgående meddelanden.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🏷️ Statuskontroll</h4>
+        <p>Ändra konversationsstatus direkt från trådvyn med ett klick.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔔</span> Varningsinställningar</h2>
+    
+    <p>Administratörer kan konfigurera personliga varningsinställningar för att säkerställa att inget e-postmeddelande förblir obesvarat utöver en acceptabel tidsram.</p>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Inställning</th>
+            <th>Alternativ</th>
+            <th>Standard</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Varningströskel för Obesvarade</td>
+            <td>1 timme, 4 timmar, 24 timmar, 48 timmar</td>
+            <td>4 timmar</td>
+          </tr>
+          <tr>
+            <td>Varningsnotifikation</td>
+            <td>Panelmärke, E-postnotifikation, Båda</td>
+            <td>Panelmärke</td>
+          </tr>
+          <tr>
+            <td>Eskaleringsmail</td>
+            <td>Efter 24 timmar, 48 timmar, Aldrig</td>
+            <td>Efter 24 timmar</td>
+          </tr>
+          <tr>
+            <td>Daglig Sammanfattning</td>
+            <td>Aktiverad/Inaktiverad</td>
+            <td>Aktiverad</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">📧</span> Utskickskampanjer</h2>
+    
+    <div class="info-box">
+      <h4>Partnerskap med Golfbanor</h4>
+      <p>E-postsystemet stöder kontakt med potentiella partnerbanor. Administratörer kan skicka mallbaserade introduktionsmail, spåra svar och hantera partnerskapsprocessen genom inkorgen.</p>
+    </div>
+    
+    <ul class="checklist">
+      <li>E-postmallar för vanliga kommunikationer</li>
+      <li>Spåra effektivitet i utskickskampanjer</li>
+      <li>Automatiska uppföljningspåminnelser</li>
+      <li>Svarsfrekvensanalys</li>
+    </ul>
+  </div>
+
+  <!-- SIDA 19: FLERSPRÅKIGT STÖD -->
+  <div class="page">
+    <h1>13. Flerspråkigt Stöd</h1>
+    
+    <p class="intro-text">
+      Marbella Golf Times stöder fem språk för att betjäna det mångfaldiga internationella samhället av golfare som besöker Costa del Sol. Hela användargränssnittet är fullständigt översatt med korrekt lokalformatering.
+    </p>
+    
+    <h2><span class="icon">🌍</span> Språk som Stöds</h2>
+    
+    <div class="language-grid">
+      <div class="language-card">
+        <div class="flag">🇬🇧</div>
+        <h5>Engelska</h5>
+        <p>Standardspråk</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇪🇸</div>
+        <h5>Spanska</h5>
+        <p>Español</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇩🇰</div>
+        <h5>Danska</h5>
+        <p>Dansk</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇸🇪</div>
+        <h5>Svenska</h5>
+        <p>Svenska</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇷🇺</div>
+        <h5>Ryska</h5>
+        <p>Русский</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔄</span> Språkväljare</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/91-swedish-homepage.png" alt="Svensk Språkversion">
+      <div class="screenshot-caption">
+        <strong>Svensk Version:</strong> Startsidan visad på svenska med fullständig översättning av navigering, sökgränssnitt och innehåll.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Översättningstäckning</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>Fullständigt Översatt</h3>
+        <ul class="checklist">
+          <li>Navigering och menyer</li>
+          <li>Sökgränssnitt</li>
+          <li>Knappar och formulär</li>
+          <li>Felmeddelanden</li>
+          <li>E-postmallar</li>
+          <li>Användarnotifikationer</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Lokalformatering</h3>
+        <ul class="checklist">
+          <li>Datumformat (DD/MM/ÅÅÅÅ etc.)</li>
+          <li>Valutavisning</li>
+          <li>Nummerformatering</li>
+          <li>Tidsformat (12h/24h)</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="info-box">
+      <h4>Baninnehåll</h4>
+      <p>Bannamn, beskrivningar och facilitetsinformation bibehålls på originalspråket med nyckelinnehåll översatt för stora språk. Platsnamn och egennamn förblir oförändrade i alla språkversioner.</p>
+    </div>
+  </div>
+
+  <!-- SIDA 20: MOBILUPPLEVELSE -->
+  <div class="page">
+    <h1>14. Mobilupplevelse</h1>
+    
+    <p class="intro-text">
+      Plattformen är fullt responsiv och optimerad för mobila enheter. Mobilupplevelsen bibehåller full funktionalitet samtidigt som gränssnittet anpassas för touch-baserad navigering och mindre skärmar.
+    </p>
+    
+    <h2><span class="icon">📱</span> Mobila Skärmdumpar</h2>
+    
+    <div class="mobile-screenshots">
+      <div class="mobile-screenshot">
+        <img src="docs-screenshots/80-mobile-homepage.png" alt="Mobil Startsida">
+      </div>
+      <div class="mobile-screenshot">
+        <img src="docs-screenshots/81-mobile-courses.png" alt="Mobila Banor">
+      </div>
+    </div>
+    
+    <p style="text-align: center; color: #666; font-size: 13px; margin-top: 10px;">
+      <strong>Vänster:</strong> Mobil startsida med sökgränssnitt | <strong>Höger:</strong> Banlistning i mobilvy
+    </p>
+    
+    <h2><span class="icon">✨</span> Mobiloptimerade Funktioner</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>👆 Touch-optimerad</h4>
+        <p>Större touch-ytor, svepgester och mobilvänliga navigeringsmönster.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📱 Responsiv Layout</h4>
+        <p>Enkla kolumn-bankort och staplade formulärfält för enkel mobilvisning.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🍔 Mobilmeny</h4>
+        <p>Glidande navigeringsmeny med alla huvudsektioner tillgängliga inom två tryck.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📍 Platstjänster</h4>
+        <p>Ett tryck för platsdelning för avståndsbaserad bansortering.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📊</span> Responsiva Brytpunkter</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Enhet</th>
+            <th>Brytpunkt</th>
+            <th>Layoutändringar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Mobil</td>
+            <td>&lt; 640px</td>
+            <td>En kolumn, staplade filter, bottennavigering</td>
+          </tr>
+          <tr>
+            <td>Surfplatta</td>
+            <td>640px - 1024px</td>
+            <td>Två kolumner, kondenserat sidhuvud, sidomeny</td>
+          </tr>
+          <tr>
+            <td>Skrivbord</td>
+            <td>&gt; 1024px</td>
+            <td>Tre kolumner, fullt sidhuvud, utökad navigering</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SIDA 21: TEKNISK ARKITEKTUR -->
+  <div class="page">
+    <h1>15. Teknisk Arkitektur</h1>
+    
+    <p class="intro-text">
+      Marbella Golf Times är byggd på en modern teknikstack designad för prestanda, skalbarhet och underhållbarhet. Arkitekturen följer en tydlig separation mellan frontend- och backend-ansvar.
+    </p>
+    
+    <h2><span class="icon">🏗️</span> Teknikstack</h2>
+    
+    <div class="tech-stack">
+      <div class="tech-card">
+        <div class="tech-icon">⚛️</div>
+        <h4>React</h4>
+        <p>Frontend-ramverk med TypeScript</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🎨</div>
+        <h4>Tailwind CSS</h4>
+        <p>Utility-first styling med shadcn/ui</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🔷</div>
+        <h4>TypeScript</h4>
+        <p>Typsäker kod genomgående</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🟢</div>
+        <h4>Node.js</h4>
+        <p>Express backend-server</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🐘</div>
+        <h4>PostgreSQL</h4>
+        <p>Relationsdatabas med Drizzle ORM</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">⚡</div>
+        <h4>Vite</h4>
+        <p>Snabbt byggverktyg och dev-server</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔌</span> API-integrationer</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Golfmanager API</h4>
+        <p>Primär bokningsleverantörsintegration för tillgänglighet och reservationer av starttider i realtid.</p>
+      </div>
+      <div class="feature-card">
+        <h4>TeeOne API</h4>
+        <p>Sekundär bokningsleverantör med stöd för ytterligare banor.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Väder-API</h4>
+        <p>Realtids väderdata för varje banplats med 5-dagars prognoser.</p>
+      </div>
+      <div class="feature-card">
+        <h4>E-posttjänst</h4>
+        <p>Nodemailer-integration för transaktions- och kommunikationsmail.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📁</span> Projektstruktur</h2>
+    
+    <div class="api-section">
+      <pre>
+├── client/                 # Frontend React-applikation
+│   ├── src/
+│   │   ├── components/    # Återanvändbara UI-komponenter
+│   │   ├── pages/         # Sidkomponenter (Home, CourseDetail, Admin, etc.)
+│   │   ├── hooks/         # Anpassade React hooks
+│   │   └── lib/           # Verktyg och konfiguration
+├── server/                 # Backend Express-server
+│   ├── routes.ts          # API-ruttdefinitioner
+│   ├── storage.ts         # Databasoperationer
+│   └── providers/         # Bokningsleverantörsintegrationer
+└── shared/                 # Delade typer och scheman
+    └── schema.ts          # Drizzle databasschema</pre>
+    </div>
+    
+    <div class="info-box">
+      <h4>Driftsättning</h4>
+      <p>Applikationen är driftsatt på Replit med automatisk SSL, databasvärdskap och kontinuerlig driftsättning från huvudgrenen.</p>
+    </div>
+  </div>
+
+  <!-- SLUTSIDA: SIDFOT -->
+  <div class="page" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+    <div style="max-width: 500px;">
+      <div class="logo" style="color: #2F4C3A; font-size: 36px;">Marbella Golf Times</div>
+      <div style="font-size: 14px; color: #888; margin-top: 10px; letter-spacing: 2px; text-transform: uppercase;">Systemdokumentation</div>
+      
+      <div style="margin: 50px 0; padding: 30px; background: #f8f9fa; border-radius: 10px;">
+        <p style="font-size: 16px; color: #555; margin-bottom: 20px;">
+          Denna dokumentation täcker den kompletta Marbella Golf Times-plattformen från och med november 2025.
+        </p>
+        <p style="font-size: 14px; color: #888;">
+          För teknisk support eller ytterligare information, vänligen kontakta utvecklingsteamet.
+        </p>
+      </div>
+      
+      <div style="color: #aaa; font-size: 12px;">
+        <p>Version 1.0 - November 2025</p>
+        <p style="margin-top: 5px;">Konfidentiellt - Endast för Internt Bruk</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

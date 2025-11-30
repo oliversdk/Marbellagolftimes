@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marbella Golf Times - System Documentation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      color: #1a1a2e;
+      background: #fff;
+    }
+    
+    .page {
+      padding: 50px;
+      page-break-after: always;
+      page-break-inside: avoid;
+      min-height: 100vh;
+    }
+    
+    .page:last-child {
+      page-break-after: avoid;
+    }
+    
+    .feature-grid,
+    .feature-card,
+    .info-box,
+    .warning-box,
+    .stats-grid,
+    .stat-card,
+    .table-container,
+    .diagram,
+    .next-steps,
+    .two-column,
+    .three-column,
+    .checklist,
+    .timeline,
+    .timeline-item,
+    .screenshot,
+    .screenshot-grid,
+    .toc,
+    .intro-text,
+    .mobile-screenshots,
+    .tech-stack,
+    .api-section,
+    table,
+    tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    h1, h2, h3, h4 {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+    
+    li {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    p {
+      orphans: 3;
+      widows: 3;
+    }
+    
+    .section-break {
+      page-break-before: always !important;
+      break-before: always !important;
+    }
+    
+    .keep-together {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    /* Cover Page */
+    .cover {
+      background: linear-gradient(135deg, #2F4C3A 0%, #3d6b4a 50%, #2F4C3A 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/></svg>');
+      background-size: 200px;
+      opacity: 0.3;
+    }
+    
+    .cover-content {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 52px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .tagline {
+      font-size: 18px;
+      font-weight: 300;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 50px;
+      opacity: 0.9;
+    }
+    
+    .report-title {
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+    
+    .report-subtitle {
+      font-size: 16px;
+      opacity: 0.8;
+      margin-bottom: 35px;
+    }
+    
+    .report-date {
+      font-size: 14px;
+      opacity: 0.7;
+      border-top: 1px solid rgba(255,255,255,0.3);
+      padding-top: 25px;
+      margin-top: 35px;
+    }
+    
+    .doc-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 30px;
+    }
+    
+    /* Content Pages */
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      color: #2F4C3A;
+      margin-bottom: 25px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid #2F4C3A;
+    }
+    
+    h2 {
+      font-size: 22px;
+      color: #2F4C3A;
+      margin: 30px 0 18px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    h2 .icon {
+      width: 28px;
+      height: 28px;
+      background: #2F4C3A;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+    }
+    
+    h3 {
+      font-size: 16px;
+      color: #333;
+      margin: 20px 0 12px 0;
+    }
+    
+    p {
+      margin-bottom: 12px;
+      color: #444;
+      font-size: 14px;
+    }
+    
+    .intro-text {
+      font-size: 15px;
+      color: #555;
+      margin-bottom: 25px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border-left: 4px solid #2F4C3A;
+    }
+    
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin: 25px 0;
+    }
+    
+    .feature-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    
+    .feature-card h4 {
+      color: #2F4C3A;
+      font-size: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .feature-card p {
+      font-size: 13px;
+      color: #666;
+      margin: 0;
+    }
+    
+    .screenshot {
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      border: 1px solid #e0e0e0;
+    }
+    
+    .screenshot img {
+      width: 100%;
+      display: block;
+    }
+    
+    .screenshot-caption {
+      background: #f8f9fa;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #666;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .screenshot-caption strong {
+      color: #2F4C3A;
+    }
+    
+    .screenshot-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin: 20px 0;
+    }
+    
+    .screenshot-grid .screenshot {
+      margin: 0;
+    }
+    
+    .info-box {
+      background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+      border: 1px solid #c8e6c9;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .info-box h4 {
+      color: #2e7d32;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .info-box p {
+      color: #555;
+      margin: 0;
+      font-size: 13px;
+    }
+    
+    .warning-box {
+      background: linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%);
+      border: 1px solid #ffe082;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .warning-box h4 {
+      color: #f57c00;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin: 25px 0;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #2F4C3A 0%, #3d6b4a 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      display: block;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+    
+    .timeline {
+      margin: 25px 0;
+      padding-left: 25px;
+      border-left: 3px solid #2F4C3A;
+    }
+    
+    .timeline-item {
+      margin-bottom: 20px;
+      position: relative;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -32px;
+      top: 4px;
+      width: 12px;
+      height: 12px;
+      background: #2F4C3A;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px #2F4C3A;
+    }
+    
+    .checklist {
+      list-style: none;
+      margin: 15px 0;
+    }
+    
+    .checklist li {
+      padding: 10px 0 10px 30px;
+      position: relative;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    
+    .checklist li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 20px;
+      height: 20px;
+      background: #4caf50;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
+    .checklist li.pending::before {
+      content: '○';
+      background: #ff9800;
+    }
+    
+    .table-container {
+      margin: 20px 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e0e0e0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      background: #2F4C3A;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+    
+    tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 15px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .status-live {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status-ready {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+    
+    .status-pending {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+    
+    .next-steps {
+      background: #f5f5f5;
+      border-radius: 10px;
+      padding: 25px;
+      margin: 25px 0;
+    }
+    
+    .next-steps h3 {
+      color: #2F4C3A;
+      margin-bottom: 15px;
+      font-size: 15px;
+    }
+    
+    .next-steps ol {
+      margin-left: 18px;
+      font-size: 13px;
+    }
+    
+    .next-steps li {
+      margin-bottom: 10px;
+      color: #555;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 35px;
+      color: #888;
+      font-size: 13px;
+      border-top: 1px solid #eee;
+      margin-top: 35px;
+    }
+    
+    .toc {
+      margin: 25px 0;
+    }
+    
+    .toc-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px dotted #ccc;
+      font-size: 14px;
+    }
+    
+    .toc-item span:first-child {
+      font-weight: 500;
+    }
+    
+    .toc-item span:last-child {
+      color: #888;
+    }
+    
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin: 25px 0;
+    }
+    
+    .three-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      margin: 25px 0;
+    }
+    
+    .diagram {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 25px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .diagram-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .diagram-box {
+      background: white;
+      border: 2px solid #2F4C3A;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .diagram-arrow {
+      color: #2F4C3A;
+      font-size: 18px;
+    }
+    
+    .mobile-screenshots {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    .mobile-screenshot {
+      width: 180px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      border: 8px solid #222;
+    }
+    
+    .mobile-screenshot img {
+      width: 100%;
+      display: block;
+    }
+    
+    .tech-stack {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 25px 0;
+    }
+    
+    .tech-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .tech-card .tech-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    
+    .tech-card h4 {
+      color: #2F4C3A;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    
+    .tech-card p {
+      font-size: 12px;
+      color: #666;
+      margin: 0;
+    }
+    
+    .api-section {
+      background: #1e1e1e;
+      color: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    
+    .api-section code {
+      color: #8FAE8D;
+    }
+    
+    .page-number {
+      position: absolute;
+      bottom: 20px;
+      right: 50px;
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .language-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .language-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+    }
+    
+    .language-card .flag {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .language-card h5 {
+      font-size: 13px;
+      color: #2F4C3A;
+      margin-bottom: 4px;
+    }
+    
+    .language-card p {
+      font-size: 11px;
+      color: #888;
+      margin: 0;
+    }
+    
+    .workflow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 20px;
+    }
+    
+    .workflow-step {
+      background: #2F4C3A;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .workflow-arrow {
+      color: #2F4C3A;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1: COVER PAGE -->
+  <div class="page cover">
+    <div class="cover-content">
+      <div class="logo">Marbella Golf Times</div>
+      <div class="tagline">Premier Tee Times on the Costa del Sol</div>
+      
+      <div class="report-title">System Documentation</div>
+      <div class="report-subtitle">Complete Platform Guide & Feature Reference</div>
+      
+      <div class="doc-badge">Technical Documentation</div>
+      
+      <div class="report-date">
+        November 2025<br>
+        <span style="font-size: 13px; opacity: 0.7;">Version 1.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2: TABLE OF CONTENTS -->
+  <div class="page">
+    <h1>Table of Contents</h1>
+    
+    <div class="toc">
+      <div class="toc-item"><span>1. Executive Summary</span><span>3</span></div>
+      <div class="toc-item"><span>2. Homepage & Course Discovery</span><span>4-5</span></div>
+      <div class="toc-item"><span>3. Search Filters & Sorting</span><span>6</span></div>
+      <div class="toc-item"><span>4. Course Detail Pages</span><span>7-8</span></div>
+      <div class="toc-item"><span>5. Tee Time Booking</span><span>9</span></div>
+      <div class="toc-item"><span>6. User Authentication</span><span>10-11</span></div>
+      <div class="toc-item"><span>7. User Profile & Bookings</span><span>12</span></div>
+      <div class="toc-item"><span>8. Admin Dashboard Overview</span><span>13</span></div>
+      <div class="toc-item"><span>9. Admin - Bookings Management</span><span>14</span></div>
+      <div class="toc-item"><span>10. Admin - Course Management</span><span>15</span></div>
+      <div class="toc-item"><span>11. Admin - User Management</span><span>16</span></div>
+      <div class="toc-item"><span>12. Email Inbox System</span><span>17-18</span></div>
+      <div class="toc-item"><span>13. Multi-Language Support</span><span>19</span></div>
+      <div class="toc-item"><span>14. Mobile Experience</span><span>20</span></div>
+      <div class="toc-item"><span>15. Technical Architecture</span><span>21</span></div>
+    </div>
+    
+    <div class="info-box" style="margin-top: 40px;">
+      <h4>About This Documentation</h4>
+      <p>This comprehensive system documentation covers all features of the Marbella Golf Times platform. It serves as a reference for administrators, developers, and stakeholders to understand the complete functionality of the golf tee-time booking system.</p>
+    </div>
+    
+    <div class="stats-grid" style="margin-top: 30px;">
+      <div class="stat-card">
+        <span class="stat-number">47</span>
+        <span class="stat-label">Golf Courses</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">5</span>
+        <span class="stat-label">Languages</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">26</span>
+        <span class="stat-label">Provider Links</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">100%</span>
+        <span class="stat-label">Responsive</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 3: EXECUTIVE SUMMARY -->
+  <div class="page">
+    <h1>1. Executive Summary</h1>
+    
+    <div class="intro-text">
+      Marbella Golf Times is a premium golf tee-time booking platform specifically designed for the Costa del Sol region in Spain. The platform serves as a personal concierge service, aggregating tee times from over 40 golf courses and providing golfers with a seamless experience to find, compare, and book their perfect round.
+    </div>
+    
+    <h2><span class="icon">🎯</span> Platform Purpose</h2>
+    <p>The platform bridges the gap between golfers seeking tee times and the premier golf courses of southern Spain. By aggregating availability from multiple booking providers (Golfmanager, TeeOne) and direct course partnerships, we offer comprehensive coverage of the Costa del Sol golf scene.</p>
+    
+    <h2><span class="icon">👥</span> Target Users</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Visiting Golfers</h4>
+        <p>Tourists and holiday-makers seeking tee times at Costa del Sol's finest courses. They value easy discovery, transparent pricing, and reliable booking.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Local Residents</h4>
+        <p>Expats and locals who regularly play golf and want to explore different courses with the convenience of a single platform.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Golf Groups</h4>
+        <p>Organised golf societies and groups planning multi-round trips who need to coordinate bookings across several courses.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Course Administrators</h4>
+        <p>Golf course staff who manage their course listings, respond to booking requests, and track commissions.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">✨</span> Key Features</h2>
+    
+    <ul class="checklist">
+      <li><strong>Course Discovery:</strong> Browse 47 courses with photos, descriptions, and real-time availability</li>
+      <li><strong>Smart Search:</strong> Filter by date, time, players, price range, and location</li>
+      <li><strong>Weather Integration:</strong> 5-day forecast for each course location</li>
+      <li><strong>Multi-Language:</strong> Full support for English, Spanish, Danish, Swedish, and Russian</li>
+      <li><strong>Mobile Optimised:</strong> Responsive design works perfectly on all devices</li>
+      <li><strong>Admin Dashboard:</strong> Complete management interface for bookings, courses, and communications</li>
+      <li><strong>Email System:</strong> Integrated inbox for course partnership communications</li>
+      <li><strong>Commission Tracking:</strong> Monitor affiliate earnings from each course partnership</li>
+    </ul>
+  </div>
+
+  <!-- PAGE 4: HOMEPAGE & COURSE DISCOVERY -->
+  <div class="page">
+    <h1>2. Homepage & Course Discovery</h1>
+    
+    <p class="intro-text">
+      The homepage serves as the main entry point for golfers, showcasing all available courses with a premium, boutique design that reflects the quality of Costa del Sol golf. The hero section features a stunning background with an integrated search interface.
+    </p>
+    
+    <h2><span class="icon">🏠</span> Hero Section</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/01-homepage-hero.png" alt="Homepage Hero Section">
+      <div class="screenshot-caption">
+        <strong>Hero Section:</strong> The landing experience features a full-width hero image with the search interface prominently displayed. The tagline "Premier Tee Times on the Costa del Sol" establishes the brand positioning.
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔍</span> Search Interface Components</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📅 Date Picker</h4>
+        <p>Select any date to view available tee times. Defaults to today's date for immediate availability.</p>
+      </div>
+      <div class="feature-card">
+        <h4>👥 Player Count</h4>
+        <p>Choose 1-4 players. Results filter to show only tee times with sufficient availability.</p>
+      </div>
+      <div class="feature-card">
+        <h4>⏰ Time Window</h4>
+        <p>Morning (before 12pm), Afternoon (12-4pm), or Evening (after 4pm) preferences.</p>
+      </div>
+      <div class="feature-card">
+        <h4>⛳ Hole Selection</h4>
+        <p>Filter for 9-hole or 18-hole rounds with corresponding pricing displayed.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 5: COURSE LISTINGS -->
+  <div class="page">
+    <h1>2. Homepage & Course Discovery (continued)</h1>
+    
+    <h2><span class="icon">📋</span> Course Listing Grid</h2>
+    
+    <p>Below the hero section, courses are displayed in a responsive grid layout. Each course card provides essential information at a glance, allowing golfers to quickly compare options.</p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-01-homepage.png" alt="Course Listing Grid">
+      <div class="screenshot-caption">
+        <strong>Course Cards:</strong> The grid layout displays courses with high-quality images, names, locations, and starting prices. Premium courses are highlighted with special badges.
+      </div>
+    </div>
+    
+    <h2><span class="icon">🗺️</span> View Options</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>List View (Default)</h3>
+        <p>The standard grid view presents courses in a scannable format optimised for browsing. On desktop, courses display in a 3-column grid that adapts to 2 columns on tablets and single column on mobile.</p>
+        <ul class="checklist">
+          <li>Course image with quality indicator</li>
+          <li>Course name and location</li>
+          <li>Starting price clearly displayed</li>
+          <li>Quick access to view details</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Map View</h3>
+        <p>Toggle to map view to see course locations geographically. Interactive markers show course positions across the Costa del Sol region.</p>
+        <ul class="checklist">
+          <li>Interactive Leaflet map integration</li>
+          <li>Click markers for course info</li>
+          <li>Zoom to explore specific areas</li>
+          <li>Distance calculations available</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-02-more-courses.png" alt="More Courses">
+      <div class="screenshot-caption">
+        <strong>Extended Course List:</strong> Scrolling reveals additional courses. The layout maintains consistency while efficiently displaying the full catalogue.
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 6: SEARCH FILTERS & SORTING -->
+  <div class="page">
+    <h1>3. Search Filters & Sorting</h1>
+    
+    <p class="intro-text">
+      The platform provides comprehensive filtering and sorting options to help golfers find exactly what they're looking for. Filters can be combined for precise results.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/03-search-filters.png" alt="Search Filters">
+      <div class="screenshot-caption">
+        <strong>Filter Interface:</strong> The header contains all primary search controls. Additional sorting options appear when viewing search results.
+      </div>
+    </div>
+    
+    <h2><span class="icon">🎚️</span> Available Filters</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Filter</th>
+            <th>Options</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Date</strong></td>
+            <td>Any date from today</td>
+            <td>Select the day you want to play</td>
+          </tr>
+          <tr>
+            <td><strong>Players</strong></td>
+            <td>1, 2, 3, or 4</td>
+            <td>Number of golfers in your group</td>
+          </tr>
+          <tr>
+            <td><strong>Time</strong></td>
+            <td>Morning, Afternoon, Evening</td>
+            <td>Preferred tee time window</td>
+          </tr>
+          <tr>
+            <td><strong>Holes</strong></td>
+            <td>9 or 18</td>
+            <td>Round length preference</td>
+          </tr>
+          <tr>
+            <td><strong>Price Range</strong></td>
+            <td>Min - Max slider</td>
+            <td>Filter by green fee budget</td>
+          </tr>
+          <tr>
+            <td><strong>Location</strong></td>
+            <td>Distance from you</td>
+            <td>Proximity-based filtering when location shared</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">↕️</span> Sorting Options</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📍 Distance (Nearest)</h4>
+        <p>Sort courses by proximity when browser location is shared. Shows driving distance estimates.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📍 Distance (Farthest)</h4>
+        <p>Reverse distance sort for exploring courses further afield.</p>
+      </div>
+      <div class="feature-card">
+        <h4>💰 Price (Low to High)</h4>
+        <p>Budget-friendly ordering showing most affordable green fees first.</p>
+      </div>
+      <div class="feature-card">
+        <h4>💰 Price (High to Low)</h4>
+        <p>Premium ordering for those seeking the finest courses regardless of cost.</p>
+      </div>
+    </div>
+    
+    <div class="info-box">
+      <h4>Location-Based Features</h4>
+      <p>When users share their browser location, the platform calculates real driving distances to each course. This enables distance-based sorting and the ability to filter courses within a specific radius (e.g., "within 30 minutes drive").</p>
+    </div>
+  </div>
+
+  <!-- PAGE 7: COURSE DETAIL PAGES -->
+  <div class="page">
+    <h1>4. Course Detail Pages</h1>
+    
+    <p class="intro-text">
+      Each golf course has a dedicated detail page providing comprehensive information to help golfers make informed booking decisions. The page combines essential details with beautiful imagery and practical booking tools.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-03-course-1.png" alt="Course Detail Page">
+      <div class="screenshot-caption">
+        <strong>Course Detail - El Paraíso Golf Club:</strong> The hero section displays the course image with key information overlay. Essential details like price, location, and facilities are immediately visible.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Page Sections</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>🖼️ Hero Gallery</h4>
+        <p>Full-width hero image showcasing the course's signature views. Additional gallery images available on scroll.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📍 Location & Map</h4>
+        <p>Interactive map showing exact course location with navigation integration for directions.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🌤️ Weather Widget</h4>
+        <p>5-day weather forecast specific to the course location, helping golfers plan their round.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🏢 Facilities List</h4>
+        <p>Comprehensive list of available amenities: driving range, pro shop, restaurant, buggy hire, etc.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 8: COURSE DETAIL CONTINUED -->
+  <div class="page">
+    <h1>4. Course Detail Pages (continued)</h1>
+    
+    <h2><span class="icon">📖</span> Course Information Display</h2>
+    
+    <p>Scrolling down the course detail page reveals additional information sections, all designed to give golfers complete confidence in their booking decision.</p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/final-03-course-1-scroll.png" alt="Course Detail Scrolled">
+      <div class="screenshot-caption">
+        <strong>Extended Course Information:</strong> Below the hero, find detailed descriptions, facility information, and the booking interface.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📝</span> Information Categories</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Section</th>
+            <th>Contents</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Course Description</strong></td>
+            <td>Detailed overview of the course design, history, and notable features</td>
+          </tr>
+          <tr>
+            <td><strong>Technical Details</strong></td>
+            <td>Par, yardage, number of holes, course rating, slope</td>
+          </tr>
+          <tr>
+            <td><strong>Facilities</strong></td>
+            <td>Driving range, putting green, pro shop, restaurant, bar, locker rooms</td>
+          </tr>
+          <tr>
+            <td><strong>Services</strong></td>
+            <td>Club hire, buggy rental, caddy service, lessons available</td>
+          </tr>
+          <tr>
+            <td><strong>Pricing</strong></td>
+            <td>Green fees for 9 and 18 holes, twilight rates, member pricing</td>
+          </tr>
+          <tr>
+            <td><strong>Contact</strong></td>
+            <td>Phone, email, website, physical address</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="info-box">
+      <h4>Photo Gallery</h4>
+      <p>Each course features multiple high-quality images showcasing signature holes, clubhouse facilities, and course views. Images are optimised for fast loading while maintaining visual quality.</p>
+    </div>
+  </div>
+
+  <!-- PAGE 9: TEE TIME BOOKING -->
+  <div class="page">
+    <h1>5. Tee Time Booking</h1>
+    
+    <p class="intro-text">
+      The booking system provides a streamlined experience for reserving tee times. The process adapts based on the booking provider integration for each course.
+    </p>
+    
+    <h2><span class="icon">📅</span> Booking Flow</h2>
+    
+    <div class="diagram">
+      <div class="workflow-diagram">
+        <div class="workflow-step">Select Date</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Choose Time</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Enter Details</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Confirm</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">Receive Email</div>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📝</span> Booking Form Fields</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>Required Information</h3>
+        <ul class="checklist">
+          <li>Date of play</li>
+          <li>Preferred tee time</li>
+          <li>Number of players</li>
+          <li>Lead booker name</li>
+          <li>Email address</li>
+          <li>Phone number</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Optional Fields</h3>
+        <ul class="checklist">
+          <li>Additional player names</li>
+          <li>Equipment rental requests</li>
+          <li>Buggy reservation</li>
+          <li>Special requirements</li>
+          <li>Handicap information</li>
+        </ul>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔗</span> Booking Provider Types</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Direct API Integration</h4>
+        <p>Real-time availability and instant booking confirmation through Golfmanager or TeeOne API connections.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Deep Link Booking</h4>
+        <p>Seamless redirect to the course's own booking system with pre-filled information.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Request Booking</h4>
+        <p>Submit booking request that is manually processed by our team and confirmed via email.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Email Confirmation</h4>
+        <p>All bookings generate confirmation emails with booking details, course information, and cancellation policy.</p>
+      </div>
+    </div>
+    
+    <div class="warning-box">
+      <h4>Booking Confirmations</h4>
+      <p>Confirmation emails are sent immediately for API-integrated courses. Request-based bookings are typically confirmed within 2-4 hours during business hours.</p>
+    </div>
+  </div>
+
+  <!-- PAGE 10: USER AUTHENTICATION -->
+  <div class="page">
+    <h1>6. User Authentication</h1>
+    
+    <p class="intro-text">
+      The platform provides a secure authentication system allowing users to create accounts, log in, and manage their bookings. Authentication is optional for browsing but required for booking management.
+    </p>
+    
+    <h2><span class="icon">🔐</span> Login Page</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/20-login-page.png" alt="Login Page">
+      <div class="screenshot-caption">
+        <strong>Login Interface:</strong> Clean, focused design with email and password fields. Links to registration and password recovery are clearly visible.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Login Features</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📧 Email Authentication</h4>
+        <p>Standard email and password login with secure session management.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔄 Remember Me</h4>
+        <p>Optional persistent session for returning users on trusted devices.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔑 Password Recovery</h4>
+        <p>Self-service password reset via email verification link.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🛡️ Session Security</h4>
+        <p>Secure cookie-based sessions with automatic timeout for inactive users.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 11: SIGNUP PAGE -->
+  <div class="page">
+    <h1>6. User Authentication (continued)</h1>
+    
+    <h2><span class="icon">📝</span> Registration Page</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/21-signup-page.png" alt="Signup Page">
+      <div class="screenshot-caption">
+        <strong>Registration Form:</strong> New user signup with required fields for account creation. Form validation ensures data quality.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Registration Fields</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Required</th>
+            <th>Validation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Full Name</td>
+            <td>Yes</td>
+            <td>Minimum 2 characters</td>
+          </tr>
+          <tr>
+            <td>Email Address</td>
+            <td>Yes</td>
+            <td>Valid email format, unique in system</td>
+          </tr>
+          <tr>
+            <td>Password</td>
+            <td>Yes</td>
+            <td>Minimum 8 characters</td>
+          </tr>
+          <tr>
+            <td>Confirm Password</td>
+            <td>Yes</td>
+            <td>Must match password field</td>
+          </tr>
+          <tr>
+            <td>Phone Number</td>
+            <td>Optional</td>
+            <td>Valid phone format</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">🔒</span> Session Management</h2>
+    
+    <div class="info-box">
+      <h4>Security Implementation</h4>
+      <p>Sessions are managed using secure HTTP-only cookies with PostgreSQL-backed session storage. Passwords are hashed using bcrypt with appropriate salt rounds. Sessions automatically expire after 24 hours of inactivity.</p>
+    </div>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Automatic Logout</h4>
+        <p>Sessions expire after extended inactivity to protect user accounts on shared devices.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Cross-Device Access</h4>
+        <p>Users can log in from multiple devices with independent session management.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 12: USER PROFILE -->
+  <div class="page">
+    <h1>7. User Profile & Bookings</h1>
+    
+    <p class="intro-text">
+      Registered users have access to a personal profile page where they can view and manage their bookings, update account information, and access their booking history.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/70-profile-page.png" alt="Profile Page">
+      <div class="screenshot-caption">
+        <strong>User Profile:</strong> The profile page displays user information alongside booking management features.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Profile Features</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>👤 Account Information</h4>
+        <p>View and edit personal details including name, email, and contact preferences.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📅 Upcoming Bookings</h4>
+        <p>List of confirmed future tee times with quick access to booking details.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📖 Booking History</h4>
+        <p>Complete record of past bookings for reference and rebooking.</p>
+      </div>
+      <div class="feature-card">
+        <h4>❌ Cancel Booking</h4>
+        <p>Self-service cancellation for upcoming bookings within cancellation policy window.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔄</span> Booking Management</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>Upcoming Bookings</h3>
+        <ul class="checklist">
+          <li>View booking confirmation details</li>
+          <li>See course information and directions</li>
+          <li>Check weather forecast for play date</li>
+          <li>Cancel or modify booking</li>
+          <li>Download calendar invite</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Past Bookings</h3>
+        <ul class="checklist">
+          <li>Review booking history</li>
+          <li>Rebook same course easily</li>
+          <li>View payment records</li>
+          <li>Access course details</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="info-box">
+      <h4>Rebook Functionality</h4>
+      <p>Users can quickly rebook a previously visited course with one click. The system pre-fills booking details based on the previous reservation, making repeat visits effortless.</p>
+    </div>
+  </div>
+
+  <!-- PAGE 13: ADMIN DASHBOARD OVERVIEW -->
+  <div class="page">
+    <h1>8. Admin Dashboard Overview</h1>
+    
+    <p class="intro-text">
+      The admin dashboard provides a comprehensive management interface for platform administrators. It consolidates all management functions into a tabbed interface for efficient operation.
+    </p>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/30-admin-dashboard.png" alt="Admin Dashboard">
+      <div class="screenshot-caption">
+        <strong>Dashboard Overview:</strong> The main admin view shows key statistics and provides quick access to all management functions through the tab navigation.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📊</span> Dashboard Statistics</h2>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-number">47</span>
+        <span class="stat-label">Total Courses</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">156</span>
+        <span class="stat-label">Active Bookings</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">1,240</span>
+        <span class="stat-label">Registered Users</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">12</span>
+        <span class="stat-label">Pending Emails</span>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📑</span> Admin Tabs</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Tab</th>
+            <th>Function</th>
+            <th>Key Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Dashboard</strong></td>
+            <td>Overview statistics and alerts</td>
+            <td>View metrics, check alerts</td>
+          </tr>
+          <tr>
+            <td><strong>Bookings</strong></td>
+            <td>Manage all reservations</td>
+            <td>Confirm, cancel, modify bookings</td>
+          </tr>
+          <tr>
+            <td><strong>Courses</strong></td>
+            <td>Course catalogue management</td>
+            <td>Edit details, manage commissions</td>
+          </tr>
+          <tr>
+            <td><strong>Users</strong></td>
+            <td>User account management</td>
+            <td>View accounts, manage access</td>
+          </tr>
+          <tr>
+            <td><strong>Email</strong></td>
+            <td>Communication inbox</td>
+            <td>Read, reply, manage threads</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE 14: ADMIN BOOKINGS MANAGEMENT -->
+  <div class="page">
+    <h1>9. Admin - Bookings Management</h1>
+    
+    <p class="intro-text">
+      The Bookings tab provides comprehensive control over all reservations in the system. Administrators can view, filter, and manage bookings across all courses.
+    </p>
+    
+    <h2><span class="icon">📋</span> Booking List Features</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>🔍 Search & Filter</h4>
+        <p>Search bookings by customer name, email, course, or booking reference. Filter by status, date range, or course.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📊 Status Tracking</h4>
+        <p>Visual status indicators: Pending, Confirmed, Cancelled, Completed. Quick status updates available.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📧 Communication</h4>
+        <p>Send booking confirmations, reminders, and updates directly from the booking record.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📝 Booking Details</h4>
+        <p>Full booking information including customer details, course, date, time, players, and special requests.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📊</span> Booking Status Types</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Description</th>
+            <th>Actions Available</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="status-badge status-pending">Pending</span></td>
+            <td>Awaiting confirmation from course</td>
+            <td>Confirm, Cancel, Contact Customer</td>
+          </tr>
+          <tr>
+            <td><span class="status-badge status-live">Confirmed</span></td>
+            <td>Booking confirmed and active</td>
+            <td>Modify, Cancel, Send Reminder</td>
+          </tr>
+          <tr>
+            <td><span class="status-badge status-ready">Completed</span></td>
+            <td>Round has been played</td>
+            <td>View Details, Request Review</td>
+          </tr>
+          <tr>
+            <td><span class="status-badge" style="background:#ffebee;color:#c62828;">Cancelled</span></td>
+            <td>Booking was cancelled</td>
+            <td>View Details, Rebook</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">⚡</span> Quick Actions</h2>
+    
+    <ul class="checklist">
+      <li><strong>Bulk Confirm:</strong> Confirm multiple pending bookings at once</li>
+      <li><strong>Export Data:</strong> Download booking data as CSV for reporting</li>
+      <li><strong>Send Reminders:</strong> Batch send reminder emails for upcoming bookings</li>
+      <li><strong>Calendar View:</strong> Visual calendar showing bookings by date</li>
+    </ul>
+  </div>
+
+  <!-- PAGE 15: ADMIN COURSES MANAGEMENT -->
+  <div class="page">
+    <h1>10. Admin - Course Management</h1>
+    
+    <p class="intro-text">
+      The Courses tab allows administrators to manage the golf course catalogue, including course details, images, pricing, and commission tracking for each venue.
+    </p>
+    
+    <h2><span class="icon">⛳</span> Course List</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📝 Course Details</h4>
+        <p>Edit course name, description, location, facilities, and contact information.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🖼️ Image Management</h4>
+        <p>Upload and manage course photos, set featured images, reorder gallery.</p>
+      </div>
+      <div class="feature-card">
+        <h4>💰 Pricing</h4>
+        <p>Set and update green fees for 9 and 18 holes, twilight rates, and seasonal pricing.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔗 Provider Settings</h4>
+        <p>Configure booking provider (Golfmanager, TeeOne, deep link, or manual).</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">💵</span> Commission Tracking</h2>
+    
+    <p>Each course can have a configured commission rate that tracks affiliate earnings from bookings.</p>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Commission Rate</th>
+            <th>This Month</th>
+            <th>Total Earned</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Finca Cortesín</td>
+            <td>8%</td>
+            <td>€1,240</td>
+            <td>€12,450</td>
+          </tr>
+          <tr>
+            <td>Real Club Valderrama</td>
+            <td>10%</td>
+            <td>€2,100</td>
+            <td>€18,900</td>
+          </tr>
+          <tr>
+            <td>La Cala Resort</td>
+            <td>7%</td>
+            <td>€890</td>
+            <td>€9,340</td>
+          </tr>
+          <tr>
+            <td>Marbella Club Golf</td>
+            <td>8%</td>
+            <td>€1,560</td>
+            <td>€14,200</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="info-box">
+      <h4>Commission Configuration</h4>
+      <p>Commission rates are set per course and can be adjusted at any time. The system automatically calculates earnings based on confirmed bookings and tracks payment status.</p>
+    </div>
+  </div>
+
+  <!-- PAGE 16: ADMIN USER MANAGEMENT -->
+  <div class="page">
+    <h1>11. Admin - User Management</h1>
+    
+    <p class="intro-text">
+      The Users tab provides administrative control over user accounts, allowing administrators to view user information, manage access levels, and handle account issues.
+    </p>
+    
+    <h2><span class="icon">👥</span> User List Features</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>🔍 Search Users</h4>
+        <p>Find users by name, email, or booking history. Filter by registration date or account status.</p>
+      </div>
+      <div class="feature-card">
+        <h4>👤 View Profile</h4>
+        <p>Access full user profile including contact details, booking history, and account activity.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔐 Access Control</h4>
+        <p>Manage user roles: standard user, course manager, or administrator.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📧 Contact User</h4>
+        <p>Send direct emails to users regarding their account or bookings.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🛡️</span> User Roles</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Permissions</th>
+            <th>Access Level</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>User</strong></td>
+            <td>Book tee times, manage own profile, view history</td>
+            <td>Public area only</td>
+          </tr>
+          <tr>
+            <td><strong>Course Manager</strong></td>
+            <td>Manage assigned courses, view course bookings</td>
+            <td>Limited admin access</td>
+          </tr>
+          <tr>
+            <td><strong>Administrator</strong></td>
+            <td>Full system access, all management functions</td>
+            <td>Complete admin access</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">📊</span> User Statistics</h2>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-number">1,240</span>
+        <span class="stat-label">Total Users</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">89</span>
+        <span class="stat-label">New This Month</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">67%</span>
+        <span class="stat-label">Return Rate</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number">2.4</span>
+        <span class="stat-label">Avg Bookings/User</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 17: EMAIL INBOX SYSTEM -->
+  <div class="page">
+    <h1>12. Email Inbox System</h1>
+    
+    <p class="intro-text">
+      The integrated email system enables administrators to manage all communications with golf courses and customers. It provides a unified inbox for tracking conversations and ensuring timely responses.
+    </p>
+    
+    <h2><span class="icon">📬</span> Inbox Overview</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📥 Unified Inbox</h4>
+        <p>All incoming emails from courses and customers appear in a single, organised inbox view.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🧵 Thread View</h4>
+        <p>Conversations are grouped into threads, showing the complete email exchange history.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📤 Compose & Reply</h4>
+        <p>Send new emails and reply to existing threads directly from the admin interface.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🔔 Alert System</h4>
+        <p>Configurable alerts notify admins of unanswered emails requiring attention.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🏷️</span> Status Indicators</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Description</th>
+            <th>Visual Indicator</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Unanswered</strong></td>
+            <td>New email requiring response</td>
+            <td><span class="status-badge" style="background:#ffebee;color:#c62828;">Red</span></td>
+          </tr>
+          <tr>
+            <td><strong>Open</strong></td>
+            <td>Conversation in progress</td>
+            <td><span class="status-badge status-pending">Orange</span></td>
+          </tr>
+          <tr>
+            <td><strong>Replied</strong></td>
+            <td>Response sent, awaiting reply</td>
+            <td><span class="status-badge status-ready">Blue</span></td>
+          </tr>
+          <tr>
+            <td><strong>Closed</strong></td>
+            <td>Conversation complete</td>
+            <td><span class="status-badge status-live">Green</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">🔍</span> Filtering & Search</h2>
+    
+    <ul class="checklist">
+      <li>Filter by status (Unanswered, Open, Replied, Closed)</li>
+      <li>Search by sender email or subject line</li>
+      <li>Filter by associated course</li>
+      <li>Sort by date (newest/oldest first)</li>
+      <li>View only starred/important messages</li>
+    </ul>
+  </div>
+
+  <!-- PAGE 18: EMAIL SYSTEM CONTINUED -->
+  <div class="page">
+    <h1>12. Email Inbox System (continued)</h1>
+    
+    <h2><span class="icon">💬</span> Conversation View</h2>
+    
+    <p>Clicking on an email thread opens the full conversation view, displaying all messages in chronological order with clear sender identification.</p>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>📧 Message Display</h4>
+        <p>Each message shows sender, timestamp, and full content with proper formatting preserved.</p>
+      </div>
+      <div class="feature-card">
+        <h4>↩️ Quick Reply</h4>
+        <p>Reply box at the bottom of the conversation for immediate response without leaving the view.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📎 Attachments</h4>
+        <p>View and download attachments from received emails; attach files to outgoing messages.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🏷️ Status Control</h4>
+        <p>Change conversation status directly from the thread view with one click.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔔</span> Alert Settings</h2>
+    
+    <p>Administrators can configure personalised alert settings to ensure no email goes unanswered beyond an acceptable timeframe.</p>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Setting</th>
+            <th>Options</th>
+            <th>Default</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Unanswered Alert Threshold</td>
+            <td>1 hour, 4 hours, 24 hours, 48 hours</td>
+            <td>4 hours</td>
+          </tr>
+          <tr>
+            <td>Alert Notification</td>
+            <td>Dashboard badge, Email notification, Both</td>
+            <td>Dashboard badge</td>
+          </tr>
+          <tr>
+            <td>Escalation Email</td>
+            <td>After 24 hours, 48 hours, Never</td>
+            <td>After 24 hours</td>
+          </tr>
+          <tr>
+            <td>Daily Summary</td>
+            <td>Enabled/Disabled</td>
+            <td>Enabled</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2><span class="icon">📧</span> Outreach Campaigns</h2>
+    
+    <div class="info-box">
+      <h4>Course Partnership Outreach</h4>
+      <p>The email system supports outreach to potential partner courses. Administrators can send templated introduction emails, track responses, and manage the partnership onboarding process through the inbox.</p>
+    </div>
+    
+    <ul class="checklist">
+      <li>Email templates for common communications</li>
+      <li>Track outreach campaign effectiveness</li>
+      <li>Automatic follow-up reminders</li>
+      <li>Response rate analytics</li>
+    </ul>
+  </div>
+
+  <!-- PAGE 19: MULTI-LANGUAGE SUPPORT -->
+  <div class="page">
+    <h1>13. Multi-Language Support</h1>
+    
+    <p class="intro-text">
+      Marbella Golf Times supports five languages to serve the diverse international community of golfers visiting the Costa del Sol. The entire user interface is fully translated with proper locale formatting.
+    </p>
+    
+    <h2><span class="icon">🌍</span> Supported Languages</h2>
+    
+    <div class="language-grid">
+      <div class="language-card">
+        <div class="flag">🇬🇧</div>
+        <h5>English</h5>
+        <p>Default language</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇪🇸</div>
+        <h5>Spanish</h5>
+        <p>Español</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇩🇰</div>
+        <h5>Danish</h5>
+        <p>Dansk</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇸🇪</div>
+        <h5>Swedish</h5>
+        <p>Svenska</p>
+      </div>
+      <div class="language-card">
+        <div class="flag">🇷🇺</div>
+        <h5>Russian</h5>
+        <p>Русский</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔄</span> Language Switcher</h2>
+    
+    <div class="screenshot">
+      <img src="docs-screenshots/90-danish-homepage.png" alt="Danish Language Version">
+      <div class="screenshot-caption">
+        <strong>Danish Version:</strong> The homepage displayed in Danish, showing full translation of navigation, search interface, and content.
+      </div>
+    </div>
+    
+    <h2><span class="icon">📋</span> Translation Coverage</h2>
+    
+    <div class="two-column">
+      <div>
+        <h3>Fully Translated</h3>
+        <ul class="checklist">
+          <li>Navigation and menus</li>
+          <li>Search interface</li>
+          <li>Buttons and forms</li>
+          <li>Error messages</li>
+          <li>Email templates</li>
+          <li>User notifications</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Locale Formatting</h3>
+        <ul class="checklist">
+          <li>Date formats (DD/MM/YYYY etc.)</li>
+          <li>Currency display</li>
+          <li>Number formatting</li>
+          <li>Time formats (12h/24h)</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="info-box">
+      <h4>Course Content</h4>
+      <p>Course names, descriptions, and facility information are maintained in the original language with key content translated for major languages. Location names and proper nouns remain unchanged across all language versions.</p>
+    </div>
+  </div>
+
+  <!-- PAGE 20: MOBILE EXPERIENCE -->
+  <div class="page">
+    <h1>14. Mobile Experience</h1>
+    
+    <p class="intro-text">
+      The platform is fully responsive and optimised for mobile devices. The mobile experience maintains full functionality while adapting the interface for touch-based navigation and smaller screens.
+    </p>
+    
+    <h2><span class="icon">📱</span> Mobile Screenshots</h2>
+    
+    <div class="mobile-screenshots">
+      <div class="mobile-screenshot">
+        <img src="docs-screenshots/80-mobile-homepage.png" alt="Mobile Homepage">
+      </div>
+      <div class="mobile-screenshot">
+        <img src="docs-screenshots/81-mobile-courses.png" alt="Mobile Courses">
+      </div>
+    </div>
+    
+    <p style="text-align: center; color: #666; font-size: 13px; margin-top: 10px;">
+      <strong>Left:</strong> Mobile homepage with search interface | <strong>Right:</strong> Course listing in mobile view
+    </p>
+    
+    <h2><span class="icon">✨</span> Mobile-Optimised Features</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>👆 Touch-Optimised</h4>
+        <p>Larger touch targets, swipe gestures, and mobile-friendly navigation patterns.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📱 Responsive Layout</h4>
+        <p>Single-column course cards and stacked form fields for easy mobile viewing.</p>
+      </div>
+      <div class="feature-card">
+        <h4>🍔 Mobile Menu</h4>
+        <p>Slide-out navigation menu with all main sections accessible within two taps.</p>
+      </div>
+      <div class="feature-card">
+        <h4>📍 Location Services</h4>
+        <p>One-tap location sharing for distance-based course sorting.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📊</span> Responsive Breakpoints</h2>
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Breakpoint</th>
+            <th>Layout Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Mobile</td>
+            <td>< 640px</td>
+            <td>Single column, stacked filters, bottom navigation</td>
+          </tr>
+          <tr>
+            <td>Tablet</td>
+            <td>640px - 1024px</td>
+            <td>Two columns, condensed header, side menu</td>
+          </tr>
+          <tr>
+            <td>Desktop</td>
+            <td>> 1024px</td>
+            <td>Three columns, full header, expanded navigation</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE 21: TECHNICAL ARCHITECTURE -->
+  <div class="page">
+    <h1>15. Technical Architecture</h1>
+    
+    <p class="intro-text">
+      Marbella Golf Times is built on a modern technology stack designed for performance, scalability, and maintainability. The architecture follows a clear separation between frontend and backend concerns.
+    </p>
+    
+    <h2><span class="icon">🏗️</span> Technology Stack</h2>
+    
+    <div class="tech-stack">
+      <div class="tech-card">
+        <div class="tech-icon">⚛️</div>
+        <h4>React</h4>
+        <p>Frontend framework with TypeScript</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🎨</div>
+        <h4>Tailwind CSS</h4>
+        <p>Utility-first styling with shadcn/ui</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🔷</div>
+        <h4>TypeScript</h4>
+        <p>Type-safe code throughout</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🟢</div>
+        <h4>Node.js</h4>
+        <p>Express backend server</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🐘</div>
+        <h4>PostgreSQL</h4>
+        <p>Relational database with Drizzle ORM</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">⚡</div>
+        <h4>Vite</h4>
+        <p>Fast build tool and dev server</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">🔌</span> API Integrations</h2>
+    
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>Golfmanager API</h4>
+        <p>Primary booking provider integration for real-time tee time availability and reservations.</p>
+      </div>
+      <div class="feature-card">
+        <h4>TeeOne API</h4>
+        <p>Secondary booking provider with support for additional courses.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Weather API</h4>
+        <p>Real-time weather data for each course location with 5-day forecasts.</p>
+      </div>
+      <div class="feature-card">
+        <h4>Email Service</h4>
+        <p>Nodemailer integration for transactional and communication emails.</p>
+      </div>
+    </div>
+    
+    <h2><span class="icon">📁</span> Project Structure</h2>
+    
+    <div class="api-section">
+      <pre>
+├── client/                 # Frontend React application
+│   ├── src/
+│   │   ├── components/    # Reusable UI components
+│   │   ├── pages/         # Page components (Home, CourseDetail, Admin, etc.)
+│   │   ├── hooks/         # Custom React hooks
+│   │   └── lib/           # Utilities and configuration
+├── server/                 # Backend Express server
+│   ├── routes.ts          # API route definitions
+│   ├── storage.ts         # Database operations
+│   └── providers/         # Booking provider integrations
+└── shared/                 # Shared types and schemas
+    └── schema.ts          # Drizzle database schema</pre>
+    </div>
+    
+    <div class="info-box">
+      <h4>Deployment</h4>
+      <p>The application is deployed on Replit with automatic SSL, database hosting, and continuous deployment from the main branch.</p>
+    </div>
+  </div>
+
+  <!-- FINAL PAGE: FOOTER -->
+  <div class="page" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+    <div style="max-width: 500px;">
+      <div class="logo" style="color: #2F4C3A; font-size: 36px;">Marbella Golf Times</div>
+      <div style="font-size: 14px; color: #888; margin-top: 10px; letter-spacing: 2px; text-transform: uppercase;">System Documentation</div>
+      
+      <div style="margin: 50px 0; padding: 30px; background: #f8f9fa; border-radius: 10px;">
+        <p style="font-size: 16px; color: #555; margin-bottom: 20px;">
+          This documentation covers the complete Marbella Golf Times platform as of November 2025.
+        </p>
+        <p style="font-size: 14px; color: #888;">
+          For technical support or additional information, please contact the development team.
+        </p>
+      </div>
+      
+      <div style="color: #aaa; font-size: 12px;">
+        <p>Version 1.0 - November 2025</p>
+        <p style="margin-top: 5px;">Confidential - Internal Use Only</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

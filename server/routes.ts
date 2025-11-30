@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  // PDF Reports download endpoint
+  // PDF Reports download endpoints
   app.get('/api/reports/progress-report', async (req, res) => {
     try {
       const pdfPath = path.join(__dirname, '../reports/Marbella-Golf-Times-Progress-Report-Nov2025.pdf');
@@ -104,6 +104,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error serving PDF:', error);
       res.status(500).json({ message: 'Failed to serve report' });
+    }
+  });
+
+  // System Documentation PDFs - English, Danish, Swedish
+  app.get('/api/reports/system-docs/:lang', async (req, res) => {
+    try {
+      const lang = req.params.lang.toUpperCase();
+      const validLangs = ['EN', 'DA', 'SV'];
+      
+      if (!validLangs.includes(lang)) {
+        return res.status(400).json({ message: 'Invalid language. Use: EN, DA, or SV' });
+      }
+      
+      const pdfPath = path.join(__dirname, `../reports/Marbella-Golf-Times-System-Documentation-${lang}.pdf`);
+      const fileExists = await fs.access(pdfPath).then(() => true).catch(() => false);
+      
+      if (!fileExists) {
+        return res.status(404).json({ message: 'Documentation not found' });
+      }
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Marbella-Golf-Times-System-Documentation-${lang}.pdf"`);
+      
+      const fileBuffer = await fs.readFile(pdfPath);
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error('Error serving PDF:', error);
+      res.status(500).json({ message: 'Failed to serve documentation' });
     }
   });
 
