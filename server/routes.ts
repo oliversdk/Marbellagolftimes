@@ -621,8 +621,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const session = await getSession(req);
         isAdminUser = session?.user?.isAdmin === "true";
-      } catch {
+        console.log(`[/api/courses] Session check: isAdmin=${isAdminUser}, userId=${session?.userId}`);
+      } catch (e) {
         // Session lookup failed - treat as public user
+        console.log(`[/api/courses] Session lookup failed:`, e);
         isAdminUser = false;
       }
       
