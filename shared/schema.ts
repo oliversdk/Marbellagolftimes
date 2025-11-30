@@ -66,6 +66,7 @@ export const golfCourses = pgTable("golf_courses", {
   kickbackPercent: real("kickback_percent").default(0), // Commission % (0-100)
   golfmanagerUser: text("golfmanager_user"), // Golfmanager API username
   golfmanagerPassword: text("golfmanager_password"), // Golfmanager API password
+  membersOnly: text("members_only").notNull().default("false"), // Members-only courses hidden from public
 });
 
 export const insertGolfCourseSchema = createInsertSchema(golfCourses).omit({ id: true });
