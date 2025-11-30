@@ -23,17 +23,18 @@ async function generatePDF() {
   // Wait for fonts to load
   await new Promise(resolve => setTimeout(resolve, 2000));
   
-  // Generate PDF
+  // Generate PDF with proper page break handling
   const pdfPath = path.join(__dirname, 'Marbella-Golf-Times-Progress-Report-Nov2025.pdf');
   await page.pdf({
     path: pdfPath,
     format: 'A4',
     printBackground: true,
+    preferCSSPageSize: true,
     margin: {
-      top: '20px',
-      right: '20px',
-      bottom: '20px',
-      left: '20px'
+      top: '25px',
+      right: '25px',
+      bottom: '25px',
+      left: '25px'
     }
   });
   

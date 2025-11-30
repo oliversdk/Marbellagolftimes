@@ -20,14 +20,73 @@
       background: #fff;
     }
     
+    /* Page container - each section gets its own page */
     .page {
-      page-break-after: always;
-      min-height: 100vh;
       padding: 50px;
+      page-break-after: always;
+      page-break-inside: avoid;
     }
     
     .page:last-child {
       page-break-after: avoid;
+    }
+    
+    /* ===== CRITICAL: Prevent page breaks inside content blocks ===== */
+    /* These rules MUST apply both in and outside @media print for Puppeteer */
+    
+    /* Never break inside these elements */
+    .feature-grid,
+    .feature-card,
+    .info-box,
+    .warning-box,
+    .stats-grid,
+    .stat-card,
+    .table-container,
+    .diagram,
+    .next-steps,
+    .two-column,
+    .checklist,
+    .timeline,
+    .timeline-item,
+    .screenshot,
+    .screenshot-grid,
+    .toc,
+    .intro-text,
+    .mobile-screenshots,
+    table,
+    tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    /* Keep headings with their following content */
+    h1, h2, h3, h4 {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+    
+    /* Keep list items together */
+    li {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    
+    /* Keep paragraphs from orphaning */
+    p {
+      orphans: 3;
+      widows: 3;
+    }
+    
+    /* Each section header starts fresh if needed */
+    .section-break {
+      page-break-before: always !important;
+      break-before: always !important;
+    }
+    
+    /* Keep section groups together */
+    .keep-together {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     
     /* Cover Page */
@@ -446,27 +505,6 @@
       grid-template-columns: 1fr 1fr;
       gap: 30px;
       margin: 25px 0;
-      page-break-inside: avoid;
-    }
-    
-    /* Prevent page breaks inside important sections */
-    .feature-grid,
-    .feature-card,
-    .info-box,
-    .warning-box,
-    .stats-grid,
-    .table-container,
-    .diagram,
-    .next-steps {
-      page-break-inside: avoid;
-    }
-    
-    h2 {
-      page-break-after: avoid;
-    }
-    
-    .checklist {
-      page-break-inside: avoid;
     }
     
     .diagram {
