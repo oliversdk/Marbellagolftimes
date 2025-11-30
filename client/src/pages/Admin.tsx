@@ -380,23 +380,23 @@ export default function Admin() {
     },
   });
 
-  // Toggle members-only status mutation
-  const toggleMembersOnlyMutation = useMutation({
-    mutationFn: async (courseId: string) => {
-      return await apiRequest(`/api/admin/courses/${courseId}/members-only`, "PATCH");
+  // Set members-only status mutation
+  const setMembersOnlyMutation = useMutation({
+    mutationFn: async ({ courseId, membersOnly }: { courseId: string; membersOnly: boolean }) => {
+      return await apiRequest(`/api/admin/courses/${courseId}/members-only`, "PATCH", { membersOnly });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
       toast({
         title: "Status updated",
-        description: "Members-only status has been updated",
+        description: "Course visibility has been updated",
       });
     },
     onError: () => {
       toast({
         title: "Update failed",
-        description: "Failed to update members-only status",
+        description: "Failed to update course visibility",
         variant: "destructive",
       });
     },
@@ -2594,8 +2594,8 @@ export default function Admin() {
                                           <div className="flex items-center gap-1">
                                             <Switch
                                               checked={!isMembersOnly}
-                                              onCheckedChange={() => toggleMembersOnlyMutation.mutate(course.id)}
-                                              disabled={toggleMembersOnlyMutation.isPending}
+                                              onCheckedChange={(checked) => setMembersOnlyMutation.mutate({ courseId: course.id, membersOnly: !checked })}
+                                              disabled={setMembersOnlyMutation.isPending}
                                               data-testid={`switch-public-${course.id}`}
                                             />
                                             <span className="text-xs text-muted-foreground">

@@ -613,10 +613,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/courses - Get all golf courses
+  // GET /api/courses - Get all golf courses (public courses for visitors, all for admins)
   app.get("/api/courses", async (req, res) => {
     try {
-      const courses = await storage.getAllCourses();
+      // Check if user is admin - if so, return all courses; otherwise filter members-only
+      let isAdminUser = false;
+      try {
+        const session = await getSession(req);
+        isAdminUser = session?.user?.isAdmin === "true";
+      } catch {
+        // Session lookup failed - treat as public user
+        isAdminUser = false;
+      }
+      
+      // Admins see all courses, public visitors only see non-members-only courses
+      const courses = isAdminUser 
+        ? await storage.getAllCourses()
+        : await storage.getPublicCourses();
       
       // Add average rating and review count to each course
       const coursesWithRatings = await Promise.all(
@@ -1615,10 +1628,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PATCH /api/admin/courses/:id/members-only - Toggle members-only status (Admin only)
+  // PATCH /api/admin/courses/:id/members-only - Set members-only status (Admin only)
   app.patch("/api/admin/courses/:id/members-only", isAdmin, async (req, res) => {
     try {
-      const updatedCourse = await storage.toggleMembersOnly(req.params.id);
+      const { membersOnly } = req.body;
+      
+      if (typeof membersOnly !== "boolean") {
+        return res.status(400).json({ error: "membersOnly must be a boolean" });
+      }
+      
+      const updatedCourse = await storage.setMembersOnly(req.params.id, membersOnly);
       
       if (!updatedCourse) {
         return res.status(404).json({ error: "Course not found" });
@@ -1626,8 +1645,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updatedCourse);
     } catch (error) {
-      console.error("Error toggling members-only status:", error);
-      res.status(500).json({ error: "Failed to toggle members-only status" });
+      console.error("Error setting members-only status:", error);
+      res.status(500).json({ error: "Failed to set members-only status" });
     }
   });
 

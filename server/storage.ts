@@ -60,7 +60,7 @@ export interface IStorage {
   createCourse(course: InsertGolfCourse): Promise<GolfCourse>;
   updateCourse(id: string, updates: Partial<GolfCourse>): Promise<GolfCourse | undefined>;
   updateCourseImage(courseId: string, imageUrl: string | null): Promise<GolfCourse | undefined>;
-  toggleMembersOnly(courseId: string): Promise<GolfCourse | undefined>;
+  setMembersOnly(courseId: string, membersOnly: boolean): Promise<GolfCourse | undefined>;
 
   // Tee Time Providers
   getAllProviders(): Promise<TeeTimeProvider[]>;
@@ -1114,11 +1114,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.courses.values()).filter(c => c.membersOnly !== "true");
   }
 
-  async toggleMembersOnly(courseId: string): Promise<GolfCourse | undefined> {
+  async setMembersOnly(courseId: string, membersOnly: boolean): Promise<GolfCourse | undefined> {
     const course = this.courses.get(courseId);
     if (!course) return undefined;
 
-    const updatedCourse = { ...course, membersOnly: course.membersOnly === "true" ? "false" : "true" };
+    const updatedCourse = { ...course, membersOnly: membersOnly ? "true" : "false" };
     this.courses.set(courseId, updatedCourse);
     return updatedCourse;
   }
@@ -1850,14 +1850,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(golfCourses).where(ne(golfCourses.membersOnly, "true"));
   }
 
-  async toggleMembersOnly(courseId: string): Promise<GolfCourse | undefined> {
-    const course = await this.getCourseById(courseId);
-    if (!course) return undefined;
-    
-    const newValue = course.membersOnly === "true" ? "false" : "true";
+  async setMembersOnly(courseId: string, membersOnly: boolean): Promise<GolfCourse | undefined> {
     const results = await db
       .update(golfCourses)
-      .set({ membersOnly: newValue })
+      .set({ membersOnly: membersOnly ? "true" : "false" })
       .where(eq(golfCourses.id, courseId))
       .returning();
     return results[0];
