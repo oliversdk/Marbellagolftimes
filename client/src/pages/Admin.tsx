@@ -420,6 +420,43 @@ export default function Admin() {
     },
   });
 
+  // Track pending provider updates to prevent double mutations
+  const [pendingProviderUpdates, setPendingProviderUpdates] = useState<Set<string>>(new Set());
+
+  // Set course provider mutation
+  const setCourseProviderMutation = useMutation({
+    mutationFn: async ({ courseId, providerType }: { courseId: string; providerType: string }) => {
+      setPendingProviderUpdates(prev => new Set(prev).add(courseId));
+      return await apiRequest(`/api/admin/courses/${courseId}/provider`, "PATCH", { providerType });
+    },
+    onSuccess: (_, { courseId }) => {
+      setPendingProviderUpdates(prev => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses/providers"] });
+      toast({
+        title: "Provider updated",
+        description: "Course booking provider has been updated",
+      });
+    },
+    onError: (_, { courseId }) => {
+      setPendingProviderUpdates(prev => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
+      toast({
+        title: "Update failed",
+        description: "Failed to update course provider",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch bookings for a specific user
   const { data: userBookings, isLoading: isLoadingUserBookings, error: userBookingsError } = useQuery<BookingRequest[]>({
     queryKey: ["/api/admin/users", viewingUserBookings?.id, "bookings"],
@@ -2540,19 +2577,50 @@ export default function Admin() {
                                       </div>
                                     </div>
                                   </TableCell>
-                                  <TableCell>
-                                    {course.provider?.providerType === "golfmanager_v1" && (
-                                      <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
-                                    )}
-                                    {course.provider?.providerType === "golfmanager_v3" && (
-                                      <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
-                                    )}
-                                    {course.provider?.providerType === "teeone" && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
-                                    )}
-                                    {!course.provider?.providerType && (
-                                      <span className="text-muted-foreground text-sm">None</span>
-                                    )}
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Select
+                                      value={course.provider?.providerType || "none"}
+                                      onValueChange={(value: string) => {
+                                        if (value !== (course.provider?.providerType || "none")) {
+                                          setCourseProviderMutation.mutate({ courseId: course.id, providerType: value });
+                                        }
+                                      }}
+                                      disabled={pendingProviderUpdates.has(course.id) || setCourseProviderMutation.isPending}
+                                    >
+                                      <SelectTrigger 
+                                        className="w-[120px]" 
+                                        data-testid={`select-provider-${course.id}`}
+                                      >
+                                        <SelectValue>
+                                          {course.provider?.providerType === "golfmanager_v1" && (
+                                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
+                                          )}
+                                          {course.provider?.providerType === "golfmanager_v3" && (
+                                            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
+                                          )}
+                                          {course.provider?.providerType === "teeone" && (
+                                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
+                                          )}
+                                          {!course.provider?.providerType && (
+                                            <span className="text-muted-foreground text-sm">None</span>
+                                          )}
+                                        </SelectValue>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">
+                                          <span className="text-muted-foreground">None</span>
+                                        </SelectItem>
+                                        <SelectItem value="golfmanager_v1">
+                                          <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">GM V1</Badge>
+                                        </SelectItem>
+                                        <SelectItem value="golfmanager_v3">
+                                          <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">GM V3</Badge>
+                                        </SelectItem>
+                                        <SelectItem value="teeone">
+                                          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">TeeOne</Badge>
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
                                   </TableCell>
                                   <TableCell onClick={(e) => e.stopPropagation()}>
                                     <Select
