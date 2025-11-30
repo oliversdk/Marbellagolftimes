@@ -437,7 +437,7 @@ export default function Admin() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/courses/providers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/course-providers"] });
       toast({
         title: "Provider updated",
         description: "Course booking provider has been updated",
