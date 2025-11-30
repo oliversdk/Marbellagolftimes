@@ -1692,6 +1692,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PATCH /api/admin/courses/:id/provider - Set booking provider for a course (Admin only)
+  app.patch("/api/admin/courses/:id/provider", isAdmin, async (req, res) => {
+    try {
+      const { providerType, providerCourseCode } = req.body;
+      
+      // providerType can be: "none", "golfmanager_v1", "golfmanager_v3", "teeone"
+      const validTypes = ["none", "golfmanager_v1", "golfmanager_v3", "teeone"];
+      if (providerType && !validTypes.includes(providerType)) {
+        return res.status(400).json({ error: `providerType must be one of: ${validTypes.join(", ")}` });
+      }
+      
+      // Verify course exists
+      const course = await storage.getCourseById(req.params.id);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+      
+      await storage.setCourseProvider(req.params.id, providerType || null, providerCourseCode);
+      
+      // Fetch updated links to return
+      const links = await storage.getLinksByCourseId(req.params.id);
+      
+      res.json({ 
+        success: true, 
+        courseId: req.params.id, 
+        providerType: providerType || "none",
+        links 
+      });
+    } catch (error) {
+      console.error("Error setting course provider:", error);
+      res.status(500).json({ error: "Failed to set course provider" });
+    }
+  });
+
   // POST /api/upload/course-image - Upload a course image (Admin only)
   app.post("/api/upload/course-image", isAuthenticated, upload.single("image"), async (req, res) => {
     try {
