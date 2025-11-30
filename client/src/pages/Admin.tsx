@@ -380,6 +380,28 @@ export default function Admin() {
     },
   });
 
+  // Toggle members-only status mutation
+  const toggleMembersOnlyMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      return await apiRequest(`/api/admin/courses/${courseId}/members-only`, "PATCH");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
+      toast({
+        title: "Status updated",
+        description: "Members-only status has been updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update failed",
+        description: "Failed to update members-only status",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch bookings for a specific user
   const { data: userBookings, isLoading: isLoadingUserBookings, error: userBookingsError } = useQuery<BookingRequest[]>({
     queryKey: ["/api/admin/users", viewingUserBookings?.id, "bookings"],
@@ -2310,11 +2332,12 @@ export default function Admin() {
                             const StageIcon = currentStage?.icon || CircleDot;
                             const hasCredentials = course.golfmanagerUser && course.golfmanagerPassword;
                             const hasKickback = (course.kickbackPercent ?? 0) > 0;
+                            const isMembersOnly = course.membersOnly === "true";
                             
                             return (
                               <Card 
                                 key={course.id}
-                                className="cursor-pointer hover-elevate"
+                                className={`cursor-pointer hover-elevate ${isMembersOnly ? "opacity-50 bg-muted/50" : ""}`}
                                 onClick={() => openCourseProfile(course)}
                                 data-testid={`card-course-${course.id}`}
                               >
@@ -2349,6 +2372,11 @@ export default function Admin() {
                                         {hasCredentials && (
                                           <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
                                             <Lock className="h-3 w-3" />
+                                          </Badge>
+                                        )}
+                                        {isMembersOnly && (
+                                          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800">
+                                            Members
                                           </Badge>
                                         )}
                                       </div>
@@ -2464,11 +2492,13 @@ export default function Admin() {
                               const hasCredentials = course.golfmanagerUser && course.golfmanagerPassword;
                               const hasKickback = (course.kickbackPercent ?? 0) > 0;
                               
+                              const isMembersOnly = course.membersOnly === "true";
+                              
                               return (
                                 <TableRow 
                                   key={course.id} 
                                   data-testid={`row-course-${course.id}`}
-                                  className="cursor-pointer hover-elevate"
+                                  className={`cursor-pointer hover-elevate ${isMembersOnly ? "opacity-50 bg-muted/50" : ""}`}
                                   onClick={() => openCourseProfile(course)}
                                 >
                                   <TableCell>
@@ -2557,8 +2587,26 @@ export default function Admin() {
                                       <span className="text-muted-foreground text-sm">Never</span>
                                     )}
                                   </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-1">
+                                  <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center gap-2">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="flex items-center gap-1">
+                                            <Switch
+                                              checked={!isMembersOnly}
+                                              onCheckedChange={() => toggleMembersOnlyMutation.mutate(course.id)}
+                                              disabled={toggleMembersOnlyMutation.isPending}
+                                              data-testid={`switch-public-${course.id}`}
+                                            />
+                                            <span className="text-xs text-muted-foreground">
+                                              {isMembersOnly ? "Members" : "Public"}
+                                            </span>
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {isMembersOnly ? "Hidden from public site (members only)" : "Visible on public site"}
+                                        </TooltipContent>
+                                      </Tooltip>
                                       {hasKickback && (
                                         <Tooltip>
                                           <TooltipTrigger>
