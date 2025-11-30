@@ -324,9 +324,10 @@ export default function Admin() {
   const { t } = useI18n();
   const { isMobile } = useBreakpoint();
 
-  // Fetch courses (public endpoint)
+  // Fetch courses - use admin-specific cache key to ensure members-only courses are included
   const { data: courses } = useQuery<GolfCourse[]>({
-    queryKey: ["/api/courses"],
+    queryKey: ["/api/courses", isAdmin ? "admin" : "public"],
+    enabled: isAuthenticated,
   });
 
   // Fetch course providers (admin only)
