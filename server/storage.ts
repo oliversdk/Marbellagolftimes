@@ -1186,8 +1186,13 @@ export class MemStorage implements IStorage {
     }
     
     if (provider) {
-      // Create the provider course code based on type
-      const code = providerCourseCode || `${providerType}:${courseId}`;
+      // Create the provider course code based on type with correct prefix format
+      // The API expects: golfmanager: for V1, golfmanagerv3: for V3, teeone: for TeeOne
+      let codePrefix = providerType;
+      if (providerType === "golfmanager_v1") codePrefix = "golfmanager";
+      else if (providerType === "golfmanager_v3") codePrefix = "golfmanagerv3";
+      
+      const code = providerCourseCode || `${codePrefix}:${courseId}`;
       await this.createLink({
         courseId,
         providerId: provider.id,
@@ -1967,8 +1972,13 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (provider) {
-      // Create the provider course code based on type
-      const code = providerCourseCode || `${providerType}:${courseId}`;
+      // Create the provider course code based on type with correct prefix format
+      // The API expects: golfmanager: for V1, golfmanagerv3: for V3, teeone: for TeeOne
+      let codePrefix = providerType;
+      if (providerType === "golfmanager_v1") codePrefix = "golfmanager";
+      else if (providerType === "golfmanager_v3") codePrefix = "golfmanagerv3";
+      
+      const code = providerCourseCode || `${codePrefix}:${courseId}`;
       await this.createLink({
         courseId,
         providerId: provider.id,
