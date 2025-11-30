@@ -6,7 +6,9 @@ import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { getSession, isAuthenticated, isAdmin } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
@@ -614,17 +616,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/courses - Get all golf courses (public courses for visitors, all for admins)
-  app.get("/api/courses", async (req, res) => {
+  app.get("/api/courses", async (req: any, res) => {
     try {
       // Check if user is admin - if so, return all courses; otherwise filter members-only
       let isAdminUser = false;
       try {
-        const session = await getSession(req);
-        isAdminUser = session?.user?.isAdmin === "true";
-        console.log(`[/api/courses] Session check: isAdmin=${isAdminUser}, userId=${session?.userId}`);
+        // Use req.session directly to check if user is logged in and is admin
+        if (req.session?.userId) {
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, req.session.userId))
+            .limit(1);
+          isAdminUser = user?.isAdmin === "true";
+        }
       } catch (e) {
         // Session lookup failed - treat as public user
-        console.log(`[/api/courses] Session lookup failed:`, e);
         isAdminUser = false;
       }
       
