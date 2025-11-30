@@ -71,6 +71,8 @@ export interface IStorage {
   getAllLinks(): Promise<CourseProviderLink[]>;
   getLinksByCourseId(courseId: string): Promise<CourseProviderLink[]>;
   createLink(link: InsertCourseProviderLink): Promise<CourseProviderLink>;
+  deleteLinksByCourseId(courseId: string): Promise<boolean>;
+  setCourseProvider(courseId: string, providerType: string | null, providerCourseCode?: string): Promise<boolean>;
 
   // Booking Requests
   getAllBookings(): Promise<BookingRequest[]>;
@@ -1151,6 +1153,51 @@ export class MemStorage implements IStorage {
     return link;
   }
 
+  async deleteLinksByCourseId(courseId: string): Promise<boolean> {
+    const linksToDelete = Array.from(this.links.entries())
+      .filter(([, link]) => link.courseId === courseId);
+    linksToDelete.forEach(([id]) => this.links.delete(id));
+    return true;
+  }
+
+  async setCourseProvider(courseId: string, providerType: string | null, providerCourseCode?: string): Promise<boolean> {
+    // First delete existing links for this course
+    await this.deleteLinksByCourseId(courseId);
+    
+    if (!providerType || providerType === "none") {
+      return true; // No provider to set
+    }
+    
+    // Find or create the provider based on type
+    let provider = Array.from(this.providers.values()).find(p => {
+      if (providerType === "golfmanager_v1") return p.name === "Golfmanager" && p.type === "API";
+      if (providerType === "golfmanager_v3") return p.name === "Golfmanager" && p.type === "API";
+      if (providerType === "teeone") return p.name === "TeeOne Golf";
+      return false;
+    });
+    
+    if (!provider) {
+      // Create provider if it doesn't exist
+      if (providerType === "teeone") {
+        provider = await this.createProvider({ name: "TeeOne Golf", type: "DEEP_LINK", baseUrl: "https://open.teeone.golf" });
+      } else if (providerType === "golfmanager_v1" || providerType === "golfmanager_v3") {
+        provider = await this.createProvider({ name: "Golfmanager", type: "API", baseUrl: "https://www.golfmanager.app" });
+      }
+    }
+    
+    if (provider) {
+      // Create the provider course code based on type
+      const code = providerCourseCode || `${providerType}:${courseId}`;
+      await this.createLink({
+        courseId,
+        providerId: provider.id,
+        providerCourseCode: code,
+      });
+    }
+    
+    return true;
+  }
+
   async getProviderById(id: string): Promise<TeeTimeProvider | undefined> {
     return this.providers.get(id);
   }
@@ -1886,6 +1933,50 @@ export class DatabaseStorage implements IStorage {
   async createLink(link: InsertCourseProviderLink): Promise<CourseProviderLink> {
     const results = await db.insert(courseProviderLinks).values(link).returning();
     return results[0];
+  }
+
+  async deleteLinksByCourseId(courseId: string): Promise<boolean> {
+    await db.delete(courseProviderLinks).where(eq(courseProviderLinks.courseId, courseId));
+    return true;
+  }
+
+  async setCourseProvider(courseId: string, providerType: string | null, providerCourseCode?: string): Promise<boolean> {
+    // First delete existing links for this course
+    await this.deleteLinksByCourseId(courseId);
+    
+    if (!providerType || providerType === "none") {
+      return true; // No provider to set
+    }
+    
+    // Find provider based on type
+    const allProviders = await this.getAllProviders();
+    let provider = allProviders.find(p => {
+      if (providerType === "golfmanager_v1") return p.name === "Golfmanager" && p.type === "API";
+      if (providerType === "golfmanager_v3") return p.name === "Golfmanager" && p.type === "API";
+      if (providerType === "teeone") return p.name === "TeeOne Golf";
+      return false;
+    });
+    
+    if (!provider) {
+      // Create provider if it doesn't exist
+      if (providerType === "teeone") {
+        provider = await this.createProvider({ name: "TeeOne Golf", type: "DEEP_LINK", baseUrl: "https://open.teeone.golf" });
+      } else if (providerType === "golfmanager_v1" || providerType === "golfmanager_v3") {
+        provider = await this.createProvider({ name: "Golfmanager", type: "API", baseUrl: "https://www.golfmanager.app" });
+      }
+    }
+    
+    if (provider) {
+      // Create the provider course code based on type
+      const code = providerCourseCode || `${providerType}:${courseId}`;
+      await this.createLink({
+        courseId,
+        providerId: provider.id,
+        providerCourseCode: code,
+      });
+    }
+    
+    return true;
   }
 
   // Booking Requests
