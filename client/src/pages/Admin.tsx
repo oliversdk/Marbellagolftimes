@@ -1494,23 +1494,53 @@ export default function Admin() {
     },
   });
 
-  // Upload course image mutation (single)
+  // Upload course image mutation (single) using Object Storage for persistence
   const uploadImageMutation = useMutation({
     mutationFn: async ({ courseId, file }: { courseId: string; file: File }) => {
-      const formData = new FormData();
-      formData.append("image", file);
-      
-      const response = await fetch("/api/upload/course-image", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Upload failed");
+      // Validate file type
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error("Only JPEG, PNG, and WebP images are allowed");
       }
       
-      return response.json();
+      // Step 1: Get presigned upload URL from server
+      const urlResponse = await fetch("/api/objects/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+      });
+      
+      if (!urlResponse.ok) {
+        const error = await urlResponse.json();
+        throw new Error(error.error || "Failed to get upload URL");
+      }
+      
+      const { uploadURL, objectPath } = await urlResponse.json();
+      
+      // Step 2: Upload file directly to Object Storage
+      const uploadResponse = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload file to storage");
+      }
+      
+      // Step 3: Complete upload and register in database
+      const completeResponse = await fetch(`/api/courses/${courseId}/images/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objectPath, setAsMain: true }),
+      });
+      
+      if (!completeResponse.ok) {
+        const error = await completeResponse.json();
+        throw new Error(error.error || "Failed to complete upload");
+      }
+      
+      return { imageUrl: objectPath };
     },
     onSuccess: async (data: { imageUrl: string }, variables) => {
       // Update the course with the new image URL
@@ -1528,20 +1558,70 @@ export default function Admin() {
     },
   });
 
-  // Upload multiple course images mutation
+  // Upload multiple course images mutation using Object Storage for persistence
   const uploadImagesMutation = useMutation({
     mutationFn: async ({ courseId, formData }: { courseId: string; formData: FormData }) => {
-      const response = await fetch(`/api/courses/${courseId}/images/upload`, {
-        method: "POST",
-        body: formData,
-      });
+      const files = formData.getAll("images") as File[];
+      const uploadedImages: Array<{ id: string; imageUrl: string }> = [];
       
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Upload failed");
+      // Validate all files first
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      for (const file of files) {
+        if (!allowedTypes.includes(file.type)) {
+          throw new Error(`Invalid file type: ${file.name}. Only JPEG, PNG, and WebP are allowed.`);
+        }
       }
       
-      return response.json();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Step 1: Get presigned upload URL from server
+        const urlResponse = await fetch("/api/objects/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        });
+        
+        if (!urlResponse.ok) {
+          const error = await urlResponse.json();
+          throw new Error(error.error || "Failed to get upload URL");
+        }
+        
+        const { uploadURL, objectPath } = await urlResponse.json();
+        
+        // Step 2: Upload file directly to Object Storage
+        const uploadResponse = await fetch(uploadURL, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload file to storage");
+        }
+        
+        // Step 3: Complete upload and add to course gallery
+        const completeResponse = await fetch(`/api/courses/${courseId}/images/complete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            objectPath, 
+            setAsMain: i === 0 
+          }),
+        });
+        
+        if (!completeResponse.ok) {
+          const error = await completeResponse.json();
+          throw new Error(error.error || "Failed to complete upload");
+        }
+        
+        const result = await completeResponse.json();
+        if (result.image) {
+          uploadedImages.push({ id: result.image.id, imageUrl: objectPath });
+        }
+      }
+      
+      return { uploaded: uploadedImages.length, images: uploadedImages };
     },
     onSuccess: (data: { uploaded: number; images?: Array<{ id: string }> }, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });

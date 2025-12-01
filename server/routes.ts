@@ -18,6 +18,7 @@ import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 // Validation schema for updating user information
 const updateUserSchema = z.object({
@@ -87,6 +88,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
   }));
+
+  // Object Storage endpoints for persistent image storage
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // Get presigned upload URL for course images (Admin only)
+  app.post("/api/objects/upload-url", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { filename, contentType } = req.body;
+      
+      // Validate content type
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+      if (contentType && !allowedTypes.includes(contentType)) {
+        return res.status(400).json({ error: "Invalid content type. Only JPEG, PNG, and WebP are allowed." });
+      }
+      
+      // Validate filename
+      if (filename) {
+        const ext = filename.split('.').pop()?.toLowerCase();
+        const allowedExtensions = ["jpg", "jpeg", "png", "webp"];
+        if (!ext || !allowedExtensions.includes(ext)) {
+          return res.status(400).json({ error: "Invalid file extension. Only JPG, PNG, and WebP are allowed." });
+        }
+      }
+      
+      const objectStorageService = new ObjectStorageService();
+      const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL(filename);
+      res.json({ uploadURL, objectPath });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  // Complete image upload and add to course gallery (Admin only)
+  app.post("/api/courses/:courseId/images/complete", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { objectPath, setAsMain } = req.body;
+
+      if (!objectPath) {
+        return res.status(400).json({ error: "objectPath is required" });
+      }
+
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Get existing images to determine sort order
+      const existingImages = await storage.getImagesByCourseId(courseId);
+      const nextSortOrder = existingImages.length > 0 
+        ? Math.max(...existingImages.map(img => img.sortOrder)) + 1 
+        : 0;
+
+      // Add to course_images table
+      const galleryImage = await storage.createCourseImage({
+        courseId,
+        imageUrl: objectPath,
+        caption: null,
+        sortOrder: nextSortOrder
+      });
+
+      // Set as main image if requested or no main image exists
+      if (setAsMain === true || !course.imageUrl) {
+        await storage.updateCourseImage(courseId, objectPath);
+      }
+
+      res.json({ 
+        success: true,
+        image: galleryImage
+      });
+    } catch (error) {
+      console.error("Error completing image upload:", error);
+      res.status(500).json({ error: "Failed to complete image upload" });
+    }
+  });
 
   // PDF Reports download endpoints
   app.get('/api/reports/progress-report', async (req, res) => {
