@@ -124,12 +124,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Check if Object Storage is configured
+      if (!process.env.PRIVATE_OBJECT_DIR) {
+        console.error("PRIVATE_OBJECT_DIR not configured");
+        return res.status(500).json({ error: "Object Storage not configured. Please set up Object Storage in your Replit workspace." });
+      }
+      
       const objectStorageService = new ObjectStorageService();
       const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL(filename);
       res.json({ uploadURL, objectPath });
-    } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ error: "Failed to get upload URL" });
+    } catch (error: any) {
+      console.error("Error getting upload URL:", error?.message || error);
+      res.status(500).json({ error: error?.message || "Failed to get upload URL" });
     }
   });
 
