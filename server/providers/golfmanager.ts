@@ -250,6 +250,9 @@ export class GolfmanagerProvider {
         players: slot.slots || players,
         holes: holes,
         source: `Golfmanager ${this.config.version.toUpperCase()}`,
+        // Calculate slotsAvailable from API data (max slots - already booked)
+        // If max is available, use it; otherwise default to 4 (standard golf group)
+        slotsAvailable: slot.max ? Math.min(slot.max, 4) : (slot.slots || 4),
       }))
       .sort((a, b) => (a.teeTime || "").localeCompare(b.teeTime || ""));
   }

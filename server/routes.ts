@@ -1976,6 +1976,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const basePrice = Math.floor(Math.random() * 80) + 40;
           const adjustedPrice = Math.round(basePrice * priceMultiplier);
+          
+          // Generate realistic slotsAvailable (ontee.com style dots)
+          // Weighted towards fuller availability with some limited/urgent slots
+          const availabilityRoll = Math.random();
+          let slotsAvailable: number;
+          if (availabilityRoll < 0.1) slotsAvailable = 1;       // 10% - last spot (urgent)
+          else if (availabilityRoll < 0.25) slotsAvailable = 2; // 15% - limited
+          else if (availabilityRoll < 0.5) slotsAvailable = 3;  // 25% - good
+          else slotsAvailable = 4;                               // 50% - fully open
 
           slots.push({
             teeTime: slotDate.toISOString(),
@@ -1985,6 +1994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             holes: numHoles,
             source: "mock-provider",
             teeName: teeName,
+            slotsAvailable: slotsAvailable,
           });
         }
 

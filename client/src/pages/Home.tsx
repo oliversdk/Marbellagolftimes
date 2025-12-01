@@ -13,6 +13,7 @@ import { CoursesMap } from "@/components/CoursesMap";
 import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
+import { AvailabilityDotsCompact } from "@/components/AvailabilityDots";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -1167,9 +1168,15 @@ export default function Home() {
                                                     className="flex-shrink-0 flex flex-col items-start px-3 py-2 h-auto bg-orange-500 hover:bg-orange-600 text-white border-orange-600"
                                                     data-testid={`button-hot-deal-${courseSlot.courseId}-${idx}`}
                                                   >
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-1.5">
                                                       <Flame className="h-3 w-3" />
                                                       <span className="font-semibold text-sm">{formattedTime}</span>
+                                                      {slot.slotsAvailable !== undefined && (
+                                                        <AvailabilityDotsCompact 
+                                                          slotsAvailable={slot.slotsAvailable} 
+                                                          className="text-white/70"
+                                                        />
+                                                      )}
                                                     </div>
                                                     <div className="flex items-center gap-1">
                                                       <span className="text-xs font-bold">€{slot.greenFee}</span>
@@ -1215,7 +1222,15 @@ export default function Home() {
                                                       className={`flex-shrink-0 flex flex-col items-start px-2 py-1.5 h-auto ${slotIsHotDeal ? 'bg-orange-500 hover:bg-orange-600 border-orange-600' : ''}`}
                                                       data-testid={`button-slot-${courseSlot.courseId}-${key}-${idx}`}
                                                     >
-                                                      <span className="font-medium text-xs">{formattedTime}</span>
+                                                      <div className="flex items-center gap-1.5 w-full">
+                                                        <span className="font-medium text-xs">{formattedTime}</span>
+                                                        {slot.slotsAvailable !== undefined && (
+                                                          <AvailabilityDotsCompact 
+                                                            slotsAvailable={slot.slotsAvailable} 
+                                                            className={slotIsHotDeal ? 'text-white/70' : ''}
+                                                          />
+                                                        )}
+                                                      </div>
                                                       <span className={`text-[10px] ${slotIsHotDeal ? 'text-white/80' : 'text-muted-foreground'}`}>€{slot.greenFee}</span>
                                                     </Button>
                                                   );

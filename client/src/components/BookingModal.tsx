@@ -24,6 +24,7 @@ import { CalendarIcon, Clock, ChevronRight } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
+import { AvailabilityDots } from "@/components/AvailabilityDots";
 import type { GolfCourse, CourseWithSlots, TeeTimeSlot, User } from "@shared/schema";
 
 interface BookingModalProps {
@@ -238,8 +239,16 @@ export function BookingModal({
                     <div className="flex items-center gap-2 sm:gap-3">
                       <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                       <div>
-                        <div className="font-medium text-sm sm:text-base">
-                          {format(new Date(slot.teeTime), 'HH:mm')}
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm sm:text-base">
+                            {format(new Date(slot.teeTime), 'HH:mm')}
+                          </span>
+                          {slot.slotsAvailable !== undefined && (
+                            <AvailabilityDots 
+                              slotsAvailable={slot.slotsAvailable} 
+                              size="sm"
+                            />
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {format(new Date(slot.teeTime), 'PPP')}
