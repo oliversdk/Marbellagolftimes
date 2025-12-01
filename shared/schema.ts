@@ -496,6 +496,7 @@ export interface TeeTimeSlot {
   holes: number;
   source: string;
   teeName?: string; // e.g., "TEE 1", "TEE 10", "Los Lagos", "Campo America"
+  slotsAvailable?: number; // 1-4: Number of remaining player slots available (ontee.com style dots indicator)
 }
 
 export interface CourseWithSlots {
