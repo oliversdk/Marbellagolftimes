@@ -1543,10 +1543,10 @@ export default function Admin() {
       
       return response.json();
     },
-    onSuccess: (data: { uploaded: number }) => {
+    onSuccess: (data: { uploaded: number; images?: Array<{ id: string }> }, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourseProfile?.id, "images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", variables.courseId, "images"] });
       const feedback = getPersonalFeedback(user?.firstName, 'image_uploaded');
       toast({
         title: feedback.title,
