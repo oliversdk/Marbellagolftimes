@@ -4,6 +4,9 @@ import { Link, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Header } from "@/components/Header";
 import { CourseCard } from "@/components/CourseCard";
 import { OptimizedImage } from "@/components/OptimizedImage";
@@ -40,7 +43,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
 import {
   Select,
@@ -276,6 +279,92 @@ const addContactLogSchema = z.object({
   body: z.string().min(1, "Content is required"),
   outcome: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL", "NO_RESPONSE"]).optional(),
 });
+
+interface SortableImageItem {
+  id: string;
+  imageUrl: string;
+  isMain: boolean;
+  caption?: string | null;
+}
+
+function SortableImage({ 
+  item, 
+  onDelete, 
+  onSetMain,
+  isDeleting 
+}: { 
+  item: SortableImageItem; 
+  onDelete: () => void; 
+  onSetMain: () => void;
+  isDeleting: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group ${isDragging ? 'ring-2 ring-primary shadow-lg' : ''}`}
+    >
+      <div className={`aspect-video rounded-md overflow-hidden bg-muted ${item.isMain ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+        <OptimizedImage
+          src={item.imageUrl}
+          alt={item.caption || (item.isMain ? "Main image" : "Gallery image")}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      {item.isMain && (
+        <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
+      )}
+      <div 
+        className="absolute top-1 left-1 cursor-grab active:cursor-grabbing p-1 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4 text-white" />
+      </div>
+      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!item.isMain && (
+          <Button
+            variant="secondary"
+            size="icon"
+            className="h-6 w-6"
+            onClick={onSetMain}
+            title="Set as main"
+            data-testid={`button-set-main-${item.id}`}
+          >
+            <CheckSquare className="h-3 w-3" />
+          </Button>
+        )}
+        <Button
+          variant="destructive"
+          size="icon"
+          className="h-6 w-6"
+          onClick={onDelete}
+          disabled={isDeleting}
+          title="Delete image"
+          data-testid={`button-delete-${item.id}`}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function Admin() {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
@@ -3306,143 +3395,100 @@ export default function Admin() {
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between gap-2">
                             <CardTitle className="text-base">Current Images ({profileGalleryImages.length + (selectedCourseProfile.imageUrl ? 1 : 0)})</CardTitle>
+                            {profileGalleryImages.length > 0 && (
+                              <p className="text-xs text-muted-foreground">Drag to reorder</p>
+                            )}
                           </div>
                         </CardHeader>
                         <CardContent>
                           {selectedCourseProfile.imageUrl || profileGalleryImages.length > 0 ? (
-                            <>
-                              {/* Mobile: Horizontal scrolling gallery */}
-                              <div className="sm:hidden -mx-4 px-4">
-                                <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
+                            <DndContext
+                              sensors={useSensors(
+                                useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+                                useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+                              )}
+                              collisionDetection={closestCenter}
+                              onDragEnd={(event: DragEndEvent) => {
+                                const { active, over } = event;
+                                if (over && active.id !== over.id) {
+                                  const allImages: SortableImageItem[] = [
+                                    ...(selectedCourseProfile.imageUrl ? [{
+                                      id: 'main-image',
+                                      imageUrl: selectedCourseProfile.imageUrl,
+                                      isMain: true,
+                                      caption: null
+                                    }] : []),
+                                    ...profileGalleryImages.map(img => ({
+                                      id: img.id,
+                                      imageUrl: img.imageUrl,
+                                      isMain: false,
+                                      caption: img.caption
+                                    }))
+                                  ];
+                                  
+                                  const oldIndex = allImages.findIndex(i => i.id === active.id);
+                                  const newIndex = allImages.findIndex(i => i.id === over.id);
+                                  const reordered = arrayMove(allImages, oldIndex, newIndex);
+                                  
+                                  const newMainImage = reordered[0];
+                                  if (newMainImage && newMainImage.id !== 'main-image') {
+                                    updateCourseImageMutation.mutate({
+                                      courseId: selectedCourseProfile.id,
+                                      imageUrl: newMainImage.imageUrl
+                                    });
+                                  }
+                                  
+                                  const galleryOnly = reordered.filter(i => i.id !== 'main-image' && !i.isMain);
+                                  if (galleryOnly.length > 0) {
+                                    reorderGalleryImagesMutation.mutate({
+                                      courseId: selectedCourseProfile.id,
+                                      imageIds: galleryOnly.map(i => i.id)
+                                    });
+                                  }
+                                }
+                              }}
+                            >
+                              <SortableContext
+                                items={[
+                                  ...(selectedCourseProfile.imageUrl ? ['main-image'] : []),
+                                  ...profileGalleryImages.map(img => img.id)
+                                ]}
+                                strategy={rectSortingStrategy}
+                              >
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                   {selectedCourseProfile.imageUrl && (
-                                    <div className="flex-shrink-0 w-36 snap-start relative">
-                                      <div className="aspect-video rounded-md overflow-hidden bg-muted ring-2 ring-primary ring-offset-1">
-                                        <OptimizedImage
-                                          src={selectedCourseProfile.imageUrl}
-                                          alt="Main image"
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
-                                      <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        className="absolute top-1 right-1 h-8 w-8"
-                                        onClick={() => clearMainImageMutation.mutate({ courseId: selectedCourseProfile.id })}
-                                        disabled={clearMainImageMutation.isPending}
-                                        title="Delete main image"
-                                        data-testid="button-delete-main-image-mobile"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                                    <SortableImage
+                                      item={{
+                                        id: 'main-image',
+                                        imageUrl: selectedCourseProfile.imageUrl,
+                                        isMain: true,
+                                        caption: null
+                                      }}
+                                      onDelete={() => clearMainImageMutation.mutate({ courseId: selectedCourseProfile.id })}
+                                      onSetMain={() => {}}
+                                      isDeleting={clearMainImageMutation.isPending}
+                                    />
                                   )}
                                   {profileGalleryImages.map((image) => (
-                                    <div key={image.id} className="flex-shrink-0 w-36 snap-start relative">
-                                      <div className="aspect-video rounded-md overflow-hidden bg-muted">
-                                        <OptimizedImage
-                                          src={image.imageUrl}
-                                          alt={image.caption || "Gallery image"}
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <div className="absolute bottom-1 right-1 flex gap-1">
-                                        <Button
-                                          variant="secondary"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => {
-                                            updateCourseImageMutation.mutate({ 
-                                              courseId: selectedCourseProfile.id, 
-                                              imageUrl: image.imageUrl 
-                                            });
-                                          }}
-                                          title="Set as main"
-                                          data-testid={`button-set-main-${image.id}`}
-                                        >
-                                          <CheckSquare className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="destructive"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => deleteGalleryImageMutation.mutate({ imageId: image.id, courseId: selectedCourseProfile!.id })}
-                                          data-testid={`button-delete-${image.id}`}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </div>
+                                    <SortableImage
+                                      key={image.id}
+                                      item={{
+                                        id: image.id,
+                                        imageUrl: image.imageUrl,
+                                        isMain: false,
+                                        caption: image.caption
+                                      }}
+                                      onDelete={() => deleteGalleryImageMutation.mutate({ imageId: image.id, courseId: selectedCourseProfile!.id })}
+                                      onSetMain={() => updateCourseImageMutation.mutate({ 
+                                        courseId: selectedCourseProfile.id, 
+                                        imageUrl: image.imageUrl 
+                                      })}
+                                      isDeleting={deleteGalleryImageMutation.isPending}
+                                    />
                                   ))}
                                 </div>
-                              </div>
-                              
-                              {/* Desktop: Grid layout */}
-                              <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 gap-3">
-                                {selectedCourseProfile.imageUrl && (
-                                  <div className="relative group">
-                                    <div className="aspect-video rounded-md overflow-hidden bg-muted ring-2 ring-primary ring-offset-2">
-                                      <OptimizedImage
-                                        src={selectedCourseProfile.imageUrl}
-                                        alt="Main image"
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                    <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
-                                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        className="h-6 w-6"
-                                        onClick={() => clearMainImageMutation.mutate({ courseId: selectedCourseProfile.id })}
-                                        disabled={clearMainImageMutation.isPending}
-                                        title="Delete main image"
-                                        data-testid="button-delete-main-image"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                                {profileGalleryImages.map((image) => (
-                                  <div key={image.id} className="relative group">
-                                    <div className="aspect-video rounded-md overflow-hidden bg-muted">
-                                      <OptimizedImage
-                                        src={image.imageUrl}
-                                        alt={image.caption || "Gallery image"}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                    <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Button
-                                        variant="secondary"
-                                        size="icon"
-                                        className="h-6 w-6"
-                                        onClick={() => {
-                                          updateCourseImageMutation.mutate({ 
-                                            courseId: selectedCourseProfile.id, 
-                                            imageUrl: image.imageUrl 
-                                          });
-                                        }}
-                                        title="Set as main"
-                                        data-testid={`button-set-main-${image.id}`}
-                                      >
-                                        <CheckSquare className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        className="h-6 w-6"
-                                        onClick={() => deleteGalleryImageMutation.mutate({ imageId: image.id, courseId: selectedCourseProfile!.id })}
-                                        data-testid={`button-delete-${image.id}`}
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </>
+                              </SortableContext>
+                            </DndContext>
                           ) : (
                             <div className="text-center py-8 text-muted-foreground">
                               <Images className="h-8 w-8 mx-auto mb-2 opacity-50" />
