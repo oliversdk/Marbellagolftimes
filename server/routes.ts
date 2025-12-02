@@ -1680,7 +1680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/admin/courses/:id - Update course settings (kickback + credentials) (Admin only)
-  app.patch("/api/admin/courses/:id", isAdmin, async (req, res) => {
+  app.patch("/api/admin/courses/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const updateCourseSchema = z.object({
         kickbackPercent: z.number().min(0).max(100).optional(),
@@ -1722,7 +1722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/admin/courses/:id/details - Update course details (name, city, etc.) (Admin only)
-  app.patch("/api/admin/courses/:id/details", isAdmin, async (req, res) => {
+  app.patch("/api/admin/courses/:id/details", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const updateCourseDetailsSchema = z.object({
         name: z.string().min(1).optional(),
@@ -1766,7 +1766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/admin/courses/:id/members-only - Set members-only status (Admin only)
-  app.patch("/api/admin/courses/:id/members-only", isAdmin, async (req, res) => {
+  app.patch("/api/admin/courses/:id/members-only", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { membersOnly } = req.body;
       
@@ -1788,7 +1788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/admin/courses/:id/provider - Set booking provider for a course (Admin only)
-  app.patch("/api/admin/courses/:id/provider", isAdmin, async (req, res) => {
+  app.patch("/api/admin/courses/:id/provider", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { providerType, providerCourseCode } = req.body;
       
