@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
-import { getSession, isAuthenticated, isAdmin } from "./customAuth";
+import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -3005,6 +3005,468 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[Webhook] Error processing inbound email:", error);
       // Still return 200 to prevent SendGrid retries
       res.status(200).send("OK");
+    }
+  });
+
+  // ============================================================
+  // EXTERNAL API v1 - For AI CEO and External Integrations
+  // ============================================================
+  // All endpoints require X-API-Key header authentication
+  // Scopes: read:courses, read:bookings, write:bookings, read:analytics, read:users
+
+  // GET /api/v1/external/courses - List all courses with images
+  app.get("/api/v1/external/courses", isApiKeyAuthenticated, requireScope("read:courses"), async (req, res) => {
+    try {
+      const courses = await storage.getAllCourses();
+      
+      // Get images for each course
+      const coursesWithImages = await Promise.all(
+        courses.map(async (course) => {
+          const images = await storage.getImagesByCourseId(course.id);
+          return {
+            id: course.id,
+            name: course.name,
+            city: course.city,
+            province: course.province,
+            country: course.country,
+            lat: course.lat,
+            lng: course.lng,
+            websiteUrl: course.websiteUrl,
+            bookingUrl: course.bookingUrl,
+            email: course.email,
+            phone: course.phone,
+            notes: course.notes,
+            imageUrl: course.imageUrl,
+            facilities: course.facilities,
+            kickbackPercent: course.kickbackPercent,
+            membersOnly: course.membersOnly,
+            images: images.map(img => ({
+              id: img.id,
+              imageUrl: img.imageUrl,
+              caption: img.caption,
+              sortOrder: img.sortOrder,
+            })),
+          };
+        })
+      );
+      
+      res.json({
+        success: true,
+        count: coursesWithImages.length,
+        data: coursesWithImages,
+      });
+    } catch (error) {
+      console.error("External API - Get courses error:", error);
+      res.status(500).json({ error: "Failed to fetch courses" });
+    }
+  });
+
+  // GET /api/v1/external/courses/:id - Get single course with full details
+  app.get("/api/v1/external/courses/:id", isApiKeyAuthenticated, requireScope("read:courses"), async (req, res) => {
+    try {
+      const course = await storage.getCourseById(req.params.id);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+      
+      const images = await storage.getImagesByCourseId(course.id);
+      const reviews = await storage.getAllReviewsByCourseId(course.id);
+      
+      res.json({
+        success: true,
+        data: {
+          ...course,
+          images: images.map(img => ({
+            id: img.id,
+            imageUrl: img.imageUrl,
+            caption: img.caption,
+            sortOrder: img.sortOrder,
+          })),
+          reviews: reviews.map(r => ({
+            id: r.id,
+            rating: r.rating,
+            comment: r.comment,
+            createdAt: r.createdAt,
+          })),
+          averageRating: reviews.length > 0 
+            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
+            : null,
+          reviewCount: reviews.length,
+        },
+      });
+    } catch (error) {
+      console.error("External API - Get course error:", error);
+      res.status(500).json({ error: "Failed to fetch course" });
+    }
+  });
+
+  // GET /api/v1/external/bookings - List all bookings
+  app.get("/api/v1/external/bookings", isApiKeyAuthenticated, requireScope("read:bookings"), async (req, res) => {
+    try {
+      const bookings = await storage.getAllBookings();
+      const courses = await storage.getAllCourses();
+      const courseMap = new Map(courses.map(c => [c.id, c]));
+      
+      const enrichedBookings = bookings.map(booking => ({
+        id: booking.id,
+        status: booking.status,
+        courseId: booking.courseId,
+        courseName: courseMap.get(booking.courseId)?.name || "Unknown",
+        teeTime: booking.teeTime,
+        players: booking.players,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        customerPhone: booking.customerPhone,
+        estimatedPrice: booking.estimatedPrice,
+        userId: booking.userId,
+        createdAt: booking.createdAt,
+        cancelledAt: booking.cancelledAt,
+        cancellationReason: booking.cancellationReason,
+      }));
+      
+      res.json({
+        success: true,
+        count: enrichedBookings.length,
+        data: enrichedBookings,
+      });
+    } catch (error) {
+      console.error("External API - Get bookings error:", error);
+      res.status(500).json({ error: "Failed to fetch bookings" });
+    }
+  });
+
+  // GET /api/v1/external/bookings/:id - Get single booking
+  app.get("/api/v1/external/bookings/:id", isApiKeyAuthenticated, requireScope("read:bookings"), async (req, res) => {
+    try {
+      const booking = await storage.getBookingById(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+      
+      const course = await storage.getCourseById(booking.courseId);
+      
+      res.json({
+        success: true,
+        data: {
+          ...booking,
+          courseName: course?.name || "Unknown",
+          courseDetails: course ? {
+            id: course.id,
+            name: course.name,
+            city: course.city,
+            email: course.email,
+            phone: course.phone,
+          } : null,
+        },
+      });
+    } catch (error) {
+      console.error("External API - Get booking error:", error);
+      res.status(500).json({ error: "Failed to fetch booking" });
+    }
+  });
+
+  // POST /api/v1/external/bookings - Create new booking
+  app.post("/api/v1/external/bookings", isApiKeyAuthenticated, requireScope("write:bookings"), async (req, res) => {
+    try {
+      const bookingSchema = z.object({
+        courseId: z.string().uuid("Invalid course ID"),
+        teeTime: z.string().datetime("Invalid tee time format (use ISO 8601)"),
+        players: z.number().int().min(1).max(4),
+        customerName: z.string().min(1, "Customer name is required"),
+        customerEmail: z.string().email("Invalid email"),
+        customerPhone: z.string().optional(),
+        estimatedPrice: z.number().optional(),
+        userId: z.string().optional(),
+      });
+      
+      const parsed = bookingSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Validation failed",
+          details: parsed.error.errors,
+        });
+      }
+      
+      // Verify course exists
+      const course = await storage.getCourseById(parsed.data.courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+      
+      const booking = await storage.createBooking({
+        courseId: parsed.data.courseId,
+        teeTime: new Date(parsed.data.teeTime),
+        players: parsed.data.players,
+        customerName: parsed.data.customerName,
+        customerEmail: parsed.data.customerEmail,
+        customerPhone: parsed.data.customerPhone || null,
+        estimatedPrice: parsed.data.estimatedPrice || null,
+        userId: parsed.data.userId || null,
+        status: "PENDING",
+      });
+      
+      res.status(201).json({
+        success: true,
+        data: {
+          ...booking,
+          courseName: course.name,
+        },
+      });
+    } catch (error) {
+      console.error("External API - Create booking error:", error);
+      res.status(500).json({ error: "Failed to create booking" });
+    }
+  });
+
+  // PATCH /api/v1/external/bookings/:id/status - Update booking status
+  app.patch("/api/v1/external/bookings/:id/status", isApiKeyAuthenticated, requireScope("write:bookings"), async (req, res) => {
+    try {
+      const { status } = req.body;
+      const validStatuses = ["PENDING", "CONFIRMED", "CANCELLED"];
+      
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          error: "Invalid status",
+          validStatuses,
+        });
+      }
+      
+      const booking = await storage.getBookingById(req.params.id);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+      
+      const updated = await storage.updateBookingStatus(req.params.id, status);
+      
+      res.json({
+        success: true,
+        data: updated,
+      });
+    } catch (error) {
+      console.error("External API - Update booking status error:", error);
+      res.status(500).json({ error: "Failed to update booking status" });
+    }
+  });
+
+  // GET /api/v1/external/analytics - Get analytics summary
+  app.get("/api/v1/external/analytics", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
+    try {
+      const [revenue, popularCourses, roiAnalytics, bookingsDaily, bookingsWeekly, bookingsMonthly] = await Promise.all([
+        storage.getRevenueAnalytics(),
+        storage.getPopularCourses(10),
+        storage.getROIAnalytics(),
+        storage.getBookingsAnalytics("day"),
+        storage.getBookingsAnalytics("week"),
+        storage.getBookingsAnalytics("month"),
+      ]);
+      
+      res.json({
+        success: true,
+        data: {
+          revenue,
+          roi: roiAnalytics,
+          popularCourses,
+          bookingTrends: {
+            daily: bookingsDaily,
+            weekly: bookingsWeekly,
+            monthly: bookingsMonthly,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("External API - Get analytics error:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // GET /api/v1/external/users - List all users (excludes sensitive data)
+  app.get("/api/v1/external/users", isApiKeyAuthenticated, requireScope("read:users"), async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      
+      // Remove sensitive data
+      const safeUsers = allUsers.map(user => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phoneNumber: user.phoneNumber,
+        isAdmin: user.isAdmin,
+        createdAt: user.createdAt,
+      }));
+      
+      res.json({
+        success: true,
+        count: safeUsers.length,
+        data: safeUsers,
+      });
+    } catch (error) {
+      console.error("External API - Get users error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // GET /api/v1/external/slots - Search tee time slots
+  app.get("/api/v1/external/slots", isApiKeyAuthenticated, requireScope("read:courses"), async (req, res) => {
+    try {
+      const { date, courseId, players } = req.query;
+      
+      if (!date) {
+        return res.status(400).json({ error: "Date parameter is required (YYYY-MM-DD)" });
+      }
+      
+      // Use the existing slot search logic
+      const searchDate = new Date(date as string);
+      if (isNaN(searchDate.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      
+      // Get courses to search
+      let coursesToSearch: GolfCourse[];
+      if (courseId) {
+        const course = await storage.getCourseById(courseId as string);
+        if (!course) {
+          return res.status(404).json({ error: "Course not found" });
+        }
+        coursesToSearch = [course];
+      } else {
+        coursesToSearch = await storage.getAllCourses();
+      }
+      
+      // Generate mock slots for now (in production, would call real provider APIs)
+      const results: CourseWithSlots[] = [];
+      
+      for (const course of coursesToSearch) {
+        const slots: TeeTimeSlot[] = [];
+        
+        // Generate sample slots
+        for (let hour = 7; hour <= 16; hour++) {
+          for (let minute = 0; minute < 60; minute += 10) {
+            const slotTime = new Date(searchDate);
+            slotTime.setHours(hour, minute, 0, 0);
+            
+            slots.push({
+              teeTime: slotTime.toISOString(),
+              greenFee: Math.floor(Math.random() * 100) + 50,
+              currency: "EUR",
+              players: parseInt(players as string) || 4,
+              holes: 18,
+              source: "api",
+              teeName: hour < 10 ? "TEE 1" : "TEE 10",
+              slotsAvailable: Math.floor(Math.random() * 4) + 1,
+            });
+          }
+        }
+        
+        results.push({
+          courseId: course.id,
+          courseName: course.name,
+          distanceKm: 0,
+          bookingUrl: course.bookingUrl || undefined,
+          slots,
+          providerType: "API",
+          providerName: "golfmanager",
+        });
+      }
+      
+      res.json({
+        success: true,
+        date: date,
+        count: results.length,
+        data: results,
+      });
+    } catch (error) {
+      console.error("External API - Get slots error:", error);
+      res.status(500).json({ error: "Failed to fetch slots" });
+    }
+  });
+
+  // ============================================================
+  // API Key Management (Admin only, session-based auth)
+  // ============================================================
+
+  // GET /api/admin/api-keys - List all API keys
+  app.get("/api/admin/api-keys", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const keys = await storage.getAllApiKeys();
+      
+      // Return keys without exposing hashes
+      const safeKeys = keys.map(key => ({
+        id: key.id,
+        name: key.name,
+        keyPrefix: key.keyPrefix,
+        scopes: key.scopes,
+        createdById: key.createdById,
+        lastUsedAt: key.lastUsedAt,
+        expiresAt: key.expiresAt,
+        isActive: key.isActive,
+        createdAt: key.createdAt,
+      }));
+      
+      res.json(safeKeys);
+    } catch (error) {
+      console.error("Failed to fetch API keys:", error);
+      res.status(500).json({ error: "Failed to fetch API keys" });
+    }
+  });
+
+  // POST /api/admin/api-keys - Create new API key
+  app.post("/api/admin/api-keys", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { name, scopes, expiresAt } = req.body;
+      
+      if (!name || typeof name !== "string") {
+        return res.status(400).json({ error: "Name is required" });
+      }
+      
+      const validScopes = ["read:courses", "read:bookings", "write:bookings", "read:analytics", "read:users"];
+      const requestedScopes = scopes || validScopes;
+      
+      for (const scope of requestedScopes) {
+        if (!validScopes.includes(scope)) {
+          return res.status(400).json({ error: `Invalid scope: ${scope}` });
+        }
+      }
+      
+      const result = await storage.createApiKey(
+        name,
+        requestedScopes,
+        req.session.userId!,
+        expiresAt ? new Date(expiresAt) : undefined
+      );
+      
+      // Return the raw key only once - it cannot be retrieved later
+      res.status(201).json({
+        message: "API key created successfully. Copy the key now - it won't be shown again.",
+        apiKey: {
+          id: result.apiKey.id,
+          name: result.apiKey.name,
+          keyPrefix: result.apiKey.keyPrefix,
+          scopes: result.apiKey.scopes,
+          createdAt: result.apiKey.createdAt,
+          expiresAt: result.apiKey.expiresAt,
+        },
+        rawKey: result.rawKey,
+      });
+    } catch (error) {
+      console.error("Failed to create API key:", error);
+      res.status(500).json({ error: "Failed to create API key" });
+    }
+  });
+
+  // DELETE /api/admin/api-keys/:id - Revoke API key
+  app.delete("/api/admin/api-keys/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const success = await storage.revokeApiKey(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "API key not found" });
+      }
+      
+      res.json({ success: true, message: "API key revoked" });
+    } catch (error) {
+      console.error("Failed to revoke API key:", error);
+      res.status(500).json({ error: "Failed to revoke API key" });
     }
   });
 
