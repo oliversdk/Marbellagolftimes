@@ -3455,8 +3455,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // DELETE /api/admin/api-keys/:id - Revoke API key
-  app.delete("/api/admin/api-keys/:id", isAuthenticated, isAdmin, async (req, res) => {
+  // PATCH /api/admin/api-keys/:id/revoke - Revoke API key (keeps record)
+  app.patch("/api/admin/api-keys/:id/revoke", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const success = await storage.revokeApiKey(req.params.id);
       
@@ -3468,6 +3468,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to revoke API key:", error);
       res.status(500).json({ error: "Failed to revoke API key" });
+    }
+  });
+
+  // DELETE /api/admin/api-keys/:id - Permanently delete API key
+  app.delete("/api/admin/api-keys/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteApiKey(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "API key not found" });
+      }
+      
+      res.json({ success: true, message: "API key deleted" });
+    } catch (error) {
+      console.error("Failed to delete API key:", error);
+      res.status(500).json({ error: "Failed to delete API key" });
     }
   });
 

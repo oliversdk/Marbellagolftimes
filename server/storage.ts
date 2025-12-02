@@ -196,6 +196,7 @@ export interface IStorage {
   validateApiKey(rawKey: string): Promise<{ valid: boolean; apiKey?: ApiKey; error?: string }>;
   getAllApiKeys(): Promise<ApiKey[]>;
   revokeApiKey(id: string): Promise<boolean>;
+  deleteApiKey(id: string): Promise<boolean>;
   updateApiKeyLastUsed(id: string): Promise<void>;
 }
 
@@ -1889,6 +1890,10 @@ export class MemStorage implements IStorage {
     return false;
   }
 
+  async deleteApiKey(id: string): Promise<boolean> {
+    return false;
+  }
+
   async updateApiKeyLastUsed(id: string): Promise<void> {}
 }
 
@@ -2994,6 +2999,14 @@ export class DatabaseStorage implements IStorage {
     const results = await db
       .update(apiKeys)
       .set({ isActive: "false" })
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return results.length > 0;
+  }
+
+  async deleteApiKey(id: string): Promise<boolean> {
+    const results = await db
+      .delete(apiKeys)
       .where(eq(apiKeys.id, id))
       .returning();
     return results.length > 0;

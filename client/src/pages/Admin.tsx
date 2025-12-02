@@ -417,7 +417,7 @@ export default function Admin() {
   // Revoke API key mutation
   const revokeApiKeyMutation = useMutation({
     mutationFn: async (keyId: string) => {
-      return await apiRequest(`/api/admin/api-keys/${keyId}`, "DELETE");
+      return await apiRequest(`/api/admin/api-keys/${keyId}/revoke`, "PATCH");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys"] });
@@ -430,6 +430,27 @@ export default function Admin() {
       toast({
         title: "Failed to revoke API key",
         description: "An error occurred while revoking the API key",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete API key mutation (permanently removes)
+  const deleteApiKeyMutation = useMutation({
+    mutationFn: async (keyId: string) => {
+      return await apiRequest(`/api/admin/api-keys/${keyId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys"] });
+      toast({
+        title: "API Key Deleted",
+        description: "The API key has been permanently deleted",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to delete API key",
+        description: "An error occurred while deleting the API key",
         variant: "destructive",
       });
     },
@@ -4313,18 +4334,31 @@ export default function Admin() {
                               )}
                             </TableCell>
                             <TableCell>
-                              {apiKey.isActive === "true" && (
+                              <div className="flex gap-2">
+                                {apiKey.isActive === "true" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => revokeApiKeyMutation.mutate(apiKey.id)}
+                                    disabled={revokeApiKeyMutation.isPending}
+                                    data-testid={`button-revoke-api-key-${apiKey.id}`}
+                                  >
+                                    <ShieldOff className="h-4 w-4 mr-1" />
+                                    Revoke
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => revokeApiKeyMutation.mutate(apiKey.id)}
-                                  disabled={revokeApiKeyMutation.isPending}
-                                  data-testid={`button-revoke-api-key-${apiKey.id}`}
+                                  onClick={() => deleteApiKeyMutation.mutate(apiKey.id)}
+                                  disabled={deleteApiKeyMutation.isPending}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                  data-testid={`button-delete-api-key-${apiKey.id}`}
                                 >
-                                  <ShieldOff className="h-4 w-4 mr-1" />
-                                  Revoke
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
                                 </Button>
-                              )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
