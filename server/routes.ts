@@ -89,6 +89,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Session setup - MUST be before any routes that use authentication
+  app.set("trust proxy", 1);
+  app.use(getSession());
+
   // Object Storage endpoints for persistent image storage
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();
@@ -231,10 +235,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Failed to serve documentation' });
     }
   });
-
-  // Session setup
-  app.set("trust proxy", 1);
-  app.use(getSession());
 
   // Auth routes
 
