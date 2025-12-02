@@ -392,9 +392,9 @@ export default function Admin() {
 
   // Create API key mutation
   const createApiKeyMutation = useMutation({
-    mutationFn: async (data: { name: string; scopes: string[]; expiresAt?: string }) => {
-      const response = await apiRequest<CreateApiKeyResponse>("/api/admin/api-keys", "POST", data);
-      return response;
+    mutationFn: async (data: { name: string; scopes: string[]; expiresAt?: string }): Promise<CreateApiKeyResponse> => {
+      const response = await apiRequest("/api/admin/api-keys", "POST", data);
+      return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys"] });
