@@ -1,4 +1,4 @@
-import { useState, ImgHTMLAttributes } from "react";
+import { useState, useEffect, ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
@@ -26,6 +26,11 @@ export function OptimizedImage({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+  }, [src]);
+
   const handleLoad = () => {
     setIsLoaded(true);
     onImageLoad?.();
@@ -43,7 +48,7 @@ export function OptimizedImage({
   const imageSrc = hasError ? fallbackSrc : (src || fallbackSrc);
 
   return (
-    <div className="relative">
+    <div className="relative w-full h-full">
       {!isLoaded && (
         <Skeleton 
           className={cn("absolute inset-0", skeletonClassName || className)} 
@@ -53,7 +58,6 @@ export function OptimizedImage({
       <img
         src={imageSrc}
         alt={alt}
-        loading="lazy"
         onLoad={handleLoad}
         onError={handleError}
         className={cn(
