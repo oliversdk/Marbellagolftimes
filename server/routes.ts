@@ -1662,6 +1662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isValidUrl = 
         imageUrl.startsWith("/stock_images/") || 
         imageUrl.startsWith("/generated_images/") ||
+        imageUrl.startsWith("/objects/") ||
         imageUrl.startsWith("public/") ||
         imageUrl.startsWith("https://storage.googleapis.com/") ||
         imageUrl.startsWith("https://");
