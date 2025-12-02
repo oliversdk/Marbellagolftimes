@@ -1163,7 +1163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Build quoted conversation history (oldest to newest, reversed for quoting)
       const sortedMessages = [...messages].sort((a, b) => 
-        new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+        new Date(a.receivedAt || 0).getTime() - new Date(b.receivedAt || 0).getTime()
       );
       
       // Format date for email quote header
@@ -1186,7 +1186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const msg of sortedMessages) {
         const sender = msg.direction === "IN" ? msg.fromEmail : "Marbella Golf Times";
-        const dateStr = formatQuoteDate(msg.createdAt);
+        const dateStr = formatQuoteDate(msg.receivedAt);
         const msgBody = msg.bodyText || "";
         
         // Text version with > prefix
