@@ -30,6 +30,7 @@ import {
   type InboundEmail,
   type InsertInboundEmail,
   type AdminAlertSettings,
+  type ApiKey,
   golfCourses,
   teeTimeProviders,
   courseProviderLinks,
@@ -47,6 +48,7 @@ import {
   inboundEmailThreads,
   inboundEmails,
   adminAlertSettings,
+  apiKeys,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -188,6 +190,13 @@ export interface IStorage {
   upsertAdminAlertSettings(userId: string, settings: Partial<AdminAlertSettings>): Promise<AdminAlertSettings>;
   getAdminsForAlerts(): Promise<{ userId: string; email: string; alertEmail?: string | null }[]>;
   getOverdueThreads(slaHours: number): Promise<InboundEmailThread[]>;
+
+  // API Keys
+  createApiKey(name: string, scopes: string[], createdById: string, expiresAt?: Date): Promise<{ apiKey: ApiKey; rawKey: string }>;
+  validateApiKey(rawKey: string): Promise<{ valid: boolean; apiKey?: ApiKey; error?: string }>;
+  getAllApiKeys(): Promise<ApiKey[]>;
+  revokeApiKey(id: string): Promise<boolean>;
+  updateApiKeyLastUsed(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -1862,6 +1871,25 @@ export class MemStorage implements IStorage {
   async getOverdueThreads(slaHours: number): Promise<InboundEmailThread[]> {
     return [];
   }
+
+  // API Keys (stub implementation for MemStorage)
+  async createApiKey(name: string, scopes: string[], createdById: string, expiresAt?: Date): Promise<{ apiKey: ApiKey; rawKey: string }> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async validateApiKey(rawKey: string): Promise<{ valid: boolean; apiKey?: ApiKey; error?: string }> {
+    return { valid: false, error: "Not implemented in MemStorage" };
+  }
+
+  async getAllApiKeys(): Promise<ApiKey[]> {
+    return [];
+  }
+
+  async revokeApiKey(id: string): Promise<boolean> {
+    return false;
+  }
+
+  async updateApiKeyLastUsed(id: string): Promise<void> {}
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2898,6 +2926,84 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(inboundEmailThreads.lastActivityAt);
+  }
+
+  // API Keys
+  async createApiKey(name: string, scopes: string[], createdById: string, expiresAt?: Date): Promise<{ apiKey: ApiKey; rawKey: string }> {
+    const { createHash, randomBytes } = await import("crypto");
+    
+    // Generate a secure random key: mgt_<32 random bytes as hex>
+    const rawKey = `mgt_${randomBytes(32).toString("hex")}`;
+    const keyPrefix = rawKey.substring(0, 12); // Store prefix for identification
+    
+    // Hash the key using SHA-256 (fast for verification, secure for storage)
+    const keyHash = createHash("sha256").update(rawKey).digest("hex");
+    
+    const results = await db.insert(apiKeys).values({
+      name,
+      keyHash,
+      keyPrefix,
+      scopes,
+      createdById,
+      expiresAt,
+      isActive: "true",
+    }).returning();
+    
+    return { apiKey: results[0], rawKey };
+  }
+
+  async validateApiKey(rawKey: string): Promise<{ valid: boolean; apiKey?: ApiKey; error?: string }> {
+    const { createHash } = await import("crypto");
+    
+    if (!rawKey || !rawKey.startsWith("mgt_")) {
+      return { valid: false, error: "Invalid API key format" };
+    }
+    
+    const keyHash = createHash("sha256").update(rawKey).digest("hex");
+    
+    const results = await db
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.keyHash, keyHash));
+    
+    if (results.length === 0) {
+      return { valid: false, error: "API key not found" };
+    }
+    
+    const apiKey = results[0];
+    
+    if (apiKey.isActive !== "true") {
+      return { valid: false, error: "API key has been revoked" };
+    }
+    
+    if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
+      return { valid: false, error: "API key has expired" };
+    }
+    
+    return { valid: true, apiKey };
+  }
+
+  async getAllApiKeys(): Promise<ApiKey[]> {
+    return await db
+      .select()
+      .from(apiKeys)
+      .orderBy(desc(apiKeys.createdAt));
+  }
+
+  async revokeApiKey(id: string): Promise<boolean> {
+    const results = await db
+      .update(apiKeys)
+      .set({ isActive: "false" })
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return results.length > 0;
+  }
+
+  async updateApiKeyLastUsed(id: string): Promise<void> {
+    await db
+      .update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.id, id));
   }
 }
 
