@@ -1963,8 +1963,13 @@ export default function Admin() {
     mutationFn: async ({ courseId, imageIds }: { courseId: string; imageIds: string[] }) => {
       return await apiRequest(`/api/courses/${courseId}/images/reorder`, "PATCH", { imageIds });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/courses', editingCourse?.id, 'images'] });
+    onSuccess: async (_data, variables) => {
+      // Refetch using the courseId from the mutation variables
+      await queryClient.refetchQueries({ queryKey: ['/api/courses', variables.courseId, 'images'] });
+      toast({
+        title: "Images Reordered",
+        description: "The image order has been saved",
+      });
     },
     onError: (error: any) => {
       toast({
@@ -3434,6 +3439,21 @@ export default function Admin() {
                                   const newIndex = allImages.findIndex(i => i.id === over.id);
                                   const reordered = arrayMove(allImages, oldIndex, newIndex);
                                   
+                                  // Get gallery-only images in new order
+                                  const galleryOnly = reordered.filter(i => i.id !== 'main-image' && !i.isMain);
+                                  
+                                  // Optimistic UI update - update cache immediately
+                                  const newGalleryOrder = galleryOnly.map((item, idx) => {
+                                    const original = profileGalleryImages.find(img => img.id === item.id);
+                                    return original ? { ...original, sortOrder: idx } : null;
+                                  }).filter(Boolean) as CourseImage[];
+                                  
+                                  queryClient.setQueryData(
+                                    ['/api/courses', selectedCourseProfile.id, 'images'],
+                                    newGalleryOrder
+                                  );
+                                  
+                                  // Check if main image changed
                                   const newMainImage = reordered[0];
                                   if (newMainImage && newMainImage.id !== 'main-image') {
                                     updateCourseImageMutation.mutate({
@@ -3442,7 +3462,7 @@ export default function Admin() {
                                     });
                                   }
                                   
-                                  const galleryOnly = reordered.filter(i => i.id !== 'main-image' && !i.isMain);
+                                  // Persist gallery order to server
                                   if (galleryOnly.length > 0) {
                                     reorderGalleryImagesMutation.mutate({
                                       courseId: selectedCourseProfile.id,
