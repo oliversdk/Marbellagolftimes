@@ -1806,6 +1806,37 @@ export default function Admin() {
     },
   });
 
+  // Clear main image mutation (sets imageUrl to null)
+  const clearMainImageMutation = useMutation({
+    mutationFn: async ({ courseId }: { courseId: string }) => {
+      return await apiRequest(`/api/courses/${courseId}/image`, "PATCH", { imageUrl: null });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", variables.courseId, "images"] });
+      const feedback = getPersonalFeedback(user?.firstName, 'image_deleted');
+      toast({
+        title: feedback.title,
+        description: feedback.description,
+      });
+      // Update local state in profile dialog
+      setSelectedCourseProfile((current) => {
+        if (current?.id === variables.courseId) {
+          return { ...current, imageUrl: null };
+        }
+        return current;
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Delete Main Image",
+        description: error.message || "Could not delete main image",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete gallery image mutation
   const deleteGalleryImageMutation = useMutation({
     mutationFn: async ({ imageId, courseId }: { imageId: string; courseId: string }) => {
@@ -3293,6 +3324,17 @@ export default function Admin() {
                                         />
                                       </div>
                                       <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute top-1 right-1 h-8 w-8"
+                                        onClick={() => clearMainImageMutation.mutate({ courseId: selectedCourseProfile.id })}
+                                        disabled={clearMainImageMutation.isPending}
+                                        title="Delete main image"
+                                        data-testid="button-delete-main-image-mobile"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
                                     </div>
                                   )}
                                   {profileGalleryImages.map((image) => (
@@ -3347,6 +3389,19 @@ export default function Admin() {
                                       />
                                     </div>
                                     <Badge className="absolute bottom-1 left-1 text-xs">Main</Badge>
+                                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={() => clearMainImageMutation.mutate({ courseId: selectedCourseProfile.id })}
+                                        disabled={clearMainImageMutation.isPending}
+                                        title="Delete main image"
+                                        data-testid="button-delete-main-image"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 )}
                                 {profileGalleryImages.map((image) => (
