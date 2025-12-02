@@ -40,7 +40,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
 import {
   Select,
@@ -189,6 +189,22 @@ type AlertSettingsUpdate = {
   alertEmail?: string | null;
 };
 
+type ApiKey = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  createdById: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  isActive: string;
+  createdAt: string;
+};
+
+type CreateApiKeyResponse = ApiKey & {
+  rawKey: string;
+};
+
 type CourseOnboardingData = {
   courseId: string;
   courseName: string;
@@ -312,9 +328,16 @@ export default function Admin() {
   const [bookingDateFilter, setBookingDateFilter] = useState<Date | undefined>(undefined);
   const [selectedBooking, setSelectedBooking] = useState<BookingRequest | null>(null);
   
+  // API Keys state
+  const [showCreateApiKeyDialog, setShowCreateApiKeyDialog] = useState(false);
+  const [newApiKeyName, setNewApiKeyName] = useState("");
+  const [newApiKeyScopes, setNewApiKeyScopes] = useState<string[]>([]);
+  const [newApiKeyExpiration, setNewApiKeyExpiration] = useState<Date | undefined>(undefined);
+  const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
+  
   // Update active tab when URL changes
   useEffect(() => {
-    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox"].includes(tabFromUrl)) {
+    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox", "api-keys"].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl]);
@@ -359,6 +382,59 @@ export default function Admin() {
   const { data: onboardingStats } = useQuery<Record<OnboardingStage, number>>({
     queryKey: ["/api/admin/onboarding/stats"],
     enabled: isAuthenticated,
+  });
+
+  // Fetch API keys (admin only)
+  const { data: apiKeys, isLoading: isLoadingApiKeys } = useQuery<ApiKey[]>({
+    queryKey: ["/api/admin/api-keys"],
+    enabled: isAuthenticated && isAdmin,
+  });
+
+  // Create API key mutation
+  const createApiKeyMutation = useMutation({
+    mutationFn: async (data: { name: string; scopes: string[]; expiresAt?: string }) => {
+      const response = await apiRequest<CreateApiKeyResponse>("/api/admin/api-keys", "POST", data);
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys"] });
+      setCreatedApiKey(data.rawKey);
+      setNewApiKeyName("");
+      setNewApiKeyScopes([]);
+      setNewApiKeyExpiration(undefined);
+      toast({
+        title: "API Key Created",
+        description: "Your new API key has been created. Copy it now - it won't be shown again!",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to create API key",
+        description: "An error occurred while creating the API key",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Revoke API key mutation
+  const revokeApiKeyMutation = useMutation({
+    mutationFn: async (keyId: string) => {
+      return await apiRequest(`/api/admin/api-keys/${keyId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys"] });
+      toast({
+        title: "API Key Revoked",
+        description: "The API key has been revoked and can no longer be used",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to revoke API key",
+        description: "An error occurred while revoking the API key",
+        variant: "destructive",
+      });
+    },
   });
 
   // Update onboarding stage mutation
@@ -1914,6 +1990,12 @@ export default function Admin() {
                 </Badge>
               )}
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="api-keys" data-testid="tab-api-keys">
+                <Key className="h-4 w-4 mr-2" />
+                API Keys
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="analytics">
@@ -4145,6 +4227,335 @@ export default function Admin() {
                     <p className="text-xs text-muted-foreground">{t('inbox.useAccountEmail')}</p>
                   </div>
                 </div>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          {/* API Keys Tab */}
+          <TabsContent value="api-keys">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    External API Keys
+                  </CardTitle>
+                  <CardDescription>
+                    Manage API keys for AI CEO and external integrations. These keys allow programmatic access to the platform.
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => setShowCreateApiKeyDialog(true)}
+                  data-testid="button-create-api-key"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create API Key
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isLoadingApiKeys ? (
+                  <div className="py-12">
+                    <GolfLoader size="md" text="Loading API keys..." />
+                  </div>
+                ) : apiKeys && apiKeys.length > 0 ? (
+                  <div className="border rounded-md overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Key Prefix</TableHead>
+                          <TableHead>Scopes</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead>Last Used</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {apiKeys.map((apiKey) => (
+                          <TableRow key={apiKey.id} data-testid={`row-api-key-${apiKey.id}`}>
+                            <TableCell>
+                              <span className="font-medium">{apiKey.name}</span>
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-sm bg-muted px-2 py-1 rounded">{apiKey.keyPrefix}...</code>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {apiKey.scopes.map((scope) => (
+                                  <Badge key={scope} variant="secondary" className="text-xs">
+                                    {scope}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(apiKey.createdAt), "PP")}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-muted-foreground">
+                                {apiKey.lastUsedAt 
+                                  ? format(new Date(apiKey.lastUsedAt), "PP") 
+                                  : "Never"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {apiKey.isActive === "true" ? (
+                                <Badge variant="default" className="bg-green-600">
+                                  <ShieldCheck className="h-3 w-3 mr-1" />
+                                  Active
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                                  <ShieldOff className="h-3 w-3 mr-1" />
+                                  Revoked
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {apiKey.isActive === "true" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => revokeApiKeyMutation.mutate(apiKey.id)}
+                                  disabled={revokeApiKeyMutation.isPending}
+                                  data-testid={`button-revoke-api-key-${apiKey.id}`}
+                                >
+                                  <ShieldOff className="h-4 w-4 mr-1" />
+                                  Revoke
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Key className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="mb-2">No API keys created yet</p>
+                    <p className="text-sm">Create an API key to enable external access to the platform</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Create API Key Dialog */}
+            <Dialog open={showCreateApiKeyDialog} onOpenChange={setShowCreateApiKeyDialog}>
+              <DialogContent className="max-w-[95vw] sm:max-w-md" data-testid="dialog-create-api-key">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    Create API Key
+                  </DialogTitle>
+                  <DialogDescription>
+                    Create a new API key for external integrations. The key will only be shown once after creation.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key-name">Name *</Label>
+                    <Input
+                      id="api-key-name"
+                      placeholder="e.g., AI CEO Integration"
+                      value={newApiKeyName}
+                      onChange={(e) => setNewApiKeyName(e.target.value)}
+                      data-testid="input-api-key-name"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Scopes</Label>
+                    <div className="space-y-2">
+                      {[
+                        { value: "read:courses", label: "Read Courses" },
+                        { value: "read:bookings", label: "Read Bookings" },
+                        { value: "write:bookings", label: "Write Bookings" },
+                        { value: "read:analytics", label: "Read Analytics" },
+                        { value: "read:users", label: "Read Users" },
+                      ].map((scope) => (
+                        <div key={scope.value} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`scope-${scope.value}`}
+                            checked={newApiKeyScopes.includes(scope.value)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setNewApiKeyScopes([...newApiKeyScopes, scope.value]);
+                              } else {
+                                setNewApiKeyScopes(newApiKeyScopes.filter((s) => s !== scope.value));
+                              }
+                            }}
+                            data-testid={`checkbox-scope-${scope.value}`}
+                          />
+                          <Label htmlFor={`scope-${scope.value}`} className="text-sm font-normal cursor-pointer">
+                            {scope.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Expiration (Optional)</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                          data-testid="button-expiration-date"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {newApiKeyExpiration 
+                            ? format(newApiKeyExpiration, "PPP") 
+                            : "No expiration"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={newApiKeyExpiration}
+                          onSelect={setNewApiKeyExpiration}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                        />
+                        {newApiKeyExpiration && (
+                          <div className="p-2 border-t">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => setNewApiKeyExpiration(undefined)}
+                            >
+                              Clear expiration
+                            </Button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <DialogFooter className="flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreateApiKeyDialog(false);
+                      setNewApiKeyName("");
+                      setNewApiKeyScopes([]);
+                      setNewApiKeyExpiration(undefined);
+                    }}
+                    data-testid="button-cancel-create-api-key"
+                    className="w-full sm:w-auto"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (!newApiKeyName.trim()) {
+                        toast({
+                          title: "Name required",
+                          description: "Please enter a name for the API key",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      if (newApiKeyScopes.length === 0) {
+                        toast({
+                          title: "Scopes required",
+                          description: "Please select at least one scope",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      createApiKeyMutation.mutate({
+                        name: newApiKeyName.trim(),
+                        scopes: newApiKeyScopes,
+                        expiresAt: newApiKeyExpiration?.toISOString(),
+                      });
+                    }}
+                    disabled={createApiKeyMutation.isPending}
+                    data-testid="button-confirm-create-api-key"
+                    className="w-full sm:w-auto"
+                  >
+                    {createApiKeyMutation.isPending ? "Creating..." : "Create API Key"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Created API Key Display Dialog */}
+            <Dialog 
+              open={!!createdApiKey} 
+              onOpenChange={(open) => {
+                if (!open) {
+                  setCreatedApiKey(null);
+                  setShowCreateApiKeyDialog(false);
+                }
+              }}
+            >
+              <DialogContent className="max-w-[95vw] sm:max-w-lg" data-testid="dialog-api-key-created">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-5 w-5" />
+                    API Key Created
+                  </DialogTitle>
+                  <DialogDescription>
+                    Copy your API key now. It will not be shown again!
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                        <p className="font-medium mb-1">Important</p>
+                        <p>Make sure to copy this key and store it securely. You won't be able to see it again.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Your API Key</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={createdApiKey || ""}
+                        readOnly
+                        className="font-mono text-sm"
+                        data-testid="input-created-api-key"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          if (createdApiKey) {
+                            navigator.clipboard.writeText(createdApiKey);
+                            toast({
+                              title: "Copied!",
+                              description: "API key copied to clipboard",
+                            });
+                          }
+                        }}
+                        data-testid="button-copy-api-key"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={() => {
+                      setCreatedApiKey(null);
+                      setShowCreateApiKeyDialog(false);
+                    }}
+                    data-testid="button-close-api-key-created"
+                  >
+                    Done
+                  </Button>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           </TabsContent>

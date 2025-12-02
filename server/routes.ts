@@ -3085,7 +3085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reviews: reviews.map(r => ({
             id: r.id,
             rating: r.rating,
-            comment: r.comment,
+            review: r.review,
             createdAt: r.createdAt,
           })),
           averageRating: reviews.length > 0 
@@ -3195,7 +3195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const booking = await storage.createBooking({
         courseId: parsed.data.courseId,
-        teeTime: new Date(parsed.data.teeTime),
+        teeTime: parsed.data.teeTime,
         players: parsed.data.players,
         customerName: parsed.data.customerName,
         customerEmail: parsed.data.customerEmail,
@@ -3249,6 +3249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/v1/external/analytics - Get analytics summary
+  // NOTE: This endpoint exposes full revenue/ROI data. Only grant read:analytics scope to trusted integrations.
   app.get("/api/v1/external/analytics", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
     try {
       const [revenue, popularCourses, roiAnalytics, bookingsDaily, bookingsWeekly, bookingsMonthly] = await Promise.all([
