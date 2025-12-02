@@ -1,0 +1,97 @@
+import {c as r, r as l, j as s, a as o} from "./index-AUnxbyIg.js";
+/**
+ * @license lucide-react v0.453.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const y = r("Trash2", [["path", {
+    d: "M3 6h18",
+    key: "d0wm0j"
+}], ["path", {
+    d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6",
+    key: "4alrt4"
+}], ["path", {
+    d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2",
+    key: "v07s0e"
+}], ["line", {
+    x1: "10",
+    x2: "10",
+    y1: "11",
+    y2: "17",
+    key: "1uufr5"
+}], ["line", {
+    x1: "14",
+    x2: "14",
+    y1: "11",
+    y2: "17",
+    key: "xtxkd"
+}]]);
+/**
+ * @license lucide-react v0.453.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+const h = r("TriangleAlert", [["path", {
+    d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
+    key: "wmoenq"
+}], ["path", {
+    d: "M12 9v4",
+    key: "juzpu7"
+}], ["path", {
+    d: "M12 17h.01",
+    key: "p32p05"
+}]])
+  , d = l.forwardRef( ({className: e, ...a}, t) => s.jsx("div", {
+    className: "relative w-full overflow-auto",
+    children: s.jsx("table", {
+        ref: t,
+        className: o("w-full caption-bottom text-sm", e),
+        ...a
+    })
+}));
+d.displayName = "Table";
+const c = l.forwardRef( ({className: e, ...a}, t) => s.jsx("thead", {
+    ref: t,
+    className: o("[&_tr]:border-b", e),
+    ...a
+}));
+c.displayName = "TableHeader";
+const m = l.forwardRef( ({className: e, ...a}, t) => s.jsx("tbody", {
+    ref: t,
+    className: o("[&_tr:last-child]:border-0", e),
+    ...a
+}));
+m.displayName = "TableBody";
+const b = l.forwardRef( ({className: e, ...a}, t) => s.jsx("tfoot", {
+    ref: t,
+    className: o("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", e),
+    ...a
+}));
+b.displayName = "TableFooter";
+const i = l.forwardRef( ({className: e, ...a}, t) => s.jsx("tr", {
+    ref: t,
+    className: o("border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted", e),
+    ...a
+}));
+i.displayName = "TableRow";
+const n = l.forwardRef( ({className: e, ...a}, t) => s.jsx("th", {
+    ref: t,
+    className: o("h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0", e),
+    ...a
+}));
+n.displayName = "TableHead";
+const p = l.forwardRef( ({className: e, ...a}, t) => s.jsx("td", {
+    ref: t,
+    className: o("p-4 align-middle [&:has([role=checkbox])]:pr-0", e),
+    ...a
+}));
+p.displayName = "TableCell";
+const f = l.forwardRef( ({className: e, ...a}, t) => s.jsx("caption", {
+    ref: t,
+    className: o("mt-4 text-sm text-muted-foreground", e),
+    ...a
+}));
+f.displayName = "TableCaption";
+export {d as T, c as a, i as b, n as c, m as d, p as e, y as f, h as g};
