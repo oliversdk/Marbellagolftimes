@@ -436,6 +436,12 @@ export default function Admin() {
   const { t } = useI18n();
   const { isMobile } = useBreakpoint();
 
+  // DnD sensors for image reordering - must be at top level, not inside conditional
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   // Fetch ALL courses including members-only for admin dashboard
   // Wait for auth to fully load before fetching to avoid 401 errors
   const { data: courses } = useQuery<GolfCourse[]>({
@@ -3403,10 +3409,7 @@ export default function Admin() {
                         <CardContent>
                           {selectedCourseProfile.imageUrl || profileGalleryImages.length > 0 ? (
                             <DndContext
-                              sensors={useSensors(
-                                useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-                                useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-                              )}
+                              sensors={dndSensors}
                               collisionDetection={closestCenter}
                               onDragEnd={(event: DragEndEvent) => {
                                 const { active, over } = event;
