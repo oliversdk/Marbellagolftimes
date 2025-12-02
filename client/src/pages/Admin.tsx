@@ -1937,9 +1937,10 @@ export default function Admin() {
     mutationFn: async ({ imageId, courseId }: { imageId: string; courseId: string }) => {
       return await apiRequest(`/api/course-images/${imageId}`, "DELETE", undefined);
     },
-    onSuccess: (_data, variables) => {
-      // Invalidate both editingCourse and selectedCourseProfile galleries
-      queryClient.invalidateQueries({ queryKey: ['/api/courses', variables.courseId, 'images'] });
+    onSuccess: async (_data, variables) => {
+      // Refetch gallery images immediately to update UI
+      await queryClient.refetchQueries({ queryKey: ['/api/courses', variables.courseId, 'images'] });
+      // Also invalidate course lists to update image counts
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       const feedback = getPersonalFeedback(user?.firstName, 'image_deleted');
