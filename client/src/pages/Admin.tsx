@@ -398,14 +398,12 @@ export default function Admin() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys"] });
+      // Close the create dialog first, then show the key dialog
+      setShowCreateApiKeyDialog(false);
       setCreatedApiKey(data.rawKey);
       setNewApiKeyName("");
       setNewApiKeyScopes([]);
       setNewApiKeyExpiration(undefined);
-      toast({
-        title: "API Key Created",
-        description: "Your new API key has been created. Copy it now - it won't be shown again!",
-      });
     },
     onError: () => {
       toast({
