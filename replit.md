@@ -46,6 +46,24 @@ The Drizzle ORM schema includes tables for `users`, `sessions`, `golf_courses`, 
 
 Custom email/password authentication is implemented with bcrypt hashing and PostgreSQL-backed sessions using `connect-pg-simple`. Users can sign up or log in via an `AuthDialog` or dedicated pages. Authenticated users see a profile menu and benefit from auto-filled booking forms. Sessions are stored in PostgreSQL with a 7-day TTL, httpOnly cookies, and a secure flag in production. `isAuthenticated` middleware protects admin and user profile routes, while public endpoints remain accessible. Admin routes also utilize `isAdmin` middleware for role-based access control.
 
+### External API (AI CEO Integration)
+
+A complete external REST API is available at `/api/v1/external/*` for integration with AI CEO and other trusted systems. Features:
+- **API Key Authentication**: Secure SHA-256 hashed keys managed via Admin UI ("API Keys" tab). Keys use header-based auth (`X-API-Key`).
+- **Scope-based Access Control**: Five permission scopes (`read:courses`, `read:bookings`, `write:bookings`, `read:analytics`, `read:users`) allow fine-grained access.
+- **Available Endpoints**:
+  - `GET /api/v1/external/courses` - List all courses with images
+  - `GET /api/v1/external/courses/:id` - Single course with reviews
+  - `GET /api/v1/external/bookings` - List all bookings (supports status/date filters)
+  - `GET /api/v1/external/bookings/:id` - Single booking details
+  - `POST /api/v1/external/bookings` - Create new booking
+  - `PATCH /api/v1/external/bookings/:id/status` - Update booking status
+  - `GET /api/v1/external/slots` - Search available tee times
+  - `GET /api/v1/external/analytics` - Full revenue and ROI data (trusted integrations only)
+  - `GET /api/v1/external/users` - User list (safe fields only)
+- **Security Notes**: The `read:analytics` scope exposes sensitive business data (revenue, ROI, commissions). Only grant this scope to trusted internal systems.
+- **Admin Management**: API keys can be created, viewed, and revoked from the Admin dashboard's "API Keys" tab. Raw keys are displayed only once at creation.
+
 ### Email System
 
 The email system uses Nodemailer with SMTP transport for sending bulk affiliate proposals and individual course outreach, supporting templating and environment-based configuration.
