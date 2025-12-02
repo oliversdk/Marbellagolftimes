@@ -1713,11 +1713,14 @@ export default function Admin() {
 
   // Delete gallery image mutation
   const deleteGalleryImageMutation = useMutation({
-    mutationFn: async (imageId: string) => {
+    mutationFn: async ({ imageId, courseId }: { imageId: string; courseId: string }) => {
       return await apiRequest(`/api/course-images/${imageId}`, "DELETE", undefined);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/courses', editingCourse?.id, 'images'] });
+    onSuccess: (_data, variables) => {
+      // Invalidate both editingCourse and selectedCourseProfile galleries
+      queryClient.invalidateQueries({ queryKey: ['/api/courses', variables.courseId, 'images'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
       const feedback = getPersonalFeedback(user?.firstName, 'image_deleted');
       toast({
         title: feedback.title,
@@ -3220,7 +3223,7 @@ export default function Admin() {
                                           variant="destructive"
                                           size="icon"
                                           className="h-8 w-8"
-                                          onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                          onClick={() => deleteGalleryImageMutation.mutate({ imageId: image.id, courseId: selectedCourseProfile!.id })}
                                           data-testid={`button-delete-${image.id}`}
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -3274,7 +3277,7 @@ export default function Admin() {
                                         variant="destructive"
                                         size="icon"
                                         className="h-6 w-6"
-                                        onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                        onClick={() => deleteGalleryImageMutation.mutate({ imageId: image.id, courseId: selectedCourseProfile!.id })}
                                         data-testid={`button-delete-${image.id}`}
                                       >
                                         <Trash2 className="h-3 w-3" />
@@ -4480,7 +4483,7 @@ export default function Admin() {
                                     size="icon"
                                     variant="secondary"
                                     className="h-8 w-8"
-                                    onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                    onClick={() => deleteGalleryImageMutation.mutate({ imageId: image.id, courseId: editingCourse!.id })}
                                     disabled={deleteGalleryImageMutation.isPending}
                                     data-testid={`button-gallery-delete-${index}`}
                                   >
@@ -4552,7 +4555,7 @@ export default function Admin() {
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                                onClick={() => deleteGalleryImageMutation.mutate({ imageId: image.id, courseId: editingCourse!.id })}
                                 disabled={deleteGalleryImageMutation.isPending}
                                 data-testid={`button-gallery-delete-${index}`}
                               >
