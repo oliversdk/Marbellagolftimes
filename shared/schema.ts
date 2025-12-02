@@ -487,6 +487,31 @@ export const insertNewsletterSchema = createInsertSchema(newsletters).omit({
 export type InsertNewsletter = z.infer<typeof insertNewsletterSchema>;
 export type Newsletter = typeof newsletters.$inferSelect;
 
+// API Keys for External Integrations
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull(),
+  keyPrefix: text("key_prefix").notNull(),
+  scopes: text("scopes").array().notNull().default(sql`ARRAY['read:courses', 'read:bookings', 'write:bookings']::text[]`),
+  createdById: varchar("created_by_id").references(() => users.id),
+  lastUsedAt: timestamp("last_used_at"),
+  expiresAt: timestamp("expires_at"),
+  isActive: text("is_active").notNull().default("true"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ 
+  id: true, 
+  createdAt: true,
+  lastUsedAt: true,
+  keyHash: true,
+  keyPrefix: true,
+});
+
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+
 // API Response Types
 export interface TeeTimeSlot {
   teeTime: string;
