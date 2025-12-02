@@ -1961,17 +1961,20 @@ export default function Admin() {
   // Reorder gallery images mutation
   const reorderGalleryImagesMutation = useMutation({
     mutationFn: async ({ courseId, imageIds }: { courseId: string; imageIds: string[] }) => {
-      return await apiRequest(`/api/courses/${courseId}/images/reorder`, "PATCH", { imageIds });
+      const result = await apiRequest(`/api/courses/${courseId}/images/reorder`, "PATCH", { imageIds });
+      return { result, courseId, imageIds };
     },
-    onSuccess: async (_data, variables) => {
-      // Refetch using the courseId from the mutation variables
-      await queryClient.refetchQueries({ queryKey: ['/api/courses', variables.courseId, 'images'] });
+    onSuccess: (_data, variables) => {
+      // Don't refetch - trust the optimistic update already set in onDragEnd
+      // The server has saved the new order (200 status), UI already reflects it
       toast({
         title: "Images Reordered",
         description: "The image order has been saved",
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables) => {
+      // On error, refetch to restore the correct order from server
+      queryClient.refetchQueries({ queryKey: ['/api/courses', variables.courseId, 'images'] });
       toast({
         title: "Failed to Reorder Images",
         description: error.message || "Could not reorder gallery images",

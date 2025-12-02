@@ -1656,14 +1656,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "imageUrl must be a string or null" });
       }
 
-      // Validate that imageUrl starts with allowed directory and ends with valid image extension
+      // Validate that imageUrl is a valid image URL
       const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
       const hasValidExtension = validExtensions.some(ext => imageUrl.toLowerCase().endsWith(ext));
-      const startsWithValidDirectory = imageUrl.startsWith("/stock_images/") || imageUrl.startsWith("/generated_images/");
+      const isValidUrl = 
+        imageUrl.startsWith("/stock_images/") || 
+        imageUrl.startsWith("/generated_images/") ||
+        imageUrl.startsWith("public/") ||
+        imageUrl.startsWith("https://storage.googleapis.com/") ||
+        imageUrl.startsWith("https://");
       
-      if (!startsWithValidDirectory || !hasValidExtension) {
+      if (!isValidUrl || !hasValidExtension) {
         return res.status(400).json({ 
-          error: "Invalid imageUrl format. Must start with /stock_images/ or /generated_images/ and end with .jpg, .jpeg, .png, or .webp" 
+          error: "Invalid imageUrl format. Must be a valid image URL ending with .jpg, .jpeg, .png, or .webp" 
         });
       }
 
