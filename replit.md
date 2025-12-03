@@ -52,8 +52,8 @@ A complete external REST API is available at `/api/v1/external/*` for integratio
 - **API Key Authentication**: Secure SHA-256 hashed keys managed via Admin UI ("API Keys" tab). Keys use header-based auth (`X-API-Key`).
 - **Scope-based Access Control**: Five permission scopes (`read:courses`, `read:bookings`, `write:bookings`, `read:analytics`, `read:users`) allow fine-grained access.
 - **Available Endpoints**:
-  - `GET /api/v1/external/courses` - List all courses with images
-  - `GET /api/v1/external/courses/:id` - Single course with reviews
+  - `GET /api/v1/external/courses` - List all courses with images and management tool info
+  - `GET /api/v1/external/courses/:id` - Single course with reviews and management tool info
   - `GET /api/v1/external/bookings` - List all bookings (supports status/date filters)
   - `GET /api/v1/external/bookings/:id` - Single booking details
   - `POST /api/v1/external/bookings` - Create new booking
@@ -61,6 +61,7 @@ A complete external REST API is available at `/api/v1/external/*` for integratio
   - `GET /api/v1/external/slots` - Search available tee times
   - `GET /api/v1/external/analytics` - Full revenue and ROI data (trusted integrations only)
   - `GET /api/v1/external/users` - User list (safe fields only)
+- **Management Tool Field**: Course endpoints include `managementTool` field with values: `golfmanager_v1`, `golfmanager_v3`, `teeone`, or `null` (for courses without API integration).
 - **Security Notes**: The `read:analytics` scope exposes sensitive business data (revenue, ROI, commissions). Only grant this scope to trusted internal systems.
 - **Admin Management**: API keys can be created, viewed, and revoked from the Admin dashboard's "API Keys" tab. Raw keys are displayed only once at creation.
 

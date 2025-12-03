@@ -3076,15 +3076,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // All endpoints require X-API-Key header authentication
   // Scopes: read:courses, read:bookings, write:bookings, read:analytics, read:users
 
+  // Helper function to determine management tool type from provider links
+  const getManagementToolType = (providerLinks: { providerCourseCode: string | null }[]): string | null => {
+    for (const link of providerLinks) {
+      if (link.providerCourseCode) {
+        if (link.providerCourseCode.startsWith("golfmanagerv3:")) {
+          return "golfmanager_v3";
+        } else if (link.providerCourseCode.startsWith("golfmanager:")) {
+          return "golfmanager_v1";
+        } else if (link.providerCourseCode.startsWith("teeone:")) {
+          return "teeone";
+        }
+      }
+    }
+    return null;
+  };
+
   // GET /api/v1/external/courses - List all courses with images
   app.get("/api/v1/external/courses", isApiKeyAuthenticated, requireScope("read:courses"), async (req, res) => {
     try {
       const courses = await storage.getAllCourses();
       
-      // Get images for each course
+      // Get images and provider info for each course
       const coursesWithImages = await Promise.all(
         courses.map(async (course) => {
           const images = await storage.getImagesByCourseId(course.id);
+          const providerLinks = await storage.getLinksByCourseId(course.id);
+          const managementTool = getManagementToolType(providerLinks);
+          
           return {
             id: course.id,
             name: course.name,
@@ -3102,6 +3121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             facilities: course.facilities,
             kickbackPercent: course.kickbackPercent,
             membersOnly: course.membersOnly,
+            managementTool: managementTool, // golfmanager_v1, golfmanager_v3, teeone, or null
             images: images.map(img => ({
               id: img.id,
               imageUrl: img.imageUrl,
@@ -3133,11 +3153,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const images = await storage.getImagesByCourseId(course.id);
       const reviews = await storage.getAllReviewsByCourseId(course.id);
+      const providerLinks = await storage.getLinksByCourseId(course.id);
+      const managementTool = getManagementToolType(providerLinks);
       
       res.json({
         success: true,
         data: {
           ...course,
+          managementTool: managementTool, // golfmanager_v1, golfmanager_v3, teeone, or null
           images: images.map(img => ({
             id: img.id,
             imageUrl: img.imageUrl,
