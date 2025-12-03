@@ -1652,8 +1652,23 @@ export default function Admin() {
       return await apiRequest(`/api/courses/${courseId}/image`, "PATCH", { imageUrl });
     },
     onSuccess: (data: any, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      // Don't invalidate queries - we use optimistic updates to avoid UI flashing
+      // Instead, update the cache directly
+      queryClient.setQueryData(['/api/admin/courses'], (old: GolfCourse[] | undefined) => {
+        if (!old) return old;
+        return old.map(c => c.id === variables.courseId 
+          ? { ...c, imageUrl: variables.imageUrl }
+          : c
+        );
+      });
+      queryClient.setQueryData(['/api/courses'], (old: GolfCourse[] | undefined) => {
+        if (!old) return old;
+        return old.map(c => c.id === variables.courseId 
+          ? { ...c, imageUrl: variables.imageUrl }
+          : c
+        );
+      });
+      
       const courseName = courses?.find(c => c.id === variables.courseId)?.name || "course";
       toast({
         title: t('admin.imageUpdatedTitle'),
@@ -3442,34 +3457,58 @@ export default function Admin() {
                                   const newIndex = allImages.findIndex(i => i.id === over.id);
                                   const reordered = arrayMove(allImages, oldIndex, newIndex);
                                   
-                                  // Get gallery-only images in new order
-                                  const galleryOnly = reordered.filter(i => i.id !== 'main-image' && !i.isMain);
+                                  // Check if main image changed (gallery image moved to position 0)
+                                  const newMainImage = reordered[0];
+                                  const mainImageChanged = newMainImage && newMainImage.id !== 'main-image';
                                   
-                                  // Optimistic UI update - update cache immediately
-                                  const newGalleryOrder = galleryOnly.map((item, idx) => {
+                                  // Get gallery-only images in new order
+                                  // If main image changed, EXCLUDE the new main image from gallery (it's at position 0)
+                                  // and INCLUDE the old main image in gallery (it's no longer at position 0)
+                                  const galleryOnly = reordered.slice(1).map((item, idx) => {
+                                    if (item.id === 'main-image') {
+                                      // Old main image is now in gallery - create a virtual entry
+                                      return null; // Will be handled by server, just keep gallery order
+                                    }
                                     const original = profileGalleryImages.find(img => img.id === item.id);
                                     return original ? { ...original, sortOrder: idx } : null;
                                   }).filter(Boolean) as CourseImage[];
                                   
+                                  // Optimistic UI update for gallery
                                   queryClient.setQueryData(
                                     ['/api/courses', selectedCourseProfile.id, 'images'],
-                                    newGalleryOrder
+                                    galleryOnly
                                   );
                                   
-                                  // Check if main image changed
-                                  const newMainImage = reordered[0];
-                                  if (newMainImage && newMainImage.id !== 'main-image') {
+                                  // Optimistic UI update for main image  
+                                  if (mainImageChanged) {
+                                    // Update the selected course profile locally
+                                    setSelectedCourseProfile(prev => prev ? {
+                                      ...prev,
+                                      imageUrl: newMainImage.imageUrl
+                                    } : null);
+                                    
+                                    // Update courses cache
+                                    queryClient.setQueryData(['/api/admin/courses'], (old: GolfCourse[] | undefined) => {
+                                      if (!old) return old;
+                                      return old.map(c => c.id === selectedCourseProfile.id 
+                                        ? { ...c, imageUrl: newMainImage.imageUrl }
+                                        : c
+                                      );
+                                    });
+                                    
+                                    // Persist main image change to server
                                     updateCourseImageMutation.mutate({
                                       courseId: selectedCourseProfile.id,
                                       imageUrl: newMainImage.imageUrl
                                     });
                                   }
                                   
-                                  // Persist gallery order to server
-                                  if (galleryOnly.length > 0) {
+                                  // Persist gallery order to server (excluding the new main image)
+                                  const galleryIds = galleryOnly.map(i => i.id);
+                                  if (galleryIds.length > 0) {
                                     reorderGalleryImagesMutation.mutate({
                                       courseId: selectedCourseProfile.id,
-                                      imageIds: galleryOnly.map(i => i.id)
+                                      imageIds: galleryIds
                                     });
                                   }
                                 }
