@@ -1561,6 +1561,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/courses/:id/images/swap-main - Swap main image with a gallery image (Admin only)
+  app.post("/api/courses/:id/images/swap-main", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { promoteImageId, demoteToPosition } = req.body;
+      
+      if (!promoteImageId || typeof promoteImageId !== "string") {
+        return res.status(400).json({ error: "promoteImageId is required" });
+      }
+
+      const course = await storage.getCourseById(req.params.id);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Get the gallery image to promote
+      const galleryImages = await storage.getImagesByCourseId(req.params.id);
+      const imageToPromote = galleryImages.find(img => img.id === promoteImageId);
+      
+      if (!imageToPromote) {
+        return res.status(404).json({ error: "Gallery image not found" });
+      }
+
+      const oldMainImageUrl = course.imageUrl;
+      const newMainImageUrl = imageToPromote.imageUrl;
+      
+      // Step 1: Set the new main image
+      await storage.updateCourseImage(req.params.id, newMainImageUrl);
+      
+      // Step 2: Delete the promoted image from gallery
+      await storage.deleteCourseImage(promoteImageId);
+      
+      // Step 3: If there was an old main image, add it to gallery
+      if (oldMainImageUrl) {
+        const position = typeof demoteToPosition === "number" ? demoteToPosition : imageToPromote.sortOrder;
+        await storage.createCourseImage({
+          courseId: req.params.id,
+          imageUrl: oldMainImageUrl,
+          caption: null,
+          sortOrder: position,
+        });
+      }
+      
+      // Return updated data
+      const updatedImages = await storage.getImagesByCourseId(req.params.id);
+      const updatedCourse = await storage.getCourseById(req.params.id);
+      
+      res.json({ 
+        course: updatedCourse,
+        images: updatedImages 
+      });
+    } catch (error) {
+      console.error("Failed to swap main image:", error);
+      res.status(500).json({ error: "Failed to swap main image" });
+    }
+  });
+
   // GET /api/weather/:lat/:lng - Get weather data for location (Open-Meteo API - Free, no API key required)
   app.get("/api/weather/:lat/:lng", async (req, res) => {
     try {

@@ -1998,6 +1998,57 @@ export default function Admin() {
     },
   });
 
+  // Swap main image with gallery image mutation
+  const swapMainImageMutation = useMutation({
+    mutationFn: async ({ courseId, promoteImageId, demoteToPosition }: { 
+      courseId: string; 
+      promoteImageId: string;
+      demoteToPosition: number;
+    }): Promise<{ course: GolfCourse; images: CourseImage[] }> => {
+      const response = await fetch(`/api/courses/${courseId}/images/swap-main`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promoteImageId, demoteToPosition }),
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to swap images");
+      }
+      return response.json();
+    },
+    onSuccess: (data: { course: GolfCourse; images: CourseImage[] }, variables) => {
+      // Update caches with the returned data
+      queryClient.setQueryData(['/api/courses', variables.courseId, 'images'], data.images);
+      queryClient.setQueryData(['/api/admin/courses'], (old: GolfCourse[] | undefined) => {
+        if (!old) return old;
+        return old.map(c => c.id === variables.courseId ? data.course : c);
+      });
+      queryClient.setQueryData(['/api/courses'], (old: GolfCourse[] | undefined) => {
+        if (!old) return old;
+        return old.map(c => c.id === variables.courseId ? data.course : c);
+      });
+      
+      // Update local state
+      setSelectedCourseProfile(prev => prev?.id === variables.courseId ? data.course : prev);
+      
+      toast({
+        title: "Main Image Swapped",
+        description: "The images have been swapped successfully",
+      });
+    },
+    onError: (error: any, variables) => {
+      // Refetch to restore correct state
+      queryClient.refetchQueries({ queryKey: ['/api/courses', variables.courseId, 'images'] });
+      queryClient.refetchQueries({ queryKey: ['/api/admin/courses'] });
+      toast({
+        title: "Failed to Swap Images",
+        description: error.message || "Could not swap main image",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Move gallery image up or down
   const handleMoveGalleryImage = (imageId: string, direction: 'up' | 'down') => {
     if (!editingCourse?.id) return;
@@ -3457,59 +3508,67 @@ export default function Admin() {
                                   const newIndex = allImages.findIndex(i => i.id === over.id);
                                   const reordered = arrayMove(allImages, oldIndex, newIndex);
                                   
-                                  // Check if main image changed (gallery image moved to position 0)
-                                  const newMainImage = reordered[0];
-                                  const mainImageChanged = newMainImage && newMainImage.id !== 'main-image';
+                                  // Check if a gallery image was moved to position 0 (becomes new main)
+                                  const newFirstImage = reordered[0];
+                                  const galleryImagePromotedToMain = newFirstImage && newFirstImage.id !== 'main-image';
                                   
-                                  // Get gallery-only images in new order
-                                  // If main image changed, EXCLUDE the new main image from gallery (it's at position 0)
-                                  // and INCLUDE the old main image in gallery (it's no longer at position 0)
-                                  const galleryOnly = reordered.slice(1).map((item, idx) => {
-                                    if (item.id === 'main-image') {
-                                      // Old main image is now in gallery - create a virtual entry
-                                      return null; // Will be handled by server, just keep gallery order
-                                    }
-                                    const original = profileGalleryImages.find(img => img.id === item.id);
-                                    return original ? { ...original, sortOrder: idx } : null;
-                                  }).filter(Boolean) as CourseImage[];
-                                  
-                                  // Optimistic UI update for gallery
-                                  queryClient.setQueryData(
-                                    ['/api/courses', selectedCourseProfile.id, 'images'],
-                                    galleryOnly
-                                  );
-                                  
-                                  // Optimistic UI update for main image  
-                                  if (mainImageChanged) {
-                                    // Update the selected course profile locally
+                                  if (galleryImagePromotedToMain) {
+                                    // A gallery image was dragged to position 0
+                                    // Use swap mutation: old main goes to gallery, new image becomes main
+                                    const promotedImageId = newFirstImage.id;
+                                    const demotePosition = oldIndex - 1; // Position where the promoted image was (0-indexed in gallery)
+                                    
+                                    // Optimistic UI: Build new gallery with old main inserted at dragged-from position
+                                    const newGallery = reordered.slice(1).map((item, idx) => {
+                                      if (item.id === 'main-image') {
+                                        // Create a virtual gallery entry for the old main image
+                                        return {
+                                          id: 'temp-demoted-' + Date.now(),
+                                          courseId: selectedCourseProfile.id,
+                                          imageUrl: selectedCourseProfile.imageUrl!,
+                                          caption: null,
+                                          sortOrder: idx,
+                                        } as CourseImage;
+                                      }
+                                      const original = profileGalleryImages.find(img => img.id === item.id);
+                                      return original ? { ...original, sortOrder: idx } : null;
+                                    }).filter(Boolean) as CourseImage[];
+                                    
+                                    // Optimistic UI updates
+                                    queryClient.setQueryData(
+                                      ['/api/courses', selectedCourseProfile.id, 'images'],
+                                      newGallery
+                                    );
                                     setSelectedCourseProfile(prev => prev ? {
                                       ...prev,
-                                      imageUrl: newMainImage.imageUrl
+                                      imageUrl: newFirstImage.imageUrl
                                     } : null);
                                     
-                                    // Update courses cache
-                                    queryClient.setQueryData(['/api/admin/courses'], (old: GolfCourse[] | undefined) => {
-                                      if (!old) return old;
-                                      return old.map(c => c.id === selectedCourseProfile.id 
-                                        ? { ...c, imageUrl: newMainImage.imageUrl }
-                                        : c
-                                      );
+                                    // Call swap endpoint
+                                    swapMainImageMutation.mutate({
+                                      courseId: selectedCourseProfile.id,
+                                      promoteImageId: promotedImageId,
+                                      demoteToPosition: demotePosition >= 0 ? demotePosition : 0,
                                     });
+                                  } else {
+                                    // Just reordering gallery images (main stayed in position 0)
+                                    const galleryOnly = reordered.slice(1).map((item, idx) => {
+                                      const original = profileGalleryImages.find(img => img.id === item.id);
+                                      return original ? { ...original, sortOrder: idx } : null;
+                                    }).filter(Boolean) as CourseImage[];
                                     
-                                    // Persist main image change to server
-                                    updateCourseImageMutation.mutate({
-                                      courseId: selectedCourseProfile.id,
-                                      imageUrl: newMainImage.imageUrl
-                                    });
-                                  }
-                                  
-                                  // Persist gallery order to server (excluding the new main image)
-                                  const galleryIds = galleryOnly.map(i => i.id);
-                                  if (galleryIds.length > 0) {
-                                    reorderGalleryImagesMutation.mutate({
-                                      courseId: selectedCourseProfile.id,
-                                      imageIds: galleryIds
-                                    });
+                                    queryClient.setQueryData(
+                                      ['/api/courses', selectedCourseProfile.id, 'images'],
+                                      galleryOnly
+                                    );
+                                    
+                                    const galleryIds = galleryOnly.map(i => i.id);
+                                    if (galleryIds.length > 0) {
+                                      reorderGalleryImagesMutation.mutate({
+                                        courseId: selectedCourseProfile.id,
+                                        imageIds: galleryIds
+                                      });
+                                    }
                                   }
                                 }
                               }}
