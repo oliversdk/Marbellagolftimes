@@ -1812,6 +1812,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         kickbackPercent: z.number().min(0).max(100).optional(),
         golfmanagerUser: z.string().optional(),
         golfmanagerPassword: z.string().optional(),
+        teeoneIdEmpresa: z.number().optional(),
+        teeoneIdTeeSheet: z.number().optional(),
+        teeoneApiUser: z.string().optional(),
+        teeoneApiPassword: z.string().optional(),
       });
 
       const result = updateCourseSchema.safeParse(req.body);
@@ -1832,6 +1836,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (result.data.golfmanagerPassword !== undefined) {
         updates.golfmanagerPassword = result.data.golfmanagerPassword || null;
+      }
+      // TeeOne credentials
+      if (result.data.teeoneIdEmpresa !== undefined) {
+        updates.teeoneIdEmpresa = result.data.teeoneIdEmpresa || null;
+      }
+      if (result.data.teeoneIdTeeSheet !== undefined) {
+        updates.teeoneIdTeeSheet = result.data.teeoneIdTeeSheet || null;
+      }
+      if (result.data.teeoneApiUser !== undefined) {
+        updates.teeoneApiUser = result.data.teeoneApiUser || null;
+      }
+      if (result.data.teeoneApiPassword !== undefined) {
+        updates.teeoneApiPassword = result.data.teeoneApiPassword || null;
       }
 
       const updatedCourse = await storage.updateCourse(req.params.id, updates);

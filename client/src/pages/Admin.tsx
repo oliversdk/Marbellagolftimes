@@ -252,6 +252,10 @@ const editCourseSchema = z.object({
   kickbackPercent: z.number().min(0, "Must be at least 0").max(100, "Must be at most 100"),
   golfmanagerUser: z.string().optional(),
   golfmanagerPassword: z.string().optional(),
+  teeoneIdEmpresa: z.string().optional(),
+  teeoneIdTeeSheet: z.string().optional(),
+  teeoneApiUser: z.string().optional(),
+  teeoneApiPassword: z.string().optional(),
 });
 
 const courseDetailsSchema = z.object({
@@ -1294,6 +1298,10 @@ export default function Admin() {
       kickbackPercent: 0,
       golfmanagerUser: "",
       golfmanagerPassword: "",
+      teeoneIdEmpresa: "",
+      teeoneIdTeeSheet: "",
+      teeoneApiUser: "",
+      teeoneApiPassword: "",
     },
   });
 
@@ -1313,16 +1321,24 @@ export default function Admin() {
 
   // Update course (kickback + credentials) mutation
   const updateCourseMutation = useMutation({
-    mutationFn: async ({ courseId, kickbackPercent, golfmanagerUser, golfmanagerPassword }: { 
+    mutationFn: async ({ courseId, kickbackPercent, golfmanagerUser, golfmanagerPassword, teeoneIdEmpresa, teeoneIdTeeSheet, teeoneApiUser, teeoneApiPassword }: { 
       courseId: string; 
       kickbackPercent: number;
       golfmanagerUser?: string;
       golfmanagerPassword?: string;
+      teeoneIdEmpresa?: number;
+      teeoneIdTeeSheet?: number;
+      teeoneApiUser?: string;
+      teeoneApiPassword?: string;
     }) => {
       const response = await apiRequest(`/api/admin/courses/${courseId}`, "PATCH", { 
         kickbackPercent,
         golfmanagerUser,
-        golfmanagerPassword
+        golfmanagerPassword,
+        teeoneIdEmpresa,
+        teeoneIdTeeSheet,
+        teeoneApiUser,
+        teeoneApiPassword
       });
       return await response.json() as GolfCourse;
     },
@@ -1360,6 +1376,10 @@ export default function Admin() {
       kickbackPercent: course.kickbackPercent || 0,
       golfmanagerUser: course.golfmanagerUser || "",
       golfmanagerPassword: course.golfmanagerPassword || "",
+      teeoneIdEmpresa: course.teeoneIdEmpresa?.toString() || "",
+      teeoneIdTeeSheet: course.teeoneIdTeeSheet?.toString() || "",
+      teeoneApiUser: course.teeoneApiUser || "",
+      teeoneApiPassword: course.teeoneApiPassword || "",
     });
   };
 
@@ -1368,7 +1388,13 @@ export default function Admin() {
     if (editingCourse) {
       updateCourseMutation.mutate({ 
         courseId: editingCourse.id, 
-        ...data
+        kickbackPercent: data.kickbackPercent,
+        golfmanagerUser: data.golfmanagerUser,
+        golfmanagerPassword: data.golfmanagerPassword,
+        teeoneIdEmpresa: data.teeoneIdEmpresa ? parseInt(data.teeoneIdEmpresa, 10) : undefined,
+        teeoneIdTeeSheet: data.teeoneIdTeeSheet ? parseInt(data.teeoneIdTeeSheet, 10) : undefined,
+        teeoneApiUser: data.teeoneApiUser,
+        teeoneApiPassword: data.teeoneApiPassword,
       });
     }
   };
@@ -1539,6 +1565,10 @@ export default function Admin() {
       kickbackPercent: course.kickbackPercent || 0,
       golfmanagerUser: course.golfmanagerUser || "",
       golfmanagerPassword: course.golfmanagerPassword || "",
+      teeoneIdEmpresa: course.teeoneIdEmpresa?.toString() || "",
+      teeoneIdTeeSheet: course.teeoneIdTeeSheet?.toString() || "",
+      teeoneApiUser: course.teeoneApiUser || "",
+      teeoneApiPassword: course.teeoneApiPassword || "",
     });
     contactLogForm.reset({
       type: "EMAIL",
@@ -5362,6 +5392,95 @@ export default function Admin() {
                                   type="password"
                                   placeholder="Enter Golfmanager API password"
                                   data-testid="input-golfmanager-password"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* TeeOne API Credentials Section */}
+                      <div className="space-y-3 pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <FormLabel className="text-base font-semibold">TeeOne API Credentials</FormLabel>
+                          <span className="text-xs text-muted-foreground">(Optional)</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Add TeeOne API credentials for courses using the TeeOne booking system (El Paraíso, Marbella Golf, etc.)
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={courseForm.control}
+                            name="teeoneIdEmpresa"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Company ID (idEmpresa)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    type="number"
+                                    placeholder="e.g., 26"
+                                    data-testid="input-teeone-id-empresa"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={courseForm.control}
+                            name="teeoneIdTeeSheet"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Tee Sheet ID (idTeeSheet)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    type="number"
+                                    placeholder="e.g., 1"
+                                    data-testid="input-teeone-id-teesheet"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={courseForm.control}
+                          name="teeoneApiUser"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>API Username</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="text"
+                                  placeholder="Enter TeeOne API username"
+                                  data-testid="input-teeone-api-user"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={courseForm.control}
+                          name="teeoneApiPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>API Password</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Enter TeeOne API password"
+                                  data-testid="input-teeone-api-password"
                                 />
                               </FormControl>
                               <FormMessage />
