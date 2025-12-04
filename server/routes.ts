@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { storage } from "./storage";
 import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
+import { teeoneClient } from "./providers/teeone";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users } from "@shared/schema";
 import { db } from "./db";
@@ -19,6 +20,69 @@ import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+
+// ============================================================
+// OnTee-inspired Booking API - In-memory storage for orders
+// ============================================================
+interface TeeTimeHold {
+  orderId: string;
+  courseId: string;
+  tenant: string;
+  slotId: string;
+  teeTime: string;
+  date: string;
+  time: string;
+  players: number;
+  holes: number;
+  greenFee: { amount: number; currency: string };
+  extras: { type: string; amount: number; currency: string; description?: string }[];
+  total: { amount: number; currency: string };
+  status: "HELD" | "CONFIRMED" | "EXPIRED";
+  holdExpiresAt: Date;
+  createdAt: Date;
+  customer?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    language?: string;
+  };
+  payment?: {
+    method: string;
+    status: string;
+    transactionId?: string;
+  };
+  bookingId?: string;
+}
+
+const teeTimeHolds = new Map<string, TeeTimeHold>();
+
+// Cleanup expired holds every 5 minutes
+setInterval(() => {
+  const now = new Date();
+  teeTimeHolds.forEach((hold, orderId) => {
+    if (hold.status === "HELD" && hold.holdExpiresAt < now) {
+      hold.status = "EXPIRED";
+      console.log(`[OnTee API] Hold expired: ${orderId}`);
+    }
+  });
+}, 5 * 60 * 1000);
+
+// TeeOne tenant mapping for courses
+const TEEONE_TENANTS: Record<string, string> = {
+  "El Paraíso Golf Club": "paraiso",
+  "Marbella Golf & Country Club": "marbella",
+  "Estepona Golf": "estepona",
+  "Atalaya Golf & Country Club": "atalaya",
+  "Santa Clara Golf Marbella": "santaclara",
+  "Los Naranjos Golf Club": "naranjos",
+  "Mijas Golf": "mijas",
+  "Torrequebrada Golf": "torrequebrada",
+  "Real Club Valderrama": "valderrama",
+  "Flamingos Golf (Villa Padierna)": "villapadierna",
+  "Los Arqueros Golf & Country Club": "arqueros",
+  "La Quinta Golf & Country Club": "quinta",
+};
 
 // Validation schema for updating user information
 const updateUserSchema = z.object({
@@ -3465,6 +3529,455 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("External API - Get slots error:", error);
       res.status(500).json({ error: "Failed to fetch slots" });
     }
+  });
+
+  // ============================================================
+  // OnTee-inspired Booking API (TeeOne Integration)
+  // ============================================================
+  // These endpoints mirror OnTee's booking flow for TeeOne courses
+
+  // POST /api/v1/bookings/available - Get available tee times from TeeOne
+  app.post("/api/v1/bookings/available", async (req, res) => {
+    try {
+      const { facilityId, courseId, date, players, holes, fromTime, toTime } = req.body || {};
+
+      if (!facilityId || !date || !players) {
+        return res.status(400).json({
+          error: "facilityId, date and players are required in the request body"
+        });
+      }
+
+      // Find the course by facilityId (course name or ID)
+      let course: GolfCourse | undefined;
+      const allCourses = await storage.getAllCourses();
+      
+      // Try to match by name (facilityId) or by ID
+      course = allCourses.find(c => 
+        c.name.toLowerCase().includes(facilityId.toLowerCase()) ||
+        c.id === facilityId
+      );
+
+      if (!course) {
+        return res.status(404).json({ error: `Course not found: ${facilityId}` });
+      }
+
+      // Check if this is a TeeOne course
+      const providerLinks = await storage.getLinksByCourseId(course.id);
+      const teeoneLink = providerLinks.find(link => 
+        link.providerCourseCode?.startsWith("teeone:")
+      );
+
+      if (!teeoneLink) {
+        return res.status(400).json({ 
+          error: `Course "${course.name}" does not use TeeOne booking system`,
+          managementTool: getManagementToolType(providerLinks)
+        });
+      }
+
+      // Extract tenant from providerCourseCode (e.g., "teeone:paraiso" -> "paraiso")
+      const tenant = teeoneLink.providerCourseCode!.replace("teeone:", "");
+      
+      console.log(`[OnTee API] Fetching availability for ${course.name} (tenant: ${tenant}) on ${date}`);
+
+      // Fetch real availability from TeeOne API
+      const teeTimeSlots = await teeoneClient.searchAvailability(
+        tenant,
+        date,
+        players,
+        holes || 18,
+        fromTime,
+        toTime
+      );
+
+      // Convert to OnTee-style slot format
+      const slots = teeTimeSlots.map((slot, index) => {
+        const slotId = `${course!.id}-${tenant}-${slot.teeTime}`;
+        const slotTime = slot.teeTime.split("T")[1]?.substring(0, 5) || "00:00";
+        
+        return {
+          slotId,
+          facilityId: course!.name,
+          courseId: course!.id,
+          tenant,
+          date,
+          time: slotTime,
+          holes: slot.holes || holes || 18,
+          requestedPlayers: players,
+          availableSpots: 4, // TeeOne doesn't return this, default to 4
+          greenFee: {
+            amount: slot.greenFee || 0,
+            currency: slot.currency || "EUR"
+          },
+          source: "teeone",
+          rawProviderData: slot
+        };
+      });
+
+      console.log(`[OnTee API] Retrieved ${slots.length} slots for ${course.name}`);
+
+      res.json({ 
+        success: true,
+        course: {
+          id: course.id,
+          name: course.name,
+          tenant,
+          managementTool: "teeone"
+        },
+        slots 
+      });
+    } catch (error) {
+      console.error("[OnTee API] Availability error:", error);
+      res.status(500).json({ error: "Failed to fetch availability" });
+    }
+  });
+
+  // POST /api/v1/orders/items - Create/update an order with a selected tee time
+  app.post("/api/v1/orders/items", async (req, res) => {
+    try {
+      const { slotId, players, greenFee, extras, orderId } = req.body || {};
+
+      if (!slotId || !players) {
+        return res.status(400).json({
+          error: "slotId and players are required in the request body"
+        });
+      }
+
+      // Parse slotId to extract course info
+      // Format: courseId-tenant-teeTime where courseId is UUID (contains dashes)
+      // Example: 35bfec83-5c4c-4e39-8d4f-bb83c64f69b2-paraiso-2025-12-10T09:00:00
+      // Strategy: Find tenant code (after 5th dash if UUID format) then split
+      const parts = slotId.split("-");
+      
+      // UUID has 5 parts (e.g., 35bfec83-5c4c-4e39-8d4f-bb83c64f69b2)
+      // So courseId = parts[0..4], tenant = parts[5], teeTime = parts[6..]
+      if (parts.length < 7) {
+        return res.status(400).json({ error: "Invalid slotId format. Expected: courseId-tenant-teeTime" });
+      }
+
+      const courseId = parts.slice(0, 5).join("-"); // UUID format
+      const tenant = parts[5];
+      const teeTime = parts.slice(6).join("-"); // Remaining parts are the teeTime
+
+      // Get course info
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Use provided greenFee or default
+      const finalGreenFee = greenFee?.amount 
+        ? greenFee 
+        : { amount: 80, currency: "EUR" };
+
+      // Calculate total
+      let totalAmount = finalGreenFee.amount * players;
+      const extrasArray = extras || [];
+      for (const extra of extrasArray) {
+        totalAmount += extra.amount || 0;
+      }
+
+      // Create or update order
+      const newOrderId = orderId || randomUUID();
+      let hold = teeTimeHolds.get(newOrderId);
+
+      if (!hold) {
+        // Create new hold with 15 minute expiry
+        const date = teeTime.split("T")[0] || new Date().toISOString().split("T")[0];
+        const time = teeTime.split("T")[1]?.substring(0, 5) || "00:00";
+
+        hold = {
+          orderId: newOrderId,
+          courseId,
+          tenant,
+          slotId,
+          teeTime,
+          date,
+          time,
+          players,
+          holes: 18,
+          greenFee: finalGreenFee,
+          extras: extrasArray,
+          total: { amount: totalAmount, currency: finalGreenFee.currency },
+          status: "HELD",
+          holdExpiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 min hold
+          createdAt: new Date(),
+        };
+        teeTimeHolds.set(newOrderId, hold);
+        console.log(`[OnTee API] Created new hold: ${newOrderId} for ${course.name}`);
+      } else {
+        // Update existing hold
+        hold.greenFee = finalGreenFee;
+        hold.extras = extrasArray;
+        hold.total = { amount: totalAmount, currency: finalGreenFee.currency };
+        hold.players = players;
+        console.log(`[OnTee API] Updated hold: ${newOrderId}`);
+      }
+
+      res.json({
+        orderId: hold.orderId,
+        course: {
+          id: course.id,
+          name: course.name,
+          tenant
+        },
+        items: [{
+          itemId: randomUUID(),
+          slotId,
+          teeTime,
+          players,
+          greenFee: hold.greenFee,
+          extras: hold.extras
+        }],
+        total: hold.total,
+        status: hold.status,
+        holdExpiresAt: hold.holdExpiresAt.toISOString()
+      });
+    } catch (error) {
+      console.error("[OnTee API] Order items error:", error);
+      res.status(500).json({ error: "Failed to create/update order" });
+    }
+  });
+
+  // POST /api/v1/bookings/confirm - Confirm booking (after payment)
+  app.post("/api/v1/bookings/confirm", async (req, res) => {
+    try {
+      const { orderId, customer, payment } = req.body || {};
+
+      if (!orderId || !customer) {
+        return res.status(400).json({
+          error: "orderId and customer are required in the request body"
+        });
+      }
+
+      // Find the hold
+      const hold = teeTimeHolds.get(orderId);
+      if (!hold) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      if (hold.status === "EXPIRED") {
+        return res.status(410).json({ error: "Hold has expired. Please select a new tee time." });
+      }
+
+      if (hold.status === "CONFIRMED") {
+        return res.status(400).json({ error: "Booking already confirmed", bookingId: hold.bookingId });
+      }
+
+      // Get course info
+      const course = await storage.getCourseById(hold.courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Validate customer info
+      if (!customer.firstName || !customer.lastName || !customer.email) {
+        return res.status(400).json({ 
+          error: "Customer firstName, lastName, and email are required" 
+        });
+      }
+
+      // Update hold with customer and payment info
+      hold.customer = customer;
+      hold.payment = payment || { method: "pending", status: "pending" };
+      hold.status = "CONFIRMED";
+
+      // Create actual booking in the database
+      const bookingData = {
+        courseId: hold.courseId,
+        teeTime: new Date(hold.teeTime),
+        players: hold.players,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerEmail: customer.email,
+        customerPhone: customer.phone || null,
+        estimatedPrice: hold.total.amount,
+        status: "CONFIRMED",
+      };
+
+      const booking = await storage.createBooking(bookingData);
+      hold.bookingId = booking.id;
+
+      console.log(`[OnTee API] Booking confirmed: ${booking.id} for ${course.name}`);
+
+      // Generate voucher URL (placeholder - in production this would be a real PDF)
+      const voucherUrl = `/api/bookings/${booking.id}/voucher`;
+
+      res.json({
+        success: true,
+        bookingId: booking.id,
+        status: "CONFIRMED",
+        orderId: hold.orderId,
+        voucherUrl,
+        teeTime: {
+          course: course.name,
+          date: hold.date,
+          time: hold.time,
+          players: hold.players,
+          holes: hold.holes,
+          greenFee: hold.greenFee
+        },
+        customer: {
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone
+        },
+        total: hold.total
+      });
+    } catch (error) {
+      console.error("[OnTee API] Booking confirm error:", error);
+      res.status(500).json({ error: "Failed to confirm booking" });
+    }
+  });
+
+  // GET /api/v1/bookings/orders/:orderId - Get order status
+  app.get("/api/v1/bookings/orders/:orderId", async (req, res) => {
+    try {
+      const hold = teeTimeHolds.get(req.params.orderId);
+      if (!hold) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // Check if expired
+      if (hold.status === "HELD" && hold.holdExpiresAt < new Date()) {
+        hold.status = "EXPIRED";
+      }
+
+      const course = await storage.getCourseById(hold.courseId);
+
+      res.json({
+        orderId: hold.orderId,
+        status: hold.status,
+        course: course ? { id: course.id, name: course.name } : null,
+        teeTime: {
+          date: hold.date,
+          time: hold.time,
+          players: hold.players,
+          holes: hold.holes
+        },
+        greenFee: hold.greenFee,
+        extras: hold.extras,
+        total: hold.total,
+        holdExpiresAt: hold.holdExpiresAt.toISOString(),
+        bookingId: hold.bookingId
+      });
+    } catch (error) {
+      console.error("[OnTee API] Get order error:", error);
+      res.status(500).json({ error: "Failed to fetch order" });
+    }
+  });
+
+  // GET /openapi.json - OpenAPI specification for OnTee-style endpoints
+  app.get("/openapi.json", (req, res) => {
+    res.json({
+      openapi: "3.0.0",
+      info: {
+        title: "MarbellaGolfTimes Booking API",
+        version: "1.0.0",
+        description: "OnTee-inspired tee-time booking API for TeeOne golf courses in Costa del Sol"
+      },
+      servers: [{ url: "https://marbellagolftimes.replit.app" }],
+      paths: {
+        "/api/v1/bookings/available": {
+          post: {
+            summary: "Get available tee times for a course",
+            description: "Fetches real-time availability from TeeOne booking system",
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["facilityId", "date", "players"],
+                    properties: {
+                      facilityId: { type: "string", example: "El Paraíso Golf Club" },
+                      courseId: { type: "string", description: "Optional course ID" },
+                      date: { type: "string", format: "date", example: "2025-12-10" },
+                      players: { type: "integer", minimum: 1, maximum: 4, example: 2 },
+                      holes: { type: "integer", enum: [9, 18], example: 18 },
+                      fromTime: { type: "string", example: "08:00" },
+                      toTime: { type: "string", example: "16:00" }
+                    }
+                  }
+                }
+              }
+            },
+            responses: {
+              "200": { description: "List of available tee times" },
+              "404": { description: "Course not found" },
+              "400": { description: "Course does not use TeeOne" }
+            }
+          }
+        },
+        "/api/v1/orders/items": {
+          post: {
+            summary: "Create or update an order with a selected tee time",
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["slotId", "players"],
+                    properties: {
+                      slotId: { type: "string" },
+                      players: { type: "integer" },
+                      greenFee: {
+                        type: "object",
+                        properties: {
+                          amount: { type: "number" },
+                          currency: { type: "string", example: "EUR" }
+                        }
+                      },
+                      extras: { type: "array", items: { type: "object" } },
+                      orderId: { type: "string", description: "Optional - provide to update existing order" }
+                    }
+                  }
+                }
+              }
+            },
+            responses: { "200": { description: "Order created/updated with 15-minute hold" } }
+          }
+        },
+        "/api/v1/bookings/confirm": {
+          post: {
+            summary: "Confirm booking after payment",
+            requestBody: {
+              required: true,
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["orderId", "customer"],
+                    properties: {
+                      orderId: { type: "string" },
+                      customer: {
+                        type: "object",
+                        properties: {
+                          firstName: { type: "string" },
+                          lastName: { type: "string" },
+                          email: { type: "string" },
+                          phone: { type: "string" },
+                          language: { type: "string", example: "en" }
+                        }
+                      },
+                      payment: {
+                        type: "object",
+                        properties: {
+                          method: { type: "string", example: "stripe" },
+                          status: { type: "string", example: "paid" },
+                          transactionId: { type: "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            responses: { "200": { description: "Booking confirmed" } }
+          }
+        }
+      }
+    });
   });
 
   // ============================================================

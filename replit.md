@@ -65,6 +65,27 @@ A complete external REST API is available at `/api/v1/external/*` for integratio
 - **Security Notes**: The `read:analytics` scope exposes sensitive business data (revenue, ROI, commissions). Only grant this scope to trusted internal systems.
 - **Admin Management**: API keys can be created, viewed, and revoked from the Admin dashboard's "API Keys" tab. Raw keys are displayed only once at creation.
 
+### OnTee-inspired Booking API (TeeOne Integration)
+
+A complete booking flow API for TeeOne golf courses, inspired by OnTee's architecture. No API key required for these public endpoints:
+
+- **Available Endpoints**:
+  - `POST /api/v1/bookings/available` - Get real-time tee times from TeeOne
+  - `POST /api/v1/orders/items` - Create order with selected slot (15-min hold)
+  - `POST /api/v1/bookings/confirm` - Confirm booking after payment
+  - `GET /api/v1/bookings/orders/:orderId` - Check order status
+  - `GET /openapi.json` - OpenAPI specification
+
+- **Booking Flow**:
+  1. Call `/bookings/available` with facilityId (course name), date, players
+  2. Select a slot and call `/orders/items` with slotId → receives orderId with 15-min hold
+  3. After payment, call `/bookings/confirm` with orderId and customer info
+  4. Booking is saved to database and voucher URL is returned
+
+- **Supported TeeOne Courses** (12): El Paraíso, Marbella Golf & CC, Estepona, Atalaya, Santa Clara, Los Naranjos, Mijas, Torrequebrada, Valderrama, Villa Padierna/Flamingos, Los Arqueros, La Quinta
+
+- **Status**: ✅ TESTED - Full booking flow working on El Paraíso Golf Club (December 4, 2025). Orders stored in-memory with 15-minute expiry, confirmed bookings persist to PostgreSQL.
+
 ### Email System
 
 The email system uses Nodemailer with SMTP transport for sending bulk affiliate proposals and individual course outreach, supporting templating and environment-based configuration.
