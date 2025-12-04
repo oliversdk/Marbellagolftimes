@@ -1,0 +1,543 @@
+Fedt – her får du en færdig mini-backend, som du kan copy-paste direkte ind i Replit (Node/Express).
+
+Den indeholder:
+	•	API-spec (OpenAPI) som JSON objekt (openapiSpec)
+	•	3 endpoints:
+	•	POST /api/v1/bookings/available
+	•	POST /api/v1/orders/items
+	•	POST /api/v1/bookings/confirm
+	•	Simple in-memory “database”, så du kan teste flowet
+	•	GET /openapi.json som giver specifikationen
+
+⸻
+
+1. package.json
+
+Opret et nyt Replit-projekt med Node.js, og erstat package.json med dette:
+
+{
+  "name": "marbellagolftimes-api",
+  "version": "1.0.0",
+  "description": "Backend API for MarbellaGolfTimes inspired by OnTee",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
+  }
+}
+
+Kør npm install i Replit hvis den ikke gør det automatisk.
+
+⸻
+
+2. index.js (hele filen, klar til copy-paste)
+
+// index.js
+// Simple MarbellaGolfTimes API – inspired by OnTee's structure
+
+const express = require("express");
+const cors = require("cors");
+const morgan = require("morgan");
+const { v4: uuidv4 } = require("uuid");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(morgan("dev"));
+
+/**
+ * In-memory storage – ONLY for testing.
+ * In production you would use a real DB and real tee-sheet providers
+ * (Golfmanager, TeeOne, etc.).
+ */
+const fakeSlots = new Map();   // slotId -> slot
+const fakeOrders = new Map();  // orderId -> order
+const fakeBookings = new Map();// bookingId -> booking
+
+// --- Helper to build a fake slot list (this simulates Golfmanager/TeeOne) ---
+function generateFakeSlots({ facilityId, courseId, date, players, holes }) {
+  const slots = [];
+  const basePrice = 80; // EUR – just for testing
+
+  for (let hour = 8; hour <= 16; hour++) {
+    const time = `${hour.toString().padStart(2, "0")}:00`;
+    const slotId = `${facilityId}-${courseId}-${date}T${time}`;
+    const price = basePrice + (hour - 8) * 2; // price increases during the day
+
+    const slot = {
+      slotId,
+      facilityId,
+      courseId,
+      date,
+      time,
+      holes: holes || 18,
+      requestedPlayers: players,
+      availableSpots: 4,
+      greenFee: {
+        amount: price,
+        currency: "EUR"
+      },
+      source: "golfmanager", // or "teeone", "golfbox", etc.
+      rawProviderData: {} // here you would store original response from provider
+    };
+
+    fakeSlots.set(slotId, slot);
+    slots.push(slot);
+  }
+
+  return slots;
+}
+
+// --- OpenAPI spec (basic) – can be imported into Swagger UI / Postman ---
+const openapiSpec = {
+  openapi: "3.0.0",
+  info: {
+    title: "MarbellaGolfTimes API",
+    version: "1.0.0",
+    description:
+      "Simple tee-time booking API inspired by OnTee (bookings/available, orders/items, bookings/confirm)."
+  },
+  servers: [{ url: "https://YOUR-REPLIT-URL" }],
+  paths: {
+    "/api/v1/bookings/available": {
+      post: {
+        summary: "Get available tee times for a given date/course",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/AvailabilityRequest"
+              }
+            }
+          }
+        },
+        responses: {
+          "200": {
+            description: "List of available tee times",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    slots: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/Slot" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/items": {
+      post: {
+        summary: "Create or update an order/cart with a selected tee time",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/OrderItemsRequest" }
+            }
+          }
+        },
+        responses: {
+          "200": {
+            description: "Order/cart with items and totals",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Order" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/confirm": {
+      post: {
+        summary: "Confirm booking for an order (after payment)",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/BookingConfirmRequest" }
+            }
+          }
+        },
+        responses: {
+          "200": {
+            description: "Final booking confirmation",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Booking" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  components: {
+    schemas: {
+      AvailabilityRequest: {
+        type: "object",
+        required: ["facilityId", "courseId", "date", "players"],
+        properties: {
+          facilityId: { type: "string", example: "ELPARAISO" },
+          courseId: { type: "string", example: "18H" },
+          date: { type: "string", format: "date", example: "2025-12-10" },
+          players: { type: "integer", example: 2 },
+          holes: { type: "integer", example: 18 },
+          fromTime: { type: "string", example: "08:00" },
+          toTime: { type: "string", example: "18:00" }
+        }
+      },
+      Slot: {
+        type: "object",
+        properties: {
+          slotId: { type: "string" },
+          facilityId: { type: "string" },
+          courseId: { type: "string" },
+          date: { type: "string", format: "date" },
+          time: { type: "string", example: "09:40" },
+          holes: { type: "integer" },
+          requestedPlayers: { type: "integer" },
+          availableSpots: { type: "integer" },
+          greenFee: {
+            type: "object",
+            properties: {
+              amount: { type: "number", format: "float" },
+              currency: { type: "string", example: "EUR" }
+            }
+          },
+          source: { type: "string", example: "golfmanager" }
+        }
+      },
+      OrderItemsRequest: {
+        type: "object",
+        required: ["slotId", "players"],
+        properties: {
+          slotId: { type: "string" },
+          players: { type: "integer", example: 2 },
+          greenFee: {
+            type: "object",
+            properties: {
+              amount: { type: "number", example: 89.0 },
+              currency: { type: "string", example: "EUR" }
+            }
+          },
+          extras: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                type: { type: "string", example: "buggy" },
+                amount: { type: "number", example: 40.0 },
+                currency: { type: "string", example: "EUR" },
+                description: { type: "string" }
+              }
+            }
+          },
+          orderId: {
+            type: "string",
+            description: "Optional existing orderId to update"
+          }
+        }
+      },
+      Order: {
+        type: "object",
+        properties: {
+          orderId: { type: "string" },
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                itemId: { type: "string" },
+                slotId: { type: "string" },
+                players: { type: "integer" },
+                greenFee: {
+                  type: "object",
+                  properties: {
+                    amount: { type: "number" },
+                    currency: { type: "string" }
+                  }
+                },
+                extras: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/Extra" }
+                }
+              }
+            }
+          },
+          total: {
+            type: "object",
+            properties: {
+              amount: { type: "number" },
+              currency: { type: "string" }
+            }
+          }
+        }
+      },
+      Extra: {
+        type: "object",
+        properties: {
+          type: { type: "string" },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          description: { type: "string" }
+        }
+      },
+      BookingConfirmRequest: {
+        type: "object",
+        required: ["orderId", "customer"],
+        properties: {
+          orderId: { type: "string" },
+          customer: {
+            type: "object",
+            properties: {
+              firstName: { type: "string" },
+              lastName: { type: "string" },
+              email: { type: "string", format: "email" },
+              phone: { type: "string" },
+              language: { type: "string", example: "da" }
+            }
+          },
+          payment: {
+            type: "object",
+            properties: {
+              method: { type: "string", example: "stripe" },
+              status: { type: "string", example: "paid" },
+              transactionId: { type: "string" }
+            }
+          }
+        }
+      },
+      Booking: {
+        type: "object",
+        properties: {
+          bookingId: { type: "string" },
+          status: { type: "string", example: "CONFIRMED" },
+          orderId: { type: "string" },
+          voucherUrl: { type: "string" },
+          teeTime: { $ref: "#/components/schemas/Slot" },
+          customer: {
+            type: "object",
+            properties: {
+              firstName: { type: "string" },
+              lastName: { type: "string" },
+              email: { type: "string" },
+              phone: { type: "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+// --- Routes ---
+
+// Expose the OpenAPI spec
+app.get("/openapi.json", (req, res) => {
+  res.json(openapiSpec);
+});
+
+// Health check
+app.get("/", (req, res) => {
+  res.json({ ok: true, message: "MarbellaGolfTimes API is running" });
+});
+
+/**
+ * POST /api/v1/bookings/available
+ * Simulates OnTee's /bookings/available endpoint.
+ * In production you would call Golfmanager/TeeOne APIs here.
+ */
+app.post("/api/v1/bookings/available", (req, res) => {
+  const { facilityId, courseId, date, players, holes, fromTime, toTime } =
+    req.body || {};
+
+  if (!facilityId || !courseId || !date || !players) {
+    return res.status(400).json({
+      error:
+        "facilityId, courseId, date and players are required in the request body"
+    });
+  }
+
+  // TODO: Replace this with real provider call (Golfmanager/TeeOne)
+  const slots = generateFakeSlots({
+    facilityId,
+    courseId,
+    date,
+    players,
+    holes
+  });
+
+  // Optionally filter by fromTime/toTime here
+
+  res.json({ slots });
+});
+
+/**
+ * POST /api/v1/orders/items
+ * Creates/updates an order/cart with a selected slot.
+ * Similar idea to OnTee's /Orders/Items endpoint.
+ */
+app.post("/api/v1/orders/items", (req, res) => {
+  const { slotId, players, greenFee, extras, orderId } = req.body || {};
+
+  if (!slotId || !players) {
+    return res.status(400).json({
+      error: "slotId and players are required in the request body"
+    });
+  }
+
+  const slot = fakeSlots.get(slotId);
+  if (!slot) {
+    return res.status(404).json({ error: "Slot not found" });
+  }
+
+  const finalGreenFee =
+    greenFee && typeof greenFee.amount === "number"
+      ? greenFee
+      : slot.greenFee;
+
+  const idToUse = orderId || uuidv4();
+  let order = fakeOrders.get(idToUse);
+
+  if (!order) {
+    order = {
+      orderId: idToUse,
+      items: [],
+      total: {
+        amount: 0,
+        currency: finalGreenFee.currency || "EUR"
+      }
+    };
+  }
+
+  const itemId = uuidv4();
+  const item = {
+    itemId,
+    slotId,
+    players,
+    greenFee: finalGreenFee,
+    extras: extras || []
+  };
+
+  order.items.push(item);
+
+  // Recalculate total
+  let totalAmount = 0;
+  for (const it of order.items) {
+    totalAmount += it.greenFee.amount * it.players;
+    if (it.extras && it.extras.length > 0) {
+      for (const ex of it.extras) {
+        totalAmount += ex.amount;
+      }
+    }
+  }
+
+  order.total.amount = totalAmount;
+  fakeOrders.set(idToUse, order);
+
+  res.json(order);
+});
+
+/**
+ * POST /api/v1/bookings/confirm
+ * Confirms the booking (after payment).
+ * In production this is where you would:
+ * - verify payment (Stripe, etc.)
+ * - create booking via Golfmanager/TeeOne API
+ */
+app.post("/api/v1/bookings/confirm", (req, res) => {
+  const { orderId, customer, payment } = req.body || {};
+
+  if (!orderId || !customer) {
+    return res
+      .status(400)
+      .json({ error: "orderId and customer are required" });
+  }
+
+  const order = fakeOrders.get(orderId);
+  if (!order) {
+    return res.status(404).json({ error: "Order not found" });
+  }
+
+  const bookingId = uuidv4();
+  const slotId = order.items[0]?.slotId;
+  const slot = slotId ? fakeSlots.get(slotId) : null;
+
+  const booking = {
+    bookingId,
+    status: "CONFIRMED",
+    orderId,
+    voucherUrl: `https://marbellagolftimes.com/voucher/${bookingId}`,
+    teeTime: slot,
+    customer,
+    payment: payment || { status: "mock-paid" }
+  };
+
+  fakeBookings.set(bookingId, booking);
+
+  res.json(booking);
+});
+
+// --- Start server ---
+app.listen(PORT, () => {
+  console.log(`MarbellaGolfTimes API listening on port ${PORT}`);
+});
+
+
+⸻
+
+Sådan tester du hurtigt i Replit
+	1.	Start projektet (npm install hvis nødvendigt, derefter npm start).
+	2.	Brug Replit’s web-preview URL.
+	3.	Test fx med Postman / Thunder Client / curl:
+
+Availability:
+
+curl -X POST https://YOUR-REPLIT-URL/api/v1/bookings/available \
+  -H "Content-Type: application/json" \
+  -d '{
+    "facilityId": "ELPARAISO",
+    "courseId": "18H",
+    "date": "2025-12-10",
+    "players": 2
+  }'
+
+Order item:
+
+curl -X POST https://YOUR-REPLIT-URL/api/v1/orders/items \
+  -H "Content-Type: application/json" \
+  -d '{
+    "slotId": "ELPARAISO-18H-2025-12-10T08:00",
+    "players": 2
+  }'
+
+Confirm booking:
+
+curl -X POST https://YOUR-REPLIT-URL/api/v1/bookings/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "ORDER_ID_FROM_PREVIOUS_RESPONSE",
+    "customer": {
+      "firstName": "Morten",
+      "lastName": "Wagner",
+      "email": "morten@example.com",
+      "phone": "+34..."
+    }
+  }'
+
+Når det kører, kan du koble din frontend på det – og senere bytte de fake slots ud med rigtige kald til Golfmanager/TeeOne.
