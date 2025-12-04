@@ -66,6 +66,11 @@ export const golfCourses = pgTable("golf_courses", {
   kickbackPercent: real("kickback_percent").default(0), // Commission % (0-100)
   golfmanagerUser: text("golfmanager_user"), // Golfmanager API username
   golfmanagerPassword: text("golfmanager_password"), // Golfmanager API password
+  // TeeOne API credentials
+  teeoneIdEmpresa: integer("teeone_id_empresa"), // TeeOne company/club ID
+  teeoneIdTeeSheet: integer("teeone_id_teesheet"), // TeeOne tee sheet ID
+  teeoneApiUser: text("teeone_api_user"), // TeeOne API username
+  teeoneApiPassword: text("teeone_api_password"), // TeeOne API password
   membersOnly: text("members_only").notNull().default("false"), // Members-only courses hidden from public
 });
 

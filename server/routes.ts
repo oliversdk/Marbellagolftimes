@@ -3579,9 +3579,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[OnTee API] Fetching availability for ${course.name} (tenant: ${tenant}) on ${date}`);
 
-      // Fetch real availability from TeeOne API
+      // Build TeeOne credentials from course data if available
+      const credentials = course.teeoneIdEmpresa && course.teeoneApiUser && course.teeoneApiPassword ? {
+        idEmpresa: course.teeoneIdEmpresa,
+        idTeeSheet: course.teeoneIdTeeSheet || 1,
+        apiUser: course.teeoneApiUser,
+        apiPassword: course.teeoneApiPassword,
+      } : null;
+
+      // Fetch availability from TeeOne API (or mock data if no credentials)
       const teeTimeSlots = await teeoneClient.searchAvailability(
-        tenant,
+        credentials,
         date,
         players,
         holes || 18,
@@ -3784,7 +3792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create actual booking in the database
       const bookingData = {
         courseId: hold.courseId,
-        teeTime: new Date(hold.teeTime),
+        teeTime: hold.teeTime,
         players: hold.players,
         customerName: `${customer.firstName} ${customer.lastName}`,
         customerEmail: customer.email,
