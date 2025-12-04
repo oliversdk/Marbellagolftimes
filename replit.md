@@ -113,7 +113,12 @@ Client-side geolocation uses the Browser Geolocation API for current location de
     -   **Confirmed Golfmanager V1 courses (12)**: Finca Cortesín, La Cala Resort, La Reserva Club Sotogrande, Valle Romano, San Roque Club, El Higueral Golf, Lauro Golf, Guadalhorce Club de Golf, Marbella Club Golf Resort, Alhaurin Golf Country Club, Benalmádena Golf, Cabopino Golf Marbella
     -   **Confirmed Golfmanager V3 courses (2)**: Real Club de Golf Sotogrande, Greenlife Golf Marbella
     -   **To activate real-time data**: Add credentials via Admin UI (Edit Course dialog) or as Secrets (e.g., `GM_FINCACORTESIN_USER`, `GM_FINCACORTESIN_PASS`). System auto-detects and switches to PRODUCTION mode for courses with valid credentials.
--   **TeeOne Golf System**: Separate booking platform (teeone.golf - Madrid-based) used by 12 Costa del Sol courses (Marbella Golf & CC, Santa Clara, Los Naranjos, La Quinta, Los Arqueros, Atalaya, Mijas, Torrequebrada, Villa Padierna/Flamingos, Estepona Golf, El Paraíso, Valderrama). This is a DISTINCT system from Golfmanager and requires separate API integration.
+-   **TeeOne Golf System**: ⚠️ MOCK MODE - TeeOne API V1 code is implemented and ready for production (December 4, 2025). System supports **per-tenant authentication** with individual B2B credentials stored per course in the database. Currently in MOCK mode showing simulated tee times (€85-115 pricing).
+    -   **Confirmed TeeOne courses (12)**: El Paraíso, Marbella Golf & CC, Estepona Golf, Atalaya, Santa Clara, Los Naranjos, Mijas, Torrequebrada, Valderrama, Villa Padierna/Flamingos, Los Arqueros, La Quinta
+    -   **API Endpoint**: `devapi.teeone.golf/MGClubApp/v1/` (REST API, NOT the HTML website)
+    -   **Authentication**: Token-based auth with idEmpresa, idInicioSesion, password → JWT token cached for 1 hour
+    -   **Required Credentials per Course**: idEmpresa (company ID), idTeeSheet (tee sheet ID), API username, API password
+    -   **To activate real-time data**: Add credentials via Admin UI (Edit Course dialog → TeeOne API Credentials section). System auto-detects and switches to PRODUCTION mode for courses with valid credentials.
 -   **Tee Time Provider Integration**: Flexible system supporting REST APIs (`API`), direct booking links (`DEEP_LINK`), and web scraping (`SCRAPER`).
 -   **Golfmanager Operating Modes**: System supports three modes: **MOCK** (simulated data - current), **DEMO** (demo tenant with test data - credentials incompatible), and **PRODUCTION** (real-time API with course-specific tenant credentials - awaiting access).
 -   **Open-Meteo API**: For real-time weather data on course detail pages (no API key required).
