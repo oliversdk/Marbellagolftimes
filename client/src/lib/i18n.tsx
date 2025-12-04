@@ -85,6 +85,7 @@ const translations: Record<Language, Translations> = {
       coursesFound: '{count} courses found',
       clearFilters: 'Clear all filters',
       showFavoritesOnly: 'Show favorites only',
+      filteringByCourse: 'Filtering by: "{course}"',
     },
     course: {
       bookNow: 'Book Now',
@@ -495,6 +496,7 @@ const translations: Record<Language, Translations> = {
       coursesFound: '{count} campos encontrados',
       clearFilters: 'Limpiar filtros',
       showFavoritesOnly: 'Mostrar solo favoritos',
+      filteringByCourse: 'Filtrando por: "{course}"',
     },
     course: {
       bookNow: 'Reservar',
@@ -905,6 +907,7 @@ const translations: Record<Language, Translations> = {
       coursesFound: '{count} baner fundet',
       clearFilters: 'Ryd filtre',
       showFavoritesOnly: 'Vis kun favoritter',
+      filteringByCourse: 'Filtrerer efter: "{course}"',
     },
     course: {
       bookNow: 'Book Nu',
@@ -1315,6 +1318,7 @@ const translations: Record<Language, Translations> = {
       coursesFound: '{count} banor hittades',
       clearFilters: 'Rensa filter',
       showFavoritesOnly: 'Visa endast favoriter',
+      filteringByCourse: 'Filtrerar efter: "{course}"',
     },
     course: {
       bookNow: 'Boka Nu',
@@ -1725,6 +1729,7 @@ const translations: Record<Language, Translations> = {
       coursesFound: 'Найдено полей: {count}',
       clearFilters: 'Очистить фильтры',
       showFavoritesOnly: 'Показать только избранное',
+      filteringByCourse: 'Фильтр по полю: "{course}"',
     },
     course: {
       bookNow: 'Забронировать',

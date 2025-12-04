@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { MobileSheet } from "@/components/ui/mobile-sheet";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
-import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown, Flame, Sun, Sunset, Moon, MapPin, Car, Navigation, SlidersHorizontal } from "lucide-react";
+import { Clock, Mail, CheckCircle2, LayoutGrid, Map, Heart, Euro, TrendingUp, TrendingDown, Flame, Sun, Sunset, Moon, MapPin, Car, Navigation, SlidersHorizontal, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useAuth } from "@/hooks/useAuth";
@@ -786,6 +786,28 @@ export default function Home() {
               </p>
             )}
           </div>
+          
+          {/* Active Course Filter Banner */}
+          {searchFilters.courseSearch && (
+            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center justify-between gap-3" data-testid="active-course-filter-banner">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                <Search className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm">
+                  {t('search.filteringByCourse', { course: searchFilters.courseSearch }) || `Filtering by course: "${searchFilters.courseSearch}"`}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSearchFilters({ ...searchFilters, courseSearch: undefined })}
+                className="flex-shrink-0 min-h-9 bg-white dark:bg-gray-800 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                data-testid="button-clear-course-filter"
+              >
+                <X className="h-4 w-4 mr-1" />
+                {t('common.clear') || 'Clear'}
+              </Button>
+            </div>
+          )}
 
           {isSearching ? (
             <>
