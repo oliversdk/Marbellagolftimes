@@ -1,6 +1,5 @@
 import puppeteer from "puppeteer";
 import fs from "fs";
-import path from "path";
 
 const BASE_URL = "http://localhost:5000";
 
@@ -26,84 +25,32 @@ async function takeScreenshots() {
   await new Promise(resolve => setTimeout(resolve, 3000));
   await page.screenshot({ path: `${screenshotsDir}/homepage.png`, fullPage: false });
 
-  // Screenshot 2: Course detail page - navigate to a known course
+  // Screenshot 2: Course detail page
   console.log("Taking screenshot of course detail...");
   try {
-    // Look for course cards or links
-    const allLinks = await page.$$eval('a', links => 
-      links.map(link => link.getAttribute('href')).filter(h => h && h.includes('/course/'))
-    );
-    
-    console.log(`Found ${allLinks.length} course links`);
-    
-    if (allLinks.length > 0) {
-      const courseUrl = allLinks[0];
-      console.log(`Navigating to: ${BASE_URL}${courseUrl}`);
-      await page.goto(`${BASE_URL}${courseUrl}`, { waitUntil: "networkidle2", timeout: 30000 });
+    const cards = await page.$$('[data-testid*="course"], .course-card, [class*="course"]');
+    if (cards.length > 0) {
+      await cards[0].click();
       await new Promise(resolve => setTimeout(resolve, 3000));
       await page.screenshot({ path: `${screenshotsDir}/course-detail.png`, fullPage: false });
       console.log("Course detail screenshot taken!");
-    } else {
-      // Try to find any clickable course element
-      console.log("Trying to click on a course card...");
-      const cards = await page.$$('[data-testid*="course"], .course-card, [class*="course"]');
-      if (cards.length > 0) {
-        await cards[0].click();
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        await page.screenshot({ path: `${screenshotsDir}/course-detail.png`, fullPage: false });
-        console.log("Course detail screenshot taken via card click!");
-      } else {
-        console.log("No course elements found");
-      }
     }
   } catch (e) {
     console.log("Could not capture course detail:", e);
   }
 
-  // Screenshot 3: Map view - try clicking the map toggle
+  // Screenshot 3: Map view
   console.log("Taking screenshot of map view...");
   try {
     await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Try different approaches to find map button
-    let mapTaken = false;
-    
-    // Method 1: data-testid
-    const mapButton1 = await page.$('[data-testid="button-map-view"]');
-    if (mapButton1) {
-      await mapButton1.click();
+    const toggles = await page.$$('[role="tablist"] button, [class*="toggle"] button');
+    if (toggles.length > 1) {
+      await toggles[1].click();
       await new Promise(resolve => setTimeout(resolve, 3000));
       await page.screenshot({ path: `${screenshotsDir}/map-view.png`, fullPage: false });
       console.log("Map view screenshot taken!");
-      mapTaken = true;
-    }
-    
-    // Method 2: Search for buttons with map text
-    if (!mapTaken) {
-      const buttons = await page.$$('button');
-      for (const btn of buttons) {
-        const text = await page.evaluate(el => el.textContent?.toLowerCase() || '', btn);
-        if (text.includes('map') || text.includes('mapa')) {
-          await btn.click();
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          await page.screenshot({ path: `${screenshotsDir}/map-view.png`, fullPage: false });
-          console.log("Map view screenshot taken via text search!");
-          mapTaken = true;
-          break;
-        }
-      }
-    }
-    
-    // Method 3: Look for Map icon in segmented control
-    if (!mapTaken) {
-      const toggles = await page.$$('[role="tablist"] button, [class*="toggle"] button');
-      if (toggles.length > 1) {
-        await toggles[1].click(); // Usually second toggle is map
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        await page.screenshot({ path: `${screenshotsDir}/map-view.png`, fullPage: false });
-        console.log("Map view screenshot taken via toggle!");
-      }
     }
   } catch (e) {
     console.log("Could not capture map view:", e);
@@ -125,21 +72,14 @@ async function generatePDF() {
 
   const page = await browser.newPage();
 
-  // Check which screenshots exist
+  // Load screenshots
   const screenshotsDir = "scripts/screenshots";
-  const homepageExists = fs.existsSync(`${screenshotsDir}/homepage.png`);
-  const courseDetailExists = fs.existsSync(`${screenshotsDir}/course-detail.png`);
-  const mapViewExists = fs.existsSync(`${screenshotsDir}/map-view.png`);
-
-  const homepageBase64 = homepageExists 
-    ? fs.readFileSync(`${screenshotsDir}/homepage.png`).toString("base64")
-    : "";
-  const courseDetailBase64 = courseDetailExists
-    ? fs.readFileSync(`${screenshotsDir}/course-detail.png`).toString("base64")
-    : "";
-  const mapViewBase64 = mapViewExists
-    ? fs.readFileSync(`${screenshotsDir}/map-view.png`).toString("base64")
-    : "";
+  const homepageBase64 = fs.existsSync(`${screenshotsDir}/homepage.png`) 
+    ? fs.readFileSync(`${screenshotsDir}/homepage.png`).toString("base64") : "";
+  const courseDetailBase64 = fs.existsSync(`${screenshotsDir}/course-detail.png`)
+    ? fs.readFileSync(`${screenshotsDir}/course-detail.png`).toString("base64") : "";
+  const mapViewBase64 = fs.existsSync(`${screenshotsDir}/map-view.png`)
+    ? fs.readFileSync(`${screenshotsDir}/map-view.png`).toString("base64") : "";
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -149,11 +89,7 @@ async function generatePDF() {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
     
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
       font-family: 'Inter', sans-serif;
@@ -163,15 +99,12 @@ async function generatePDF() {
     
     .page {
       width: 210mm;
-      min-height: 297mm;
+      height: 297mm;
       padding: 0;
       page-break-after: always;
+      page-break-inside: avoid;
       position: relative;
       overflow: hidden;
-    }
-    
-    .page:last-child {
-      page-break-after: avoid;
     }
     
     /* Cover Page */
@@ -183,161 +116,150 @@ async function generatePDF() {
       justify-content: center;
       align-items: center;
       text-align: center;
-      position: relative;
     }
     
     .cover::before {
       content: '';
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
       opacity: 0.5;
     }
     
-    .cover-content {
-      position: relative;
-      z-index: 1;
-      padding: 60px;
-    }
+    .cover-content { position: relative; z-index: 1; padding: 60px; }
     
     .logo-badge {
-      width: 120px;
-      height: 120px;
+      width: 100px; height: 100px;
       background: rgba(255,255,255,0.1);
       border: 3px solid rgba(255,255,255,0.3);
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 40px;
-      font-size: 48px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 30px;
+      font-size: 40px;
     }
     
     .cover h1 {
       font-family: 'Playfair Display', serif;
-      font-size: 48px;
+      font-size: 44px;
       font-weight: 600;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       letter-spacing: 2px;
     }
     
     .cover .tagline {
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 300;
       opacity: 0.9;
-      margin-bottom: 60px;
-      letter-spacing: 4px;
+      margin-bottom: 40px;
+      letter-spacing: 3px;
       text-transform: uppercase;
     }
     
     .cover .subtitle {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 400;
       opacity: 0.85;
-      max-width: 500px;
-      line-height: 1.8;
+      max-width: 480px;
+      line-height: 1.7;
     }
     
     .gold-line {
       width: 80px;
       height: 3px;
       background: linear-gradient(90deg, #d4af37, #f4d03f, #d4af37);
-      margin: 40px auto;
+      margin: 30px auto;
     }
     
     .cover-footer {
       position: absolute;
-      bottom: 40px;
-      left: 0;
-      right: 0;
+      bottom: 30px;
+      left: 0; right: 0;
       text-align: center;
-      font-size: 14px;
+      font-size: 12px;
       opacity: 0.7;
     }
     
     /* Content Pages */
     .content-page {
       background: #fafafa;
-      padding: 50px;
+      padding: 40px 50px;
     }
     
     .page-header {
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 30px;
     }
     
     .page-header h2 {
       font-family: 'Playfair Display', serif;
-      font-size: 32px;
+      font-size: 28px;
       color: #0c4a2f;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     
     .page-header .subtitle {
-      font-size: 14px;
+      font-size: 12px;
       color: #666;
       text-transform: uppercase;
       letter-spacing: 3px;
     }
     
-    .section {
-      margin-bottom: 40px;
-    }
+    .section { margin-bottom: 25px; }
     
     .section h3 {
       font-family: 'Playfair Display', serif;
-      font-size: 22px;
+      font-size: 18px;
       color: #0c4a2f;
-      margin-bottom: 16px;
-      padding-bottom: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
       border-bottom: 2px solid #d4af37;
       display: inline-block;
     }
     
     .section p {
-      font-size: 14px;
+      font-size: 13px;
       color: #444;
-      line-height: 1.8;
-      margin-bottom: 12px;
+      line-height: 1.7;
+      margin-bottom: 10px;
     }
     
     .screenshot {
       width: 100%;
+      max-height: 280px;
+      object-fit: cover;
+      object-position: top;
       border-radius: 8px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-      margin: 20px 0;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+      margin: 15px 0;
       border: 1px solid #e0e0e0;
     }
     
     .feature-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 24px;
-      margin-top: 24px;
+      gap: 16px;
+      margin-top: 16px;
     }
     
     .feature-card {
       background: white;
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      border-left: 4px solid #d4af37;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 3px 15px rgba(0,0,0,0.06);
+      border-left: 3px solid #d4af37;
     }
     
     .feature-card h4 {
-      font-size: 16px;
+      font-size: 14px;
       color: #0c4a2f;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-weight: 600;
     }
     
     .feature-card p {
-      font-size: 13px;
+      font-size: 11px;
       color: #666;
-      line-height: 1.6;
+      line-height: 1.5;
       margin: 0;
     }
     
@@ -345,43 +267,42 @@ async function generatePDF() {
       display: flex;
       justify-content: space-around;
       background: white;
-      border-radius: 12px;
-      padding: 30px;
-      margin: 30px 0;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 3px 15px rgba(0,0,0,0.06);
     }
     
-    .stat {
-      text-align: center;
-    }
+    .stat { text-align: center; }
     
     .stat .number {
       font-family: 'Playfair Display', serif;
-      font-size: 42px;
+      font-size: 36px;
       color: #0c4a2f;
       font-weight: 600;
     }
     
     .stat .label {
-      font-size: 12px;
+      font-size: 11px;
       color: #888;
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin-top: 4px;
+      margin-top: 2px;
     }
     
     .benefits-list {
       list-style: none;
       padding: 0;
+      columns: 2;
+      column-gap: 30px;
     }
     
     .benefits-list li {
-      padding: 12px 0;
-      padding-left: 32px;
+      padding: 8px 0 8px 24px;
       position: relative;
-      font-size: 14px;
+      font-size: 12px;
       color: #444;
-      border-bottom: 1px solid #eee;
+      break-inside: avoid;
     }
     
     .benefits-list li::before {
@@ -390,7 +311,6 @@ async function generatePDF() {
       left: 0;
       color: #0c4a2f;
       font-weight: bold;
-      font-size: 16px;
     }
     
     /* Contact Page */
@@ -402,36 +322,36 @@ async function generatePDF() {
       justify-content: center;
       align-items: center;
       text-align: center;
-      padding: 60px;
+      padding: 50px;
     }
     
     .contact-page h2 {
       font-family: 'Playfair Display', serif;
-      font-size: 36px;
-      margin-bottom: 20px;
+      font-size: 32px;
+      margin-bottom: 16px;
     }
     
     .contact-info {
       background: rgba(255,255,255,0.1);
-      border-radius: 16px;
-      padding: 40px 60px;
-      margin-top: 30px;
+      border-radius: 12px;
+      padding: 30px 50px;
+      margin-top: 25px;
     }
     
     .contact-info p {
-      font-size: 18px;
-      margin: 12px 0;
+      font-size: 16px;
+      margin: 8px 0;
       opacity: 0.95;
     }
     
     .contact-info .email {
-      font-size: 24px;
+      font-size: 22px;
       color: #d4af37;
       font-weight: 500;
     }
     
-    /* Language Divider */
-    .language-divider {
+    /* Language Header */
+    .lang-header {
       background: #1a1a1a;
       color: white;
       display: flex;
@@ -441,23 +361,23 @@ async function generatePDF() {
       text-align: center;
     }
     
-    .language-divider h2 {
+    .lang-header h2 {
       font-family: 'Playfair Display', serif;
-      font-size: 48px;
-      margin-bottom: 16px;
+      font-size: 42px;
+      margin-bottom: 12px;
     }
     
-    .language-divider p {
-      font-size: 18px;
+    .lang-header p {
+      font-size: 16px;
       opacity: 0.7;
     }
   </style>
 </head>
 <body>
 
-<!-- ENGLISH SECTION -->
+<!-- ==================== ENGLISH SECTION ==================== -->
 
-<!-- Cover Page -->
+<!-- Page 1: Cover -->
 <div class="page cover">
   <div class="cover-content">
     <div class="logo-badge">⛳</div>
@@ -466,15 +386,13 @@ async function generatePDF() {
     <div class="gold-line"></div>
     <p class="subtitle">
       Partner with us to showcase your golf course to thousands of international golfers 
-      seeking the finest tee times on the Costa del Sol.
+      seeking premium tee times on the Costa del Sol.
     </p>
   </div>
-  <div class="cover-footer">
-    www.marbellagolftimes.com | Partnership Proposal 2025
-  </div>
+  <div class="cover-footer">www.marbellagolftimes.com | Partnership Proposal 2025</div>
 </div>
 
-<!-- About Us -->
+<!-- Page 2: About Us -->
 <div class="page content-page">
   <div class="page-header">
     <p class="subtitle">Introduction</p>
@@ -517,7 +435,7 @@ async function generatePDF() {
   </div>
 </div>
 
-<!-- Platform Features -->
+<!-- Page 3: Platform Features -->
 <div class="page content-page">
   <div class="page-header">
     <p class="subtitle">Technology</p>
@@ -527,26 +445,28 @@ async function generatePDF() {
   <div class="feature-grid">
     <div class="feature-card">
       <h4>Real-Time Availability</h4>
-      <p>Direct API integration with Golfmanager and TeeOne systems for live tee time availability and instant booking confirmation.</p>
+      <p>Direct API integration with Golfmanager and TeeOne systems for live tee time availability.</p>
     </div>
     <div class="feature-card">
       <h4>Multi-Language Support</h4>
-      <p>Full platform localization in English, Spanish, Danish, Swedish, and Russian to reach international golf tourists.</p>
+      <p>Full localization in English, Spanish, Danish, Swedish, and Russian.</p>
     </div>
     <div class="feature-card">
       <h4>Geolocation Search</h4>
-      <p>Visitors can find courses near their hotel or current location, sorted by distance for maximum convenience.</p>
+      <p>Visitors find courses near their hotel, sorted by distance for convenience.</p>
     </div>
     <div class="feature-card">
       <h4>Premium Course Profiles</h4>
-      <p>Beautiful course pages with photos, reviews, weather data, and detailed facility information.</p>
+      <p>Beautiful pages with photos, reviews, weather data, and facility information.</p>
     </div>
   </div>
   
-  ${courseDetailExists ? `<img src="data:image/png;base64,${courseDetailBase64}" class="screenshot" alt="Course Detail Page" />` : ''}
+  ${courseDetailBase64 ? `<img src="data:image/png;base64,${courseDetailBase64}" class="screenshot" alt="Course Detail" />` : ''}
+  
+  ${mapViewBase64 ? `<img src="data:image/png;base64,${mapViewBase64}" class="screenshot" alt="Map View" />` : ''}
 </div>
 
-<!-- Partnership Benefits -->
+<!-- Page 4: Partnership Benefits -->
 <div class="page content-page">
   <div class="page-header">
     <p class="subtitle">Collaboration</p>
@@ -556,33 +476,40 @@ async function generatePDF() {
   <div class="section">
     <h3>Why Partner With Us?</h3>
     <ul class="benefits-list">
-      <li>Access to high-value international golf tourists from Northern Europe and beyond</li>
-      <li>Zero upfront costs - commission-based model aligned with your success</li>
-      <li>Real-time integration with your existing booking system (Golfmanager/TeeOne)</li>
-      <li>Premium brand positioning alongside the finest Costa del Sol courses</li>
-      <li>Dedicated course profile with professional photography and reviews</li>
-      <li>Multi-language marketing reaching Scandinavian, British, and Russian golfers</li>
-      <li>Detailed analytics and booking reports for revenue tracking</li>
-      <li>Direct communication channel for special offers and promotions</li>
+      <li>Access to high-value international golf tourists</li>
+      <li>Zero upfront costs - commission-based model</li>
+      <li>Real-time integration with your booking system</li>
+      <li>Premium brand positioning</li>
+      <li>Professional photography and reviews</li>
+      <li>Multi-language marketing reach</li>
+      <li>Detailed analytics and booking reports</li>
+      <li>Direct communication for promotions</li>
     </ul>
   </div>
-  
-  ${mapViewExists ? `<img src="data:image/png;base64,${mapViewBase64}" class="screenshot" alt="Interactive Map View" />` : ''}
   
   <div class="section">
     <h3>Integration Process</h3>
     <p>
-      Our technical team handles the entire integration process. Simply provide your 
-      booking system credentials, and we'll connect your real-time availability 
-      within 24-48 hours. No development work required from your side.
+      Our technical team handles the entire integration. Simply provide your 
+      booking system credentials (Golfmanager/TeeOne), and we'll connect your real-time 
+      availability within 24-48 hours. No development work required from your side.
+    </p>
+  </div>
+  
+  <div class="section">
+    <h3>Commission Structure</h3>
+    <p>
+      We operate on a transparent commission model. You only pay when we deliver 
+      confirmed bookings. Commission rates are negotiable based on volume and 
+      exclusivity arrangements.
     </p>
   </div>
 </div>
 
-<!-- Contact English -->
+<!-- Page 5: Contact (English) -->
 <div class="page contact-page">
   <h2>Let's Partner Together</h2>
-  <p style="font-size: 18px; opacity: 0.9; max-width: 500px;">
+  <p style="font-size: 16px; opacity: 0.9; max-width: 480px;">
     Join the Costa del Sol's most exclusive golf booking platform and connect 
     with international golfers seeking premium tee times.
   </p>
@@ -590,20 +517,20 @@ async function generatePDF() {
   <div class="contact-info">
     <p>Contact us to discuss partnership opportunities:</p>
     <p class="email">partnerships@marbellagolftimes.com</p>
-    <p style="margin-top: 20px; opacity: 0.8;">+34 XXX XXX XXX</p>
+    <p style="margin-top: 16px; opacity: 0.8;">+34 XXX XXX XXX</p>
   </div>
 </div>
 
-<!-- Language Divider -->
-<div class="page language-divider">
-  <h2>🇪🇸 ESPAÑOL</h2>
-  <p>Spanish Version / Versión en Español</p>
+<!-- ==================== SPANISH SECTION ==================== -->
+
+<!-- Page 6: Language Divider -->
+<div class="page lang-header">
+  <h2>🇪🇸 VERSIÓN EN ESPAÑOL</h2>
+  <p>Spanish Version</p>
   <div class="gold-line"></div>
 </div>
 
-<!-- SPANISH SECTION -->
-
-<!-- Cover Page Spanish -->
+<!-- Page 7: Cover Spanish -->
 <div class="page cover">
   <div class="cover-content">
     <div class="logo-badge">⛳</div>
@@ -612,15 +539,13 @@ async function generatePDF() {
     <div class="gold-line"></div>
     <p class="subtitle">
       Colabore con nosotros para mostrar su campo de golf a miles de golfistas 
-      internacionales que buscan los mejores horarios de salida en la Costa del Sol.
+      internacionales que buscan horarios de salida premium en la Costa del Sol.
     </p>
   </div>
-  <div class="cover-footer">
-    www.marbellagolftimes.com | Propuesta de Colaboración 2025
-  </div>
+  <div class="cover-footer">www.marbellagolftimes.com | Propuesta de Colaboración 2025</div>
 </div>
 
-<!-- About Us Spanish -->
+<!-- Page 8: About Us Spanish -->
 <div class="page content-page">
   <div class="page-header">
     <p class="subtitle">Introducción</p>
@@ -630,7 +555,7 @@ async function generatePDF() {
   <div class="section">
     <p>
       <strong>Marbella Golf Times</strong> es un servicio boutique-premium de reserva 
-      de horarios de salida enfocado exclusivamente en la región de la Costa del Sol. 
+      de horarios de salida enfocado exclusivamente en la Costa del Sol. 
       Conectamos golfistas internacionales con los mejores campos de Andalucía, 
       proporcionando una experiencia de reserva impecable con servicio de calidad concierge.
     </p>
@@ -658,12 +583,12 @@ async function generatePDF() {
     <p>
       Ofrecer una experiencia excepcional de reserva de golf que iguale la calidad 
       de clase mundial de los mejores campos de la Costa del Sol, mientras atraemos 
-      visitantes internacionales de alto valor a nuestros clubes de golf asociados.
+      visitantes internacionales de alto valor a nuestros clubes asociados.
     </p>
   </div>
 </div>
 
-<!-- Platform Features Spanish -->
+<!-- Page 9: Platform Features Spanish -->
 <div class="page content-page">
   <div class="page-header">
     <p class="subtitle">Tecnología</p>
@@ -673,26 +598,28 @@ async function generatePDF() {
   <div class="feature-grid">
     <div class="feature-card">
       <h4>Disponibilidad en Tiempo Real</h4>
-      <p>Integración directa con sistemas Golfmanager y TeeOne para disponibilidad en vivo y confirmación instantánea de reservas.</p>
+      <p>Integración directa con sistemas Golfmanager y TeeOne para disponibilidad en vivo.</p>
     </div>
     <div class="feature-card">
       <h4>Soporte Multiidioma</h4>
-      <p>Plataforma completa en inglés, español, danés, sueco y ruso para alcanzar turistas de golf internacionales.</p>
+      <p>Plataforma completa en inglés, español, danés, sueco y ruso.</p>
     </div>
     <div class="feature-card">
       <h4>Búsqueda por Geolocalización</h4>
-      <p>Los visitantes pueden encontrar campos cerca de su hotel o ubicación actual, ordenados por distancia.</p>
+      <p>Los visitantes encuentran campos cerca de su hotel, ordenados por distancia.</p>
     </div>
     <div class="feature-card">
       <h4>Perfiles Premium de Campos</h4>
-      <p>Páginas elegantes con fotos, reseñas, datos meteorológicos e información detallada de instalaciones.</p>
+      <p>Páginas elegantes con fotos, reseñas, datos meteorológicos e información.</p>
     </div>
   </div>
   
-  ${courseDetailExists ? `<img src="data:image/png;base64,${courseDetailBase64}" class="screenshot" alt="Página de Detalle del Campo" />` : ''}
+  ${courseDetailBase64 ? `<img src="data:image/png;base64,${courseDetailBase64}" class="screenshot" alt="Detalle del Campo" />` : ''}
+  
+  ${mapViewBase64 ? `<img src="data:image/png;base64,${mapViewBase64}" class="screenshot" alt="Vista del Mapa" />` : ''}
 </div>
 
-<!-- Partnership Benefits Spanish -->
+<!-- Page 10: Partnership Benefits Spanish -->
 <div class="page content-page">
   <div class="page-header">
     <p class="subtitle">Colaboración</p>
@@ -702,42 +629,49 @@ async function generatePDF() {
   <div class="section">
     <h3>¿Por Qué Asociarse Con Nosotros?</h3>
     <ul class="benefits-list">
-      <li>Acceso a turistas de golf internacionales de alto valor del norte de Europa y más allá</li>
-      <li>Sin costes iniciales - modelo basado en comisiones alineado con su éxito</li>
-      <li>Integración en tiempo real con su sistema de reservas existente (Golfmanager/TeeOne)</li>
-      <li>Posicionamiento premium junto a los mejores campos de la Costa del Sol</li>
-      <li>Perfil dedicado del campo con fotografía profesional y reseñas</li>
-      <li>Marketing multiidioma alcanzando golfistas escandinavos, británicos y rusos</li>
-      <li>Análisis detallados e informes de reservas para seguimiento de ingresos</li>
-      <li>Canal de comunicación directo para ofertas especiales y promociones</li>
+      <li>Acceso a turistas de golf internacionales de alto valor</li>
+      <li>Sin costes iniciales - modelo basado en comisiones</li>
+      <li>Integración en tiempo real con su sistema de reservas</li>
+      <li>Posicionamiento premium de marca</li>
+      <li>Fotografía profesional y reseñas</li>
+      <li>Marketing multiidioma</li>
+      <li>Análisis detallados e informes de reservas</li>
+      <li>Comunicación directa para promociones</li>
     </ul>
   </div>
-  
-  ${mapViewExists ? `<img src="data:image/png;base64,${mapViewBase64}" class="screenshot" alt="Vista del Mapa Interactivo" />` : ''}
   
   <div class="section">
     <h3>Proceso de Integración</h3>
     <p>
-      Nuestro equipo técnico gestiona todo el proceso de integración. Simplemente 
-      proporcione sus credenciales del sistema de reservas y conectaremos su 
+      Nuestro equipo técnico gestiona todo el proceso. Simplemente proporcione sus 
+      credenciales del sistema de reservas (Golfmanager/TeeOne), y conectaremos su 
       disponibilidad en tiempo real en 24-48 horas. No se requiere trabajo de 
       desarrollo por su parte.
     </p>
   </div>
+  
+  <div class="section">
+    <h3>Estructura de Comisiones</h3>
+    <p>
+      Operamos con un modelo de comisiones transparente. Solo paga cuando entregamos 
+      reservas confirmadas. Las tasas de comisión son negociables según el volumen 
+      y acuerdos de exclusividad.
+    </p>
+  </div>
 </div>
 
-<!-- Contact Spanish -->
+<!-- Page 11: Contact Spanish -->
 <div class="page contact-page">
   <h2>Colaboremos Juntos</h2>
-  <p style="font-size: 18px; opacity: 0.9; max-width: 500px;">
+  <p style="font-size: 16px; opacity: 0.9; max-width: 480px;">
     Únase a la plataforma de reservas de golf más exclusiva de la Costa del Sol 
-    y conecte con golfistas internacionales que buscan horarios de salida premium.
+    y conecte con golfistas internacionales que buscan horarios premium.
   </p>
   <div class="gold-line"></div>
   <div class="contact-info">
     <p>Contáctenos para discutir oportunidades de colaboración:</p>
     <p class="email">partnerships@marbellagolftimes.com</p>
-    <p style="margin-top: 20px; opacity: 0.8;">+34 XXX XXX XXX</p>
+    <p style="margin-top: 16px; opacity: 0.8;">+34 XXX XXX XXX</p>
   </div>
 </div>
 
@@ -746,10 +680,8 @@ async function generatePDF() {
 `;
 
   await page.setContent(htmlContent, { waitUntil: "domcontentloaded", timeout: 60000 });
-  // Wait for fonts to load
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  // Generate PDF
   const pdfPath = "Marbella_Golf_Times_Partnership_Presentation.pdf";
   await page.pdf({
     path: pdfPath,
