@@ -23,42 +23,91 @@ async function takeScreenshots() {
   // Screenshot 1: Homepage with course listing
   console.log("Taking screenshot of homepage...");
   await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle2", timeout: 30000 });
-  await page.waitForSelector('[data-testid]', { timeout: 10000 }).catch(() => {});
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise(resolve => setTimeout(resolve, 3000));
   await page.screenshot({ path: `${screenshotsDir}/homepage.png`, fullPage: false });
 
-  // Screenshot 2: Course detail page
+  // Screenshot 2: Course detail page - navigate to a known course
   console.log("Taking screenshot of course detail...");
-  await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle2" });
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Click on first course to get to detail page
-  const courseLink = await page.$('a[href^="/course/"]');
-  if (courseLink) {
-    await courseLink.click();
-    await page.waitForNavigation({ waitUntil: "networkidle2" }).catch(() => {});
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    await page.screenshot({ path: `${screenshotsDir}/course-detail.png`, fullPage: false });
+  try {
+    // Look for course cards or links
+    const allLinks = await page.$$eval('a', links => 
+      links.map(link => link.getAttribute('href')).filter(h => h && h.includes('/course/'))
+    );
+    
+    console.log(`Found ${allLinks.length} course links`);
+    
+    if (allLinks.length > 0) {
+      const courseUrl = allLinks[0];
+      console.log(`Navigating to: ${BASE_URL}${courseUrl}`);
+      await page.goto(`${BASE_URL}${courseUrl}`, { waitUntil: "networkidle2", timeout: 30000 });
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await page.screenshot({ path: `${screenshotsDir}/course-detail.png`, fullPage: false });
+      console.log("Course detail screenshot taken!");
+    } else {
+      // Try to find any clickable course element
+      console.log("Trying to click on a course card...");
+      const cards = await page.$$('[data-testid*="course"], .course-card, [class*="course"]');
+      if (cards.length > 0) {
+        await cards[0].click();
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        await page.screenshot({ path: `${screenshotsDir}/course-detail.png`, fullPage: false });
+        console.log("Course detail screenshot taken via card click!");
+      } else {
+        console.log("No course elements found");
+      }
+    }
+  } catch (e) {
+    console.log("Could not capture course detail:", e);
   }
 
-  // Screenshot 3: Map view
+  // Screenshot 3: Map view - try clicking the map toggle
   console.log("Taking screenshot of map view...");
-  await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle2" });
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Try to click map toggle if exists
-  const mapToggle = await page.$('[data-testid="button-map-view"]');
-  if (mapToggle) {
-    await mapToggle.click();
+  try {
+    await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle2", timeout: 30000 });
     await new Promise(resolve => setTimeout(resolve, 2000));
-    await page.screenshot({ path: `${screenshotsDir}/map-view.png`, fullPage: false });
+    
+    // Try different approaches to find map button
+    let mapTaken = false;
+    
+    // Method 1: data-testid
+    const mapButton1 = await page.$('[data-testid="button-map-view"]');
+    if (mapButton1) {
+      await mapButton1.click();
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await page.screenshot({ path: `${screenshotsDir}/map-view.png`, fullPage: false });
+      console.log("Map view screenshot taken!");
+      mapTaken = true;
+    }
+    
+    // Method 2: Search for buttons with map text
+    if (!mapTaken) {
+      const buttons = await page.$$('button');
+      for (const btn of buttons) {
+        const text = await page.evaluate(el => el.textContent?.toLowerCase() || '', btn);
+        if (text.includes('map') || text.includes('mapa')) {
+          await btn.click();
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          await page.screenshot({ path: `${screenshotsDir}/map-view.png`, fullPage: false });
+          console.log("Map view screenshot taken via text search!");
+          mapTaken = true;
+          break;
+        }
+      }
+    }
+    
+    // Method 3: Look for Map icon in segmented control
+    if (!mapTaken) {
+      const toggles = await page.$$('[role="tablist"] button, [class*="toggle"] button');
+      if (toggles.length > 1) {
+        await toggles[1].click(); // Usually second toggle is map
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        await page.screenshot({ path: `${screenshotsDir}/map-view.png`, fullPage: false });
+        console.log("Map view screenshot taken via toggle!");
+      }
+    }
+  } catch (e) {
+    console.log("Could not capture map view:", e);
   }
-
-  // Screenshot 4: Booking form (if accessible)
-  console.log("Taking screenshot of search filters...");
-  await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle2" });
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  await page.screenshot({ path: `${screenshotsDir}/search-filters.png`, fullPage: false });
 
   await browser.close();
   console.log("Screenshots completed!");
@@ -696,7 +745,9 @@ async function generatePDF() {
 </html>
 `;
 
-  await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+  await page.setContent(htmlContent, { waitUntil: "domcontentloaded", timeout: 60000 });
+  // Wait for fonts to load
+  await new Promise(resolve => setTimeout(resolve, 2000));
 
   // Generate PDF
   const pdfPath = "Marbella_Golf_Times_Partnership_Presentation.pdf";
