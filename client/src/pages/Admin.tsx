@@ -4785,14 +4785,14 @@ export default function Admin() {
                 }
               }}
             >
-              <DialogContent className="max-w-[95vw] sm:max-w-lg" data-testid="dialog-api-key-created">
+              <DialogContent className="max-w-[95vw] sm:max-w-xl" data-testid="dialog-api-key-created">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2 text-green-600">
                     <CheckCircle2 className="h-5 w-5" />
                     API Key Created
                   </DialogTitle>
                   <DialogDescription>
-                    Copy your API key now. It will not be shown again!
+                    Copy your API credentials now. The API key will not be shown again!
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -4801,12 +4801,42 @@ export default function Admin() {
                       <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-yellow-800 dark:text-yellow-200">
                         <p className="font-medium mb-1">Important</p>
-                        <p>Make sure to copy this key and store it securely. You won't be able to see it again.</p>
+                        <p>Make sure to copy these credentials and store them securely. The API key won't be shown again.</p>
                       </div>
                     </div>
                   </div>
+                  
+                  {/* API URL */}
                   <div className="space-y-2">
-                    <Label>Your API Key</Label>
+                    <Label>API URL (Base Endpoint)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={`${window.location.origin}/api/v1/external`}
+                        readOnly
+                        className="font-mono text-sm"
+                        data-testid="input-api-url"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/api/v1/external`);
+                          toast({
+                            title: "Copied!",
+                            description: "API URL copied to clipboard",
+                          });
+                        }}
+                        data-testid="button-copy-api-url"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Use this base URL for all API requests</p>
+                  </div>
+                  
+                  {/* API Key */}
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
                     <div className="flex gap-2">
                       <Input
                         value={createdApiKey || ""}
@@ -4831,7 +4861,27 @@ export default function Admin() {
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
+                    <p className="text-xs text-muted-foreground">Include in request header: <code className="bg-muted px-1 rounded">X-API-Key: your-key</code></p>
                   </div>
+                  
+                  {/* Copy Both Button */}
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => {
+                      const apiUrl = `${window.location.origin}/api/v1/external`;
+                      const copyText = `API URL: ${apiUrl}\nAPI Key: ${createdApiKey}`;
+                      navigator.clipboard.writeText(copyText);
+                      toast({
+                        title: "Copied!",
+                        description: "Both API URL and API key copied to clipboard",
+                      });
+                    }}
+                    data-testid="button-copy-both"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Both
+                  </Button>
                 </div>
                 <DialogFooter>
                   <Button
