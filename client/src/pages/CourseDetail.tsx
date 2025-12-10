@@ -30,7 +30,7 @@ import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { WeatherWidget } from "@/components/WeatherWidget";
-import { MapPin, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight, Clock, Car, Utensils, Sun, Sunset, Users, Info, AlertCircle, FileText, Shirt, Award, Cloud } from "lucide-react";
+import { MapPin, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight, Clock, Car, Utensils, Sun, Sunset, Users, Info, AlertCircle, FileText, Shirt, Award, Cloud, Target, ShoppingBag, Dumbbell, GraduationCap, Hotel, Waves, TreePine, Briefcase } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -926,18 +926,104 @@ export default function CourseDetail() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-                      {(course.facilities || []).map((facility, index) => (
-                        <Badge
-                          key={index}
-                          variant="secondary"
-                          className="justify-center py-2.5 sm:py-2 text-xs sm:text-sm min-h-[40px]"
-                          data-testid={`badge-facility-${index}`}
-                        >
-                          {getFacilityTranslation(facility)}
-                        </Badge>
-                      ))}
-                    </div>
+                    {(() => {
+                      const facilitiesData = course.facilitiesJson ? JSON.parse(course.facilitiesJson) : null;
+                      
+                      if (facilitiesData) {
+                        const facilityIcons: Record<string, any> = {
+                          drivingRange: Target,
+                          puttingGreen: TreePine,
+                          chippingArea: Target,
+                          proShop: ShoppingBag,
+                          restaurant: Utensils,
+                          hotel: Hotel,
+                          clubRental: Briefcase,
+                          buggyRental: Car,
+                          golfAcademy: GraduationCap,
+                          spa: Waves,
+                          pool: Waves,
+                        };
+                        
+                        const facilityLabels: Record<string, string> = {
+                          drivingRange: "Driving Range",
+                          puttingGreen: "Putting Green",
+                          chippingArea: "Chipping Area",
+                          proShop: "Pro Shop",
+                          restaurant: "Restaurant",
+                          hotel: "Hotel",
+                          clubRental: "Club Rental",
+                          buggyRental: "Buggy Rental",
+                          golfAcademy: "Golf Academy",
+                          spa: "Spa",
+                          pool: "Swimming Pool",
+                        };
+                        
+                        const entries = Object.entries(facilitiesData).filter(([key, val]) => val && key !== 'otherAmenities');
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {entries.map(([key, facility]) => {
+                                const Icon = facilityIcons[key] || Info;
+                                const label = facilityLabels[key] || key;
+                                const data = facility as { name?: string; description?: string; hours?: string; phone?: string };
+                                return (
+                                  <div 
+                                    key={key} 
+                                    className="p-3 rounded-lg border bg-card"
+                                    data-testid={`facility-card-${key}`}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div className="p-2 rounded-md bg-primary/10">
+                                        <Icon className="h-4 w-4 text-primary" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-medium text-sm">{data.name || label}</h4>
+                                        {data.description && (
+                                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{data.description}</p>
+                                        )}
+                                        {data.hours && (
+                                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                            <Clock className="h-3 w-3" /> {data.hours}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {facilitiesData.otherAmenities && facilitiesData.otherAmenities.length > 0 && (
+                              <div className="pt-2 border-t">
+                                <h4 className="font-medium text-sm mb-2">Other Amenities</h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {facilitiesData.otherAmenities.map((amenity: string, idx: number) => (
+                                    <Badge key={idx} variant="outline" className="text-xs">
+                                      {amenity}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+                          {(course.facilities || []).map((facility, index) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="justify-center py-2.5 sm:py-2 text-xs sm:text-sm min-h-[40px]"
+                              data-testid={`badge-facility-${index}`}
+                            >
+                              {getFacilityTranslation(facility)}
+                            </Badge>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </TabsContent>
