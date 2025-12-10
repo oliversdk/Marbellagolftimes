@@ -48,7 +48,7 @@ export function OptimizedImage({
   const imageSrc = hasError ? fallbackSrc : (src || fallbackSrc);
 
   return (
-    <div className="relative w-full h-full">
+    <div className={cn("relative shrink-0", className)}>
       {!isLoaded && (
         <Skeleton 
           className={cn("absolute inset-0", skeletonClassName || className)} 
