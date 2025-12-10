@@ -3519,9 +3519,11 @@ export default function Admin() {
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead>Season</TableHead>
-                                    <TableHead className="text-right">Rack Rate</TableHead>
-                                    <TableHead className="text-right">Net Rate</TableHead>
-                                    <TableHead className="text-right">Kickback %</TableHead>
+                                    <TableHead>Package</TableHead>
+                                    <TableHead className="text-right">Rack</TableHead>
+                                    <TableHead className="text-right">Net</TableHead>
+                                    <TableHead className="text-right">%</TableHead>
+                                    <TableHead>Includes</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -3530,12 +3532,47 @@ export default function Admin() {
                                       <TableCell>
                                         <Badge variant="outline">{period.seasonLabel}</Badge>
                                       </TableCell>
+                                      <TableCell>
+                                        <div className="flex flex-col gap-1">
+                                          <span className="text-sm font-medium">
+                                            {(period as any).packageType?.replace(/_/g, ' ') || 'Green Fee + Buggy'}
+                                          </span>
+                                          {((period as any).isEarlyBird === "true" || (period as any).isTwilight === "true") && (
+                                            <div className="flex gap-1">
+                                              {(period as any).isEarlyBird === "true" && (
+                                                <Badge variant="secondary" className="text-xs">Early Bird</Badge>
+                                              )}
+                                              {(period as any).isTwilight === "true" && (
+                                                <Badge variant="secondary" className="text-xs">Twilight</Badge>
+                                              )}
+                                            </div>
+                                          )}
+                                          {(period as any).timeRestriction && (
+                                            <span className="text-xs text-muted-foreground">{(period as any).timeRestriction}</span>
+                                          )}
+                                        </div>
+                                      </TableCell>
                                       <TableCell className="text-right font-medium">€{period.rackRate}</TableCell>
                                       <TableCell className="text-right">€{period.netRate}</TableCell>
                                       <TableCell className="text-right">
                                         <Badge className={period.kickbackPercent >= 20 ? "bg-green-100 text-green-700" : ""}>
-                                          {period.kickbackPercent}%
+                                          {period.kickbackPercent?.toFixed(0)}%
                                         </Badge>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                          {(period as any).includesBuggy === "true" && (
+                                            <Badge variant="outline" className="text-xs">Buggy</Badge>
+                                          )}
+                                          {(period as any).includesLunch === "true" && (
+                                            <Badge variant="outline" className="text-xs">Lunch</Badge>
+                                          )}
+                                          {(period as any).minPlayersForDiscount && (
+                                            <Badge variant="outline" className="text-xs text-green-600">
+                                              {(period as any).freePlayersPerGroup || 1} free / {(period as any).minPlayersForDiscount}
+                                            </Badge>
+                                          )}
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   ))}
@@ -5242,11 +5279,12 @@ export default function Admin() {
                           <TableRow>
                             <TableHead>Course</TableHead>
                             <TableHead>Season</TableHead>
+                            <TableHead>Package</TableHead>
                             <TableHead>Date Range</TableHead>
-                            <TableHead className="text-right">Rack Rate</TableHead>
-                            <TableHead className="text-right">Net Rate</TableHead>
-                            <TableHead className="text-right">Kickback %</TableHead>
-                            <TableHead className="text-center">Verified</TableHead>
+                            <TableHead className="text-right">Rack</TableHead>
+                            <TableHead className="text-right">Net</TableHead>
+                            <TableHead className="text-right">%</TableHead>
+                            <TableHead>Includes</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -5255,6 +5293,26 @@ export default function Admin() {
                               <TableCell className="font-medium">{period.courseName}</TableCell>
                               <TableCell>
                                 <Badge variant="outline">{period.seasonLabel}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm font-medium">
+                                    {(period as any).packageType?.replace(/_/g, ' ') || 'Green Fee + Buggy'}
+                                  </span>
+                                  {((period as any).isEarlyBird === "true" || (period as any).isTwilight === "true") && (
+                                    <div className="flex gap-1">
+                                      {(period as any).isEarlyBird === "true" && (
+                                        <Badge variant="secondary" className="text-xs">Early Bird</Badge>
+                                      )}
+                                      {(period as any).isTwilight === "true" && (
+                                        <Badge variant="secondary" className="text-xs">Twilight</Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                  {(period as any).timeRestriction && (
+                                    <span className="text-xs text-muted-foreground">{(period as any).timeRestriction}</span>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell className="text-muted-foreground">
                                 {period.startDate} - {period.endDate}
@@ -5274,12 +5332,20 @@ export default function Admin() {
                                   {period.kickbackPercent.toFixed(1)}%
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-center">
-                                {period.isVerified === "true" ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
-                                ) : (
-                                  <Clock className="h-4 w-4 text-muted-foreground mx-auto" />
-                                )}
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  {(period as any).includesBuggy === "true" && (
+                                    <Badge variant="outline" className="text-xs">Buggy</Badge>
+                                  )}
+                                  {(period as any).includesLunch === "true" && (
+                                    <Badge variant="outline" className="text-xs">Lunch</Badge>
+                                  )}
+                                  {(period as any).minPlayersForDiscount && (
+                                    <Badge variant="outline" className="text-xs text-green-600">
+                                      {(period as any).freePlayersPerGroup || 1} free / {(period as any).minPlayersForDiscount}
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
