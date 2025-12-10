@@ -1013,9 +1013,13 @@ export default function CourseDetail() {
                         );
                       }
                       
+                      const defaultFacilities = course.facilities && course.facilities.length > 0 
+                        ? course.facilities 
+                        : ["Driving Range", "Putting Green", "Pro Shop", "Restaurant", "Club Rental", "Buggy Rental"];
+                      
                       return (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-                          {(course.facilities || []).map((facility, index) => (
+                          {defaultFacilities.map((facility, index) => (
                             <Badge
                               key={index}
                               variant="secondary"
