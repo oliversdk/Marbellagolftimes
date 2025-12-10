@@ -1821,6 +1821,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/courses/:id/enrich - AI-powered course enrichment (Admin only)
+  app.post("/api/courses/:id/enrich", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseEnrichmentService } = await import("./services/courseEnrichment");
+      
+      const course = await storage.getCourseById(req.params.id);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      res.json({ message: "Enrichment started", status: "processing" });
+
+      courseEnrichmentService.enrichCourse(req.params.id)
+        .then(result => {
+          console.log(`[Enrichment] Completed for ${course.name}:`, result);
+        })
+        .catch(error => {
+          console.error(`[Enrichment] Failed for ${course.name}:`, error);
+        });
+
+    } catch (error) {
+      console.error("Error starting enrichment:", error);
+      res.status(500).json({ error: "Failed to start enrichment" });
+    }
+  });
+
   // PATCH /api/courses/:id/image - Update course image (Admin only)
   app.patch("/api/courses/:id/image", isAuthenticated, async (req, res) => {
     try {

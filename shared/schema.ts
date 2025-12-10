@@ -72,6 +72,11 @@ export const golfCourses = pgTable("golf_courses", {
   teeoneApiUser: text("teeone_api_user"), // TeeOne API username
   teeoneApiPassword: text("teeone_api_password"), // TeeOne API password
   membersOnly: text("members_only").notNull().default("false"), // Members-only courses hidden from public
+  // AI Enrichment fields
+  facilitiesJson: text("facilities_json"), // JSON string with structured facilities data
+  bookingRulesJson: text("booking_rules_json"), // JSON string with booking rules
+  enrichmentStatus: text("enrichment_status").default("pending"), // pending, processing, complete, failed
+  lastEnrichedAt: timestamp("last_enriched_at"),
 });
 
 export const insertGolfCourseSchema = createInsertSchema(golfCourses).omit({ id: true });
