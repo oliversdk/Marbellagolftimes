@@ -978,30 +978,71 @@ export default function CourseDetail() {
                               {entries.map(([key, facility]) => {
                                 const Icon = facilityIcons[key] || Info;
                                 const label = facilityLabels[key] || key;
-                                const data = facility as { name?: string; description?: string; hours?: string; phone?: string };
+                                const data = facility as { name?: string; description?: string; hours?: string; features?: string; priceRange?: string };
                                 return (
-                                  <div 
-                                    key={key} 
-                                    className="p-3 rounded-lg border bg-card"
-                                    data-testid={`facility-card-${key}`}
-                                  >
-                                    <div className="flex items-start gap-3">
-                                      <div className="p-2 rounded-md bg-primary/10">
-                                        <Icon className="h-4 w-4 text-primary" />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <h4 className="font-medium text-sm">{data.name || label}</h4>
+                                  <Dialog key={key}>
+                                    <DialogTrigger asChild>
+                                      <button 
+                                        className="p-3 rounded-lg border bg-card hover-elevate cursor-pointer text-left w-full"
+                                        data-testid={`facility-card-${key}`}
+                                      >
+                                        <div className="flex items-start gap-3">
+                                          <div className="p-2 rounded-md bg-primary/10 shrink-0">
+                                            <Icon className="h-4 w-4 text-primary" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <h4 className="font-medium text-sm">{data.name || label}</h4>
+                                            {data.description && (
+                                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{data.description}</p>
+                                            )}
+                                            {data.hours && (
+                                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                                <Clock className="h-3 w-3" /> {data.hours}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2">
+                                          <Icon className="h-5 w-5 text-primary" />
+                                          {data.name || label}
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                          {course.name}
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <div className="space-y-4 py-4">
                                         {data.description && (
-                                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{data.description}</p>
+                                          <p className="text-sm">{data.description}</p>
                                         )}
-                                        {data.hours && (
-                                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                            <Clock className="h-3 w-3" /> {data.hours}
-                                          </p>
-                                        )}
+                                        <div className="grid gap-3">
+                                          {data.hours && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                              <Clock className="h-4 w-4 text-primary" />
+                                              <span className="font-medium">Hours:</span>
+                                              <span>{data.hours}</span>
+                                            </div>
+                                          )}
+                                          {data.features && (
+                                            <div className="flex items-start gap-2 text-sm">
+                                              <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                                              <span className="font-medium">Features:</span>
+                                              <span>{data.features}</span>
+                                            </div>
+                                          )}
+                                          {data.priceRange && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                              <span className="font-medium">Price:</span>
+                                              <span>{data.priceRange}</span>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  </div>
+                                    </DialogContent>
+                                  </Dialog>
                                 );
                               })}
                             </div>
@@ -1088,12 +1129,13 @@ export default function CourseDetail() {
                                       </DialogDescription>
                                     </DialogHeader>
                                     <div className="space-y-4 py-4">
-                                      <p className="text-sm text-muted-foreground">
+                                      <p className="text-sm">
                                         {defaultDescriptions[facility] || `${facility} is available at this course.`}
                                       </p>
-                                      <div className="p-3 bg-muted/50 rounded-lg">
+                                      <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+                                        <p className="text-sm font-medium text-primary mb-1">Want more details?</p>
                                         <p className="text-xs text-muted-foreground">
-                                          For specific hours and contact details, please use the booking form or contact the course directly through our platform.
+                                          Book a tee time and our concierge will provide specific opening hours, availability, and any special arrangements you need.
                                         </p>
                                       </div>
                                     </div>

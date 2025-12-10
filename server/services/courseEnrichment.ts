@@ -169,8 +169,10 @@ export class CourseEnrichmentService {
       console.log(`[CourseEnrichment] Starting enrichment for: ${course.name}`);
 
       const searchQueries = [
-        `"${course.name}" golf course ${course.city} Spain facilities`,
-        `"${course.name}" golf ${course.city} restaurant pro shop amenities`,
+        `"${course.name}" golf course ${course.city} Spain official website`,
+        `"${course.name}" golf ${course.city} restaurant hours clubhouse`,
+        `"${course.name}" golf ${course.city} pro shop driving range prices`,
+        `"${course.name}" golf course review amenities facilities`,
       ];
 
       let webContext = '';
@@ -213,18 +215,20 @@ Respond in JSON format with three sections:
    - uniqueFeatures: Array of notable features mentioned
    - tournaments: Array of any notable tournaments mentioned
 
-2. "facilities" - Available amenities found:
-   - drivingRange: { name, description, hours? }
-   - puttingGreen: { name, description }
-   - chippingArea: { name, description }
-   - proShop: { name, description, hours? }
-   - restaurant: { name, description, hours? }
-   - hotel: { name, description } if on-site accommodation mentioned
-   - clubRental: { name, description }
-   - buggyRental: { name, description }
-   - golfAcademy: { name, description } if mentioned
-   - spa: { name, description } if mentioned
-   - otherAmenities: Array of other amenities found
+2. "facilities" - Available amenities with SPECIFIC DETAILS from the web:
+   - drivingRange: { name, description (2-3 sentences with real details found), hours (e.g. "7:00 - 21:00"), features (grass/mat bays, covered areas) }
+   - puttingGreen: { name, description (real details about size, quality, location) }
+   - chippingArea: { name, description (bunkers, target greens etc) }
+   - proShop: { name (actual shop name if found), description (brands stocked, size), hours (e.g. "8:00 - 20:00") }
+   - restaurant: { name (actual restaurant name), description (cuisine type, setting, views), hours (e.g. "12:00 - 22:00"), features (terrace, bar, etc) }
+   - hotel: { name (actual hotel name), description (rooms, amenities), stars } if on-site
+   - clubRental: { name, description (brands like TaylorMade, Callaway), priceRange }
+   - buggyRental: { name, description (GPS equipped, electric/petrol), priceRange }
+   - golfAcademy: { name, description (PGA pros, technology used like TrackMan) } if mentioned
+   - spa: { name, description (treatments, facilities) } if mentioned
+   - otherAmenities: Array of other specific amenities found (pool, gym, tennis etc)
+   
+   IMPORTANT: For each facility, provide REAL information found from the web. If you find specific opening hours, restaurant names, or details - include them. Do not use generic placeholder text.
 
 3. "bookingRules" - Standard policies (use web info or typical golf course policies):
    - arrivalTime: When players should arrive
