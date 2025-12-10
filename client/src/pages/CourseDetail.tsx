@@ -30,7 +30,7 @@ import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { WeatherWidget } from "@/components/WeatherWidget";
-import { MapPin, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight, Clock, Car, Utensils, Sun, Sunset, Users, Info, AlertCircle, FileText, Shirt, Award, Cloud, Target, ShoppingBag, Dumbbell, GraduationCap, Hotel, Waves, TreePine, Briefcase } from "lucide-react";
+import { MapPin, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight, Clock, Car, Utensils, Sun, Sunset, Users, Info, AlertCircle, FileText, Shirt, Award, Cloud, Target, ShoppingBag, Dumbbell, GraduationCap, Hotel, Waves, TreePine, Briefcase, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -1017,18 +1017,83 @@ export default function CourseDetail() {
                         ? course.facilities 
                         : ["Driving Range", "Putting Green", "Pro Shop", "Restaurant", "Club Rental", "Buggy Rental"];
                       
+                      const facilityIcons: Record<string, any> = {
+                        "Driving Range": Target,
+                        "Putting Green": TreePine,
+                        "Chipping Area": Target,
+                        "Pro Shop": ShoppingBag,
+                        "Restaurant": Utensils,
+                        "Hotel": Hotel,
+                        "Club Rental": Briefcase,
+                        "Buggy Rental": Car,
+                        "Golf Academy": GraduationCap,
+                        "Spa": Waves,
+                        "Swimming Pool": Waves,
+                      };
+                      
+                      const defaultDescriptions: Record<string, string> = {
+                        "Driving Range": "Practice your long game at our well-maintained driving range with natural grass hitting bays.",
+                        "Putting Green": "Fine-tune your putting on our championship-quality practice green.",
+                        "Chipping Area": "Perfect your short game with dedicated chipping and pitching areas.",
+                        "Pro Shop": "Visit our fully stocked pro shop for all your golfing needs, from clubs to apparel.",
+                        "Restaurant": "Enjoy a meal or refreshments at our clubhouse restaurant with stunning course views.",
+                        "Hotel": "On-site accommodation available for the ultimate golf getaway experience.",
+                        "Club Rental": "Quality rental clubs available for visitors. Reserve in advance for best selection.",
+                        "Buggy Rental": "Electric buggies available for rent. GPS-equipped for easy navigation.",
+                        "Golf Academy": "Professional instruction available for all skill levels.",
+                        "Spa": "Relax and rejuvenate after your round at our on-site spa facilities.",
+                        "Swimming Pool": "Cool off in our swimming pool, perfect for the whole family.",
+                      };
+                      
                       return (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-                          {defaultFacilities.map((facility, index) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="justify-center py-2.5 sm:py-2 text-xs sm:text-sm min-h-[40px]"
-                              data-testid={`badge-facility-${index}`}
-                            >
-                              {getFacilityTranslation(facility)}
-                            </Badge>
-                          ))}
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            <p className="text-sm text-amber-700 dark:text-amber-300">
+                              Click any facility below for more details. Detailed information is populated when admin enriches course with AI.
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            {defaultFacilities.map((facility, index) => {
+                              const Icon = facilityIcons[facility] || Info;
+                              return (
+                                <Dialog key={index}>
+                                  <DialogTrigger asChild>
+                                    <button
+                                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover-elevate cursor-pointer text-left w-full"
+                                      data-testid={`badge-facility-${index}`}
+                                    >
+                                      <div className="p-2 rounded-md bg-primary/10 shrink-0">
+                                        <Icon className="h-4 w-4 text-primary" />
+                                      </div>
+                                      <span className="text-sm font-medium">{getFacilityTranslation(facility)}</span>
+                                    </button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle className="flex items-center gap-2">
+                                        <Icon className="h-5 w-5 text-primary" />
+                                        {getFacilityTranslation(facility)}
+                                      </DialogTitle>
+                                      <DialogDescription>
+                                        Facility information for {course.name}
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                      <p className="text-sm text-muted-foreground">
+                                        {defaultDescriptions[facility] || `${facility} is available at this course.`}
+                                      </p>
+                                      <div className="p-3 bg-muted/50 rounded-lg">
+                                        <p className="text-xs text-muted-foreground">
+                                          For specific hours and contact details, please use the booking form or contact the course directly through our platform.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              );
+                            })}
+                          </div>
                         </div>
                       );
                     })()}
