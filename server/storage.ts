@@ -31,7 +31,10 @@ import {
   type InsertInboundEmail,
   type AdminAlertSettings,
   type ApiKey,
+  type CourseDocument,
+  type InsertCourseDocument,
   golfCourses,
+  courseDocuments,
   teeTimeProviders,
   courseProviderLinks,
   bookingRequests,
@@ -198,6 +201,12 @@ export interface IStorage {
   revokeApiKey(id: string): Promise<boolean>;
   deleteApiKey(id: string): Promise<boolean>;
   updateApiKeyLastUsed(id: string): Promise<void>;
+
+  // Course Documents
+  getCourseDocuments(courseId: string): Promise<CourseDocument[]>;
+  getCourseDocument(id: string): Promise<CourseDocument | undefined>;
+  createCourseDocument(doc: InsertCourseDocument): Promise<CourseDocument>;
+  deleteCourseDocument(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1895,6 +1904,23 @@ export class MemStorage implements IStorage {
   }
 
   async updateApiKeyLastUsed(id: string): Promise<void> {}
+
+  // Course Documents (stub implementation)
+  async getCourseDocuments(courseId: string): Promise<CourseDocument[]> {
+    return [];
+  }
+
+  async getCourseDocument(id: string): Promise<CourseDocument | undefined> {
+    return undefined;
+  }
+
+  async createCourseDocument(doc: InsertCourseDocument): Promise<CourseDocument> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async deleteCourseDocument(id: string): Promise<boolean> {
+    return false;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3017,6 +3043,39 @@ export class DatabaseStorage implements IStorage {
       .update(apiKeys)
       .set({ lastUsedAt: new Date() })
       .where(eq(apiKeys.id, id));
+  }
+
+  // Course Documents
+  async getCourseDocuments(courseId: string): Promise<CourseDocument[]> {
+    return await db
+      .select()
+      .from(courseDocuments)
+      .where(eq(courseDocuments.courseId, courseId))
+      .orderBy(desc(courseDocuments.createdAt));
+  }
+
+  async getCourseDocument(id: string): Promise<CourseDocument | undefined> {
+    const results = await db
+      .select()
+      .from(courseDocuments)
+      .where(eq(courseDocuments.id, id));
+    return results[0];
+  }
+
+  async createCourseDocument(doc: InsertCourseDocument): Promise<CourseDocument> {
+    const results = await db
+      .insert(courseDocuments)
+      .values(doc)
+      .returning();
+    return results[0];
+  }
+
+  async deleteCourseDocument(id: string): Promise<boolean> {
+    const results = await db
+      .delete(courseDocuments)
+      .where(eq(courseDocuments.id, id))
+      .returning();
+    return results.length > 0;
   }
 }
 

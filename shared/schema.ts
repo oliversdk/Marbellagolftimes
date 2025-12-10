@@ -517,6 +517,31 @@ export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
 export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export type ApiKey = typeof apiKeys.$inferSelect;
 
+// Course Documents - for storing contracts, agreements, etc. per course
+export const courseDocuments = pgTable("course_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // Display name for the document
+  fileName: text("file_name").notNull(), // Original file name
+  fileUrl: text("file_url").notNull(), // Object storage URL
+  fileType: text("file_type").notNull(), // MIME type (application/pdf, etc.)
+  fileSize: integer("file_size"), // Size in bytes
+  category: text("category").notNull().default("contract"), // contract, agreement, rate_card, other
+  notes: text("notes"), // Optional notes about the document
+  validFrom: timestamp("valid_from"), // Contract validity start
+  validUntil: timestamp("valid_until"), // Contract validity end
+  uploadedById: varchar("uploaded_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCourseDocumentSchema = createInsertSchema(courseDocuments).omit({ 
+  id: true, 
+  createdAt: true,
+});
+
+export type InsertCourseDocument = z.infer<typeof insertCourseDocumentSchema>;
+export type CourseDocument = typeof courseDocuments.$inferSelect;
+
 // API Response Types
 export interface TeeTimeSlot {
   teeTime: string;

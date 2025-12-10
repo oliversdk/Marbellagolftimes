@@ -229,6 +229,35 @@ export class ObjectStorageService {
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
   }
+
+  // Upload a file to private storage
+  async uploadPrivateFile(filePath: string, buffer: Buffer, contentType: string): Promise<string> {
+    const privateDir = this.getPrivateObjectDir();
+    const fullPath = `${privateDir}/${filePath}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    await file.save(buffer, {
+      contentType,
+      metadata: { contentType },
+    });
+    
+    return `/objects/${filePath}`;
+  }
+
+  // Get a file from private storage
+  async getPrivateFile(objectPath: string): Promise<Buffer> {
+    const file = await this.getObjectEntityFile(objectPath);
+    const [contents] = await file.download();
+    return contents;
+  }
+
+  // Delete a file from private storage
+  async deletePrivateFile(objectPath: string): Promise<void> {
+    const file = await this.getObjectEntityFile(objectPath);
+    await file.delete();
+  }
 }
 
 function parseObjectPath(path: string): {

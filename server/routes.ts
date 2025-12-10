@@ -135,6 +135,30 @@ const upload = multer({
   }
 });
 
+// Document upload for contracts, PDFs, etc.
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 25 * 1024 * 1024 // 25MB limit for documents
+  },
+  fileFilter: function (req, file, cb) {
+    // Accept common document types
+    const allowedMimes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "image/jpeg", "image/jpg", "image/png", "image/webp"
+    ];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF, Word, Excel, and image files are allowed"));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Static asset caching for images
   app.use('/generated_images', express.static(path.join(__dirname, '../client/public/generated_images'), {
@@ -4107,6 +4131,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete API key:", error);
       res.status(500).json({ error: "Failed to delete API key" });
+    }
+  });
+
+  // ============================================================
+  // Course Documents API - Store contracts/agreements per course
+  // ============================================================
+
+  // GET /api/admin/courses/:courseId/documents - List documents for a course
+  app.get("/api/admin/courses/:courseId/documents", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const documents = await storage.getCourseDocuments(req.params.courseId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Failed to get course documents:", error);
+      res.status(500).json({ error: "Failed to get course documents" });
+    }
+  });
+
+  // POST /api/admin/courses/:courseId/documents - Upload document for a course
+  app.post("/api/admin/courses/:courseId/documents", isAuthenticated, isAdmin, documentUpload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const userId = (req.session as any)?.userId;
+      const courseId = req.params.courseId;
+      
+      // Verify course exists
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Upload to object storage
+      const objectStorage = new ObjectStorageService();
+      const fileName = `courses/${courseId}/documents/${Date.now()}-${file.originalname}`;
+      const fileUrl = await objectStorage.uploadPrivateFile(fileName, file.buffer, file.mimetype);
+
+      // Save document metadata
+      const document = await storage.createCourseDocument({
+        courseId,
+        name: req.body.name || file.originalname,
+        fileName: file.originalname,
+        fileUrl,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        category: req.body.category || "contract",
+        notes: req.body.notes,
+        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : undefined,
+        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : undefined,
+        uploadedById: userId,
+      });
+
+      res.json(document);
+    } catch (error) {
+      console.error("Failed to upload document:", error);
+      res.status(500).json({ error: "Failed to upload document" });
+    }
+  });
+
+  // GET /api/admin/courses/:courseId/documents/:documentId/download - Download document
+  app.get("/api/admin/courses/:courseId/documents/:documentId/download", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const document = await storage.getCourseDocument(req.params.documentId);
+      if (!document || document.courseId !== req.params.courseId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const objectStorage = new ObjectStorageService();
+      const fileData = await objectStorage.getPrivateFile(document.fileUrl);
+      
+      res.setHeader("Content-Type", document.fileType);
+      res.setHeader("Content-Disposition", `attachment; filename="${document.fileName}"`);
+      res.send(fileData);
+    } catch (error) {
+      console.error("Failed to download document:", error);
+      res.status(500).json({ error: "Failed to download document" });
+    }
+  });
+
+  // DELETE /api/admin/courses/:courseId/documents/:documentId - Delete document
+  app.delete("/api/admin/courses/:courseId/documents/:documentId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const document = await storage.getCourseDocument(req.params.documentId);
+      if (!document || document.courseId !== req.params.courseId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      // Delete from object storage
+      const objectStorage = new ObjectStorageService();
+      try {
+        await objectStorage.deletePrivateFile(document.fileUrl);
+      } catch (e) {
+        console.log("Could not delete file from storage:", e);
+      }
+
+      // Delete metadata
+      await storage.deleteCourseDocument(req.params.documentId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+      res.status(500).json({ error: "Failed to delete document" });
     }
   });
 
