@@ -73,20 +73,20 @@ import { format, differenceInDays } from "date-fns";
 import * as XLSX from "xlsx";
 
 const DEFAULT_EMAIL_TEMPLATE = {
-  subject: "Green fee partnership proposal – new guests for [COURSE_NAME]",
+  subject: "Partnership inquiry – new guests for [COURSE_NAME]",
   body: `Dear [COURSE_NAME] team,
 
 My name is [SENDER_NAME] and I run a new tee-time finder for golfers on the Costa del Sol.
 
 Our guests are mainly international golfers staying between Sotogrande and Málaga, and we would like to send more players to your course.
 
-I would like to propose a simple collaboration:
+We are currently establishing partnerships with courses in the region and would be very interested in learning about your terms for collaboration.
 
-– We list your course and send you confirmed bookings.
-– For each paid green fee generated through our platform, you offer us a 20% commission.
-– You keep full control of your prices and availability – we simply refer players and send you the booking details.
+Could you please send us:
+– Your current commission structure or partnership terms
+– A draft contract or agreement template you use with booking agents
 
-If this is interesting for you, please let me know who is the best person to speak with, and we can set up a simple agreement.
+We are flexible and open to discussing the details that work best for both parties.
 
 Kind regards,
 [SENDER_NAME]
@@ -99,13 +99,13 @@ Me llamo [SENDER_NAME] y gestiono una nueva plataforma de reservas de green fees
 
 Nuestros clientes son principalmente golfistas internacionales entre Sotogrande y Málaga y nos gustaría enviar más jugadores a su campo.
 
-Me gustaría proponer una colaboración sencilla:
+Actualmente estamos estableciendo acuerdos con campos de la región y nos interesaría mucho conocer sus condiciones de colaboración.
 
-– Mostramos su campo y les enviamos reservas confirmadas.
-– Por cada green fee pagado generado a través de nuestra plataforma, ustedes nos ofrecen una comisión del 20 %.
-– Ustedes mantienen el control total sobre sus precios y disponibilidad; nosotros solo les remitimos los jugadores y los datos de la reserva.
+¿Podrían enviarnos?
+– Su estructura de comisiones actual o condiciones de colaboración
+– Un borrador de contrato o modelo de acuerdo que utilicen con agentes de reservas
 
-Si les interesa, por favor indíquenme la persona de contacto adecuada y podemos formalizar un acuerdo sencillo.
+Somos flexibles y estamos abiertos a negociar los detalles que mejor convengan a ambas partes.
 
 Atentamente,
 [SENDER_NAME]`,
@@ -4418,7 +4418,7 @@ export default function Admin() {
                     Affiliate Partnership Emails
                   </CardTitle>
                   <CardDescription>
-                    Send partnership proposals to golf courses requesting 20% commission
+                    Send partnership inquiries to golf courses requesting their terms and contract drafts
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
