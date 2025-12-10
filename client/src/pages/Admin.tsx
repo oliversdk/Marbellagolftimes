@@ -43,7 +43,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
 import {
   Select,
@@ -64,7 +64,7 @@ import { getPersonalFeedback } from "@/lib/personalFeedback";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { CommissionDashboard } from "@/components/CommissionDashboard";
 import { AdCampaigns } from "@/components/AdCampaigns";
-import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog, CourseImage } from "@shared/schema";
+import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog, CourseImage, CourseDocument, CourseRatePeriod, CourseContact } from "@shared/schema";
 import { CONTACT_LOG_TYPES } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -229,6 +229,34 @@ type CourseOnboardingData = {
   contactPhone: string | null;
   notes: string | null;
   updatedAt: string | null;
+};
+
+type RatePeriodWithCourse = {
+  id: string;
+  courseId: string;
+  courseName: string;
+  seasonLabel: string;
+  startDate: string;
+  endDate: string;
+  year: number | null;
+  rackRate: number;
+  netRate: number;
+  kickbackPercent: number;
+  currency: string;
+  notes: string | null;
+  isVerified: string;
+  createdAt: string | null;
+};
+
+type CourseContactWithCourse = {
+  id: string;
+  courseId: string;
+  name: string;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+  isPrimary: string;
+  notes: string | null;
 };
 
 const ONBOARDING_STAGES: { value: OnboardingStage; label: string; color: string; icon: typeof CircleDot }[] = [
@@ -428,9 +456,13 @@ export default function Admin() {
   const [newApiKeyExpiration, setNewApiKeyExpiration] = useState<Date | undefined>(undefined);
   const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
   
+  // Rate periods state
+  const [ratePeriodsCourseFilter, setRatePeriodsCourseFilter] = useState<string>("ALL");
+  const [ratePeriodsSearchQuery, setRatePeriodsSearchQuery] = useState("");
+  
   // Update active tab when URL changes
   useEffect(() => {
-    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox", "api-keys"].includes(tabFromUrl)) {
+    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox", "api-keys", "rates"].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl]);
@@ -481,6 +513,24 @@ export default function Admin() {
   const { data: onboardingStats } = useQuery<Record<OnboardingStage, number>>({
     queryKey: ["/api/admin/onboarding/stats"],
     enabled: isAuthenticated,
+  });
+
+  // Fetch all rate periods for kickback rates tab
+  const { data: allRatePeriods, isLoading: isLoadingRatePeriods } = useQuery<RatePeriodWithCourse[]>({
+    queryKey: ["/api/admin/rate-periods"],
+    enabled: isAuthenticated && isAdmin,
+  });
+
+  // Fetch documents for selected course profile
+  const { data: profileDocuments = [], isLoading: isLoadingProfileDocuments } = useQuery<CourseDocument[]>({
+    queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "documents"],
+    enabled: !!selectedCourseProfile?.id && isAuthenticated && isAdmin,
+  });
+
+  // Fetch contacts for selected course profile
+  const { data: profileContacts = [], isLoading: isLoadingProfileContacts } = useQuery<CourseContactWithCourse[]>({
+    queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "contacts"],
+    enabled: !!selectedCourseProfile?.id && isAuthenticated && isAdmin,
   });
 
   // Fetch API keys (admin only)
@@ -790,6 +840,41 @@ export default function Admin() {
       });
     },
   });
+
+  // Process contract with AI mutation
+  const processContractMutation = useMutation({
+    mutationFn: async ({ courseId, documentId }: { courseId: string; documentId: string }) => {
+      const response = await apiRequest(`/api/admin/courses/${courseId}/documents/${documentId}/process`, "POST");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/rate-periods"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "contacts"] });
+      toast({
+        title: "Contract Processed",
+        description: `Extracted ${data.ratePeriods?.length || 0} rate periods and ${data.contacts?.length || 0} contacts`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Processing Failed",
+        description: error?.message || "Failed to process contract with AI",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filter rate periods based on course selection and search
+  const filteredRatePeriods = useMemo(() => {
+    if (!allRatePeriods) return [];
+    return allRatePeriods.filter((period) => {
+      const matchesCourse = ratePeriodsCourseFilter === "ALL" || period.courseId === ratePeriodsCourseFilter;
+      const matchesSearch = !ratePeriodsSearchQuery || 
+        period.courseName.toLowerCase().includes(ratePeriodsSearchQuery.toLowerCase()) ||
+        period.seasonLabel.toLowerCase().includes(ratePeriodsSearchQuery.toLowerCase());
+      return matchesCourse && matchesSearch;
+    });
+  }, [allRatePeriods, ratePeriodsCourseFilter, ratePeriodsSearchQuery]);
 
   // Inbox - Fetch all email threads
   const { data: inboxThreads = [], refetch: refetchInboxThreads } = useQuery<InboundEmailThread[]>({
@@ -2246,6 +2331,12 @@ export default function Admin() {
                 API Keys
               </TabsTrigger>
             )}
+            {isAdmin && (
+              <TabsTrigger value="rates" data-testid="tab-rates">
+                <Percent className="h-4 w-4 mr-2" />
+                Kickback Rates
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="analytics">
@@ -3183,11 +3274,13 @@ export default function Admin() {
 
                 {selectedCourseProfile && (
                   <Tabs value={profileTab} onValueChange={setProfileTab} className="mt-4 sm:mt-6">
-                    <TabsList className="flex w-full overflow-x-auto sm:grid sm:grid-cols-5 scrollbar-hide">
+                    <TabsList className="flex w-full overflow-x-auto sm:grid sm:grid-cols-7 scrollbar-hide">
                       <TabsTrigger value="details" className="flex-shrink-0" data-testid="profile-tab-details">Details</TabsTrigger>
                       <TabsTrigger value="partnership" className="flex-shrink-0" data-testid="profile-tab-partnership">Partnership</TabsTrigger>
                       <TabsTrigger value="credentials" className="flex-shrink-0" data-testid="profile-tab-credentials">Credentials</TabsTrigger>
                       <TabsTrigger value="images" className="flex-shrink-0" data-testid="profile-tab-images">Images</TabsTrigger>
+                      <TabsTrigger value="documents" className="flex-shrink-0" data-testid="profile-tab-documents">Docs</TabsTrigger>
+                      <TabsTrigger value="contacts" className="flex-shrink-0" data-testid="profile-tab-contacts">Contacts</TabsTrigger>
                       <TabsTrigger value="communications" className="flex-shrink-0" data-testid="profile-tab-communications">Comms</TabsTrigger>
                     </TabsList>
 
@@ -3648,6 +3741,150 @@ export default function Admin() {
                             <div className="text-center py-8 text-muted-foreground">
                               <Images className="h-8 w-8 mx-auto mb-2 opacity-50" />
                               <p>No images uploaded yet</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Documents Tab */}
+                    <TabsContent value="documents" className="space-y-4 mt-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Course Documents
+                          </CardTitle>
+                          <CardDescription>
+                            Upload contracts and agreements, then process with AI to extract rates and contacts
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {isLoadingProfileDocuments ? (
+                            <div className="py-8">
+                              <GolfLoader size="sm" text="Loading documents..." />
+                            </div>
+                          ) : profileDocuments.length > 0 ? (
+                            <div className="space-y-3">
+                              {profileDocuments.map((doc) => (
+                                <div 
+                                  key={doc.id} 
+                                  className="flex items-center justify-between p-3 border rounded-md"
+                                  data-testid={`document-row-${doc.id}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <FileText className="h-5 w-5 text-muted-foreground" />
+                                    <div>
+                                      <p className="font-medium text-sm">{doc.filename}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {doc.documentType} 
+                                        {doc.uploadedAt && ` • ${new Date(doc.uploadedAt).toLocaleDateString()}`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {doc.isProcessed ? (
+                                      <Badge variant="secondary" className="text-green-600">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Processed
+                                      </Badge>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => processContractMutation.mutate({
+                                          courseId: selectedCourseProfile.id,
+                                          documentId: doc.id
+                                        })}
+                                        disabled={processContractMutation.isPending}
+                                        data-testid={`button-process-document-${doc.id}`}
+                                      >
+                                        {processContractMutation.isPending ? (
+                                          <>
+                                            <Clock className="h-3 w-3 mr-1 animate-spin" />
+                                            Processing...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Sparkles className="h-3 w-3 mr-1" />
+                                            Process with AI
+                                          </>
+                                        )}
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No documents uploaded yet</p>
+                              <p className="text-sm mt-1">Upload contracts to extract rates and contacts</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Contacts Tab */}
+                    <TabsContent value="contacts" className="space-y-4 mt-4">
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <UserPlus className="h-4 w-4" />
+                            Course Contacts
+                          </CardTitle>
+                          <CardDescription>
+                            Contact information extracted from contracts and documents
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {isLoadingProfileContacts ? (
+                            <div className="py-8">
+                              <GolfLoader size="sm" text="Loading contacts..." />
+                            </div>
+                          ) : profileContacts.length > 0 ? (
+                            <div className="space-y-3">
+                              {profileContacts.map((contact) => (
+                                <div 
+                                  key={contact.id} 
+                                  className="flex items-start justify-between p-3 border rounded-md"
+                                  data-testid={`contact-row-${contact.id}`}
+                                >
+                                  <div className="space-y-1">
+                                    <p className="font-medium">{contact.name}</p>
+                                    {contact.role && (
+                                      <Badge variant="outline" className="text-xs">{contact.role}</Badge>
+                                    )}
+                                    <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
+                                      {contact.email && (
+                                        <div className="flex items-center gap-1">
+                                          <Mail className="h-3 w-3" />
+                                          <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
+                                        </div>
+                                      )}
+                                      {contact.phone && (
+                                        <div className="flex items-center gap-1">
+                                          <PhoneCall className="h-3 w-3" />
+                                          <a href={`tel:${contact.phone}`} className="hover:underline">{contact.phone}</a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {contact.extractedFrom && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      From: {contact.extractedFrom}
+                                    </Badge>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No contacts extracted yet</p>
+                              <p className="text-sm mt-1">Process documents to extract contact information</p>
                             </div>
                           )}
                         </CardContent>
@@ -4896,6 +5133,125 @@ export default function Admin() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </TabsContent>
+
+          <TabsContent value="rates">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Percent className="h-5 w-5" />
+                    Kickback Rate Periods
+                  </CardTitle>
+                  <CardDescription>
+                    View all seasonal kickback rates extracted from contracts. Filter by course or search by season.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-4 sm:items-center">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by course or season..."
+                        value={ratePeriodsSearchQuery}
+                        onChange={(e) => setRatePeriodsSearchQuery(e.target.value)}
+                        className="pl-9"
+                        data-testid="input-rate-periods-search"
+                      />
+                    </div>
+                    <Select value={ratePeriodsCourseFilter} onValueChange={setRatePeriodsCourseFilter}>
+                      <SelectTrigger className="w-full sm:w-[250px]" data-testid="select-rate-periods-course">
+                        <SelectValue placeholder="Filter by course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Courses</SelectItem>
+                        {courses?.map((course) => (
+                          <SelectItem key={course.id} value={course.id}>
+                            {course.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {isLoadingRatePeriods ? (
+                    <div className="py-12">
+                      <GolfLoader size="md" text="Loading rate periods..." />
+                    </div>
+                  ) : filteredRatePeriods.length > 0 ? (
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Course</TableHead>
+                            <TableHead>Season</TableHead>
+                            <TableHead>Date Range</TableHead>
+                            <TableHead className="text-right">Rack Rate</TableHead>
+                            <TableHead className="text-right">Net Rate</TableHead>
+                            <TableHead className="text-right">Kickback %</TableHead>
+                            <TableHead className="text-center">Verified</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredRatePeriods.map((period) => (
+                            <TableRow key={period.id} data-testid={`rate-period-row-${period.id}`}>
+                              <TableCell className="font-medium">{period.courseName}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{period.seasonLabel}</Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {period.startDate} - {period.endDate}
+                                {period.year && <span className="ml-1 text-xs">({period.year})</span>}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                €{period.rackRate.toFixed(0)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                €{period.netRate.toFixed(0)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge 
+                                  variant={period.kickbackPercent >= 20 ? "default" : "secondary"}
+                                  className={period.kickbackPercent >= 20 ? "bg-green-600" : ""}
+                                >
+                                  {period.kickbackPercent.toFixed(1)}%
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {period.isVerified === "true" ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                                ) : (
+                                  <Clock className="h-4 w-4 text-muted-foreground mx-auto" />
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Percent className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p className="text-lg font-medium mb-2">No Rate Periods Found</p>
+                      <p className="text-sm">
+                        {ratePeriodsSearchQuery || ratePeriodsCourseFilter !== "ALL" 
+                          ? "Try adjusting your search or filter" 
+                          : "Upload and process contracts to extract rate periods"}
+                      </p>
+                    </div>
+                  )}
+
+                  {filteredRatePeriods.length > 0 && (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Showing {filteredRatePeriods.length} rate period{filteredRatePeriods.length !== 1 ? "s" : ""}</span>
+                      <span>
+                        Avg Kickback: {(filteredRatePeriods.reduce((sum, p) => sum + p.kickbackPercent, 0) / filteredRatePeriods.length).toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
 

@@ -7,7 +7,7 @@ import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { teeoneClient } from "./providers/teeone";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
@@ -4235,6 +4235,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete document:", error);
       res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
+  // ==========================================
+  // CONTRACT PROCESSING & RATE PERIODS
+  // ==========================================
+
+  // POST /api/admin/courses/:courseId/documents/:documentId/process - Process contract with AI
+  app.post("/api/admin/courses/:courseId/documents/:documentId/process", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const document = await storage.getCourseDocument(req.params.documentId);
+      if (!document || document.courseId !== req.params.courseId) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      if (!document.fileType.includes("pdf")) {
+        return res.status(400).json({ error: "Only PDF documents can be processed" });
+      }
+
+      const { contractParser } = await import("./services/contractParser");
+      const result = await contractParser.processDocument(req.params.documentId);
+      
+      res.json({
+        success: true,
+        ingestionId: result.ingestionId,
+        ratePeriods: result.ratePeriods,
+        contacts: result.contacts,
+        parsedData: result.parsedData,
+      });
+    } catch (error) {
+      console.error("Failed to process contract:", error);
+      res.status(500).json({ error: `Failed to process contract: ${error}` });
+    }
+  });
+
+  // GET /api/admin/courses/:courseId/rate-periods - Get rate periods for a course
+  app.get("/api/admin/courses/:courseId/rate-periods", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { contractParser } = await import("./services/contractParser");
+      const ratePeriods = await contractParser.getCourseRatePeriods(req.params.courseId);
+      res.json(ratePeriods);
+    } catch (error) {
+      console.error("Failed to get rate periods:", error);
+      res.status(500).json({ error: "Failed to get rate periods" });
+    }
+  });
+
+  // GET /api/admin/courses/:courseId/contacts - Get contacts for a course
+  app.get("/api/admin/courses/:courseId/contacts", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { contractParser } = await import("./services/contractParser");
+      const contacts = await contractParser.getCourseContacts(req.params.courseId);
+      res.json(contacts);
+    } catch (error) {
+      console.error("Failed to get contacts:", error);
+      res.status(500).json({ error: "Failed to get contacts" });
+    }
+  });
+
+  // GET /api/admin/rate-periods - Get all rate periods for comparison view
+  app.get("/api/admin/rate-periods", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const allRatePeriods = await db.select({
+        id: courseRatePeriods.id,
+        courseId: courseRatePeriods.courseId,
+        courseName: golfCourses.name,
+        seasonLabel: courseRatePeriods.seasonLabel,
+        startDate: courseRatePeriods.startDate,
+        endDate: courseRatePeriods.endDate,
+        year: courseRatePeriods.year,
+        rackRate: courseRatePeriods.rackRate,
+        netRate: courseRatePeriods.netRate,
+        kickbackPercent: courseRatePeriods.kickbackPercent,
+        currency: courseRatePeriods.currency,
+        notes: courseRatePeriods.notes,
+        isVerified: courseRatePeriods.isVerified,
+      })
+      .from(courseRatePeriods)
+      .leftJoin(golfCourses, eq(courseRatePeriods.courseId, golfCourses.id))
+      .orderBy(golfCourses.name, courseRatePeriods.seasonLabel);
+      
+      res.json(allRatePeriods);
+    } catch (error) {
+      console.error("Failed to get all rate periods:", error);
+      res.status(500).json({ error: "Failed to get rate periods" });
+    }
+  });
+
+  // GET /api/admin/contracts/ingestions - Get all contract ingestions
+  app.get("/api/admin/contracts/ingestions", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ingestions = await db.select({
+        id: contractIngestions.id,
+        documentId: contractIngestions.documentId,
+        courseId: contractIngestions.courseId,
+        courseName: golfCourses.name,
+        status: contractIngestions.status,
+        confidenceScore: contractIngestions.confidenceScore,
+        errorMessage: contractIngestions.errorMessage,
+        processedAt: contractIngestions.processedAt,
+        createdAt: contractIngestions.createdAt,
+      })
+      .from(contractIngestions)
+      .leftJoin(golfCourses, eq(contractIngestions.courseId, golfCourses.id))
+      .orderBy(contractIngestions.createdAt);
+      
+      res.json(ingestions);
+    } catch (error) {
+      console.error("Failed to get contract ingestions:", error);
+      res.status(500).json({ error: "Failed to get contract ingestions" });
+    }
+  });
+
+  // GET /api/admin/courses/:courseId/all-contacts - Get all contacts for a course
+  app.get("/api/admin/courses/:courseId/all-contacts", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { contractParser } = await import("./services/contractParser");
+      const contractContacts = await contractParser.getCourseContacts(req.params.courseId);
+      
+      const [onboarding] = await db.select()
+        .from(courseOnboarding)
+        .where(eq(courseOnboarding.courseId, req.params.courseId));
+      
+      const allContacts = [...contractContacts];
+      
+      if (onboarding?.contactPerson) {
+        allContacts.push({
+          id: 'onboarding',
+          courseId: req.params.courseId,
+          ingestionId: null,
+          name: onboarding.contactPerson,
+          role: 'Primary Contact (Onboarding)',
+          email: onboarding.contactEmail,
+          phone: onboarding.contactPhone,
+          isPrimary: "true",
+          notes: null,
+          createdAt: onboarding.createdAt,
+        });
+      }
+      
+      res.json(allContacts);
+    } catch (error) {
+      console.error("Failed to get all contacts:", error);
+      res.status(500).json({ error: "Failed to get contacts" });
     }
   });
 
