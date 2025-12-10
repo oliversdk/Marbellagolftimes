@@ -93,8 +93,79 @@ export function BookingModal({
   // Helper to handle boolean values (may come as string "true"/"false" or actual booleans)
   const toBool = (val: any): boolean => val === true || val === "true";
 
+  // Helper to parse time string to minutes since midnight
+  const parseTimeToMinutes = (timeStr: string): number => {
+    const match = timeStr.match(/(\d{1,2}):?(\d{2})?/);
+    if (!match) return -1;
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2] || '0', 10);
+    return hours * 60 + minutes;
+  };
+
+  // Check if a package is valid for the given tee time
+  const isPackageValidForTime = (pkg: {
+    isEarlyBird: boolean;
+    isTwilight: boolean;
+    timeRestriction?: string | null;
+  }, teeTimeDate: Date): boolean => {
+    const slotHour = teeTimeDate.getHours();
+    const slotMinutes = teeTimeDate.getMinutes();
+    const slotTotalMinutes = slotHour * 60 + slotMinutes;
+
+    // Early Bird is typically before 10:00 AM
+    if (pkg.isEarlyBird) {
+      // Parse timeRestriction if available (e.g., "8:00-9:00")
+      if (pkg.timeRestriction) {
+        const parts = pkg.timeRestriction.split('-');
+        if (parts.length === 2) {
+          const startMinutes = parseTimeToMinutes(parts[0]);
+          const endMinutes = parseTimeToMinutes(parts[1]);
+          if (startMinutes >= 0 && endMinutes >= 0) {
+            return slotTotalMinutes >= startMinutes && slotTotalMinutes <= endMinutes;
+          }
+        }
+      }
+      // Default: Early Bird is before 10:00 AM
+      return slotHour < 10;
+    }
+
+    // Twilight is typically 3:00 PM (15:00) onwards
+    if (pkg.isTwilight) {
+      // Parse timeRestriction if available (e.g., "from 15:00" or "15:00-20:00")
+      if (pkg.timeRestriction) {
+        const fromMatch = pkg.timeRestriction.match(/from\s*(\d{1,2}):?(\d{2})?/i);
+        if (fromMatch) {
+          const fromHour = parseInt(fromMatch[1], 10);
+          const fromMinutes = parseInt(fromMatch[2] || '0', 10);
+          return slotTotalMinutes >= (fromHour * 60 + fromMinutes);
+        }
+        // Also handle "15:00 onwards" format
+        const onwardsMatch = pkg.timeRestriction.match(/(\d{1,2}):?(\d{2})?\s*onwards/i);
+        if (onwardsMatch) {
+          const fromHour = parseInt(onwardsMatch[1], 10);
+          const fromMinutes = parseInt(onwardsMatch[2] || '0', 10);
+          return slotTotalMinutes >= (fromHour * 60 + fromMinutes);
+        }
+        // Handle range format "15:00-20:00"
+        const parts = pkg.timeRestriction.split('-');
+        if (parts.length === 2) {
+          const startMinutes = parseTimeToMinutes(parts[0]);
+          const endMinutes = parseTimeToMinutes(parts[1]);
+          if (startMinutes >= 0 && endMinutes >= 0) {
+            return slotTotalMinutes >= startMinutes && slotTotalMinutes <= endMinutes;
+          }
+        }
+      }
+      // Default: Twilight is 3:00 PM (15:00) onwards
+      return slotHour >= 15;
+    }
+
+    // No time restriction - package is always valid
+    return true;
+  };
+
   // Get unique packages for selection - distinguish by all package characteristics
-  const availablePackages = ratePeriods?.reduce((acc, rp) => {
+  const allPackages = ratePeriods?.reduce((acc, rp) => {
     const packageType = (rp as any).packageType || 'GREEN_FEE_BUGGY';
     const includesBuggy = toBool((rp as any).includesBuggy);
     const includesLunch = toBool((rp as any).includesLunch);
@@ -127,6 +198,11 @@ export function BookingModal({
     }
     return acc;
   }, [] as SelectedPackage[]) || [];
+
+  // Filter packages based on selected slot time
+  const availablePackages = selectedSlot
+    ? allPackages.filter(pkg => isPackageValidForTime(pkg, new Date(selectedSlot.teeTime)))
+    : allPackages;
 
   // Pre-fill from pre-selected slot if available (from home page)
   useEffect(() => {
