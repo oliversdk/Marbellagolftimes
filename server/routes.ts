@@ -3154,33 +3154,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const inboundEmailParser = multer({ storage: multer.memoryStorage() });
   
   app.post("/api/webhooks/inbound-email", inboundEmailParser.any(), async (req, res) => {
+    // Write debug info to file for persistence
+    const fs = await import('fs');
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      contentType: req.headers['content-type'],
+      bodyKeys: Object.keys(req.body || {}),
+      filesCount: (req.files as Express.Multer.File[] | undefined)?.length || 0,
+      files: (req.files as Express.Multer.File[] | undefined)?.map(f => ({ 
+        fieldname: f.fieldname, 
+        originalname: f.originalname, 
+        mimetype: f.mimetype, 
+        size: f.size 
+      })) || [],
+      attachmentInfo: req.body['attachment-info'] || null,
+      from: req.body.from,
+      subject: req.body.subject
+    };
+    
+    fs.writeFileSync('/tmp/webhook_debug.json', JSON.stringify(debugInfo, null, 2));
+    console.log("[Webhook] Debug info written to /tmp/webhook_debug.json");
     console.log("[Webhook] ========== INBOUND EMAIL RECEIVED ==========");
     console.log("[Webhook] Content-Type:", req.headers['content-type']);
     console.log("[Webhook] Body keys:", Object.keys(req.body || {}));
-    console.log("[Webhook] Files array:", JSON.stringify((req.files as Express.Multer.File[] | undefined)?.map(f => ({ 
-      fieldname: f.fieldname, 
-      originalname: f.originalname, 
-      mimetype: f.mimetype, 
-      size: f.size 
-    })) || []));
+    console.log("[Webhook] Files count:", debugInfo.filesCount);
     
     // Log attachment info from SendGrid
     if (req.body['attachment-info']) {
       console.log("[Webhook] Attachment-info from SendGrid:", req.body['attachment-info']);
     } else {
       console.log("[Webhook] NO attachment-info field in request body");
-    }
-    
-    // Log attachments field if present (alternative SendGrid format)
-    if (req.body['attachments']) {
-      console.log("[Webhook] Attachments field:", req.body['attachments']);
-    }
-    
-    // Check for numbered attachment fields
-    for (let i = 1; i <= 10; i++) {
-      if (req.body[`attachment${i}`]) {
-        console.log(`[Webhook] Found attachment${i} in body (length: ${req.body[`attachment${i}`].length})`);
-      }
     }
     
     try {
