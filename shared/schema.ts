@@ -324,6 +324,8 @@ export const inboundEmails = pgTable("inbound_emails", {
   messageId: text("message_id"), // Email Message-ID header
   inReplyTo: text("in_reply_to"), // In-Reply-To header
   references: text("references"), // References header
+  // Attachments - JSON array of {name, size, type, documentId?} for saved attachments
+  attachmentsJson: text("attachments_json"),
   // Tracking
   sentByUserId: varchar("sent_by_user_id").references(() => users.id), // For outbound emails
   receivedAt: timestamp("received_at").notNull().defaultNow(),

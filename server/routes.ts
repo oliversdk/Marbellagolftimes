@@ -3251,27 +3251,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Webhook] Updated existing thread ${thread.id}`);
       }
       
-      // Create the inbound email message
-      await storage.createInboundEmail({
-        threadId: thread.id,
-        direction: "IN",
-        fromEmail: fromEmail,
-        toEmail: to || process.env.FROM_EMAIL || "info@marbellagolftimes.com",
-        subject: subject || "(No subject)",
-        bodyText: emailBody,
-        bodyHtml: html || null,
-        messageId: messageId,
-        inReplyTo: inReplyTo,
-      });
-      
-      console.log(`[Webhook] Email saved to thread ${thread.id}`);
-      
-      // Process email attachments if a course is matched
+      // Process email attachments first to build attachmentsJson
       const files = req.files as Express.Multer.File[] | undefined;
       let attachmentCount = 0;
+      const attachmentsList: { name: string; size: number; type: string; documentId?: string }[] = [];
       
-      if (files && files.length > 0 && courseId) {
-        console.log(`[Webhook] Processing ${files.length} attachment(s) for course ${courseId}`);
+      if (files && files.length > 0) {
+        console.log(`[Webhook] Found ${files.length} file(s) in request`);
         const objectStorage = new ObjectStorageService();
         
         for (const file of files) {
@@ -3285,28 +3271,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Generate unique filename for storage
             const timestamp = Date.now();
             const safeFilename = (file.originalname || file.fieldname || 'attachment').replace(/[^a-zA-Z0-9.-]/g, '_');
-            const storagePath = `courses/${courseId}/documents/email-${timestamp}-${safeFilename}`;
             
-            console.log(`[Webhook] Uploading attachment: ${safeFilename} (${file.size} bytes)`);
+            console.log(`[Webhook] Processing attachment: ${safeFilename} (${file.size} bytes)`);
             
-            // Upload to object storage
-            const fileUrl = await objectStorage.uploadPrivateFile(storagePath, file.buffer, file.mimetype || 'application/octet-stream');
+            // Track attachment in list
+            const attachmentInfo: { name: string; size: number; type: string; documentId?: string } = {
+              name: safeFilename,
+              size: file.size,
+              type: file.mimetype || 'application/octet-stream',
+            };
             
-            // Create course document record
-            await storage.createCourseDocument({
-              courseId,
-              name: `Email: ${safeFilename}`,
-              fileName: safeFilename,
-              fileUrl,
-              fileType: file.mimetype || 'application/octet-stream',
-              fileSize: file.size,
-              category: "email_attachment",
-              notes: `Automatically imported from email: "${subject || 'No subject'}" from ${fromEmail}`,
-              uploadedById: null,
-            });
+            // If we have a courseId, upload to object storage and create document
+            if (courseId) {
+              const storagePath = `courses/${courseId}/documents/email-${timestamp}-${safeFilename}`;
+              const fileUrl = await objectStorage.uploadPrivateFile(storagePath, file.buffer, file.mimetype || 'application/octet-stream');
+              
+              // Create course document record
+              const doc = await storage.createCourseDocument({
+                courseId,
+                name: `Email: ${safeFilename}`,
+                fileName: safeFilename,
+                fileUrl,
+                fileType: file.mimetype || 'application/octet-stream',
+                fileSize: file.size,
+                category: "email_attachment",
+                notes: `Automatically imported from email: "${subject || 'No subject'}" from ${fromEmail}`,
+                uploadedById: null,
+              });
+              
+              attachmentInfo.documentId = doc.id;
+              console.log(`[Webhook] Saved attachment as document: ${safeFilename} (doc id: ${doc.id})`);
+            }
             
+            attachmentsList.push(attachmentInfo);
             attachmentCount++;
-            console.log(`[Webhook] Saved attachment as document: ${safeFilename}`);
           } catch (attachError) {
             console.error(`[Webhook] Error processing attachment ${file.originalname}:`, attachError);
             // Continue with other attachments
@@ -3314,11 +3312,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         if (attachmentCount > 0) {
-          console.log(`[Webhook] Successfully saved ${attachmentCount} attachment(s) as course documents`);
+          console.log(`[Webhook] Processed ${attachmentCount} attachment(s), ${courseId ? 'saved as documents' : 'not saved (no course match)'}`);
         }
-      } else if (files && files.length > 0 && !courseId) {
-        console.log(`[Webhook] Email has ${files.length} attachment(s) but no matched course - attachments not saved`);
       }
+      
+      // Create the inbound email message with attachments info
+      await storage.createInboundEmail({
+        threadId: thread.id,
+        direction: "IN",
+        fromEmail: fromEmail,
+        toEmail: to || process.env.FROM_EMAIL || "info@marbellagolftimes.com",
+        subject: subject || "(No subject)",
+        bodyText: emailBody,
+        bodyHtml: html || null,
+        messageId: messageId,
+        inReplyTo: inReplyTo,
+        attachmentsJson: attachmentsList.length > 0 ? JSON.stringify(attachmentsList) : null,
+      });
+      
+      console.log(`[Webhook] Email saved to thread ${thread.id}${attachmentCount > 0 ? ` with ${attachmentCount} attachment(s)` : ''}`);
       
       // Always return 200 to SendGrid to acknowledge receipt
       res.status(200).json({ success: true, threadId: thread.id, attachmentsSaved: attachmentCount });

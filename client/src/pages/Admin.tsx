@@ -4995,6 +4995,45 @@ export default function Admin() {
                                 <div className="text-sm whitespace-pre-wrap break-words">
                                   {msg.bodyText || t('inbox.noContent')}
                                 </div>
+                                {/* Attachments */}
+                                {msg.attachmentsJson && (() => {
+                                  try {
+                                    const attachments = JSON.parse(msg.attachmentsJson) as { name: string; size: number; type: string; documentId?: string }[];
+                                    if (attachments.length === 0) return null;
+                                    return (
+                                      <div className="mt-3 pt-3 border-t border-border/50">
+                                        <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                                          <Paperclip className="h-3 w-3" />
+                                          {attachments.length} vedhæftning{attachments.length !== 1 ? 'er' : ''}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                          {attachments.map((att, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 bg-background rounded-md px-2 py-1 text-xs border">
+                                              <FileText className="h-3 w-3 text-muted-foreground" />
+                                              <span className="truncate max-w-[150px]">{att.name}</span>
+                                              <span className="text-muted-foreground">
+                                                ({Math.round(att.size / 1024)}KB)
+                                              </span>
+                                              {att.documentId && selectedThread.courseId && (
+                                                <a
+                                                  href={`/api/admin/courses/${selectedThread.courseId}/documents/${att.documentId}/download`}
+                                                  className="text-primary hover:underline"
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  data-testid={`download-attachment-${idx}`}
+                                                >
+                                                  <Download className="h-3 w-3" />
+                                                </a>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  } catch {
+                                    return null;
+                                  }
+                                })()}
                               </div>
                             ))}
                           </div>
