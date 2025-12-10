@@ -105,12 +105,13 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
   // Show recent searches when input is empty or focused
   const showRecentSearches = courseSearch.trim() === "" && recentSearches.length > 0;
 
-  // Enrich recent searches with city/province if available in courses (memoized)
+  // Enrich recent searches with city/province and fallback name if available in courses (memoized)
   const recentSearchesWithData = useMemo(() => {
     return recentSearches.map((recent) => {
       const course = courses?.find((c) => c.id === recent.courseId);
       return {
         ...recent,
+        courseName: recent.courseName || course?.name || 'Unknown Course',
         city: course?.city,
         province: course?.province,
       };
