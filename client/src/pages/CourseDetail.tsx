@@ -1204,23 +1204,6 @@ export default function CourseDetail() {
                   </div>
                 </div>
                 
-                {course.websiteUrl && (
-                  <a 
-                    href={course.websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-start gap-3 p-2 -m-2 rounded-md hover-elevate min-h-[44px]"
-                    data-testid="contact-website"
-                  >
-                    <Globe className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-medium">{t('courseDetail.website')}</p>
-                      <span className="text-xs sm:text-sm text-muted-foreground break-all">
-                        {t('courseDetail.visitWebsite')}
-                      </span>
-                    </div>
-                  </a>
-                )}
               </CardContent>
             </Card>
 
