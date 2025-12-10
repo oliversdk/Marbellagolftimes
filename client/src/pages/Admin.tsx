@@ -459,6 +459,7 @@ export default function Admin() {
   // Rate periods state
   const [ratePeriodsCourseFilter, setRatePeriodsCourseFilter] = useState<string>("ALL");
   const [ratePeriodsSearchQuery, setRatePeriodsSearchQuery] = useState("");
+  const [expandedRateCourses, setExpandedRateCourses] = useState<Set<string>>(new Set());
   
   // Update active tab when URL changes
   useEffect(() => {
@@ -953,6 +954,31 @@ export default function Admin() {
       return matchesCourse && matchesSearch;
     });
   }, [allRatePeriods, ratePeriodsCourseFilter, ratePeriodsSearchQuery]);
+
+  // Group rate periods by course for collapsible display
+  const groupedRatePeriods = useMemo(() => {
+    const groups: { [courseId: string]: { courseName: string; periods: typeof filteredRatePeriods } } = {};
+    filteredRatePeriods.forEach((period) => {
+      if (!groups[period.courseId]) {
+        groups[period.courseId] = { courseName: period.courseName, periods: [] };
+      }
+      groups[period.courseId].periods.push(period);
+    });
+    return Object.entries(groups).sort((a, b) => a[1].courseName.localeCompare(b[1].courseName));
+  }, [filteredRatePeriods]);
+
+  // Toggle expanded state for a course in rate periods
+  const toggleRateCourseExpanded = (courseId: string) => {
+    setExpandedRateCourses((prev) => {
+      const next = new Set(prev);
+      if (next.has(courseId)) {
+        next.delete(courseId);
+      } else {
+        next.add(courseId);
+      }
+      return next;
+    });
+  };
 
   // Inbox - Fetch all email threads
   const { data: inboxThreads = [], refetch: refetchInboxThreads } = useQuery<InboundEmailThread[]>({
@@ -5459,85 +5485,112 @@ export default function Admin() {
                     <div className="py-12">
                       <GolfLoader size="md" text="Loading rate periods..." />
                     </div>
-                  ) : filteredRatePeriods.length > 0 ? (
-                    <div className="border rounded-md overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Course</TableHead>
-                            <TableHead>Season</TableHead>
-                            <TableHead>Package</TableHead>
-                            <TableHead>Date Range</TableHead>
-                            <TableHead className="text-right">Rack</TableHead>
-                            <TableHead className="text-right">Net</TableHead>
-                            <TableHead className="text-right">%</TableHead>
-                            <TableHead>Includes</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredRatePeriods.map((period) => (
-                            <TableRow key={period.id} data-testid={`rate-period-row-${period.id}`}>
-                              <TableCell className="font-medium">{period.courseName}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline">{period.seasonLabel}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm font-medium">
-                                    {(period as any).packageType?.replace(/_/g, ' ') || 'Green Fee + Buggy'}
-                                  </span>
-                                  {(((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) || ((period as any).isTwilight === "true" || (period as any).isTwilight === true)) && (
-                                    <div className="flex gap-1">
-                                      {((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) && (
-                                        <Badge variant="secondary" className="text-xs">Early Bird</Badge>
-                                      )}
-                                      {((period as any).isTwilight === "true" || (period as any).isTwilight === true) && (
-                                        <Badge variant="secondary" className="text-xs">Twilight</Badge>
-                                      )}
-                                    </div>
-                                  )}
-                                  {(period as any).timeRestriction && (
-                                    <span className="text-xs text-muted-foreground">{(period as any).timeRestriction}</span>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {period.startDate} - {period.endDate}
-                                {period.year && <span className="ml-1 text-xs">({period.year})</span>}
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                €{period.rackRate.toFixed(0)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                €{period.netRate.toFixed(0)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Badge 
-                                  variant={period.kickbackPercent >= 20 ? "default" : "secondary"}
-                                  className={period.kickbackPercent >= 20 ? "bg-green-600" : ""}
-                                >
-                                  {period.kickbackPercent.toFixed(1)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {((period as any).includesBuggy === "true" || (period as any).includesBuggy === true) && (
-                                    <Badge variant="outline" className="text-xs">Buggy</Badge>
-                                  )}
-                                  {((period as any).includesLunch === "true" || (period as any).includesLunch === true) && (
-                                    <Badge variant="outline" className="text-xs">Lunch</Badge>
-                                  )}
-                                  {(period as any).minPlayersForDiscount && (
-                                    <Badge variant="outline" className="text-xs text-green-600">
-                                      {(period as any).freePlayersPerGroup || 1} free / {(period as any).minPlayersForDiscount}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                  ) : groupedRatePeriods.length > 0 ? (
+                    <div className="space-y-2">
+                      {groupedRatePeriods.map(([courseId, { courseName, periods }]) => (
+                        <div key={courseId} className="border rounded-md overflow-hidden">
+                          <button
+                            onClick={() => toggleRateCourseExpanded(courseId)}
+                            className="w-full flex items-center justify-between p-4 bg-muted/30 hover-elevate text-left"
+                            data-testid={`button-expand-course-${courseId}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <ChevronDown 
+                                className={`h-4 w-4 transition-transform ${expandedRateCourses.has(courseId) ? '' : '-rotate-90'}`} 
+                              />
+                              <span className="font-medium">{courseName}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {periods.length} rate{periods.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant="default"
+                                className="bg-green-600"
+                              >
+                                {(periods.reduce((sum, p) => sum + p.kickbackPercent, 0) / periods.length).toFixed(1)}% avg
+                              </Badge>
+                            </div>
+                          </button>
+                          {expandedRateCourses.has(courseId) && (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Season</TableHead>
+                                  <TableHead>Package</TableHead>
+                                  <TableHead>Date Range</TableHead>
+                                  <TableHead className="text-right">Rack</TableHead>
+                                  <TableHead className="text-right">Net</TableHead>
+                                  <TableHead className="text-right">%</TableHead>
+                                  <TableHead>Includes</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {periods.map((period) => (
+                                  <TableRow key={period.id} data-testid={`rate-period-row-${period.id}`}>
+                                    <TableCell>
+                                      <Badge variant="outline">{period.seasonLabel}</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-sm font-medium">
+                                          {(period as any).packageType?.replace(/_/g, ' ') || 'Green Fee + Buggy'}
+                                        </span>
+                                        {(((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) || ((period as any).isTwilight === "true" || (period as any).isTwilight === true)) && (
+                                          <div className="flex gap-1">
+                                            {((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) && (
+                                              <Badge variant="secondary" className="text-xs">Early Bird</Badge>
+                                            )}
+                                            {((period as any).isTwilight === "true" || (period as any).isTwilight === true) && (
+                                              <Badge variant="secondary" className="text-xs">Twilight</Badge>
+                                            )}
+                                          </div>
+                                        )}
+                                        {(period as any).timeRestriction && (
+                                          <span className="text-xs text-muted-foreground">{(period as any).timeRestriction}</span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                      {period.startDate} - {period.endDate}
+                                      {period.year && <span className="ml-1 text-xs">({period.year})</span>}
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                      €{period.rackRate.toFixed(0)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      €{period.netRate.toFixed(0)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <Badge 
+                                        variant={period.kickbackPercent >= 20 ? "default" : "secondary"}
+                                        className={period.kickbackPercent >= 20 ? "bg-green-600" : ""}
+                                      >
+                                        {period.kickbackPercent.toFixed(1)}%
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex flex-wrap gap-1">
+                                        {((period as any).includesBuggy === "true" || (period as any).includesBuggy === true) && (
+                                          <Badge variant="outline" className="text-xs">Buggy</Badge>
+                                        )}
+                                        {((period as any).includesLunch === "true" || (period as any).includesLunch === true) && (
+                                          <Badge variant="outline" className="text-xs">Lunch</Badge>
+                                        )}
+                                        {(period as any).minPlayersForDiscount && (
+                                          <Badge variant="outline" className="text-xs text-green-600">
+                                            {(period as any).freePlayersPerGroup || 1} free / {(period as any).minPlayersForDiscount}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
@@ -5553,7 +5606,9 @@ export default function Admin() {
 
                   {filteredRatePeriods.length > 0 && (
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>Showing {filteredRatePeriods.length} rate period{filteredRatePeriods.length !== 1 ? "s" : ""}</span>
+                      <span>
+                        {groupedRatePeriods.length} course{groupedRatePeriods.length !== 1 ? 's' : ''} • {filteredRatePeriods.length} rate period{filteredRatePeriods.length !== 1 ? "s" : ""}
+                      </span>
                       <span>
                         Avg Kickback: {(filteredRatePeriods.reduce((sum, p) => sum + p.kickbackPercent, 0) / filteredRatePeriods.length).toFixed(1)}%
                       </span>
