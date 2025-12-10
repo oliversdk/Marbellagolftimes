@@ -1821,6 +1821,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/courses/enrich-all - Batch AI enrichment of all courses (Admin only)
+  app.post("/api/courses/enrich-all", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseEnrichmentService } = await import("./services/courseEnrichment");
+      
+      res.json({ message: "Batch enrichment started", status: "processing" });
+
+      courseEnrichmentService.enrichAllCourses()
+        .then(result => {
+          console.log(`[Enrichment] Batch complete:`, result);
+        })
+        .catch(error => {
+          console.error(`[Enrichment] Batch failed:`, error);
+        });
+
+    } catch (error) {
+      console.error("Error starting batch enrichment:", error);
+      res.status(500).json({ error: "Failed to start batch enrichment" });
+    }
+  });
+
   // POST /api/courses/:id/enrich - AI-powered course enrichment (Admin only)
   app.post("/api/courses/:id/enrich", isAuthenticated, isAdmin, async (req, res) => {
     try {

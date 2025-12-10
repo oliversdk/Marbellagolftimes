@@ -334,6 +334,51 @@ Respond ONLY with valid JSON, no markdown or extra text.`;
       console.error(`[CourseEnrichment] Error updating booking rules:`, error);
     }
   }
+
+  async enrichAllCourses(): Promise<{ total: number; enriched: number; failed: number }> {
+    console.log(`[CourseEnrichment] Starting batch enrichment of all courses...`);
+    
+    const courses = await storage.getCourses();
+    const unenriched = courses.filter(c => 
+      c.enrichmentStatus !== "complete" && c.enrichmentStatus !== "processing"
+    );
+    
+    console.log(`[CourseEnrichment] Found ${unenriched.length} courses to enrich out of ${courses.length} total`);
+    
+    let enriched = 0;
+    let failed = 0;
+    
+    for (const course of unenriched) {
+      console.log(`[CourseEnrichment] Enriching ${enriched + failed + 1}/${unenriched.length}: ${course.name}`);
+      
+      try {
+        const result = await this.enrichCourse(course.id);
+        if (result.success) {
+          enriched++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`[CourseEnrichment] Failed to enrich ${course.name}:`, error);
+        failed++;
+      }
+      
+      // Add delay between enrichments to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    console.log(`[CourseEnrichment] Batch complete: ${enriched} enriched, ${failed} failed out of ${unenriched.length}`);
+    return { total: unenriched.length, enriched, failed };
+  }
+
+  async startAutoEnrichment(): Promise<void> {
+    console.log(`[CourseEnrichment] Auto-enrichment started in background...`);
+    
+    // Run in background without blocking
+    this.enrichAllCourses().catch(error => {
+      console.error(`[CourseEnrichment] Auto-enrichment error:`, error);
+    });
+  }
 }
 
 export const courseEnrichmentService = new CourseEnrichmentService();

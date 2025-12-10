@@ -627,6 +627,26 @@ export default function Admin() {
     },
   });
 
+  // Batch enrichment mutation - Enrich all courses at once
+  const enrichAllCoursesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest(`/api/courses/enrich-all`, "POST");
+    },
+    onSuccess: () => {
+      toast({
+        title: "Batch Enrichment Started",
+        description: "AI is searching the web and enriching all courses. This runs in the background and may take several minutes.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Batch Enrichment Failed",
+        description: "Failed to start batch enrichment",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Update onboarding stage mutation
   const updateOnboardingStageMutation = useMutation({
     mutationFn: async ({ courseId, stage }: { courseId: string; stage: OnboardingStage }) => {
@@ -2910,6 +2930,25 @@ export default function Admin() {
                     >
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                       Export
+                    </Button>
+                    
+                    <Button
+                      variant="default"
+                      onClick={() => enrichAllCoursesMutation.mutate()}
+                      disabled={enrichAllCoursesMutation.isPending}
+                      data-testid="button-enrich-all-courses"
+                    >
+                      {enrichAllCoursesMutation.isPending ? (
+                        <>
+                          <span className="animate-spin mr-2">⏳</span>
+                          Enriching...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Enrich All with AI
+                        </>
+                      )}
                     </Button>
                   </div>
 
