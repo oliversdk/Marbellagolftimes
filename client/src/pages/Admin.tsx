@@ -906,6 +906,42 @@ export default function Admin() {
     },
   });
 
+  // Upload document mutation
+  const uploadDocumentMutation = useMutation({
+    mutationFn: async ({ courseId, file }: { courseId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", file.name);
+      formData.append("category", "contract");
+      
+      const response = await fetch(`/api/admin/courses/${courseId}/documents`, {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload document");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "documents"] });
+      toast({
+        title: "Document Uploaded",
+        description: "The document has been uploaded successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Failed",
+        description: error?.message || "Failed to upload document",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter rate periods based on course selection and search
   const filteredRatePeriods = useMemo(() => {
     if (!allRatePeriods) return [];
@@ -3955,13 +3991,54 @@ export default function Admin() {
                     <TabsContent value="documents" className="space-y-4 mt-4">
                       <Card>
                         <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            Course Documents
-                          </CardTitle>
-                          <CardDescription>
-                            Upload contracts and agreements, then process with AI to extract rates and contacts
-                          </CardDescription>
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <CardTitle className="text-base flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                Course Documents
+                              </CardTitle>
+                              <CardDescription>
+                                Upload contracts and agreements, then process with AI to extract rates and contacts
+                              </CardDescription>
+                            </div>
+                            <div>
+                              <input
+                                id="document-upload-input"
+                                type="file"
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file && selectedCourseProfile) {
+                                    uploadDocumentMutation.mutate({
+                                      courseId: selectedCourseProfile.id,
+                                      file
+                                    });
+                                    e.target.value = "";
+                                  }
+                                }}
+                                data-testid="input-document-upload"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => document.getElementById("document-upload-input")?.click()}
+                                disabled={uploadDocumentMutation.isPending}
+                                data-testid="button-upload-document"
+                              >
+                                {uploadDocumentMutation.isPending ? (
+                                  <>
+                                    <Clock className="h-4 w-4 mr-1 animate-spin" />
+                                    Uploading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="h-4 w-4 mr-1" />
+                                    Upload Document
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {isLoadingProfileDocuments ? (
@@ -3979,15 +4056,15 @@ export default function Admin() {
                                   <div className="flex items-center gap-3">
                                     <FileText className="h-5 w-5 text-muted-foreground" />
                                     <div>
-                                      <p className="font-medium text-sm">{doc.filename}</p>
+                                      <p className="font-medium text-sm">{doc.fileName}</p>
                                       <p className="text-xs text-muted-foreground">
-                                        {doc.documentType} 
-                                        {doc.uploadedAt && ` • ${new Date(doc.uploadedAt).toLocaleDateString()}`}
+                                        {doc.category} 
+                                        {doc.createdAt && ` • ${new Date(doc.createdAt).toLocaleDateString()}`}
                                       </p>
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    {doc.isProcessed ? (
+                                    {(doc as any).isProcessed ? (
                                       <Badge variant="secondary" className="text-green-600">
                                         <CheckCircle2 className="h-3 w-3 mr-1" />
                                         Processed
