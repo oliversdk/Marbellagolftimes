@@ -3596,7 +3596,12 @@ export default function Admin() {
                                   {courseRates.map((period: RatePeriodWithCourse) => (
                                     <TableRow key={period.id}>
                                       <TableCell>
-                                        <Badge variant="outline">{period.seasonLabel}</Badge>
+                                        <div className="flex flex-col gap-0.5">
+                                          <Badge variant="outline">{period.seasonLabel}</Badge>
+                                          <span className="text-xs text-muted-foreground">
+                                            {period.startDate} - {period.endDate}
+                                          </span>
+                                        </div>
                                       </TableCell>
                                       <TableCell>
                                         <div className="flex flex-col gap-1">
