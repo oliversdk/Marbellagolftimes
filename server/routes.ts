@@ -851,6 +851,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/rate-periods - Public endpoint to get rate periods for a course (for booking flow)
+  // NOTE: This returns customer-facing data only - no internal commission/kickback info
+  app.get("/api/rate-periods", async (req, res) => {
+    try {
+      const { courseId } = req.query;
+      if (!courseId) {
+        return res.status(400).json({ error: "courseId is required" });
+      }
+
+      const periods = await db.select({
+        id: courseRatePeriods.id,
+        courseId: courseRatePeriods.courseId,
+        seasonLabel: courseRatePeriods.seasonLabel,
+        packageType: courseRatePeriods.packageType,
+        startDate: courseRatePeriods.startDate,
+        endDate: courseRatePeriods.endDate,
+        year: courseRatePeriods.year,
+        rackRate: courseRatePeriods.rackRate, // Public price only
+        currency: courseRatePeriods.currency,
+        includesBuggy: courseRatePeriods.includesBuggy,
+        includesLunch: courseRatePeriods.includesLunch,
+        includesCart: courseRatePeriods.includesCart,
+        isEarlyBird: courseRatePeriods.isEarlyBird,
+        isTwilight: courseRatePeriods.isTwilight,
+        timeRestriction: courseRatePeriods.timeRestriction,
+        minPlayersForDiscount: courseRatePeriods.minPlayersForDiscount,
+        freePlayersPerGroup: courseRatePeriods.freePlayersPerGroup,
+        // Do NOT expose: netRate, kickbackPercent - internal data
+      })
+        .from(courseRatePeriods)
+        .where(eq(courseRatePeriods.courseId, String(courseId)))
+        .orderBy(courseRatePeriods.packageType, courseRatePeriods.seasonLabel);
+      
+      res.json(periods);
+    } catch (error) {
+      console.error("Failed to fetch rate periods:", error);
+      res.status(500).json({ error: "Failed to fetch rate periods" });
+    }
+  });
+
   // GET /api/admin/courses - Get ALL courses including members-only (Admin only)
   app.get("/api/admin/courses", isAuthenticated, isAdmin, async (req, res) => {
     try {
@@ -4302,6 +4342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         courseId: courseRatePeriods.courseId,
         courseName: golfCourses.name,
         seasonLabel: courseRatePeriods.seasonLabel,
+        packageType: courseRatePeriods.packageType,
         startDate: courseRatePeriods.startDate,
         endDate: courseRatePeriods.endDate,
         year: courseRatePeriods.year,
@@ -4309,12 +4350,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         netRate: courseRatePeriods.netRate,
         kickbackPercent: courseRatePeriods.kickbackPercent,
         currency: courseRatePeriods.currency,
+        includesBuggy: courseRatePeriods.includesBuggy,
+        includesLunch: courseRatePeriods.includesLunch,
+        includesCart: courseRatePeriods.includesCart,
+        isEarlyBird: courseRatePeriods.isEarlyBird,
+        isTwilight: courseRatePeriods.isTwilight,
+        timeRestriction: courseRatePeriods.timeRestriction,
+        minPlayersForDiscount: courseRatePeriods.minPlayersForDiscount,
+        freePlayersPerGroup: courseRatePeriods.freePlayersPerGroup,
         notes: courseRatePeriods.notes,
         isVerified: courseRatePeriods.isVerified,
       })
       .from(courseRatePeriods)
       .leftJoin(golfCourses, eq(courseRatePeriods.courseId, golfCourses.id))
-      .orderBy(golfCourses.name, courseRatePeriods.seasonLabel);
+      .orderBy(golfCourses.name, courseRatePeriods.packageType, courseRatePeriods.seasonLabel);
       
       res.json(allRatePeriods);
     } catch (error) {

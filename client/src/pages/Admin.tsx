@@ -3537,12 +3537,12 @@ export default function Admin() {
                                           <span className="text-sm font-medium">
                                             {(period as any).packageType?.replace(/_/g, ' ') || 'Green Fee + Buggy'}
                                           </span>
-                                          {((period as any).isEarlyBird === "true" || (period as any).isTwilight === "true") && (
+                                          {(((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) || ((period as any).isTwilight === "true" || (period as any).isTwilight === true)) && (
                                             <div className="flex gap-1">
-                                              {(period as any).isEarlyBird === "true" && (
+                                              {((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) && (
                                                 <Badge variant="secondary" className="text-xs">Early Bird</Badge>
                                               )}
-                                              {(period as any).isTwilight === "true" && (
+                                              {((period as any).isTwilight === "true" || (period as any).isTwilight === true) && (
                                                 <Badge variant="secondary" className="text-xs">Twilight</Badge>
                                               )}
                                             </div>
@@ -3561,10 +3561,10 @@ export default function Admin() {
                                       </TableCell>
                                       <TableCell>
                                         <div className="flex flex-wrap gap-1">
-                                          {(period as any).includesBuggy === "true" && (
+                                          {((period as any).includesBuggy === "true" || (period as any).includesBuggy === true) && (
                                             <Badge variant="outline" className="text-xs">Buggy</Badge>
                                           )}
-                                          {(period as any).includesLunch === "true" && (
+                                          {((period as any).includesLunch === "true" || (period as any).includesLunch === true) && (
                                             <Badge variant="outline" className="text-xs">Lunch</Badge>
                                           )}
                                           {(period as any).minPlayersForDiscount && (
@@ -5299,12 +5299,12 @@ export default function Admin() {
                                   <span className="text-sm font-medium">
                                     {(period as any).packageType?.replace(/_/g, ' ') || 'Green Fee + Buggy'}
                                   </span>
-                                  {((period as any).isEarlyBird === "true" || (period as any).isTwilight === "true") && (
+                                  {(((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) || ((period as any).isTwilight === "true" || (period as any).isTwilight === true)) && (
                                     <div className="flex gap-1">
-                                      {(period as any).isEarlyBird === "true" && (
+                                      {((period as any).isEarlyBird === "true" || (period as any).isEarlyBird === true) && (
                                         <Badge variant="secondary" className="text-xs">Early Bird</Badge>
                                       )}
-                                      {(period as any).isTwilight === "true" && (
+                                      {((period as any).isTwilight === "true" || (period as any).isTwilight === true) && (
                                         <Badge variant="secondary" className="text-xs">Twilight</Badge>
                                       )}
                                     </div>
@@ -5334,10 +5334,10 @@ export default function Admin() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap gap-1">
-                                  {(period as any).includesBuggy === "true" && (
+                                  {((period as any).includesBuggy === "true" || (period as any).includesBuggy === true) && (
                                     <Badge variant="outline" className="text-xs">Buggy</Badge>
                                   )}
-                                  {(period as any).includesLunch === "true" && (
+                                  {((period as any).includesLunch === "true" || (period as any).includesLunch === true) && (
                                     <Badge variant="outline" className="text-xs">Lunch</Badge>
                                   )}
                                   {(period as any).minPlayersForDiscount && (
