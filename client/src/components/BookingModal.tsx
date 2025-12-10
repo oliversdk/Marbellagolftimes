@@ -519,12 +519,15 @@ export function BookingModal({
                         </Badge>
                       )}
                     </div>
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-1 flex-wrap items-center">
                       {pkg.includesBuggy && (
                         <Badge variant="outline" className="text-xs">
                           <Car className="h-3 w-3 mr-1" />
                           Buggy
                         </Badge>
+                      )}
+                      {pkg.includesBuggy && pkg.includesLunch && (
+                        <span className="text-xs text-muted-foreground">+</span>
                       )}
                       {pkg.includesLunch && (
                         <Badge variant="outline" className="text-xs">
@@ -597,7 +600,7 @@ export function BookingModal({
                 </span>
               )}
               {selectedPackage && (
-                <div className="flex gap-2 mt-2 flex-wrap">
+                <div className="flex gap-1 mt-2 flex-wrap items-center">
                   <Badge variant="secondary" className="text-xs">
                     {formatPackageType(selectedPackage.packageType)}
                   </Badge>
@@ -605,6 +608,9 @@ export function BookingModal({
                     <Badge variant="outline" className="text-xs">
                       <Car className="h-3 w-3 mr-1" />Buggy
                     </Badge>
+                  )}
+                  {selectedPackage.includesBuggy && selectedPackage.includesLunch && (
+                    <span className="text-xs text-muted-foreground">+</span>
                   )}
                   {selectedPackage.includesLunch && (
                     <Badge variant="outline" className="text-xs">
