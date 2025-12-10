@@ -34,6 +34,14 @@ The Admin dashboard includes an Analytics Dashboard for revenue metrics, booking
 
 A Commission & ROI Tracking System in the Admin interface monitors affiliate earnings based on course kickback percentages (editable via unified Edit Course dialog) and tracks advertising campaign performance, calculating ROI. Course commission percentages are stored in the database and persist correctly with optimistic UI updates for instant feedback.
 
+The **AI Contract Processing** feature uses OpenAI GPT-4o and unpdf for automated extraction of golf course contract data:
+- **Kickback Rates Tab**: Displays all seasonal kickback rates across courses with search/filter capabilities
+- **Process with AI**: Button on course documents to extract contract data automatically
+- **Extracted Data**: Seasonal rate periods (rack/net prices, kickback percentages), contact information (names, roles, emails, phones), special terms (group discounts, early bird, twilight), and contract validity dates
+- **Idempotent Processing**: Re-processing a document deletes previous data before inserting new results
+- **Validation**: Rack rates must be > 0, kickback percentages clamped to 0-100%, invalid periods skipped with warnings
+- **Course Contacts Tab**: Displays extracted contact information from processed contracts
+
 ### Backend Architecture
 
 The backend is developed with Node.js and Express in TypeScript (ESM modules), providing RESTful APIs under the `/api` prefix with JSON handling and error management. Data is stored using Drizzle ORM with PostgreSQL. Core API routes manage golf courses, tee time searches (including a `holes` filter), booking requests, and affiliate email campaigns. An admin endpoint allows secure course image updates. The database is automatically seeded with 43 Costa del Sol golf courses on startup.
