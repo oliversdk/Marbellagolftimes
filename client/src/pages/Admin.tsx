@@ -1943,10 +1943,26 @@ export default function Admin() {
       
       return { uploaded: uploadedImages.length, images: uploadedImages };
     },
-    onSuccess: (data: { uploaded: number; images?: Array<{ id: string }> }, variables) => {
+    onSuccess: (data: { uploaded: number; images?: Array<{ id: string; imageUrl: string }> }, variables) => {
+      // Force refetch all related queries
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/courses", variables.courseId, "images"] });
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/courses", variables.courseId, "images"],
+        refetchType: 'all'
+      });
+      
+      // Update selectedCourseProfile if this is the course being edited
+      if (data.images && data.images.length > 0) {
+        const firstImage = data.images[0];
+        setSelectedCourseProfile((prev) => {
+          if (prev?.id === variables.courseId && !prev.imageUrl) {
+            return { ...prev, imageUrl: firstImage.imageUrl };
+          }
+          return prev;
+        });
+      }
+      
       const feedback = getPersonalFeedback(user?.firstName, 'image_uploaded');
       toast({
         title: feedback.title,
