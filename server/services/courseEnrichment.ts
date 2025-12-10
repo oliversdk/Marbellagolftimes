@@ -131,11 +131,15 @@ Respond ONLY with valid JSON, no markdown or extra text.`;
 
       const parsed = JSON.parse(cleanedContent);
       
-      const overview: CourseOverview = parsed.overview || {};
-      const facilities: EnrichedFacilities = parsed.facilities || {};
-      const bookingRules: BookingRules = parsed.bookingRules || {};
+      const hasValidOverview = parsed.overview && typeof parsed.overview === 'object';
+      const hasValidFacilities = parsed.facilities && typeof parsed.facilities === 'object';
+      const hasValidBookingRules = parsed.bookingRules && typeof parsed.bookingRules === 'object';
+      
+      const overview: CourseOverview = hasValidOverview ? parsed.overview : {};
+      const facilities: EnrichedFacilities = hasValidFacilities ? parsed.facilities : {};
+      const bookingRules: BookingRules = hasValidBookingRules ? parsed.bookingRules : {};
 
-      const updatedNotes = overview.description || course.notes;
+      const updatedNotes = hasValidOverview && overview.description ? overview.description : course.notes;
       
       const facilitiesArray: string[] = [];
       if (facilities.drivingRange) facilitiesArray.push("Driving Range");
@@ -149,18 +153,29 @@ Respond ONLY with valid JSON, no markdown or extra text.`;
       if (facilities.golfAcademy) facilitiesArray.push("Golf Academy");
       if (facilities.spa) facilitiesArray.push("Spa");
       if (facilities.pool) facilitiesArray.push("Swimming Pool");
-      if (facilities.otherAmenities) {
+      if (facilities.otherAmenities && Array.isArray(facilities.otherAmenities)) {
         facilitiesArray.push(...facilities.otherAmenities);
       }
 
-      await storage.updateCourse(courseId, {
-        notes: updatedNotes,
-        facilities: facilitiesArray.length > 0 ? facilitiesArray : course.facilities,
-        facilitiesJson: JSON.stringify(facilities),
-        bookingRulesJson: JSON.stringify(bookingRules),
+      const updateData: Record<string, any> = {
         enrichmentStatus: "complete",
         lastEnrichedAt: new Date(),
-      });
+      };
+      
+      if (hasValidOverview && overview.description) {
+        updateData.notes = updatedNotes;
+      }
+      if (facilitiesArray.length > 0) {
+        updateData.facilities = facilitiesArray;
+      }
+      if (hasValidFacilities) {
+        updateData.facilitiesJson = JSON.stringify(facilities);
+      }
+      if (hasValidBookingRules) {
+        updateData.bookingRulesJson = JSON.stringify(bookingRules);
+      }
+
+      await storage.updateCourse(courseId, updateData);
 
       console.log(`[CourseEnrichment] Successfully enriched course: ${course.name}`);
       return { success: true };

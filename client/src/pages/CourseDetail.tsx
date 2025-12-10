@@ -823,7 +823,12 @@ export default function CourseDetail() {
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-6">
                     {(() => {
-                      const rules = course.bookingRulesJson ? JSON.parse(course.bookingRulesJson) : {};
+                      let rules: Record<string, any> = {};
+                      try {
+                        rules = course.bookingRulesJson ? JSON.parse(course.bookingRulesJson) : {};
+                      } catch (e) {
+                        console.warn('Failed to parse bookingRulesJson:', e);
+                      }
                       
                       return (
                         <>
@@ -921,7 +926,12 @@ export default function CourseDetail() {
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                     {(() => {
-                      const facilitiesData = course.facilitiesJson ? JSON.parse(course.facilitiesJson) : null;
+                      let facilitiesData: Record<string, any> | null = null;
+                      try {
+                        facilitiesData = course.facilitiesJson ? JSON.parse(course.facilitiesJson) : null;
+                      } catch (e) {
+                        console.warn('Failed to parse facilitiesJson:', e);
+                      }
                       
                       if (facilitiesData) {
                         const facilityIcons: Record<string, any> = {
