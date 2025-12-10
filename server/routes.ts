@@ -4408,6 +4408,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/documents/:documentId/download - Download document by ID only (for email attachments)
+  app.get("/api/admin/documents/:documentId/download", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const document = await storage.getCourseDocument(req.params.documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const objectStorage = new ObjectStorageService();
+      const fileData = await objectStorage.getPrivateFile(document.fileUrl);
+      
+      res.setHeader("Content-Type", document.fileType);
+      res.setHeader("Content-Disposition", `attachment; filename="${document.fileName}"`);
+      res.send(fileData);
+    } catch (error) {
+      console.error("Failed to download document:", error);
+      res.status(500).json({ error: "Failed to download document" });
+    }
+  });
+
   // DELETE /api/admin/courses/:courseId/documents/:documentId - Delete document
   app.delete("/api/admin/courses/:courseId/documents/:documentId", isAuthenticated, isAdmin, async (req, res) => {
     try {

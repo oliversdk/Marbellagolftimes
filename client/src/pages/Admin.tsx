@@ -4998,8 +4998,11 @@ export default function Admin() {
                                 {/* Attachments */}
                                 {msg.attachmentsJson && (() => {
                                   try {
-                                    const attachments = JSON.parse(msg.attachmentsJson) as { name: string; size: number; type: string; documentId?: string }[];
-                                    if (attachments.length === 0) return null;
+                                    // Handle both string (from API) and already parsed object
+                                    const attachments = (typeof msg.attachmentsJson === 'string' 
+                                      ? JSON.parse(msg.attachmentsJson) 
+                                      : msg.attachmentsJson) as { name: string; size: number; type: string; documentId?: string }[];
+                                    if (!attachments || attachments.length === 0) return null;
                                     return (
                                       <div className="mt-3 pt-3 border-t border-border/50">
                                         <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
@@ -5014,9 +5017,11 @@ export default function Admin() {
                                               <span className="text-muted-foreground">
                                                 ({Math.round(att.size / 1024)}KB)
                                               </span>
-                                              {att.documentId && selectedThread.courseId && (
+                                              {att.documentId && (
                                                 <a
-                                                  href={`/api/admin/courses/${selectedThread.courseId}/documents/${att.documentId}/download`}
+                                                  href={selectedThread.courseId 
+                                                    ? `/api/admin/courses/${selectedThread.courseId}/documents/${att.documentId}/download`
+                                                    : `/api/admin/documents/${att.documentId}/download`}
                                                   className="text-primary hover:underline"
                                                   target="_blank"
                                                   rel="noopener noreferrer"
