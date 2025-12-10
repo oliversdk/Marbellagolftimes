@@ -542,6 +542,112 @@ export const insertCourseDocumentSchema = createInsertSchema(courseDocuments).om
 export type InsertCourseDocument = z.infer<typeof insertCourseDocumentSchema>;
 export type CourseDocument = typeof courseDocuments.$inferSelect;
 
+// Contract Ingestions - Track AI processing of uploaded contracts
+export const contractIngestions = pgTable("contract_ingestions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id").notNull().references(() => courseDocuments.id, { onDelete: "cascade" }),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  status: text("status").notNull().default("PENDING"), // PENDING, PROCESSING, COMPLETED, FAILED
+  rawText: text("raw_text"), // Extracted text from PDF
+  parsedData: jsonb("parsed_data"), // AI-extracted structured data as JSON
+  errorMessage: text("error_message"),
+  confidenceScore: real("confidence_score"), // AI confidence 0-1
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertContractIngestionSchema = createInsertSchema(contractIngestions).omit({ 
+  id: true, 
+  createdAt: true,
+  processedAt: true,
+});
+
+export type InsertContractIngestion = z.infer<typeof insertContractIngestionSchema>;
+export type ContractIngestion = typeof contractIngestions.$inferSelect;
+
+// Contract ingestion statuses
+export const INGESTION_STATUSES = ["PENDING", "PROCESSING", "COMPLETED", "FAILED"] as const;
+export type IngestionStatus = typeof INGESTION_STATUSES[number];
+
+// Course Rate Periods - Store seasonal kickback rates with dates
+export const courseRatePeriods = pgTable("course_rate_periods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
+  ingestionId: varchar("ingestion_id").references(() => contractIngestions.id), // Link to source contract
+  seasonLabel: text("season_label").notNull(), // e.g., "Low Season", "High Season", "Peak"
+  startDate: text("start_date").notNull(), // Date range start (MM-DD format or month name)
+  endDate: text("end_date").notNull(), // Date range end
+  year: integer("year"), // Specific year if applicable
+  rackRate: real("rack_rate").notNull(), // Public rate in EUR
+  netRate: real("net_rate").notNull(), // Our negotiated rate in EUR
+  kickbackPercent: real("kickback_percent").notNull(), // Calculated: ((rack-net)/rack)*100
+  currency: text("currency").notNull().default("EUR"),
+  notes: text("notes"), // Any special conditions
+  isVerified: text("is_verified").notNull().default("false"), // Admin verified
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCourseRatePeriodSchema = createInsertSchema(courseRatePeriods).omit({ 
+  id: true, 
+  createdAt: true,
+});
+
+export type InsertCourseRatePeriod = z.infer<typeof insertCourseRatePeriodSchema>;
+export type CourseRatePeriod = typeof courseRatePeriods.$inferSelect;
+
+// Course Contacts - Store contact people from contracts
+export const courseContacts = pgTable("course_contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
+  ingestionId: varchar("ingestion_id").references(() => contractIngestions.id), // Link to source contract
+  name: text("name").notNull(),
+  role: text("role"), // e.g., "Sales Manager", "Director", "Commercial"
+  email: text("email"),
+  phone: text("phone"),
+  isPrimary: text("is_primary").notNull().default("false"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCourseContactSchema = createInsertSchema(courseContacts).omit({ 
+  id: true, 
+  createdAt: true,
+});
+
+export type InsertCourseContact = z.infer<typeof insertCourseContactSchema>;
+export type CourseContact = typeof courseContacts.$inferSelect;
+
+// Parsed contract data structure (for JSON storage)
+export interface ParsedContractData {
+  validFrom?: string;
+  validUntil?: string;
+  courseName?: string;
+  partnerName?: string;
+  contacts?: Array<{
+    name: string;
+    role?: string;
+    email?: string;
+    phone?: string;
+  }>;
+  ratePeriods?: Array<{
+    seasonLabel: string;
+    startDate: string;
+    endDate: string;
+    rackRate: number;
+    netRate: number;
+    kickbackPercent: number;
+    currency?: string;
+    notes?: string;
+  }>;
+  specialTerms?: Array<{
+    type: string; // GROUP_DISCOUNT, EARLY_BIRD, BUGGY_INCLUDED, etc.
+    description: string;
+    value?: number; // e.g., "1 free per 8 paying" -> 8
+  }>;
+  currency?: string;
+  rawTerms?: string[];
+}
+
 // API Response Types
 export interface TeeTimeSlot {
   teeTime: string;
