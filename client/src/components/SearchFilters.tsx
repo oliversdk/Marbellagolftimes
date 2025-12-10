@@ -170,7 +170,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
                             fallbackSrc={placeholderImage}
                           />
                           <div className="flex flex-col flex-1 min-w-0">
-                            <span className="font-medium truncate">{recent.courseName}</span>
+                            <span className="font-medium truncate text-foreground">{recent.courseName}</span>
                             {recent.city && recent.province && (
                               <span className="text-xs text-muted-foreground truncate">
                                 {recent.city}, {recent.province}
@@ -216,7 +216,7 @@ export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) 
                             fallbackSrc={placeholderImage}
                           />
                           <div className="flex flex-col flex-1 min-w-0">
-                            <span className="font-medium truncate">{course.name}</span>
+                            <span className="font-medium truncate text-foreground">{course.name}</span>
                             <span className="text-xs text-muted-foreground truncate">
                               {course.city}, {course.province}
                             </span>

@@ -131,6 +131,7 @@ export const bookingRequests = pgTable("booking_requests", {
   customerName: text("customer_name").notNull(),
   customerEmail: text("customer_email").notNull(),
   customerPhone: text("customer_phone"),
+  packageType: text("package_type"), // Selected package type (GREEN_FEE_BUGGY, GREEN_FEE_BUGGY_LUNCH, EARLY_BIRD, TWILIGHT)
   status: text("status").notNull().default("PENDING"), // PENDING, SENT_TO_COURSE, CONFIRMED, CANCELLED
   estimatedPrice: real("estimated_price"), // Estimated revenue in EUR
   cancelledAt: timestamp("cancelled_at"),

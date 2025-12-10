@@ -132,13 +132,25 @@ export function BookingModal({
   useEffect(() => {
     if (preSelectedSlot) {
       setSelectedSlot(preSelectedSlot);
-      setStep('fill-details');
+      // Don't set step here - wait for packages to load
       setPlayers(preSelectedSlot.players.toString());
     } else {
       setStep('select-time');
       setSelectedSlot(null);
     }
   }, [preSelectedSlot, open]);
+
+  // Navigate to correct step after packages are loaded (when slot is pre-selected)
+  useEffect(() => {
+    if (open && preSelectedSlot && selectedSlot && ratePeriods !== undefined) {
+      // Packages have loaded, now determine the correct step
+      if (availablePackages.length > 0 && !selectedPackage) {
+        setStep('select-package');
+      } else if (step !== 'fill-details') {
+        setStep('fill-details');
+      }
+    }
+  }, [open, preSelectedSlot, selectedSlot, ratePeriods, availablePackages.length, selectedPackage, step]);
 
   // Auto-fill name/email/phone for logged-in users when modal opens
   useEffect(() => {
