@@ -403,6 +403,7 @@ export default function Admin() {
   const [emailSubject, setEmailSubject] = useState(DEFAULT_EMAIL_TEMPLATE.subject);
   const [emailBody, setEmailBody] = useState(DEFAULT_EMAIL_TEMPLATE.body);
   const [senderName, setSenderName] = useState("");
+  const [emailProviderFilter, setEmailProviderFilter] = useState<"ALL" | "golfmanager" | "teeone" | "none">("ALL");
   const [courseImageUrls, setCourseImageUrls] = useState<Record<string, string>>({});
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
@@ -2346,11 +2347,24 @@ export default function Admin() {
     );
   };
 
+  // Helper to determine course provider type
+  const getCourseProvider = (course: GolfCourse): "golfmanager" | "teeone" | "none" => {
+    if (course.golfmanagerUser) return "golfmanager";
+    if (course.teeoneIdEmpresa) return "teeone";
+    return "none";
+  };
+
+  // Filter courses by provider for email section
+  const filteredEmailCourses = courses?.filter((course) => {
+    if (emailProviderFilter === "ALL") return true;
+    return getCourseProvider(course) === emailProviderFilter;
+  }) || [];
+
   const handleToggleAll = () => {
-    if (selectedCourseIds.length === courses?.length) {
+    if (selectedCourseIds.length === filteredEmailCourses.length) {
       setSelectedCourseIds([]);
     } else {
-      setSelectedCourseIds(courses?.map((c) => c.id) || []);
+      setSelectedCourseIds(filteredEmailCourses.map((c) => c.id));
     }
   };
 
@@ -4460,20 +4474,39 @@ export default function Admin() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <Label>Select Golf Courses</Label>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleToggleAll}
-                        data-testid="button-toggle-all-courses"
-                      >
-                        {t('admin.selectAll', { count: selectedCourseIds.length === courses?.length ? courses?.length || 0 : courses?.length || 0 })}
-                      </Button>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Select value={emailProviderFilter} onValueChange={(v) => setEmailProviderFilter(v as typeof emailProviderFilter)}>
+                          <SelectTrigger className="w-[160px]" data-testid="select-email-provider-filter">
+                            <SelectValue placeholder="Filter by provider" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ALL">All Providers</SelectItem>
+                            <SelectItem value="golfmanager">Golfmanager</SelectItem>
+                            <SelectItem value="teeone">TeeOne</SelectItem>
+                            <SelectItem value="none">No Provider</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleToggleAll}
+                          data-testid="button-toggle-all-courses"
+                        >
+                          {selectedCourseIds.length === filteredEmailCourses.length && filteredEmailCourses.length > 0 
+                            ? "Deselect All" 
+                            : `Select All (${filteredEmailCourses.length})`}
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="border rounded-md max-h-[300px] overflow-y-auto">
-                      {courses?.map((course) => (
+                      {filteredEmailCourses.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground">
+                          No courses match the selected filter
+                        </div>
+                      ) : filteredEmailCourses.map((course) => (
                         <div
                           key={course.id}
                           className="flex items-center space-x-3 p-3 border-b last:border-b-0 hover-elevate"
@@ -4488,7 +4521,15 @@ export default function Admin() {
                             htmlFor={`course-${course.id}`}
                             className="flex-1 text-sm cursor-pointer"
                           >
-                            <div className="font-medium">{course.name}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{course.name}</span>
+                              {getCourseProvider(course) === "golfmanager" && (
+                                <Badge variant="outline" className="text-xs">Golfmanager</Badge>
+                              )}
+                              {getCourseProvider(course) === "teeone" && (
+                                <Badge variant="outline" className="text-xs">TeeOne</Badge>
+                              )}
+                            </div>
                             <div className="text-muted-foreground text-xs">
                               {course.email || "No email"}
                             </div>

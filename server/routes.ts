@@ -2906,6 +2906,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             loggedByUserId: req.user?.id || null,
           });
           
+          // Update onboarding stage to OUTREACH_SENT
+          await storage.updateOnboardingStage(courseId, "OUTREACH_SENT");
+          
           results.push({ courseId, courseName: course.name, success: true });
           sentCount++;
         } else {
