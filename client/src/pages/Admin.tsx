@@ -523,13 +523,6 @@ export default function Admin() {
     enabled: isAuthenticated && isAdmin,
   });
 
-  // Fetch course providers for filtering
-  type CourseProviderInfo = { id: string; name: string; providerType: "golfmanager_v1" | "golfmanager_v3" | "teeone" | null; providerCode: string | null };
-  const { data: courseProviders } = useQuery<CourseProviderInfo[]>({
-    queryKey: ["/api/admin/course-providers"],
-    enabled: isAuthenticated && isAdmin,
-  });
-
   // Fetch documents for selected course profile
   const { data: profileDocuments = [], isLoading: isLoadingProfileDocuments } = useQuery<CourseDocument[]>({
     queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "documents"],
