@@ -21,23 +21,26 @@ Your task is to extract structured data from contract text, specifically:
 
 1. **Contract Period**: Valid from/until dates
 2. **Contact Information**: Names, roles, emails, phone numbers of contact people
-3. **Rate Periods/Seasons**: Each pricing season with:
-   - Season name/label (e.g., "Low Season", "Season 1", "Temporada Baja")
-   - Date ranges (months or specific dates)
-   - Rack Rate (public price / PVP / Tarifa Oficial)
-   - Net Rate (our price / Neto TO / Precio Neto)
-   - Calculate kickback percentage: ((Rack - Net) / Rack) * 100
+3. **Rate Packages**: Each pricing package/product with:
+   - Package type: GREEN_FEE_ONLY, GREEN_FEE_BUGGY, GREEN_FEE_BUGGY_LUNCH, EARLY_BIRD, TWILIGHT
+   - Season name (e.g., "Low Season", "High Season", "Temporada Baja")
+   - Date ranges
+   - Rack Rate (public price / PVP)
+   - Net Rate (our price / Neto TO)
+   - What's included: buggy, lunch, cart
+   - Time restrictions if any (early bird 8-9am, twilight from 3pm)
 
-4. **Special Terms**: Group discounts, early bird offers, buggy included, etc.
+4. **Group Discounts**: Rules like "1 free per 8 players"
 
 IMPORTANT:
+- Extract EACH PACKAGE TYPE SEPARATELY - if there's "Green Fee + Buggy" and "Green Fee + Buggy + Almuerzo/Lunch", create separate entries
+- Early Bird and Twilight rates should be separate entries with isEarlyBird/isTwilight = true
 - Contracts may be in Spanish or English
 - "PVP" or "Rack" = public price
 - "Neto TO" or "Net" = our negotiated price  
-- "Tarifa" = rate/price
-- "Temporada" = season
-- Always calculate kickback as percentage difference between rack and net
-- If prices are per person, note that in the response
+- "Buggy" = golf cart (shared)
+- "Almuerzo" or "Lunch" = meal included
+- Calculate kickback percentage: ((Rack - Net) / Rack) * 100
 
 Return your analysis as valid JSON matching this structure:
 {
@@ -51,20 +54,48 @@ Return your analysis as valid JSON matching this structure:
   "ratePeriods": [
     {
       "seasonLabel": "Low Season",
-      "startDate": "January, July-August, December",
-      "endDate": "January, July-August, December",
+      "packageType": "GREEN_FEE_BUGGY",
+      "startDate": "January 1-31, July 1-31, December 1-31",
+      "endDate": "January 1-31, July 1-31, December 1-31",
       "rackRate": 80,
       "netRate": 64,
       "kickbackPercent": 20,
       "currency": "EUR",
-      "notes": "Green fee 18 holes"
+      "includesBuggy": true,
+      "includesLunch": false,
+      "isEarlyBird": false,
+      "isTwilight": false,
+      "timeRestriction": null,
+      "notes": "Green fee + buggy (shared)"
+    },
+    {
+      "seasonLabel": "Low Season",
+      "packageType": "GREEN_FEE_BUGGY_LUNCH",
+      "startDate": "January 1-31, July 1-31, December 1-31",
+      "endDate": "January 1-31, July 1-31, December 1-31",
+      "rackRate": 95,
+      "netRate": 76,
+      "kickbackPercent": 20,
+      "currency": "EUR",
+      "includesBuggy": true,
+      "includesLunch": true,
+      "isEarlyBird": false,
+      "isTwilight": false,
+      "timeRestriction": null,
+      "notes": "Green fee + buggy + lunch"
     }
   ],
+  "groupDiscount": {
+    "minPlayers": 8,
+    "freePlayers": 1,
+    "description": "1 free player per 8 paying players"
+  },
   "specialTerms": [
-    {"type": "GROUP_DISCOUNT", "description": "1 free player per 8 paying players", "value": 8}
+    {"type": "EARLY_BIRD", "description": "Early bird 8-9am, not available June 15 - Sep 15"},
+    {"type": "TWILIGHT", "description": "From 3pm (April-October), from 1:30pm (Nov-March)"}
   ],
   "currency": "EUR",
-  "rawTerms": ["Any other important terms found in the contract"]
+  "rawTerms": ["VAT included", "Buggy shared", "Rain policy details"]
 }`;
 
 export class ContractParserService {
@@ -175,23 +206,38 @@ export class ContractParserService {
           }
           kickbackPercent = Math.max(0, Math.min(100, kickbackPercent));
           
+          // Extract group discount info if available
+          const groupDiscount = (parsedData as any).groupDiscount;
+          
           await db.insert(courseRatePeriods).values({
             courseId: document.courseId,
             ingestionId: ingestion.id,
             seasonLabel: period.seasonLabel,
+            packageType: (period as any).packageType || "GREEN_FEE_BUGGY",
             startDate: period.startDate || "",
             endDate: period.endDate || "",
             rackRate: rackRate,
             netRate: netRate,
             kickbackPercent: kickbackPercent,
             currency: period.currency || "EUR",
+            // Package inclusions
+            includesBuggy: (period as any).includesBuggy ? "true" : "false",
+            includesLunch: (period as any).includesLunch ? "true" : "false",
+            includesCart: "false",
+            // Time restrictions
+            isEarlyBird: (period as any).isEarlyBird ? "true" : "false",
+            isTwilight: (period as any).isTwilight ? "true" : "false",
+            timeRestriction: (period as any).timeRestriction || null,
+            // Group discounts (apply to all packages)
+            minPlayersForDiscount: groupDiscount?.minPlayers || null,
+            freePlayersPerGroup: groupDiscount?.freePlayers || null,
             notes: period.notes || null,
             year: parsedData.validFrom ? parseInt(parsedData.validFrom.split("-")[0]) : null,
           });
           ratePeriodsCreated++;
         }
 
-        const avgKickback = parsedData.ratePeriods.reduce((sum, p) => sum + p.kickbackPercent, 0) / parsedData.ratePeriods.length;
+        const avgKickback = parsedData.ratePeriods.reduce((sum, p) => sum + (p.kickbackPercent || 0), 0) / parsedData.ratePeriods.length;
         await db.update(golfCourses)
           .set({ kickbackPercent: Math.round(avgKickback * 10) / 10 })
           .where(eq(golfCourses.id, document.courseId));

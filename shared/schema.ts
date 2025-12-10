@@ -575,6 +575,7 @@ export const courseRatePeriods = pgTable("course_rate_periods", {
   courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
   ingestionId: varchar("ingestion_id").references(() => contractIngestions.id), // Link to source contract
   seasonLabel: text("season_label").notNull(), // e.g., "Low Season", "High Season", "Peak"
+  packageType: text("package_type").notNull().default("GREEN_FEE_BUGGY"), // Package category
   startDate: text("start_date").notNull(), // Date range start (MM-DD format or month name)
   endDate: text("end_date").notNull(), // Date range end
   year: integer("year"), // Specific year if applicable
@@ -582,6 +583,17 @@ export const courseRatePeriods = pgTable("course_rate_periods", {
   netRate: real("net_rate").notNull(), // Our negotiated rate in EUR
   kickbackPercent: real("kickback_percent").notNull(), // Calculated: ((rack-net)/rack)*100
   currency: text("currency").notNull().default("EUR"),
+  // Package inclusions
+  includesBuggy: text("includes_buggy").notNull().default("true"),
+  includesLunch: text("includes_lunch").notNull().default("false"),
+  includesCart: text("includes_cart").notNull().default("false"),
+  // Time-based restrictions
+  isEarlyBird: text("is_early_bird").notNull().default("false"), // Before 9am typically
+  isTwilight: text("is_twilight").notNull().default("false"), // After 3pm typically
+  timeRestriction: text("time_restriction"), // e.g., "8:00-9:00" or "from 15:00"
+  // Group discount rules
+  minPlayersForDiscount: integer("min_players_for_discount"), // e.g., 8 for "1 free per 8"
+  freePlayersPerGroup: integer("free_players_per_group"), // e.g., 1 for "1 free per 8"
   notes: text("notes"), // Any special conditions
   isVerified: text("is_verified").notNull().default("false"), // Admin verified
   createdAt: timestamp("created_at").defaultNow(),
