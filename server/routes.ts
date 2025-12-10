@@ -3199,16 +3199,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Try to match to a course by email
       let courseId: string | null = null;
-      const allCourses = await storage.getAllCourses();
-      const emailDomain = fromEmail.split("@")[1];
       
-      for (const course of allCourses) {
-        if (course.email) {
-          const courseEmail = extractEmail(course.email);
-          const courseDomain = courseEmail.split("@")[1];
-          if (courseEmail === fromEmail || courseDomain === emailDomain) {
-            courseId = course.id;
-            break;
+      // First, inherit courseId from existing thread if available
+      if (thread?.courseId) {
+        courseId = thread.courseId;
+        console.log(`[Webhook] Using courseId from existing thread: ${courseId}`);
+      }
+      
+      // If no courseId from thread, try to match by email domain
+      if (!courseId) {
+        const allCourses = await storage.getAllCourses();
+        const emailDomain = fromEmail.split("@")[1];
+        
+        for (const course of allCourses) {
+          if (course.email) {
+            const courseEmail = extractEmail(course.email);
+            const courseDomain = courseEmail.split("@")[1];
+            if (courseEmail === fromEmail || courseDomain === emailDomain) {
+              courseId = course.id;
+              break;
+            }
           }
         }
       }
@@ -3256,8 +3266,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[Webhook] Email saved to thread ${thread.id}`);
       
+      // Process email attachments if a course is matched
+      const files = req.files as Express.Multer.File[] | undefined;
+      let attachmentCount = 0;
+      
+      if (files && files.length > 0 && courseId) {
+        console.log(`[Webhook] Processing ${files.length} attachment(s) for course ${courseId}`);
+        const objectStorage = new ObjectStorageService();
+        
+        for (const file of files) {
+          try {
+            // Skip non-file attachments (SendGrid may send text fields as files)
+            if (!file.buffer || file.size === 0) {
+              console.log(`[Webhook] Skipping empty file: ${file.fieldname}`);
+              continue;
+            }
+            
+            // Generate unique filename for storage
+            const timestamp = Date.now();
+            const safeFilename = (file.originalname || file.fieldname || 'attachment').replace(/[^a-zA-Z0-9.-]/g, '_');
+            const storagePath = `courses/${courseId}/documents/email-${timestamp}-${safeFilename}`;
+            
+            console.log(`[Webhook] Uploading attachment: ${safeFilename} (${file.size} bytes)`);
+            
+            // Upload to object storage
+            const fileUrl = await objectStorage.uploadPrivateFile(storagePath, file.buffer, file.mimetype || 'application/octet-stream');
+            
+            // Create course document record
+            await storage.createCourseDocument({
+              courseId,
+              name: `Email: ${safeFilename}`,
+              fileName: safeFilename,
+              fileUrl,
+              fileType: file.mimetype || 'application/octet-stream',
+              fileSize: file.size,
+              category: "email_attachment",
+              notes: `Automatically imported from email: "${subject || 'No subject'}" from ${fromEmail}`,
+              uploadedById: null,
+            });
+            
+            attachmentCount++;
+            console.log(`[Webhook] Saved attachment as document: ${safeFilename}`);
+          } catch (attachError) {
+            console.error(`[Webhook] Error processing attachment ${file.originalname}:`, attachError);
+            // Continue with other attachments
+          }
+        }
+        
+        if (attachmentCount > 0) {
+          console.log(`[Webhook] Successfully saved ${attachmentCount} attachment(s) as course documents`);
+        }
+      } else if (files && files.length > 0 && !courseId) {
+        console.log(`[Webhook] Email has ${files.length} attachment(s) but no matched course - attachments not saved`);
+      }
+      
       // Always return 200 to SendGrid to acknowledge receipt
-      res.status(200).json({ success: true, threadId: thread.id });
+      res.status(200).json({ success: true, threadId: thread.id, attachmentsSaved: attachmentCount });
     } catch (error) {
       console.error("[Webhook] Error processing inbound email:", error);
       // Still return 200 to prevent SendGrid retries
