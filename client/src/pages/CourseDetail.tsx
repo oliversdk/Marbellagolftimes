@@ -822,96 +822,90 @@ export default function CourseDetail() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-6">
-                    {/* Arrival & Check-in */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary" />
-                        Arrival & Check-in
-                      </h4>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                        <li>Please arrive at least 20 minutes before your tee time</li>
-                        <li>Check in at the Pro Shop upon arrival</li>
-                        <li>Late arrivals may result in loss of booking without refund</li>
-                      </ul>
-                    </div>
+                    {(() => {
+                      const rules = course.bookingRulesJson ? JSON.parse(course.bookingRulesJson) : {};
+                      
+                      return (
+                        <>
+                          {/* Arrival & Check-in */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-primary" />
+                              Arrival & Check-in
+                            </h4>
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {rules.arrivalTime || "Please arrive at least 20 minutes before your tee time. Check in at the Pro Shop upon arrival. Late arrivals may result in loss of booking without refund."}
+                            </p>
+                          </div>
 
-                    {/* Dress Code */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Shirt className="h-4 w-4 text-primary" />
-                        Dress Code
-                      </h4>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                        <li>Golf attire required: collared shirts, tailored shorts/trousers</li>
-                        <li>Soft-spiked golf shoes only</li>
-                        <li>No jeans, cargo shorts, or t-shirts on the course</li>
-                      </ul>
-                    </div>
+                          {/* Dress Code */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Shirt className="h-4 w-4 text-primary" />
+                              Dress Code
+                            </h4>
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {rules.dressCode || "Golf attire required: collared shirts, tailored shorts/trousers. Soft-spiked golf shoes only. No jeans, cargo shorts, or t-shirts on the course."}
+                            </p>
+                          </div>
 
-                    {/* Buggy & Equipment */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Car className="h-4 w-4 text-primary" />
-                        Buggy & Equipment
-                      </h4>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                        <li>Shared buggy between 2 players</li>
-                        <li>Golf clubs available for rental at the Pro Shop</li>
-                        <li>Buggy GPS rules must be followed at all times</li>
-                      </ul>
-                    </div>
+                          {/* Buggy & Equipment */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Car className="h-4 w-4 text-primary" />
+                              Buggy & Equipment
+                            </h4>
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {rules.buggyPolicy || "Shared buggy between 2 players. Golf clubs available for rental at the Pro Shop. Buggy GPS rules must be followed at all times."}
+                            </p>
+                          </div>
 
-                    {/* Handicap Requirements */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Award className="h-4 w-4 text-primary" />
-                        Handicap Requirements
-                      </h4>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                        <li>Valid handicap certificate required</li>
-                        <li>Maximum handicap: 28 for men, 36 for ladies</li>
-                        <li>Digital handicap certificates accepted</li>
-                      </ul>
-                    </div>
+                          {/* Handicap Requirements */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Award className="h-4 w-4 text-primary" />
+                              Handicap Requirements
+                            </h4>
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {rules.handicapRequirements || "Valid handicap certificate required. Maximum handicap: 28 for men, 36 for ladies. Digital handicap certificates accepted."}
+                            </p>
+                          </div>
 
-                    {/* Cancellation Policy */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-primary" />
-                        Cancellation Policy
-                      </h4>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                        <li>Free cancellation up to 48 hours before tee time</li>
-                        <li>50% charge for cancellations within 48 hours</li>
-                        <li>No refund for no-shows or same-day cancellations</li>
-                      </ul>
-                    </div>
+                          {/* Cancellation Policy */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 text-primary" />
+                              Cancellation Policy
+                            </h4>
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {rules.cancellationPolicy || "Free cancellation up to 48 hours before tee time. 50% charge for cancellations within 48 hours. No refund for no-shows or same-day cancellations."}
+                            </p>
+                          </div>
 
-                    {/* Weather Policy */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Cloud className="h-4 w-4 text-primary" />
-                        Weather Policy
-                      </h4>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                        <li>Rain voucher issued if course is closed due to weather</li>
-                        <li>Voucher valid for 12 months from issue date</li>
-                        <li>Subject to availability for rebooking</li>
-                      </ul>
-                    </div>
+                          {/* Weather Policy */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Cloud className="h-4 w-4 text-primary" />
+                              Weather Policy
+                            </h4>
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {rules.weatherPolicy || "Rain voucher issued if course is closed due to weather. Voucher valid for 12 months from issue date. Subject to availability for rebooking."}
+                            </p>
+                          </div>
 
-                    {/* Group Discounts */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Users className="h-4 w-4 text-primary" />
-                        Group Bookings
-                      </h4>
-                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                        <li>Groups of 8+ paying players: 1 player plays free</li>
-                        <li>Contact us directly for group rates and packages</li>
-                        <li>Custom arrangements available for tournaments</li>
-                      </ul>
-                    </div>
+                          {/* Group Bookings */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Users className="h-4 w-4 text-primary" />
+                              Group Bookings
+                            </h4>
+                            <p className="text-sm text-muted-foreground ml-6">
+                              {rules.groupBookings || "Groups of 8+ paying players: 1 player plays free. Contact us directly for group rates and packages. Custom arrangements available for tournaments."}
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </TabsContent>

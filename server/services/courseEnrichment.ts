@@ -63,9 +63,9 @@ export class CourseEnrichmentService {
       
       const prompt = `You are a golf course research assistant. Based on your knowledge about "${course.name}" golf course in ${course.city}, ${course.province}, Spain, provide comprehensive information.
 
-If you don't have specific information about this course, provide typical information for a quality Costa del Sol golf course, but mark it as "typical for the region".
+If you don't have specific information about this course, provide typical information for a quality Costa del Sol golf course.
 
-Respond in JSON format with two sections:
+Respond in JSON format with three sections:
 
 1. "overview" - Course description including:
    - description: A compelling 2-3 paragraph description of the course
@@ -90,6 +90,15 @@ Respond in JSON format with two sections:
    - golfAcademy: { name, description } if exists
    - spa: { name, description } if exists
    - otherAmenities: Array of other amenities
+
+3. "bookingRules" - Standard policies:
+   - arrivalTime: When players should arrive before their tee time (e.g., "30 minutes before tee time")
+   - dressCode: Clothing requirements (e.g., "Smart casual golf attire required. Collared shirts mandatory, denim not permitted on course")
+   - buggyPolicy: Buggy/cart rules (e.g., "Buggies available for rental. Cart path only during wet conditions")
+   - handicapRequirements: Handicap rules (e.g., "Maximum handicap 36 for men, 40 for ladies. Certificate may be required")
+   - cancellationPolicy: Cancellation terms (e.g., "Free cancellation 48 hours before. 50% charge within 48 hours")
+   - weatherPolicy: Weather-related policies (e.g., "Rain voucher issued if course closed. Valid for 12 months")
+   - groupBookings: Group booking terms (e.g., "Groups of 8+ players: 1 plays free. Advance booking required for societies")
 
 Respond ONLY with valid JSON, no markdown or extra text.`;
 
@@ -124,6 +133,7 @@ Respond ONLY with valid JSON, no markdown or extra text.`;
       
       const overview: CourseOverview = parsed.overview || {};
       const facilities: EnrichedFacilities = parsed.facilities || {};
+      const bookingRules: BookingRules = parsed.bookingRules || {};
 
       const updatedNotes = overview.description || course.notes;
       
@@ -147,6 +157,7 @@ Respond ONLY with valid JSON, no markdown or extra text.`;
         notes: updatedNotes,
         facilities: facilitiesArray.length > 0 ? facilitiesArray : course.facilities,
         facilitiesJson: JSON.stringify(facilities),
+        bookingRulesJson: JSON.stringify(bookingRules),
         enrichmentStatus: "complete",
         lastEnrichedAt: new Date(),
       });
