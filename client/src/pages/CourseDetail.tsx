@@ -770,44 +770,22 @@ export default function CourseDetail() {
             </Tabs>
           </div>
 
-          {/* Sidebar - Contact Info */}
+          {/* Sidebar - Location & Info */}
           <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg">{t('courseDetail.contactInformation')}</CardTitle>
+                <CardTitle className="text-base sm:text-lg">{t('courseDetail.location')}</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-4">
-                {course.email && (
-                  <a 
-                    href={`mailto:${course.email}`}
-                    className="flex items-start gap-3 p-2 -m-2 rounded-md hover-elevate min-h-[44px]"
-                    data-testid="contact-email"
-                  >
-                    <Mail className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-medium">{t('courseDetail.email')}</p>
-                      <span className="text-xs sm:text-sm text-muted-foreground break-all">
-                        {course.email}
-                      </span>
-                    </div>
-                  </a>
-                )}
-                
-                {course.phone && (
-                  <a 
-                    href={`tel:${course.phone}`}
-                    className="flex items-start gap-3 p-2 -m-2 rounded-md hover-elevate min-h-[44px]"
-                    data-testid="contact-phone"
-                  >
-                    <Phone className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-xs sm:text-sm font-medium">{t('courseDetail.phone')}</p>
-                      <span className="text-xs sm:text-sm text-muted-foreground">
-                        {course.phone}
-                      </span>
-                    </div>
-                  </a>
-                )}
+                <div className="flex items-start gap-3 p-2 -m-2" data-testid="contact-location">
+                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs sm:text-sm font-medium">{course.city}, {course.province}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Costa del Sol, Spain
+                    </p>
+                  </div>
+                </div>
                 
                 {course.websiteUrl && (
                   <a 
@@ -826,16 +804,6 @@ export default function CourseDetail() {
                     </div>
                   </a>
                 )}
-
-                <div className="flex items-start gap-3 p-2 -m-2" data-testid="contact-location">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-xs sm:text-sm font-medium">{t('courseDetail.location')}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      {course.city}, {course.province}
-                    </p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
