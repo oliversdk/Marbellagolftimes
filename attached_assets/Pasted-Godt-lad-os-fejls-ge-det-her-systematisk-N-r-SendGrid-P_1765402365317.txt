@@ -1,0 +1,92 @@
+Godt, lad os fejlsøge det her systematisk.
+
+Når SendGrid Parse ikke leverer PDF-bilag ind til din webhook, skyldes det næsten altid én af disse:
+
+⸻
+
+1. Webhook’en læser ikke attachments korrekt
+
+SendGrid Parse sender en multipart/form-data POST med bl.a.:
+	•	from, to, subject, text, html
+	•	attachments (antal vedhæftninger)
+	•	attachment1, attachment2, … (selve filerne)
+
+Typiske fejl i din kode:
+	•	Du læser kun JSON / raw_body og ignorerer multipart/form-data.
+	•	Du kigger kun på text/html og aldrig på felterne attachment1, attachment2 osv.
+	•	Du bruger et framework, hvor du skal aktivere file-upload (fx multer i Node, Formidable, Django request.FILES, osv.), men du har ikke sat det op.
+
+👉 Tjek:
+Log hele requesten (alle fields + files) på din endpoint og se, om der overhovedet kommer attachment1 ind.
+Hvis ikke du kan se nogen files, er dit upload-/multipart-setup sandsynligvis forkert.
+
+⸻
+
+2. SendGrid Parse er sat op til ikke at inkludere attachments
+
+I SendGrid Parse-indstillingerne kan der være:
+	•	Et toggle/setting for “Include attachments” / “Store attachments” eller lignende.
+	•	Hvis det er slået fra, sender de kun metadata, ikke selve filerne.
+
+👉 Tjek i SendGrid Dashboard under Inbound Parse:
+	•	Er det rigtige domæne/hostname valgt?
+	•	Er ”Include attachments” eller tilsvarende aktiveret?
+
+⸻
+
+3. PDF’en er for stor eller filtypen bliver filtreret
+
+Mulige scenarier:
+	•	Mails over en vis størrelse bliver droppet eller leveres uden attachments.
+	•	Eventuelle sikkerhedsfiltre (antivirus / security) hos SendGrid fjerner bilaget, hvis de mener, det er mistænkeligt.
+
+👉 Tjek:
+	•	Størrelsen på PDF’en, der ikke kommer igennem.
+	•	Prøv med en meget lille test-PDF (fx 20–50 KB) og se, om den kommer frem.
+	•	Tjek eventuelle logs i SendGrid (Event Webhook / Activity), om der er fejl på de mails.
+
+⸻
+
+4. Din kode overskriver / smider filerne væk
+
+Selv hvis bilaget kommer frem til din server, kan det forsvinde fordi:
+	•	Du gemmer kun text og subject i din DB og ignorerer filerne.
+	•	Du forsøger at gemme filen på disk, men path er forkert / mangler write-rettigheder.
+	•	Du forventer at få én key (file), men SendGrid sender attachment1, attachment2 osv.
+
+👉 Tjek:
+	•	Logger du navn + størrelse på hver vedhæftning, når requesten rammer din endpoint?
+	•	Ser du dem i loggen? Hvis ja, er problemet i næste step (lagring).
+
+⸻
+
+5. Forkert endpoint eller forkert domæne/route i SendGrid Parse
+
+Hvis Parse er sat op til inbound.ditdomæne.dk/post men du lytter på /mailhook eller har ændret domæne/SSL, kan du:
+	•	Godt få almindelige felter via en anden service/test, men Parse-opsætningen kan pege forkert.
+	•	Eller du kigger i et forkert miljø (dev vs prod).
+
+👉 Tjek:
+	•	Hvilken URL står i SendGrid Parse for dit domæne?
+	•	Matcher den præcis (https/http, path, port) det endpoint, hvor du forventer at modtage mailen?
+
+⸻
+
+Helt konkret forslag til hvad du gør nu
+	1.	Send en testmail til Parse-domænet
+	•	Emne: TEST PDF
+	•	Med en lille PDF vedhæftet.
+	2.	Log ALT i din webhook
+	•	Alle fields og alle files i requesten.
+	•	Bekræft, om der er noget ala attachment1 med content-type application/pdf.
+	3.	Ud fra resultatet:
+	•	Hvis der INGEN files er → problemet ligger hos SendGrid-opsætning eller mailen når ikke Parse rigtigt (punkt 2 eller 5).
+	•	Hvis files ER der, men du ikke får dem i systemet → problemet er i din egen kode ved fil-håndtering (punkt 1 eller 4).
+
+⸻
+
+Hvis du fortæller mig:
+	•	Hvilket sprog/framework du bruger til webhook’en (fx Node/Express, PHP, Python/Django, Laravel, osv.)
+	•	Et anonymiseret eksempel på din nuværende endpoint-kode til Parse
+
+… så kan jeg skrive et konkret kodestykke, der garanteret fanger PDF-attachments fra SendGrid Parse.
