@@ -30,7 +30,10 @@ import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { WeatherWidget } from "@/components/WeatherWidget";
-import { MapPin, Phone, Mail, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight, Clock, Car, Utensils, Sun, Sunset, Users, Info, AlertCircle } from "lucide-react";
+import { format } from "date-fns";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Carousel,
   CarouselContent,
@@ -50,7 +53,28 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCourseReviewSchema, type InsertCourseReview } from "@shared/schema";
 import { z } from "zod";
-import type { GolfCourse } from "@shared/schema";
+import type { GolfCourse, CourseRatePeriod, CourseReview, CourseWithReviews } from "@shared/schema";
+
+// Type for available slot from search API
+interface AvailableSlot {
+  id?: string;
+  teeTime: string;
+  greenFee?: number;
+  slotsAvailable?: number;
+}
+
+// Type for selected package 
+interface SelectedPackageInfo {
+  id: string;
+  packageType: string;
+  rackRate: number;
+  includesBuggy: boolean;
+  includesLunch: boolean;
+  isEarlyBird: boolean;
+  isTwilight: boolean;
+  timeRestriction?: string;
+  notes?: string;
+}
 
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -67,8 +91,13 @@ export default function CourseDetail() {
     email: string;
     phone: string;
   } | null>(null);
+  
+  // Booking tab state
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<SelectedPackageInfo | null>(null);
 
-  const { data: course, isLoading } = useQuery<GolfCourse>({
+  const { data: course, isLoading } = useQuery<CourseWithReviews>({
     queryKey: ['/api/courses', id],
     queryFn: async () => {
       if (!id) throw new Error('No course ID');
@@ -79,7 +108,7 @@ export default function CourseDetail() {
     enabled: !!id,
   });
 
-  const { data: reviews = [], isLoading: reviewsLoading } = useQuery<any[]>({
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery<CourseReview[]>({
     queryKey: ['/api/courses', id, 'reviews'],
     queryFn: async () => {
       if (!id) return [];
@@ -99,6 +128,31 @@ export default function CourseDetail() {
       return res.json();
     },
     enabled: !!id,
+  });
+
+  // Rate periods for booking packages
+  const { data: ratePeriods = [] } = useQuery<CourseRatePeriod[]>({
+    queryKey: ['/api/rate-periods', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const res = await fetch(`/api/rate-periods?courseId=${id}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  // Available tee time slots for selected date
+  const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
+  const { data: availableSlots = [], isLoading: slotsLoading } = useQuery<AvailableSlot[]>({
+    queryKey: ['/api/slots/search', id, dateStr],
+    queryFn: async () => {
+      if (!id || !dateStr) return [];
+      const res = await fetch(`/api/slots/search?courseId=${id}&date=${dateStr}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!id && !!dateStr,
   });
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -278,7 +332,7 @@ export default function CourseDetail() {
     return t(`course.${key}` as any);
   };
 
-  // LocalBusiness structured data for course
+  // LocalBusiness structured data for course (no phone/email to prevent direct contact)
   const courseSchema = {
     "@context": "https://schema.org",
     "@type": ["LocalBusiness", "GolfCourse"],
@@ -297,9 +351,7 @@ export default function CourseDetail() {
       "latitude": course.lat,
       "longitude": course.lng
     } : undefined,
-    "priceRange": "€€-€€€",
-    "telephone": course.phone || undefined,
-    "email": course.email || undefined
+    "priceRange": "€€-€€€"
   };
 
   const courseDescription = course.notes 
@@ -374,7 +426,7 @@ export default function CourseDetail() {
               >
                 {course.name}
               </h1>
-              {(course as any).averageRating >= 4.5 && (course as any).reviewCount > 0 && (
+              {course.averageRating && course.averageRating >= 4.5 && course.reviewCount && course.reviewCount > 0 && (
                 <Badge variant="secondary" className="gap-1 h-fit shrink-0" data-testid="badge-top-rated-detail">
                   <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-yellow-400 text-yellow-400" />
                   <span className="text-xs sm:text-sm">Top Rated</span>
@@ -388,24 +440,16 @@ export default function CourseDetail() {
                   {course.city}, {course.province}
                 </span>
               </div>
-              {(course as any).reviewCount > 0 && (
+              {course.reviewCount && course.reviewCount > 0 && (
                 <div className="flex items-center gap-1" data-testid="text-course-rating">
-                  <StarRating rating={(course as any).averageRating} size="sm" />
+                  <StarRating rating={course.averageRating || 0} size="sm" />
                   <span className="text-xs sm:text-sm font-medium">
-                    {(course as any).averageRating.toFixed(1)} ({(course as any).reviewCount} {(course as any).reviewCount === 1 ? 'review' : 'reviews'})
+                    {(course.averageRating || 0).toFixed(1)} ({course.reviewCount} {course.reviewCount === 1 ? 'review' : 'reviews'})
                   </span>
                 </div>
               )}
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Button
-                size="lg"
-                onClick={handleBookingModalOpen}
-                className="min-h-[48px] text-sm sm:text-base"
-                data-testid="button-book-tee-time"
-              >
-                {t('courseDetail.bookTeeTime')}
-              </Button>
               <ShareMenu course={course} size="lg" variant="outline" />
             </div>
           </div>
@@ -417,9 +461,16 @@ export default function CourseDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content - Tabs */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="overview" data-testid="tabs-course-detail">
+            <Tabs defaultValue="booking" data-testid="tabs-course-detail">
               <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-4 h-auto p-1" data-testid="tabs-list">
+                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5 h-auto p-1" data-testid="tabs-list">
+                  <TabsTrigger 
+                    value="booking" 
+                    className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
+                    data-testid="tab-booking"
+                  >
+                    {t('courseDetail.bookTeeTime')}
+                  </TabsTrigger>
                   <TabsTrigger 
                     value="overview" 
                     className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
@@ -450,6 +501,258 @@ export default function CourseDetail() {
                   </TabsTrigger>
                 </TabsList>
               </div>
+
+              {/* Booking Tab */}
+              <TabsContent value="booking" className="space-y-6" data-testid="content-booking">
+                {/* Date Selection */}
+                <Card>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Select Date
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                    <CalendarPicker
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        setSelectedSlot(null);
+                        setSelectedPackage(null);
+                      }}
+                      disabled={(date) => date < new Date()}
+                      className="rounded-md border mx-auto"
+                      data-testid="calendar-date-picker"
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Available Tee Times */}
+                {selectedDate && (
+                  <Card>
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                        <Clock className="h-5 w-5" />
+                        Available Times for {format(selectedDate, "MMMM d, yyyy")}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                      {slotsLoading ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {[...Array(8)].map((_, i) => (
+                            <Skeleton key={i} className="h-12 rounded-md" />
+                          ))}
+                        </div>
+                      ) : availableSlots.length > 0 ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2" data-testid="list-tee-times">
+                          {availableSlots.map((slot, index) => {
+                            const time = new Date(slot.teeTime);
+                            const timeStr = format(time, "HH:mm");
+                            const isSelected = selectedSlot?.teeTime === slot.teeTime;
+                            return (
+                              <Button
+                                key={slot.id || index}
+                                variant={isSelected ? "default" : "outline"}
+                                className="h-12"
+                                onClick={() => {
+                                  setSelectedSlot(slot);
+                                  setSelectedPackage(null);
+                                }}
+                                data-testid={`slot-${index}`}
+                              >
+                                {timeStr}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No available times for this date</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Package Selection */}
+                {selectedSlot && (
+                  <Card>
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-base sm:text-lg">Select Package</CardTitle>
+                      <CardDescription>Choose your preferred package for {format(new Date(selectedSlot.teeTime), "HH:mm")}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-3">
+                      {(() => {
+                        const slotHour = new Date(selectedSlot.teeTime).getHours();
+                        const slotMinutes = new Date(selectedSlot.teeTime).getMinutes();
+                        const slotTimeDecimal = slotHour + slotMinutes / 60;
+                        
+                        // Get unique packages from rate periods with time filtering
+                        const toBool = (val: boolean | string | null | undefined): boolean => val === true || val === 'true';
+                        const packages = ratePeriods.reduce<SelectedPackageInfo[]>((acc, rp) => {
+                          const isEarlyBird = toBool(rp.isEarlyBird);
+                          const isTwilight = toBool(rp.isTwilight);
+                          
+                          // Time-based filtering
+                          if (isEarlyBird && slotTimeDecimal >= 10) return acc;
+                          if (isTwilight && slotTimeDecimal < 15) return acc;
+                          
+                          const key = `${rp.packageType}|${rp.includesBuggy}|${rp.includesLunch}|${isEarlyBird}|${isTwilight}`;
+                          if (!acc.find(p => `${p.packageType}|${p.includesBuggy}|${p.includesLunch}|${p.isEarlyBird}|${p.isTwilight}` === key)) {
+                            acc.push({
+                              id: rp.id,
+                              packageType: rp.packageType || 'Green Fee',
+                              rackRate: Number(rp.rackRate) || 0,
+                              includesBuggy: toBool(rp.includesBuggy),
+                              includesLunch: toBool(rp.includesLunch),
+                              isEarlyBird,
+                              isTwilight,
+                              timeRestriction: rp.timeRestriction || undefined,
+                              notes: rp.notes || undefined,
+                            });
+                          }
+                          return acc;
+                        }, []);
+                        
+                        return packages.length > 0 ? packages.map((pkg, index) => {
+                          const isSelected = selectedPackage?.id === pkg.id;
+                          const formatType = (t: string) => t.replace(/_/g, ' ').replace(/GREEN FEE/g, 'Green Fee');
+                          return (
+                            <Card
+                              key={pkg.id}
+                              className={`hover-elevate active-elevate-2 cursor-pointer ${isSelected ? 'ring-2 ring-primary' : ''}`}
+                              onClick={() => setSelectedPackage(pkg)}
+                              data-testid={`package-${index}`}
+                            >
+                              <CardContent className="p-4 flex items-center justify-between">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium">{formatType(pkg.packageType)}</span>
+                                    {pkg.isEarlyBird && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        <Sun className="h-3 w-3 mr-1" />Early Bird
+                                      </Badge>
+                                    )}
+                                    {pkg.isTwilight && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        <Sunset className="h-3 w-3 mr-1" />Twilight
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-1 items-center flex-wrap">
+                                    {pkg.includesBuggy && (
+                                      <Badge variant="outline" className="text-xs">
+                                        <Car className="h-3 w-3 mr-1" />Buggy
+                                      </Badge>
+                                    )}
+                                    {pkg.includesBuggy && pkg.includesLunch && (
+                                      <span className="text-xs text-muted-foreground">+</span>
+                                    )}
+                                    {pkg.includesLunch && (
+                                      <Badge variant="outline" className="text-xs">
+                                        <Utensils className="h-3 w-3 mr-1" />Lunch
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {pkg.timeRestriction && (
+                                    <span className="text-xs text-muted-foreground">{pkg.timeRestriction}</span>
+                                  )}
+                                </div>
+                                <span className="text-lg font-bold text-primary">€{pkg.rackRate}</span>
+                              </CardContent>
+                            </Card>
+                          );
+                        }) : (
+                          <div className="text-center py-4 text-muted-foreground">
+                            No packages available for this time
+                          </div>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Booking Terms */}
+                <Card>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                      <Info className="h-5 w-5" />
+                      Booking Terms
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+                        <span>Please arrive at least <strong className="text-foreground">20 minutes before</strong> your tee time</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Car className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>Buggy is <strong className="text-foreground">shared</strong> - you may be paired with other players</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span><strong className="text-foreground">Dress code required:</strong> No t-shirts, jeans, trainers, or swimming trunks</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>Please have your <strong className="text-foreground">handicap certificate</strong> available</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Users className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />
+                        <span className="text-green-600"><strong>Group discount:</strong> 1 free player for every 8 paying players</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Booking Summary & CTA */}
+                {selectedDate && selectedSlot && selectedPackage && (
+                  <Card className="border-primary">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="font-medium">Your Selection</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(selectedDate, "EEEE, MMMM d")} at {format(new Date(selectedSlot.teeTime), "HH:mm")}
+                          </p>
+                          <div className="flex gap-1 items-center flex-wrap">
+                            <Badge variant="secondary" className="text-xs">
+                              {selectedPackage.packageType.replace(/_/g, ' ')}
+                            </Badge>
+                            {selectedPackage.includesBuggy && (
+                              <Badge variant="outline" className="text-xs">
+                                <Car className="h-3 w-3 mr-1" />Buggy
+                              </Badge>
+                            )}
+                            {selectedPackage.includesLunch && (
+                              <>
+                                <span className="text-xs text-muted-foreground">+</span>
+                                <Badge variant="outline" className="text-xs">
+                                  <Utensils className="h-3 w-3 mr-1" />Lunch
+                                </Badge>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className="text-2xl font-bold text-primary">€{selectedPackage.rackRate}</span>
+                          <Button
+                            size="lg"
+                            onClick={handleBookingModalOpen}
+                            className="w-full sm:w-auto min-h-[48px]"
+                            data-testid="button-proceed-booking"
+                          >
+                            {t('courseDetail.bookTeeTime')}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
 
               {/* Overview Tab */}
               <TabsContent value="overview" className="space-y-6" data-testid="content-overview">
@@ -728,7 +1031,7 @@ export default function CourseDetail() {
                         </div>
                       ) : reviews.length > 0 ? (
                         <div className="space-y-4 sm:space-y-6">
-                          {reviews.map((review: any) => (
+                          {reviews.map((review: CourseReview) => (
                             <div
                               key={review.id}
                               className="border-b pb-4 sm:pb-6 last:border-b-0 last:pb-0"
@@ -811,19 +1114,33 @@ export default function CourseDetail() {
               <WeatherWidget lat={course.lat} lng={course.lng} />
             )}
 
-            <Card>
-              <CardContent className="p-4 sm:pt-6 space-y-2">
-                <Button
-                  className="w-full min-h-[48px]"
-                  size="lg"
-                  onClick={handleBookingModalOpen}
-                  data-testid="button-book-sidebar"
-                >
-                  {t('courseDetail.bookTeeTime')}
-                </Button>
-                <ShareMenu course={course} size="lg" variant="outline" className="w-full min-h-[44px]" />
-              </CardContent>
-            </Card>
+            {selectedDate && selectedSlot && selectedPackage ? (
+              <Card className="border-primary">
+                <CardContent className="p-4 sm:pt-6 space-y-2">
+                  <div className="text-sm mb-2">
+                    <p className="font-medium">{format(selectedDate, "EEE, MMM d")}</p>
+                    <p className="text-muted-foreground">{format(new Date(selectedSlot.teeTime), "HH:mm")} - €{selectedPackage.rackRate}</p>
+                  </div>
+                  <Button
+                    className="w-full min-h-[48px]"
+                    size="lg"
+                    onClick={handleBookingModalOpen}
+                    data-testid="button-book-sidebar"
+                  >
+                    {t('courseDetail.bookTeeTime')}
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-4 sm:pt-6 space-y-2">
+                  <p className="text-sm text-muted-foreground text-center mb-2">
+                    Select a date, time, and package to book
+                  </p>
+                  <ShareMenu course={course} size="lg" variant="outline" className="w-full min-h-[44px]" />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
@@ -831,8 +1148,22 @@ export default function CourseDetail() {
       {/* Booking Modal */}
       <BookingModal
         course={course}
+        selectedSlot={selectedSlot ? {
+          teeTime: selectedSlot.teeTime,
+          greenFee: selectedPackage?.rackRate || selectedSlot.greenFee || 0,
+          currency: 'EUR',
+          players: 2,
+          holes: 18,
+          source: 'mock',
+          slotsAvailable: selectedSlot.slotsAvailable || 4,
+        } : undefined}
         open={bookingModalOpen}
-        onOpenChange={setBookingModalOpen}
+        onOpenChange={(open) => {
+          setBookingModalOpen(open);
+          if (!open) {
+            // Reset selections when modal closes
+          }
+        }}
         onSubmit={(data) => bookingMutation.mutate(data)}
         isPending={bookingMutation.isPending}
       />
@@ -850,7 +1181,7 @@ export default function CourseDetail() {
               </div>
               <div className="bg-muted p-3 sm:p-4 rounded-md">
                 <p className="text-xs sm:text-sm font-medium text-foreground mb-1 flex items-center justify-center gap-2">
-                  <Mail className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <Info className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   {t('booking.emailConfirmationSent')}
                 </p>
                 <p className="text-xs text-muted-foreground">
