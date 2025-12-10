@@ -3488,6 +3488,63 @@ export default function Admin() {
                           </Button>
                         </form>
                       </Form>
+
+                      {/* Extracted Kickback Rates from Contracts */}
+                      <Card className="mt-6">
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Percent className="h-4 w-4" />
+                            Contract Kickback Rates
+                          </CardTitle>
+                          <CardDescription>
+                            Seasonal rates extracted from PDF contracts via AI
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {(() => {
+                            const courseRates = (allRatePeriods || []).filter(
+                              (rp: RatePeriodWithCourse) => rp.courseId === selectedCourseProfile?.id
+                            );
+                            if (courseRates.length === 0) {
+                              return (
+                                <div className="text-center py-6 text-muted-foreground">
+                                  <FileCheck className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                  <p>No rate periods extracted yet</p>
+                                  <p className="text-sm">Upload a contract in the Docs tab and click "Process with AI"</p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Season</TableHead>
+                                    <TableHead className="text-right">Rack Rate</TableHead>
+                                    <TableHead className="text-right">Net Rate</TableHead>
+                                    <TableHead className="text-right">Kickback %</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {courseRates.map((period: RatePeriodWithCourse) => (
+                                    <TableRow key={period.id}>
+                                      <TableCell>
+                                        <Badge variant="outline">{period.seasonLabel}</Badge>
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium">€{period.rackRate}</TableCell>
+                                      <TableCell className="text-right">€{period.netRate}</TableCell>
+                                      <TableCell className="text-right">
+                                        <Badge className={period.kickbackPercent >= 20 ? "bg-green-100 text-green-700" : ""}>
+                                          {period.kickbackPercent}%
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            );
+                          })()}
+                        </CardContent>
+                      </Card>
                     </TabsContent>
 
                     {/* Credentials Tab */}
