@@ -605,6 +605,28 @@ export default function Admin() {
     },
   });
 
+  // Course enrichment mutation - AI-powered course data enrichment
+  const enrichCourseMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      return await apiRequest(`/api/courses/${courseId}/enrich`, "POST");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      toast({
+        title: "Enrichment Started",
+        description: "AI is analyzing course information. This may take a minute.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Enrichment Failed",
+        description: "Failed to start course enrichment",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Update onboarding stage mutation
   const updateOnboardingStageMutation = useMutation({
     mutationFn: async ({ courseId, stage }: { courseId: string; stage: OnboardingStage }) => {
@@ -3414,9 +3436,37 @@ export default function Admin() {
                               </FormItem>
                             )}
                           />
-                          <Button type="submit" disabled={updateCourseDetailsMutation.isPending} data-testid="button-save-profile-details">
-                            {updateCourseDetailsMutation.isPending ? "Saving..." : "Save Details"}
-                          </Button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button type="submit" disabled={updateCourseDetailsMutation.isPending} data-testid="button-save-profile-details">
+                              {updateCourseDetailsMutation.isPending ? "Saving..." : "Save Details"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => enrichCourseMutation.mutate(selectedCourseProfile.id)}
+                              disabled={enrichCourseMutation.isPending || selectedCourseProfile.enrichmentStatus === "processing"}
+                              data-testid="button-enrich-course"
+                            >
+                              {enrichCourseMutation.isPending || selectedCourseProfile.enrichmentStatus === "processing" ? (
+                                <>
+                                  <span className="animate-spin mr-2">⏳</span>
+                                  Enriching...
+                                </>
+                              ) : selectedCourseProfile.enrichmentStatus === "complete" ? (
+                                <>Re-enrich with AI</>
+                              ) : (
+                                <>Enrich with AI</>
+                              )}
+                            </Button>
+                            {selectedCourseProfile.enrichmentStatus && (
+                              <Badge 
+                                variant={selectedCourseProfile.enrichmentStatus === "complete" ? "default" : "secondary"}
+                                className={selectedCourseProfile.enrichmentStatus === "complete" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" : ""}
+                              >
+                                {selectedCourseProfile.enrichmentStatus === "complete" ? "Enriched" : selectedCourseProfile.enrichmentStatus}
+                              </Badge>
+                            )}
+                          </div>
                         </form>
                       </Form>
                     </TabsContent>
