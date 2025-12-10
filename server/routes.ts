@@ -3156,6 +3156,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/webhooks/inbound-email", inboundEmailParser.any(), async (req, res) => {
     console.log("[Webhook] Inbound email received!");
     console.log("[Webhook] Body keys:", Object.keys(req.body || {}));
+    console.log("[Webhook] Files count:", (req.files as Express.Multer.File[] | undefined)?.length || 0);
+    
+    // Log attachment info from SendGrid
+    if (req.body['attachment-info']) {
+      console.log("[Webhook] Attachment-info from SendGrid:", req.body['attachment-info']);
+    }
     
     try {
       const { from, to, subject, text, html, headers } = req.body;
