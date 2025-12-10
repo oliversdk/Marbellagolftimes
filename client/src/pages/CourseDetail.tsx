@@ -30,7 +30,7 @@ import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { ShareMenu } from "@/components/ShareMenu";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { WeatherWidget } from "@/components/WeatherWidget";
-import { MapPin, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight, Clock, Car, Utensils, Sun, Sunset, Users, Info, AlertCircle } from "lucide-react";
+import { MapPin, Globe, Star, Home, Calendar, Download, ChevronLeft, ChevronRight, Clock, Car, Utensils, Sun, Sunset, Users, Info, AlertCircle, FileText, Shirt, Award, Cloud } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -463,7 +463,7 @@ export default function CourseDetail() {
           <div className="lg:col-span-2">
             <Tabs defaultValue="booking" data-testid="tabs-course-detail">
               <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5 h-auto p-1" data-testid="tabs-list">
+                <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-6 h-auto p-1" data-testid="tabs-list">
                   <TabsTrigger 
                     value="booking" 
                     className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
@@ -477,6 +477,13 @@ export default function CourseDetail() {
                     data-testid="tab-overview"
                   >
                     {t('courseDetail.overview')}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="rules" 
+                    className="min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm whitespace-nowrap"
+                    data-testid="tab-rules"
+                  >
+                    Booking Rules
                   </TabsTrigger>
                   <TabsTrigger 
                     value="facilities" 
@@ -802,6 +809,113 @@ export default function CourseDetail() {
                 </Card>
               </TabsContent>
 
+              {/* Booking Rules Tab */}
+              <TabsContent value="rules" className="space-y-6" data-testid="content-rules">
+                <Card>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Booking Rules & Terms
+                    </CardTitle>
+                    <CardDescription>
+                      Please read these terms before booking your tee time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-6">
+                    {/* Arrival & Check-in */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        Arrival & Check-in
+                      </h4>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Please arrive at least 20 minutes before your tee time</li>
+                        <li>Check in at the Pro Shop upon arrival</li>
+                        <li>Late arrivals may result in loss of booking without refund</li>
+                      </ul>
+                    </div>
+
+                    {/* Dress Code */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Shirt className="h-4 w-4 text-primary" />
+                        Dress Code
+                      </h4>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Golf attire required: collared shirts, tailored shorts/trousers</li>
+                        <li>Soft-spiked golf shoes only</li>
+                        <li>No jeans, cargo shorts, or t-shirts on the course</li>
+                      </ul>
+                    </div>
+
+                    {/* Buggy & Equipment */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Car className="h-4 w-4 text-primary" />
+                        Buggy & Equipment
+                      </h4>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Shared buggy between 2 players</li>
+                        <li>Golf clubs available for rental at the Pro Shop</li>
+                        <li>Buggy GPS rules must be followed at all times</li>
+                      </ul>
+                    </div>
+
+                    {/* Handicap Requirements */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Award className="h-4 w-4 text-primary" />
+                        Handicap Requirements
+                      </h4>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Valid handicap certificate required</li>
+                        <li>Maximum handicap: 28 for men, 36 for ladies</li>
+                        <li>Digital handicap certificates accepted</li>
+                      </ul>
+                    </div>
+
+                    {/* Cancellation Policy */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-primary" />
+                        Cancellation Policy
+                      </h4>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Free cancellation up to 48 hours before tee time</li>
+                        <li>50% charge for cancellations within 48 hours</li>
+                        <li>No refund for no-shows or same-day cancellations</li>
+                      </ul>
+                    </div>
+
+                    {/* Weather Policy */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Cloud className="h-4 w-4 text-primary" />
+                        Weather Policy
+                      </h4>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Rain voucher issued if course is closed due to weather</li>
+                        <li>Voucher valid for 12 months from issue date</li>
+                        <li>Subject to availability for rebooking</li>
+                      </ul>
+                    </div>
+
+                    {/* Group Discounts */}
+                    <div className="space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        Group Bookings
+                      </h4>
+                      <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
+                        <li>Groups of 8+ paying players: 1 player plays free</li>
+                        <li>Contact us directly for group rates and packages</li>
+                        <li>Custom arrangements available for tournaments</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               {/* Facilities Tab */}
               <TabsContent value="facilities" data-testid="content-facilities">
                 <Card>
@@ -1047,7 +1161,7 @@ export default function CourseDetail() {
                                   )}
                                 </div>
                                 <p className="text-xs sm:text-sm text-muted-foreground">
-                                  {new Date(review.createdAt).toLocaleDateString()}
+                                  {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ''}
                                 </p>
                               </div>
                               {review.review && (
