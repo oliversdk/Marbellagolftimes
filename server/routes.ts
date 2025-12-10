@@ -1214,14 +1214,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Include deleted threads so frontend can show them in trash filter
       const threads = await storage.getAllInboundThreads(true);
       
-      // Enrich with course names
+      // Enrich with course names and check for attachments
       const enrichedThreads = await Promise.all(threads.map(async (thread) => {
         let courseName = null;
         if (thread.courseId) {
           const course = await storage.getCourseById(thread.courseId);
           courseName = course?.name || null;
         }
-        return { ...thread, courseName };
+        
+        // Check if any message in the thread has attachments
+        const messages = await storage.getEmailsByThreadId(thread.id);
+        const hasAttachments = messages.some(msg => {
+          if (!msg.attachmentsJson) return false;
+          try {
+            const attachments = typeof msg.attachmentsJson === 'string' 
+              ? JSON.parse(msg.attachmentsJson) 
+              : msg.attachmentsJson;
+            return Array.isArray(attachments) && attachments.length > 0;
+          } catch {
+            return false;
+          }
+        });
+        
+        return { ...thread, courseName, hasAttachments };
       }));
       
       res.json(enrichedThreads);

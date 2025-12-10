@@ -4740,6 +4740,9 @@ export default function Admin() {
                                 </div>
                                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                   <div className="flex items-center gap-1">
+                                    {thread.hasAttachments && (
+                                      <Paperclip className="h-3 w-3 text-muted-foreground" />
+                                    )}
                                     {thread.isMuted === "true" && (
                                       <BellOff className="h-3 w-3 text-muted-foreground" />
                                     )}
