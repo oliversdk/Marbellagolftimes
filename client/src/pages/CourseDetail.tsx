@@ -1096,54 +1096,26 @@ export default function CourseDetail() {
                       
                       return (
                         <div className="space-y-4">
-                          <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                            <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                            <p className="text-sm text-amber-700 dark:text-amber-300">
-                              Click any facility below for more details. Detailed information is populated when admin enriches course with AI.
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                             {defaultFacilities.map((facility, index) => {
                               const Icon = facilityIcons[facility] || Info;
                               return (
-                                <Dialog key={index}>
-                                  <DialogTrigger asChild>
-                                    <button
-                                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover-elevate cursor-pointer text-left w-full"
-                                      data-testid={`badge-facility-${index}`}
-                                    >
-                                      <div className="p-2 rounded-md bg-primary/10 shrink-0">
-                                        <Icon className="h-4 w-4 text-primary" />
-                                      </div>
-                                      <span className="text-sm font-medium">{getFacilityTranslation(facility)}</span>
-                                    </button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle className="flex items-center gap-2">
-                                        <Icon className="h-5 w-5 text-primary" />
-                                        {getFacilityTranslation(facility)}
-                                      </DialogTitle>
-                                      <DialogDescription>
-                                        Facility information for {course.name}
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-4">
-                                      <p className="text-sm">
-                                        {defaultDescriptions[facility] || `${facility} is available at this course.`}
-                                      </p>
-                                      <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                                        <p className="text-sm font-medium text-primary mb-1">Want more details?</p>
-                                        <p className="text-xs text-muted-foreground">
-                                          Book a tee time and our concierge will provide specific opening hours, availability, and any special arrangements you need.
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 p-2 rounded-lg border bg-card"
+                                  data-testid={`badge-facility-${index}`}
+                                >
+                                  <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                                    <Icon className="h-3.5 w-3.5 text-primary" />
+                                  </div>
+                                  <span className="text-xs font-medium truncate">{getFacilityTranslation(facility)}</span>
+                                </div>
                               );
                             })}
                           </div>
+                          <p className="text-xs text-muted-foreground text-center">
+                            Detailed facility information will be available after AI enrichment.
+                          </p>
                         </div>
                       );
                     })()}
