@@ -523,6 +523,13 @@ export default function Admin() {
     enabled: isAuthenticated && isAdmin,
   });
 
+  // Fetch course providers for filtering
+  type CourseProviderInfo = { id: string; name: string; providerType: "golfmanager_v1" | "golfmanager_v3" | "teeone" | null; providerCode: string | null };
+  const { data: courseProviders } = useQuery<CourseProviderInfo[]>({
+    queryKey: ["/api/admin/course-providers"],
+    enabled: isAuthenticated && isAdmin,
+  });
+
   // Fetch documents for selected course profile
   const { data: profileDocuments = [], isLoading: isLoadingProfileDocuments } = useQuery<CourseDocument[]>({
     queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "documents"],
@@ -2347,17 +2354,19 @@ export default function Admin() {
     );
   };
 
-  // Helper to determine course provider type
-  const getCourseProvider = (course: GolfCourse): "golfmanager" | "teeone" | "none" => {
-    if (course.golfmanagerUser) return "golfmanager";
-    if (course.teeoneIdEmpresa) return "teeone";
+  // Helper to determine course provider type from provider links
+  const getCourseProvider = (courseId: string): "golfmanager" | "teeone" | "none" => {
+    const providerInfo = courseProviders?.find(p => p.id === courseId);
+    if (!providerInfo?.providerType) return "none";
+    if (providerInfo.providerType === "golfmanager_v1" || providerInfo.providerType === "golfmanager_v3") return "golfmanager";
+    if (providerInfo.providerType === "teeone") return "teeone";
     return "none";
   };
 
   // Filter courses by provider for email section
   const filteredEmailCourses = courses?.filter((course) => {
     if (emailProviderFilter === "ALL") return true;
-    return getCourseProvider(course) === emailProviderFilter;
+    return getCourseProvider(course.id) === emailProviderFilter;
   }) || [];
 
   const handleToggleAll = () => {
@@ -4523,10 +4532,10 @@ export default function Admin() {
                           >
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{course.name}</span>
-                              {getCourseProvider(course) === "golfmanager" && (
+                              {getCourseProvider(course.id) === "golfmanager" && (
                                 <Badge variant="outline" className="text-xs">Golfmanager</Badge>
                               )}
-                              {getCourseProvider(course) === "teeone" && (
+                              {getCourseProvider(course.id) === "teeone" && (
                                 <Badge variant="outline" className="text-xs">TeeOne</Badge>
                               )}
                             </div>
