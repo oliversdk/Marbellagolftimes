@@ -944,6 +944,36 @@ export default function Admin() {
     },
   });
 
+  // Delete document mutation
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async ({ courseId, documentId }: { courseId: string; documentId: string }) => {
+      const response = await fetch(`/api/admin/courses/${courseId}/documents/${documentId}`, {
+        method: "DELETE",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete document");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "documents"] });
+      toast({
+        title: "Document Deleted",
+        description: "The document has been deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error?.message || "Failed to delete document",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter rate periods based on course selection and search
   const filteredRatePeriods = useMemo(() => {
     if (!allRatePeriods) return [];
@@ -4135,6 +4165,23 @@ export default function Admin() {
                                         )}
                                       </Button>
                                     )}
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => {
+                                        if (confirm(`Are you sure you want to delete "${doc.fileName}"?`)) {
+                                          deleteDocumentMutation.mutate({
+                                            courseId: selectedCourseProfile.id,
+                                            documentId: doc.id
+                                          });
+                                        }
+                                      }}
+                                      disabled={deleteDocumentMutation.isPending}
+                                      data-testid={`button-delete-document-${doc.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
                                   </div>
                                 </div>
                               ))}
