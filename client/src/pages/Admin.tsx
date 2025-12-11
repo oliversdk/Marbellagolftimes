@@ -2954,13 +2954,19 @@ export default function Admin() {
 
           <TabsContent value="courses">
             <div className="space-y-6">
-              {/* Funnel Stats Overview */}
+              {/* Funnel Stats Overview - Clickable to filter */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {ONBOARDING_STAGES.map((stage) => {
                   const count = onboardingStats?.[stage.value] ?? 0;
                   const StageIcon = stage.icon;
+                  const isSelected = stageFilter === stage.value;
                   return (
-                    <Card key={stage.value} className={`${stage.color} border-0`}>
+                    <Card 
+                      key={stage.value} 
+                      className={`${stage.color} border-0 cursor-pointer transition-all hover-elevate ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                      onClick={() => setStageFilter(isSelected ? "ALL" : stage.value)}
+                      data-testid={`card-stage-${stage.value}`}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2 mb-1">
                           <StageIcon className="h-4 w-4" />

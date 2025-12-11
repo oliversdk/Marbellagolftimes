@@ -6,6 +6,7 @@ import {
   courseContacts, 
   courseDocuments,
   golfCourses,
+  courseOnboarding,
   type ParsedContractData 
 } from "../../shared/schema";
 import { eq } from "drizzle-orm";
@@ -31,6 +32,12 @@ Your task is to extract structured data from contract text, specifically:
    - Time restrictions if any (early bird 8-9am, twilight from 3pm)
 
 4. **Group Discounts**: Rules like "1 free per 8 players"
+
+5. **Signatures**: Check if the contract has been signed by BOTH parties (golf course AND partner/agent). Look for:
+   - Signature lines with names/dates filled in
+   - "Firmado/Signed by" sections with actual signatures or names
+   - Date stamps next to signature fields
+   - Words like "Firma", "Signed", "Aceptado", "Accepted" with names/dates
 
 IMPORTANT:
 - Extract EACH PACKAGE TYPE SEPARATELY - if there's "Green Fee + Buggy" and "Green Fee + Buggy + Almuerzo/Lunch", create separate entries
@@ -94,6 +101,11 @@ Return your analysis as valid JSON matching this structure:
     {"type": "EARLY_BIRD", "description": "Early bird 8-9am, not available June 15 - Sep 15"},
     {"type": "TWILIGHT", "description": "From 3pm (April-October), from 1:30pm (Nov-March)"}
   ],
+  "signatures": {
+    "bothPartiesSigned": true,
+    "courseSignature": {"name": "Juan Director", "date": "2025-01-15", "found": true},
+    "partnerSignature": {"name": "Marbella Golf Times", "date": "2025-01-16", "found": true}
+  },
   "currency": "EUR",
   "rawTerms": ["VAT included", "Buggy shared", "Rain policy details"]
 }`;
@@ -277,6 +289,15 @@ export class ContractParserService {
           processedAt: new Date(),
         })
         .where(eq(contractIngestions.id, ingestion.id));
+
+      // Check if both parties have signed - update course status to PARTNERSHIP_ACCEPTED
+      const signatures = (parsedData as any).signatures;
+      if (signatures?.bothPartiesSigned === true) {
+        console.log(`Contract signed by both parties - updating course ${document.courseId} to PARTNERSHIP_ACCEPTED`);
+        await db.update(courseOnboarding)
+          .set({ stage: "PARTNERSHIP_ACCEPTED" })
+          .where(eq(courseOnboarding.courseId, document.courseId));
+      }
 
       return {
         ingestionId: ingestion.id,
