@@ -4701,6 +4701,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================
+  // Zest Golf Channel Manager API Integration
+  // ============================================================
+  
+  app.get("/api/zest/test", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      const result = await zest.testConnection();
+      res.json(result);
+    } catch (error: any) {
+      console.error("Zest Golf test failed:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get("/api/zest/countries", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      const connectedOnly = req.query.connected === "true";
+      const countries = await zest.getCountries(connectedOnly);
+      res.json({ success: true, countries });
+    } catch (error: any) {
+      console.error("Failed to fetch Zest countries:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get("/api/zest/facilities", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      const country = req.query.country as string || "Spain";
+      const connectedOnly = req.query.connected === "true";
+      const facilities = await zest.getFacilities(country, connectedOnly);
+      res.json({ success: true, facilities });
+    } catch (error: any) {
+      console.error("Failed to fetch Zest facilities:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get("/api/zest/facilities/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      const details = await zest.getFacilityDetails(parseInt(req.params.id));
+      res.json({ success: true, facility: details });
+    } catch (error: any) {
+      console.error("Failed to fetch Zest facility details:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get("/api/zest/teetimes/:facilityId", async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      
+      const facilityId = parseInt(req.params.facilityId);
+      const dateStr = req.query.date as string;
+      const players = parseInt(req.query.players as string) || 4;
+      const holes = (parseInt(req.query.holes as string) || 18) as 9 | 18;
+      
+      if (!dateStr) {
+        return res.status(400).json({ success: false, error: "Date is required" });
+      }
+      
+      const bookingDate = new Date(dateStr);
+      const teeTimes = await zest.getTeeTimes(facilityId, bookingDate, players, holes);
+      res.json({ success: true, teeTimes });
+    } catch (error: any) {
+      console.error("Failed to fetch Zest tee times:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.post("/api/zest/bookings", isAuthenticated, async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      const result = await zest.createBooking(req.body);
+      res.json({ success: true, booking: result });
+    } catch (error: any) {
+      console.error("Failed to create Zest booking:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.delete("/api/zest/bookings/:bookingId", isAuthenticated, async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      const success = await zest.cancelBooking(req.params.bookingId);
+      res.json({ success });
+    } catch (error: any) {
+      console.error("Failed to cancel Zest booking:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
