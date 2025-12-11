@@ -3171,6 +3171,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/webhooks/inbound-email", inboundEmailParser.any(), async (req, res) => {
     // Write debug info to file for persistence
     const fs = await import('fs');
+    const { simpleParser } = await import('mailparser');
+    
     const debugInfo = {
       timestamp: new Date().toISOString(),
       contentType: req.headers['content-type'],
@@ -3184,7 +3186,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       })) || [],
       attachmentInfo: req.body['attachment-info'] || null,
       from: req.body.from,
-      subject: req.body.subject
+      subject: req.body.subject,
+      hasRawEmail: !!req.body.email
     };
     
     fs.writeFileSync('/tmp/webhook_debug.json', JSON.stringify(debugInfo, null, 2));
@@ -3193,6 +3196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("[Webhook] Content-Type:", req.headers['content-type']);
     console.log("[Webhook] Body keys:", Object.keys(req.body || {}));
     console.log("[Webhook] Files count:", debugInfo.filesCount);
+    console.log("[Webhook] Has raw email field:", !!req.body.email);
     
     // Log attachment info from SendGrid
     if (req.body['attachment-info']) {
@@ -3202,7 +3206,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      const { from, to, subject, text, html, headers } = req.body;
+      let from: string, to: string, subject: string, text: string | undefined, html: string | undefined, headers: string;
+      let parsedAttachments: { filename: string; contentType: string; content: Buffer; size: number }[] = [];
+      
+      // Check if this is raw MIME mode (when "POST the raw, full MIME message" is enabled)
+      if (req.body.email) {
+        console.log("[Webhook] Parsing raw MIME email...");
+        const parsed = await simpleParser(req.body.email);
+        
+        from = parsed.from?.text || '';
+        to = parsed.to ? (Array.isArray(parsed.to) ? parsed.to[0]?.text : parsed.to.text) || '' : '';
+        subject = parsed.subject || '';
+        text = parsed.text || undefined;
+        html = parsed.html || undefined;
+        headers = parsed.headerLines?.map(h => `${h.key}: ${h.line}`).join('\n') || '';
+        
+        // Extract attachments from parsed email
+        if (parsed.attachments && parsed.attachments.length > 0) {
+          console.log(`[Webhook] Found ${parsed.attachments.length} attachments in raw MIME`);
+          parsedAttachments = parsed.attachments.map(att => ({
+            filename: att.filename || 'attachment',
+            contentType: att.contentType || 'application/octet-stream',
+            content: att.content,
+            size: att.size
+          }));
+        }
+        
+        console.log(`[Webhook] Parsed raw MIME - from: ${from}, subject: ${subject}, text length: ${text?.length || 0}, attachments: ${parsedAttachments.length}`);
+      } else {
+        // Standard parsed mode
+        ({ from, to, subject, text, html, headers } = req.body);
+      }
       
       // Extract email address from various formats
       const extractEmail = (emailStr: string): string => {
@@ -3299,10 +3333,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const files = req.files as Express.Multer.File[] | undefined;
       let attachmentCount = 0;
       const attachmentsList: { name: string; size: number; type: string; documentId?: string }[] = [];
+      const objectStorage = new ObjectStorageService();
       
-      if (files && files.length > 0) {
+      // Handle attachments from raw MIME parsing first
+      if (parsedAttachments.length > 0) {
+        console.log(`[Webhook] Processing ${parsedAttachments.length} attachment(s) from raw MIME`);
+        
+        for (const att of parsedAttachments) {
+          try {
+            const timestamp = Date.now();
+            const safeFilename = att.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+            
+            console.log(`[Webhook] Processing attachment: ${safeFilename} (${att.size} bytes)`);
+            
+            const attachmentInfo: { name: string; size: number; type: string; documentId?: string } = {
+              name: safeFilename,
+              size: att.size,
+              type: att.contentType,
+            };
+            
+            // If we have a courseId, upload to object storage and create document
+            if (courseId) {
+              const storagePath = `courses/${courseId}/documents/email-${timestamp}-${safeFilename}`;
+              const fileUrl = await objectStorage.uploadPrivateFile(storagePath, att.content, att.contentType);
+              
+              const doc = await storage.createCourseDocument({
+                courseId,
+                name: `Email: ${safeFilename}`,
+                fileName: safeFilename,
+                fileUrl,
+                fileType: att.contentType,
+                fileSize: att.size,
+                category: "email_attachment",
+                notes: `Automatically imported from email: "${subject || 'No subject'}" from ${fromEmail}`,
+                uploadedById: null,
+              });
+              
+              attachmentInfo.documentId = doc.id;
+              console.log(`[Webhook] Saved attachment as document: ${safeFilename} (doc id: ${doc.id})`);
+            }
+            
+            attachmentsList.push(attachmentInfo);
+            attachmentCount++;
+          } catch (attachError) {
+            console.error(`[Webhook] Error processing attachment ${att.filename}:`, attachError);
+          }
+        }
+      }
+      // Handle attachments from multer (non-raw mode)
+      else if (files && files.length > 0) {
         console.log(`[Webhook] Found ${files.length} file(s) in request`);
-        const objectStorage = new ObjectStorageService();
         
         for (const file of files) {
           try {
@@ -3354,10 +3434,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Continue with other attachments
           }
         }
-        
-        if (attachmentCount > 0) {
-          console.log(`[Webhook] Processed ${attachmentCount} attachment(s), ${courseId ? 'saved as documents' : 'not saved (no course match)'}`);
-        }
+      }
+      
+      if (attachmentCount > 0) {
+        console.log(`[Webhook] Processed ${attachmentCount} attachment(s), ${courseId ? 'saved as documents' : 'not saved (no course match)'}`);
       }
       
       // Create the inbound email message with attachments info
