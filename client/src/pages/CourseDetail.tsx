@@ -698,39 +698,89 @@ export default function CourseDetail() {
                   </Card>
                 )}
 
-                {/* Booking Terms */}
-                <Card>
-                  <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                      <Info className="h-5 w-5" />
-                      Booking Terms
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                    <div className="space-y-3 text-sm text-muted-foreground">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
-                        <span>Please arrive at least <strong className="text-foreground">20 minutes before</strong> your tee time</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Car className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span>Buggy is <strong className="text-foreground">shared</strong> - you may be paired with other players</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span><strong className="text-foreground">Dress code required:</strong> No t-shirts, jeans, trainers, or swimming trunks</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span>Please have your <strong className="text-foreground">handicap certificate</strong> available</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Users className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />
-                        <span className="text-green-600"><strong>Group discount:</strong> 1 free player for every 8 paying players</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* Booking Terms - Only show if course has specific terms */}
+                {(() => {
+                  // Parse booking rules from course data
+                  let bookingRules: {
+                    arrivalTime?: string;
+                    dressCode?: string;
+                    handicapRequirement?: string;
+                    buggyPolicy?: string;
+                    groupDiscount?: string;
+                    cancellationPolicy?: string;
+                    additionalNotes?: string[];
+                  } | null = null;
+                  
+                  if (course?.bookingRulesJson) {
+                    try {
+                      bookingRules = JSON.parse(course.bookingRulesJson);
+                    } catch {
+                      bookingRules = null;
+                    }
+                  }
+                  
+                  // Don't render if no booking rules
+                  if (!bookingRules || Object.keys(bookingRules).length === 0) {
+                    return null;
+                  }
+                  
+                  return (
+                    <Card>
+                      <CardHeader className="p-4 sm:p-6">
+                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                          <Info className="h-5 w-5" />
+                          Booking Terms
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                        <div className="space-y-3 text-sm text-muted-foreground">
+                          {bookingRules.arrivalTime && (
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+                              <span>{bookingRules.arrivalTime}</span>
+                            </div>
+                          )}
+                          {bookingRules.buggyPolicy && (
+                            <div className="flex items-start gap-2">
+                              <Car className="h-4 w-4 mt-0.5 shrink-0" />
+                              <span>{bookingRules.buggyPolicy}</span>
+                            </div>
+                          )}
+                          {bookingRules.dressCode && (
+                            <div className="flex items-start gap-2">
+                              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                              <span>{bookingRules.dressCode}</span>
+                            </div>
+                          )}
+                          {bookingRules.handicapRequirement && (
+                            <div className="flex items-start gap-2">
+                              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                              <span>{bookingRules.handicapRequirement}</span>
+                            </div>
+                          )}
+                          {bookingRules.groupDiscount && (
+                            <div className="flex items-start gap-2">
+                              <Users className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />
+                              <span className="text-green-600">{bookingRules.groupDiscount}</span>
+                            </div>
+                          )}
+                          {bookingRules.cancellationPolicy && (
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                              <span>{bookingRules.cancellationPolicy}</span>
+                            </div>
+                          )}
+                          {bookingRules.additionalNotes?.map((note, idx) => (
+                            <div key={idx} className="flex items-start gap-2">
+                              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                              <span>{note}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
 
                 {/* Booking Summary & CTA */}
                 {selectedDate && selectedSlot && selectedPackage && (
