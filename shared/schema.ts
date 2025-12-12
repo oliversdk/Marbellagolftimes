@@ -689,7 +689,7 @@ export interface CourseWithSlots {
   note?: string;
   course?: GolfCourse;
   providerType: "API" | "DEEP_LINK" | "NONE";
-  providerName?: "golfmanager" | "teeone" | null;
+  providerName?: "golfmanager" | "teeone" | "zest" | null;
 }
 
 export interface CourseWithReviews extends GolfCourse {
