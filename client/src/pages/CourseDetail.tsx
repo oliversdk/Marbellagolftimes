@@ -673,6 +673,11 @@ export default function CourseDetail() {
                                 onClick={() => {
                                   setSelectedSlot(slot);
                                   setSelectedPackage(null);
+                                  // Adjust player count if it exceeds available slots
+                                  const maxSlots = slot.slotsAvailable || 4;
+                                  if (players > maxSlots) {
+                                    setPlayers(maxSlots);
+                                  }
                                 }}
                                 data-testid={`slot-${index}`}
                               >
@@ -717,18 +722,29 @@ export default function CourseDetail() {
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Number of Players</label>
                         <div className="flex gap-2">
-                          {[1, 2, 3, 4].map((num) => (
-                            <Button
-                              key={num}
-                              variant={players === num ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setPlayers(num)}
-                              data-testid={`players-${num}`}
-                            >
-                              {num} {num === 1 ? 'Player' : 'Players'}
-                            </Button>
-                          ))}
+                          {[1, 2, 3, 4].map((num) => {
+                            const maxSlots = selectedSlot.slotsAvailable || 4;
+                            const isDisabled = num > maxSlots;
+                            return (
+                              <Button
+                                key={num}
+                                variant={players === num ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setPlayers(num)}
+                                disabled={isDisabled}
+                                data-testid={`players-${num}`}
+                                title={isDisabled ? `Only ${maxSlots} ${maxSlots === 1 ? 'spot' : 'spots'} available` : undefined}
+                              >
+                                {num} {num === 1 ? 'Player' : 'Players'}
+                              </Button>
+                            );
+                          })}
                         </div>
+                        {(selectedSlot.slotsAvailable || 4) < 4 && (
+                          <p className="text-xs text-muted-foreground">
+                            {selectedSlot.slotsAvailable} {selectedSlot.slotsAvailable === 1 ? 'spot' : 'spots'} available for this tee time
+                          </p>
+                        )}
                       </div>
 
                       {/* Green Fee Summary */}
