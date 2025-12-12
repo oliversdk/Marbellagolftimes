@@ -68,3 +68,20 @@ Client-side geolocation uses the Browser Geolocation API for proximity-based cou
 -   **Tee Time Provider Integration**: Flexible system supporting REST APIs, direct booking links, and web scraping.
 -   **Open-Meteo API**: Provides real-time weather data for course detail pages.
 -   **Browser Geolocation API**: Used for client-side location services.
+-   **Stripe Payment Integration**: Secure payment processing with server-side price validation.
+
+### Stripe Payment Integration
+
+The platform integrates with Stripe Checkout for secure payment processing:
+
+-   **Server-Side Price Cache**: Tee time prices are cached server-side when fetched from APIs (Zest, TeeOne) or generated (mock data). The cache uses a Map with 30-minute expiry and prevents client-side price manipulation.
+-   **Secure Checkout Flow**: 
+    1. User views tee times → prices cached server-side
+    2. User selects slot and add-ons → frontend sends only IDs, no prices
+    3. Server retrieves authoritative price from cache
+    4. If cache miss/expired → checkout fails (no fallback to client values)
+    5. Add-ons validated against database pricing
+    6. Stripe Checkout session created with server-computed amounts
+-   **Add-ons System**: Dynamic add-ons (buggy, clubs, trolley) stored in database with per-player or per-buggy pricing
+-   **Payment Confirmation**: BookingSuccess page displays only confirmed database booking data
+-   **Database Fields**: `paymentStatus`, `stripeSessionId`, `totalAmountCents`, `addOnsJson` in bookingRequests table

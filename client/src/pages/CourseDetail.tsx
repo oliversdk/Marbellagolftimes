@@ -354,38 +354,17 @@ export default function CourseDetail() {
     trackEvent('checkout_initiated', 'booking', course?.name);
 
     try {
-      // Build add-ons data for Stripe
-      const addOnsData = courseAddOns
-        .filter(addon => selectedAddOns.has(addon.id))
-        .map(addon => {
-          const price = addon.priceCents / 100;
-          let quantity = 1;
-          
-          if (addon.type === 'buggy_shared') {
-            quantity = Math.ceil(players / 2);
-          } else if (addon.perPlayer === 'true') {
-            quantity = players;
-          }
-          
-          return {
-            name: addon.name,
-            description: addon.description,
-            unitPrice: price,
-            quantity,
-          };
-        });
+      // Send only add-on IDs - server will validate pricing
+      const selectedAddOnIds = Array.from(selectedAddOns);
 
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           courseId: course.id,
-          courseName: course.name,
           teeTime: selectedSlot.teeTime,
           players,
-          greenFee: selectedSlot.greenFee || 0,
-          addOns: addOnsData,
-          totalAmount: calculateTotal(),
+          selectedAddOnIds, // Only IDs - server validates pricing from cache
           customerName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : undefined,
           customerEmail: user?.email,
         }),
@@ -779,13 +758,29 @@ export default function CourseDetail() {
                                 className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
                                   isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                                 }`}
-                                onClick={() => toggleAddOn(addon.id)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  toggleAddOn(addon.id);
+                                }}
                                 data-testid={`addon-${addon.type}`}
                               >
                                 <div className="flex items-center gap-3">
                                   <Checkbox
                                     checked={isSelected}
-                                    onCheckedChange={() => toggleAddOn(addon.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (typeof checked === 'boolean') {
+                                        setSelectedAddOns(prev => {
+                                          const next = new Set(prev);
+                                          if (checked) {
+                                            next.add(addon.id);
+                                          } else {
+                                            next.delete(addon.id);
+                                          }
+                                          return next;
+                                        });
+                                      }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
                                     data-testid={`checkbox-${addon.type}`}
                                   />
                                   <div>

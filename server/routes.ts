@@ -64,6 +64,35 @@ interface TeeTimeHold {
 
 const teeTimeHolds = new Map<string, TeeTimeHold>();
 
+// ============================================================
+// Server-Side Tee Time Price Cache (SECURITY: prices from API only)
+// ============================================================
+// Prices are cached when fetched from Zest/TeeOne API, NOT from client requests
+// This ensures checkout uses authoritative pricing that cannot be manipulated
+interface CachedPrice {
+  priceCents: number;  // Price per player in cents
+  source: string;      // "zest" | "teeone" | "golfmanager"
+  expiresAt: Date;
+}
+export const teeTimePriceCache = new Map<string, CachedPrice>();
+
+// Cleanup expired price cache entries every 10 minutes
+setInterval(() => {
+  const now = new Date();
+  teeTimePriceCache.forEach((value, key) => {
+    if (value.expiresAt < now) {
+      teeTimePriceCache.delete(key);
+    }
+  });
+}, 10 * 60 * 1000);
+
+// Helper to cache a price from an API response
+export function cacheApiPrice(courseId: string, teeTime: string, priceCents: number, source: string) {
+  const cacheKey = `${courseId}:${teeTime}`;
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min expiry
+  teeTimePriceCache.set(cacheKey, { priceCents, source, expiresAt });
+}
+
 // Cleanup expired holds every 5 minutes
 setInterval(() => {
   const now = new Date();
@@ -2497,6 +2526,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               console.log(`[Zest Golf] Retrieved ${slots.length} real tee times for ${course.name} (facility: ${facilityId})`);
               
+              // SECURITY: Cache prices server-side for secure checkout
+              slots.forEach(slot => {
+                if (slot.greenFee && slot.greenFee > 0) {
+                  cacheApiPrice(course.id, slot.teeTime, Math.round(slot.greenFee * 100), "zest");
+                }
+              });
+              
               return {
                 courseId: course.id,
                 courseName: course.name,
@@ -2516,19 +2552,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (golfmanagerLink) {
             // Course has Golfmanager - show mock data with GM badge
+            const slots = generateAllTeeSlots(
+              course.name,
+              date as string || new Date().toISOString(),
+              fromTime as string || "07:00",
+              toTime as string || "20:00",
+              players ? parseInt(players as string) : 2,
+              holes ? parseInt(holes as string) : 18
+            );
+            
+            // Cache mock prices for server-side validation during checkout
+            slots.forEach(slot => {
+              if (slot.greenFee && slot.greenFee > 0) {
+                cacheApiPrice(course.id, slot.teeTime, Math.round(slot.greenFee * 100), "golfmanager-mock");
+              }
+            });
+            
             return {
               courseId: course.id,
               courseName: course.name,
               distanceKm: Math.round(distance * 10) / 10,
               bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
-              slots: generateAllTeeSlots(
-                course.name,
-                date as string || new Date().toISOString(),
-                fromTime as string || "07:00",
-                toTime as string || "20:00",
-                players ? parseInt(players as string) : 2,
-                holes ? parseInt(holes as string) : 18
-              ),
+              slots,
               note: "Mock data - Real-time availability coming soon",
               providerType: "API",
               providerName: "golfmanager",
@@ -2553,19 +2598,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Other courses get mock data without provider badge
           const providerType: "API" | "DEEP_LINK" | "NONE" = providerLinks.length > 0 ? "DEEP_LINK" : "NONE";
+          const slots = generateAllTeeSlots(
+            course.name,
+            date as string || new Date().toISOString(),
+            fromTime as string || "07:00",
+            toTime as string || "20:00",
+            players ? parseInt(players as string) : 2,
+            holes ? parseInt(holes as string) : 18
+          );
+          
+          // Cache mock prices for server-side validation during checkout
+          slots.forEach(slot => {
+            if (slot.greenFee && slot.greenFee > 0) {
+              cacheApiPrice(course.id, slot.teeTime, Math.round(slot.greenFee * 100), "mock");
+            }
+          });
+          
           return {
             courseId: course.id,
             courseName: course.name,
             distanceKm: Math.round(distance * 10) / 10,
             bookingUrl: course.bookingUrl || course.websiteUrl,
-            slots: generateAllTeeSlots(
-              course.name,
-              date as string || new Date().toISOString(),
-              fromTime as string || "07:00",
-              toTime as string || "20:00",
-              players ? parseInt(players as string) : 2,
-              holes ? parseInt(holes as string) : 18
-            ),
+            slots,
             note: "Mock data - Configure booking provider for real availability",
             providerType,
             providerName: null,
@@ -2873,35 +2927,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================================
 
   // POST /api/create-checkout-session - Create Stripe checkout session
+  // SECURITY: Green fee must match cached price from API display, add-ons validated from database
   app.post("/api/create-checkout-session", async (req: any, res) => {
     try {
       const { 
         courseId, 
-        courseName, 
         teeTime, 
         players, 
-        greenFee, 
-        addOns, 
-        totalAmount,
+        selectedAddOnIds, // Array of add-on IDs
         customerName,
         customerEmail,
         customerPhone
       } = req.body;
 
-      if (!courseId || !teeTime || !players || !totalAmount) {
+      if (!courseId || !teeTime || !players) {
         return res.status(400).json({ error: "Missing required booking details" });
       }
 
-      // Build line items for Stripe
-      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+      const numPlayers = parseInt(players, 10);
+      if (isNaN(numPlayers) || numPlayers < 1 || numPlayers > 4) {
+        return res.status(400).json({ error: "Invalid number of players" });
+      }
 
-      // Green fee line item
+      // Get course details from database
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Get add-ons from database to validate pricing
+      const courseAddOns = await storage.getAddOnsByCourseId(courseId);
+      
+      // SECURITY: Get green fee from server-side cache (set when user clicked on slot)
+      const cacheKey = `${courseId}:${teeTime}`;
+      const cachedPrice = teeTimePriceCache.get(cacheKey);
+      
+      if (!cachedPrice) {
+        return res.status(400).json({ 
+          error: "Price not found. Please select a tee time again.",
+          code: "PRICE_NOT_CACHED"
+        });
+      }
+      
+      if (cachedPrice.expiresAt < new Date()) {
+        teeTimePriceCache.delete(cacheKey);
+        return res.status(400).json({ 
+          error: "Price expired. Please select a tee time again.",
+          code: "PRICE_EXPIRED"
+        });
+      }
+      
+      const greenFeeCents = cachedPrice.priceCents;
+      console.log(`[Stripe] Using cached green fee: €${greenFeeCents/100} for ${teeTime}`);
+
+      // Build line items with SERVER-SIDE pricing only
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+      let totalCents = 0;
+      const addOnsJsonData: any[] = [];
+
+      // Green fee line item - priced from server
+      const greenFeeTotal = greenFeeCents * numPlayers;
+      totalCents += greenFeeTotal;
       lineItems.push({
         price_data: {
           currency: "eur",
           product_data: {
-            name: `Green Fee - ${courseName}`,
-            description: `${players} player${players > 1 ? 's' : ''} at ${new Date(teeTime).toLocaleString('en-GB', { 
+            name: `Green Fee - ${course.name}`,
+            description: `${numPlayers} player${numPlayers > 1 ? 's' : ''} at ${new Date(teeTime).toLocaleString('en-GB', { 
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
@@ -2910,14 +3002,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
               minute: '2-digit'
             })}`,
           },
-          unit_amount: Math.round(greenFee * 100), // Convert to cents
+          unit_amount: greenFeeCents,
         },
-        quantity: players,
+        quantity: numPlayers,
       });
 
-      // Add-on line items
-      if (addOns && Array.isArray(addOns)) {
-        for (const addon of addOns) {
+      // Add-on line items - validated against database pricing
+      if (selectedAddOnIds && Array.isArray(selectedAddOnIds)) {
+        for (const addOnId of selectedAddOnIds) {
+          const addon = courseAddOns.find((a: { id: string }) => a.id === addOnId);
+          if (!addon) {
+            console.warn(`Add-on ${addOnId} not found for course ${courseId}`);
+            continue;
+          }
+
+          let quantity = 1;
+          if (addon.type === 'buggy_shared') {
+            quantity = Math.ceil(numPlayers / 2);
+          } else if (addon.perPlayer === 'true') {
+            quantity = numPlayers;
+          }
+
+          const addOnTotal = addon.priceCents * quantity;
+          totalCents += addOnTotal;
+
           lineItems.push({
             price_data: {
               currency: "eur",
@@ -2925,9 +3033,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 name: addon.name,
                 description: addon.description || undefined,
               },
-              unit_amount: Math.round(addon.unitPrice * 100), // Convert to cents
+              unit_amount: addon.priceCents,
             },
-            quantity: addon.quantity,
+            quantity,
+          });
+
+          addOnsJsonData.push({
+            id: addon.id,
+            name: addon.name,
+            type: addon.type,
+            priceCents: addon.priceCents,
+            quantity,
           });
         }
       }
@@ -2942,12 +3058,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customer_email: customerEmail || undefined,
         metadata: {
           courseId,
-          courseName,
+          courseName: course.name,
           teeTime,
-          players: String(players),
+          players: String(numPlayers),
           customerName: customerName || "",
           customerPhone: customerPhone || "",
-          totalAmount: String(totalAmount),
+          totalAmountCents: String(totalCents),
+          addOnsJson: JSON.stringify(addOnsJsonData),
+          greenFeeCents: String(greenFeeCents),
         },
       });
 
@@ -2987,6 +3105,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/stripe-webhook - Handle Stripe webhooks
+  // Note: Webhooks require STRIPE_WEBHOOK_SECRET to be configured for signature verification
+  // For development, we also create bookings on success page load as fallback
   app.post("/api/stripe-webhook", express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -3008,21 +3128,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create booking in database
           const metadata = session.metadata || {};
           if (metadata.courseId && metadata.teeTime) {
-            const booking = await storage.createBooking({
-              courseId: metadata.courseId,
-              teeTime: metadata.teeTime,
-              players: parseInt(metadata.players || "2", 10),
-              customerName: metadata.customerName || "Guest",
-              customerEmail: session.customer_email || "",
-              customerPhone: metadata.customerPhone || "",
-              userId: null,
-              status: "confirmed",
-              paymentStatus: "paid",
-              paymentIntentId: typeof session.payment_intent === 'string' 
-                ? session.payment_intent 
-                : session.payment_intent?.id || null,
-            });
-            console.log(`Booking created: ${booking.id}`);
+            try {
+              const booking = await storage.createBooking({
+                courseId: metadata.courseId,
+                teeTime: metadata.teeTime,
+                players: parseInt(metadata.players || "2", 10),
+                customerName: metadata.customerName || "Guest",
+                customerEmail: session.customer_email || "",
+                customerPhone: metadata.customerPhone || "",
+                userId: null,
+                status: "CONFIRMED",
+                paymentStatus: "paid",
+                paymentIntentId: typeof session.payment_intent === 'string' 
+                  ? session.payment_intent 
+                  : session.payment_intent?.id || null,
+                totalAmountCents: parseInt(metadata.totalAmountCents || "0", 10),
+                addOnsJson: metadata.addOnsJson || null,
+              });
+              console.log(`✓ Booking created via webhook: ${booking.id}`);
+            } catch (err) {
+              console.error("Error creating booking from webhook:", err);
+            }
           }
           break;
         }
@@ -3039,6 +3165,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Stripe webhook error:", error);
       res.status(400).json({ error: "Webhook error" });
+    }
+  });
+
+  // POST /api/confirm-payment - Confirm payment and create booking (fallback for webhook)
+  // Called from success page when webhook may not be configured
+  app.post("/api/confirm-payment", async (req: any, res) => {
+    try {
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ error: "Missing session ID" });
+      }
+
+      // Retrieve the checkout session from Stripe
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      // Verify payment was successful
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      const metadata = session.metadata || {};
+      
+      // Check if booking already exists for this session (idempotency)
+      const paymentIntentId = typeof session.payment_intent === 'string' 
+        ? session.payment_intent 
+        : session.payment_intent?.id;
+      
+      if (paymentIntentId) {
+        const existingBookings = await storage.getAllBookings();
+        const existingBooking = existingBookings.find(b => b.paymentIntentId === paymentIntentId);
+        if (existingBooking) {
+          console.log(`Booking already exists for payment ${paymentIntentId}: ${existingBooking.id}`);
+          return res.json({ booking: existingBooking, alreadyExists: true });
+        }
+      }
+
+      // Create booking
+      if (!metadata.courseId || !metadata.teeTime) {
+        return res.status(400).json({ error: "Missing booking metadata" });
+      }
+
+      const booking = await storage.createBooking({
+        courseId: metadata.courseId,
+        teeTime: metadata.teeTime,
+        players: parseInt(metadata.players || "2", 10),
+        customerName: metadata.customerName || "Guest",
+        customerEmail: session.customer_email || "",
+        customerPhone: metadata.customerPhone || "",
+        userId: req.session?.userId || null,
+        status: "CONFIRMED",
+        paymentStatus: "paid",
+        paymentIntentId: paymentIntentId || null,
+        totalAmountCents: parseInt(metadata.totalAmountCents || "0", 10),
+        addOnsJson: metadata.addOnsJson || null,
+      });
+
+      console.log(`✓ Booking confirmed via success page: ${booking.id}`);
+      res.json({ booking, alreadyExists: false });
+    } catch (error) {
+      console.error("Payment confirmation error:", error);
+      res.status(500).json({ error: "Failed to confirm payment" });
     }
   });
 
