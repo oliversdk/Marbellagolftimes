@@ -23,6 +23,8 @@ import {
   type InsertCourseContactLog,
   type CourseImage,
   type InsertCourseImage,
+  type CourseAddOn,
+  type InsertCourseAddOn,
   type UnmatchedInboundEmail,
   type InsertUnmatchedInboundEmail,
   type InboundEmailThread,
@@ -47,6 +49,7 @@ import {
   courseOnboarding,
   courseContactLogs,
   courseImages,
+  courseAddOns,
   unmatchedInboundEmails,
   inboundEmailThreads,
   inboundEmails,
@@ -160,6 +163,12 @@ export interface IStorage {
   createCourseImage(image: InsertCourseImage): Promise<CourseImage>;
   deleteCourseImage(id: string): Promise<boolean>;
   reorderCourseImages(courseId: string, imageIds: string[]): Promise<void>;
+
+  // Course Add-ons
+  getAddOnsByCourseId(courseId: string): Promise<CourseAddOn[]>;
+  createAddOn(addOn: InsertCourseAddOn): Promise<CourseAddOn>;
+  updateAddOn(id: string, updates: Partial<CourseAddOn>): Promise<CourseAddOn | undefined>;
+  deleteAddOn(id: string): Promise<boolean>;
 
   // Unmatched Inbound Emails
   getUnmatchedEmails(): Promise<UnmatchedInboundEmail[]>;
@@ -1778,6 +1787,23 @@ export class MemStorage implements IStorage {
     throw new Error("Not implemented in MemStorage");
   }
 
+  // Course Add-ons (stub implementation for MemStorage)
+  async getAddOnsByCourseId(courseId: string): Promise<CourseAddOn[]> {
+    return [];
+  }
+
+  async createAddOn(addOn: InsertCourseAddOn): Promise<CourseAddOn> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async updateAddOn(id: string, updates: Partial<CourseAddOn>): Promise<CourseAddOn | undefined> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async deleteAddOn(id: string): Promise<boolean> {
+    return false;
+  }
+
   // Unmatched Inbound Emails (stub implementation for MemStorage)
   async getUnmatchedEmails(): Promise<UnmatchedInboundEmail[]> {
     return [];
@@ -2662,6 +2688,34 @@ export class DatabaseStorage implements IStorage {
         .set({ sortOrder: i })
         .where(eq(courseImages.id, imageIds[i]));
     }
+  }
+
+  // Course Add-ons
+  async getAddOnsByCourseId(courseId: string): Promise<CourseAddOn[]> {
+    return await db
+      .select()
+      .from(courseAddOns)
+      .where(and(eq(courseAddOns.courseId, courseId), eq(courseAddOns.isActive, "true")))
+      .orderBy(courseAddOns.sortOrder);
+  }
+
+  async createAddOn(addOn: InsertCourseAddOn): Promise<CourseAddOn> {
+    const result = await db.insert(courseAddOns).values(addOn).returning();
+    return result[0];
+  }
+
+  async updateAddOn(id: string, updates: Partial<CourseAddOn>): Promise<CourseAddOn | undefined> {
+    const result = await db
+      .update(courseAddOns)
+      .set(updates)
+      .where(eq(courseAddOns.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteAddOn(id: string): Promise<boolean> {
+    const result = await db.delete(courseAddOns).where(eq(courseAddOns.id, id)).returning();
+    return result.length > 0;
   }
 
   // Unmatched Inbound Emails

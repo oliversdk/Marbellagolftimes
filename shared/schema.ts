@@ -100,6 +100,23 @@ export const insertCourseImageSchema = createInsertSchema(courseImages).omit({
 export type InsertCourseImage = z.infer<typeof insertCourseImageSchema>;
 export type CourseImage = typeof courseImages.$inferSelect;
 
+// Course Add-ons (buggy, clubs rental, trolley, etc.)
+export const courseAddOns = pgTable("course_add_ons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  priceCents: integer("price_cents").notNull(), // Price in cents (e.g., 3000 = €30.00)
+  type: text("type").notNull(), // 'buggy_shared', 'buggy_individual', 'clubs', 'trolley', 'caddy', 'other'
+  perPlayer: text("per_player").notNull().default("true"), // If true, multiply by number of players
+  isActive: text("is_active").notNull().default("true"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const insertCourseAddOnSchema = createInsertSchema(courseAddOns).omit({ id: true });
+export type InsertCourseAddOn = z.infer<typeof insertCourseAddOnSchema>;
+export type CourseAddOn = typeof courseAddOns.$inferSelect;
+
 // Tee Time Providers
 export const teeTimeProviders = pgTable("tee_time_providers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
