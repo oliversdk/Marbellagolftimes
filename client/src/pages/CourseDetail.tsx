@@ -158,7 +158,12 @@ export default function CourseDetail() {
       if (!id || !dateStr) return [];
       const res = await fetch(`/api/slots/search?courseId=${id}&date=${dateStr}`);
       if (!res.ok) return [];
-      return res.json();
+      const data = await res.json();
+      // API returns CourseWithSlots[] format - extract slots from first course
+      if (Array.isArray(data) && data.length > 0 && data[0].slots) {
+        return data[0].slots;
+      }
+      return [];
     },
     enabled: !!id && !!dateStr,
   });

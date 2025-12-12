@@ -2237,9 +2237,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/slots/search - Tee-time availability search
   app.get("/api/slots/search", async (req, res) => {
     try {
-      const { lat, lng, radiusKm, date, players, fromTime, toTime, holes } = req.query;
+      const { lat, lng, radiusKm, date, players, fromTime, toTime, holes, courseId } = req.query;
 
-      const courses = await storage.getAllCourses();
+      // If courseId is provided, get only that specific course
+      let courses;
+      if (courseId && typeof courseId === 'string') {
+        const singleCourse = await storage.getCourseById(courseId);
+        courses = singleCourse ? [singleCourse] : [];
+      } else {
+        courses = await storage.getAllCourses();
+      }
+      
       const userLat = lat ? parseFloat(lat as string) : null;
       const userLng = lng ? parseFloat(lng as string) : null;
 
@@ -2379,20 +2387,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return allSlots.sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime());
       };
 
-      // Filter and sort courses by distance
-      const coursesWithDistance = courses
-        .map((course) => {
-          if (!userLat || !userLng || !course.lat || !course.lng) return null;
-          const courseLat = parseFloat(course.lat);
-          const courseLng = parseFloat(course.lng);
-          if (isNaN(courseLat) || isNaN(courseLng)) return null;
-          const distance = calculateDistance(userLat, userLng, courseLat, courseLng);
-          return { course, distance };
-        })
-        .filter((item): item is { course: any; distance: number } => 
-          item !== null && !isNaN(item.distance)
-        )
-        .sort((a, b) => a.distance - b.distance);
+      // Filter and sort courses by distance (or use all courses if searching by courseId)
+      let coursesWithDistance: { course: any; distance: number }[];
+      
+      if (courseId && typeof courseId === 'string') {
+        // When searching by courseId, skip distance filtering
+        coursesWithDistance = courses.map(course => ({
+          course,
+          distance: 0 // Distance not relevant for single course lookup
+        }));
+      } else {
+        // Normal mode: Filter and sort by distance
+        coursesWithDistance = courses
+          .map((course) => {
+            if (!userLat || !userLng || !course.lat || !course.lng) return null;
+            const courseLat = parseFloat(course.lat);
+            const courseLng = parseFloat(course.lng);
+            if (isNaN(courseLat) || isNaN(courseLng)) return null;
+            const distance = calculateDistance(userLat, userLng, courseLat, courseLng);
+            return { course, distance };
+          })
+          .filter((item): item is { course: any; distance: number } => 
+            item !== null && !isNaN(item.distance)
+          )
+          .sort((a, b) => a.distance - b.distance);
+      }
 
       if (golfmanagerConfig.mode === "mock") {
         // Mock mode: Show courses with provider info for badges
@@ -2434,7 +2453,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
               
               // Convert Zest tee times to our TeeTimeSlot format
-              const slots: TeeTimeSlot[] = (zestResponse.teeTimeV3 || [])
+              // Note: Zest API returns teeTimeV2 format (not V3)
+              const slots: TeeTimeSlot[] = (zestResponse.teeTimeV2 || zestResponse.teeTimeV3 || [])
                 .filter((tt: any) => {
                   // Filter by time range if specified
                   if (!fromTime && !toTime) return true;
