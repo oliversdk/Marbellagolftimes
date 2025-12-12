@@ -61,7 +61,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCourseReviewSchema, type InsertCourseReview } from "@shared/schema";
 import { z } from "zod";
-import type { GolfCourse, CourseRatePeriod, CourseReview, CourseWithReviews } from "@shared/schema";
+import type { GolfCourse, CourseRatePeriod, CourseReview, CourseWithReviews, CourseAddOn } from "@shared/schema";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Type for available slot from search API
 interface AvailableSlot {
@@ -104,6 +105,8 @@ export default function CourseDetail() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<SelectedPackageInfo | null>(null);
+  const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
+  const [players, setPlayers] = useState<number>(2);
 
   const { data: course, isLoading } = useQuery<CourseWithReviews>({
     queryKey: ['/api/courses', id],
@@ -149,6 +152,52 @@ export default function CourseDetail() {
     },
     enabled: !!id,
   });
+
+  // Course add-ons (buggy, clubs, trolley, etc.)
+  const { data: courseAddOns = [] } = useQuery<CourseAddOn[]>({
+    queryKey: ['/api/courses', id, 'add-ons'],
+    queryFn: async () => {
+      if (!id) return [];
+      const res = await fetch(`/api/courses/${id}/add-ons`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  // Calculate total price
+  const calculateTotal = () => {
+    const greenFee = selectedSlot?.greenFee || 0;
+    let addOnsTotal = 0;
+    
+    courseAddOns.forEach(addon => {
+      if (selectedAddOns.has(addon.id)) {
+        const price = addon.priceCents / 100;
+        // Shared buggy is per pair (divide by 2 if more than 1 player)
+        if (addon.type === 'buggy_shared') {
+          addOnsTotal += price * Math.ceil(players / 2);
+        } else if (addon.perPlayer === 'true') {
+          addOnsTotal += price * players;
+        } else {
+          addOnsTotal += price;
+        }
+      }
+    });
+    
+    return (greenFee * players) + addOnsTotal;
+  };
+
+  const toggleAddOn = (addOnId: string) => {
+    setSelectedAddOns(prev => {
+      const next = new Set(prev);
+      if (next.has(addOnId)) {
+        next.delete(addOnId);
+      } else {
+        next.add(addOnId);
+      }
+      return next;
+    });
+  };
 
   // Available tee time slots for selected date
   const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
@@ -600,100 +649,126 @@ export default function CourseDetail() {
                   </Card>
                 )}
 
-                {/* Package Selection */}
+                {/* Players & Add-ons Selection */}
                 {selectedSlot && (
                   <Card>
                     <CardHeader className="p-4 sm:p-6">
-                      <CardTitle className="text-base sm:text-lg">Select Package</CardTitle>
-                      <CardDescription>Choose your preferred package for {format(new Date(selectedSlot.teeTime), "HH:mm")}</CardDescription>
+                      <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Players & Add-ons
+                      </CardTitle>
+                      <CardDescription>
+                        Customize your booking for {format(new Date(selectedSlot.teeTime), "HH:mm")}
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-3">
-                      {(() => {
-                        const slotHour = new Date(selectedSlot.teeTime).getHours();
-                        const slotMinutes = new Date(selectedSlot.teeTime).getMinutes();
-                        const slotTimeDecimal = slotHour + slotMinutes / 60;
-                        
-                        // Get unique packages from rate periods with time filtering
-                        const toBool = (val: boolean | string | null | undefined): boolean => val === true || val === 'true';
-                        const packages = ratePeriods.reduce<SelectedPackageInfo[]>((acc, rp) => {
-                          const isEarlyBird = toBool(rp.isEarlyBird);
-                          const isTwilight = toBool(rp.isTwilight);
-                          
-                          // Time-based filtering
-                          if (isEarlyBird && slotTimeDecimal >= 10) return acc;
-                          if (isTwilight && slotTimeDecimal < 15) return acc;
-                          
-                          const key = `${rp.packageType}|${rp.includesBuggy}|${rp.includesLunch}|${isEarlyBird}|${isTwilight}`;
-                          if (!acc.find(p => `${p.packageType}|${p.includesBuggy}|${p.includesLunch}|${p.isEarlyBird}|${p.isTwilight}` === key)) {
-                            acc.push({
-                              id: rp.id,
-                              packageType: rp.packageType || 'Green Fee',
-                              rackRate: Number(rp.rackRate) || 0,
-                              includesBuggy: toBool(rp.includesBuggy),
-                              includesLunch: toBool(rp.includesLunch),
-                              isEarlyBird,
-                              isTwilight,
-                              timeRestriction: rp.timeRestriction || undefined,
-                              notes: rp.notes || undefined,
-                            });
-                          }
-                          return acc;
-                        }, []);
-                        
-                        return packages.length > 0 ? packages.map((pkg, index) => {
-                          const isSelected = selectedPackage?.id === pkg.id;
-                          const formatType = (t: string) => t.replace(/_/g, ' ').replace(/GREEN FEE/g, 'Green Fee');
-                          return (
-                            <Card
-                              key={pkg.id}
-                              className={`hover-elevate active-elevate-2 cursor-pointer ${isSelected ? 'ring-2 ring-primary' : ''}`}
-                              onClick={() => setSelectedPackage(pkg)}
-                              data-testid={`package-${index}`}
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-4">
+                      {/* Number of Players */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Number of Players</label>
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4].map((num) => (
+                            <Button
+                              key={num}
+                              variant={players === num ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setPlayers(num)}
+                              data-testid={`players-${num}`}
                             >
-                              <CardContent className="p-4 flex items-center justify-between">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium">{formatType(pkg.packageType)}</span>
-                                    {pkg.isEarlyBird && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        <Sun className="h-3 w-3 mr-1" />Early Bird
-                                      </Badge>
+                              {num} {num === 1 ? 'Player' : 'Players'}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Green Fee Summary */}
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Green Fee ({players}x €{selectedSlot.greenFee || 0})</span>
+                          <span className="font-medium">€{(selectedSlot.greenFee || 0) * players}</span>
+                        </div>
+                      </div>
+
+                      {/* Add-ons */}
+                      {courseAddOns.length > 0 && (
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium">Optional Add-ons</label>
+                          {courseAddOns.map((addon) => {
+                            const isSelected = selectedAddOns.has(addon.id);
+                            const price = addon.priceCents / 100;
+                            let displayPrice = price;
+                            let priceLabel = "";
+                            
+                            if (addon.type === 'buggy_shared') {
+                              displayPrice = price * Math.ceil(players / 2);
+                              priceLabel = `€${price}/buggy`;
+                            } else if (addon.perPlayer === 'true') {
+                              displayPrice = price * players;
+                              priceLabel = `€${price}/player`;
+                            } else {
+                              priceLabel = `€${price}`;
+                            }
+
+                            return (
+                              <div
+                                key={addon.id}
+                                className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
+                                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                                }`}
+                                onClick={() => toggleAddOn(addon.id)}
+                                data-testid={`addon-${addon.type}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => toggleAddOn(addon.id)}
+                                    data-testid={`checkbox-${addon.type}`}
+                                  />
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      {addon.type === 'buggy_shared' || addon.type === 'buggy_individual' ? (
+                                        <Car className="h-4 w-4 text-muted-foreground" />
+                                      ) : addon.type === 'clubs' ? (
+                                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                                      ) : (
+                                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                      <span className="font-medium text-sm">{addon.name}</span>
+                                    </div>
+                                    {addon.description && (
+                                      <p className="text-xs text-muted-foreground">{addon.description}</p>
                                     )}
-                                    {pkg.isTwilight && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        <Sunset className="h-3 w-3 mr-1" />Twilight
-                                      </Badge>
-                                    )}
+                                    <span className="text-xs text-muted-foreground">{priceLabel}</span>
                                   </div>
-                                  <div className="flex gap-1 items-center flex-wrap">
-                                    {pkg.includesBuggy && (
-                                      <Badge variant="outline" className="text-xs">
-                                        <Car className="h-3 w-3 mr-1" />Buggy
-                                      </Badge>
-                                    )}
-                                    {pkg.includesBuggy && pkg.includesLunch && (
-                                      <span className="text-xs text-muted-foreground">+</span>
-                                    )}
-                                    {pkg.includesLunch && (
-                                      <Badge variant="outline" className="text-xs">
-                                        <Utensils className="h-3 w-3 mr-1" />Lunch
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {pkg.timeRestriction && (
-                                    <span className="text-xs text-muted-foreground">{pkg.timeRestriction}</span>
-                                  )}
                                 </div>
-                                <span className="text-lg font-bold text-primary">€{pkg.rackRate}</span>
-                              </CardContent>
-                            </Card>
-                          );
-                        }) : (
-                          <div className="text-center py-4 text-muted-foreground">
-                            No packages available for this time
-                          </div>
-                        );
-                      })()}
+                                <span className="font-medium text-sm">
+                                  {isSelected ? `+€${displayPrice.toFixed(0)}` : `€${displayPrice.toFixed(0)}`}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Total */}
+                      <div className="p-4 bg-primary/10 rounded-md">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Total</span>
+                          <span className="text-2xl font-bold text-primary">€{calculateTotal().toFixed(0)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Includes green fee for {players} player{players > 1 ? 's' : ''}{selectedAddOns.size > 0 ? ` + ${selectedAddOns.size} add-on${selectedAddOns.size > 1 ? 's' : ''}` : ''}
+                        </p>
+                      </div>
+
+                      {/* Book Button */}
+                      <Button
+                        size="lg"
+                        className="w-full min-h-[48px]"
+                        onClick={handleBookingModalOpen}
+                        data-testid="button-proceed-booking"
+                      >
+                        Book Now - €{calculateTotal().toFixed(0)}
+                      </Button>
                     </CardContent>
                   </Card>
                 )}
@@ -782,50 +857,6 @@ export default function CourseDetail() {
                   );
                 })()}
 
-                {/* Booking Summary & CTA */}
-                {selectedDate && selectedSlot && selectedPackage && (
-                  <Card className="border-primary">
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="space-y-1">
-                          <p className="font-medium">Your Selection</p>
-                          <p className="text-sm text-muted-foreground">
-                            {format(selectedDate, "EEEE, MMMM d")} at {format(new Date(selectedSlot.teeTime), "HH:mm")}
-                          </p>
-                          <div className="flex gap-1 items-center flex-wrap">
-                            <Badge variant="secondary" className="text-xs">
-                              {selectedPackage.packageType.replace(/_/g, ' ')}
-                            </Badge>
-                            {selectedPackage.includesBuggy && (
-                              <Badge variant="outline" className="text-xs">
-                                <Car className="h-3 w-3 mr-1" />Buggy
-                              </Badge>
-                            )}
-                            {selectedPackage.includesLunch && (
-                              <>
-                                <span className="text-xs text-muted-foreground">+</span>
-                                <Badge variant="outline" className="text-xs">
-                                  <Utensils className="h-3 w-3 mr-1" />Lunch
-                                </Badge>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span className="text-2xl font-bold text-primary">€{selectedPackage.rackRate}</span>
-                          <Button
-                            size="lg"
-                            onClick={handleBookingModalOpen}
-                            className="w-full sm:w-auto min-h-[48px]"
-                            data-testid="button-proceed-booking"
-                          >
-                            {t('courseDetail.bookTeeTime')}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               </TabsContent>
 
               {/* Overview Tab */}
