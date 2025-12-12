@@ -565,23 +565,27 @@ export default function CourseDetail() {
                           ))}
                         </div>
                       ) : availableSlots.length > 0 ? (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2" data-testid="list-tee-times">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2" data-testid="list-tee-times">
                           {availableSlots.map((slot, index) => {
                             const time = new Date(slot.teeTime);
                             const timeStr = format(time, "HH:mm");
                             const isSelected = selectedSlot?.teeTime === slot.teeTime;
+                            const hasPrice = slot.greenFee && slot.greenFee > 0;
                             return (
                               <Button
                                 key={slot.id || index}
                                 variant={isSelected ? "default" : "outline"}
-                                className="h-12"
+                                className="h-14 flex flex-col items-center justify-center gap-0.5"
                                 onClick={() => {
                                   setSelectedSlot(slot);
                                   setSelectedPackage(null);
                                 }}
                                 data-testid={`slot-${index}`}
                               >
-                                {timeStr}
+                                <span className="font-medium">{timeStr}</span>
+                                {hasPrice && (
+                                  <span className="text-xs opacity-80">€{slot.greenFee}</span>
+                                )}
                               </Button>
                             );
                           })}
