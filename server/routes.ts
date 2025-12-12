@@ -3070,6 +3070,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== Course Add-ons ====================
+
+  // GET /api/courses/:courseId/add-ons - Get available add-ons for a course
+  app.get("/api/courses/:courseId/add-ons", async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const addOns = await storage.getAddOnsByCourseId(courseId);
+      res.json(addOns);
+    } catch (error) {
+      console.error("Error fetching add-ons:", error);
+      res.status(500).json({ error: "Failed to fetch add-ons" });
+    }
+  });
+
+  // POST /api/courses/:courseId/add-ons - Create add-on (Admin only)
+  app.post("/api/courses/:courseId/add-ons", isAdmin, async (req: any, res) => {
+    try {
+      const { courseId } = req.params;
+      const { name, description, priceCents, type, perPlayer, sortOrder } = req.body;
+      
+      if (!name || !type || priceCents === undefined) {
+        return res.status(400).json({ error: "name, type and priceCents are required" });
+      }
+
+      const addOn = await storage.createAddOn({
+        courseId,
+        name,
+        description: description || null,
+        priceCents: Number(priceCents),
+        type,
+        perPlayer: perPlayer === false ? "false" : "true",
+        isActive: "true",
+        sortOrder: sortOrder || 0,
+      });
+      res.status(201).json(addOn);
+    } catch (error) {
+      console.error("Error creating add-on:", error);
+      res.status(500).json({ error: "Failed to create add-on" });
+    }
+  });
+
+  // PATCH /api/add-ons/:id - Update add-on (Admin only)
+  app.patch("/api/add-ons/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const addOn = await storage.updateAddOn(id, updates);
+      if (!addOn) {
+        return res.status(404).json({ error: "Add-on not found" });
+      }
+      res.json(addOn);
+    } catch (error) {
+      console.error("Error updating add-on:", error);
+      res.status(500).json({ error: "Failed to update add-on" });
+    }
+  });
+
+  // DELETE /api/add-ons/:id - Delete add-on (Admin only)
+  app.delete("/api/add-ons/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteAddOn(id);
+      if (!success) {
+        return res.status(404).json({ error: "Add-on not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting add-on:", error);
+      res.status(500).json({ error: "Failed to delete add-on" });
+    }
+  });
+
   // PATCH /api/booking-requests/:id/cancel - Cancel a booking (Authenticated users only, must own booking)
   app.patch("/api/booking-requests/:id/cancel", isAuthenticated, async (req: any, res) => {
     try {
