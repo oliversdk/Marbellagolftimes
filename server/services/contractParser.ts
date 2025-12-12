@@ -257,18 +257,23 @@ export class ContractParserService {
       }
 
       if (parsedData.contacts && parsedData.contacts.length > 0) {
-        for (let i = 0; i < parsedData.contacts.length; i++) {
-          const contact = parsedData.contacts[i];
+        // Filter out contacts without a name (required field)
+        const validContacts = parsedData.contacts.filter(c => c.name && c.name.trim().length > 0);
+        for (let i = 0; i < validContacts.length; i++) {
+          const contact = validContacts[i];
           await db.insert(courseContacts).values({
             courseId: document.courseId,
             ingestionId: ingestion.id,
-            name: contact.name,
+            name: contact.name.trim(),
             role: contact.role || null,
             email: contact.email || null,
             phone: contact.phone || null,
             isPrimary: i === 0 ? "true" : "false",
           });
           contactsCreated++;
+        }
+        if (parsedData.contacts.length > validContacts.length) {
+          console.log(`Skipped ${parsedData.contacts.length - validContacts.length} contacts without names`);
         }
       }
 
