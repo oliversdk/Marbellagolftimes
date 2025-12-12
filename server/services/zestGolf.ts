@@ -82,12 +82,20 @@ export interface ZestProduct {
 }
 
 export interface ZestTeeTime {
-  teeid: number;
+  id: number;  // tee time ID for booking
+  teeid?: number;  // alternative name in some responses
   time: string;
   course: string;
   holes: number;
-  products: ZestProduct[];
+  players?: number;
+  products?: ZestProduct[];
   extraProducts?: ZestProduct[];
+  pricing?: Array<{
+    players: string;
+    price: ZestPrice;
+    netRate?: ZestPrice;
+    publicRate?: ZestPrice;
+  }>;
 }
 
 export interface ZestCancellationPolicy {
@@ -205,7 +213,8 @@ export class ZestGolfService {
     const year = bookingDate.getFullYear();
     const formattedDate = `${day}-${month}-${year}`;
 
-    const response = await this.client.get(`/api/v4/teetimes/${facilityId}`, {
+    // Note: Trailing slash is required by Zest API
+    const response = await this.client.get(`/api/v3/teetimes/${facilityId}/`, {
       params: {
         bookingDate: formattedDate,
         players,
@@ -214,7 +223,11 @@ export class ZestGolfService {
     });
     
     if (response.data.success) {
-      return response.data.data;
+      // Handle both v2 and v3 response formats
+      return {
+        teeTimeV3: response.data.data.teeTimeV3 || response.data.data.teeTimeV2 || [],
+        facilityCancellationPolicyRange: response.data.data.facilityCancellationPolicyRange || [],
+      };
     }
     throw new Error("Failed to fetch tee times");
   }
