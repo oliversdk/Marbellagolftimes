@@ -2448,7 +2448,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .map((tt: any) => {
                   // Find price for the requested number of players (players can be number or string)
                   const playerPricing = tt.pricing?.find((p: any) => Number(p.players) === numPlayers);
-                  const priceAmount = playerPricing?.price?.amount || tt.pricing?.[0]?.price?.amount || 0;
+                  // Use publicRate (customer-facing price) instead of price (channel manager price)
+                  // Fallback to price if publicRate not available
+                  const priceAmount = playerPricing?.publicRate?.amount || playerPricing?.price?.amount || 
+                                     tt.pricing?.[0]?.publicRate?.amount || tt.pricing?.[0]?.price?.amount || 0;
                   // Price from Zest is total for all players, so divide by number of players
                   const perPlayerPrice = Math.round(priceAmount / numPlayers);
                   
