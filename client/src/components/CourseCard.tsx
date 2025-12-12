@@ -18,7 +18,7 @@ interface CourseCardProps {
   price?: number;
   priceRange?: { min: number; max: number };
   isBestDeal?: boolean;
-  providerName?: "golfmanager" | "teeone" | null;
+  providerName?: "golfmanager" | "teeone" | "zest" | null;
   onBook?: () => void;
   onViewDetails?: () => void;
 }
@@ -82,6 +82,11 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
               {providerName === "golfmanager" && (
                 <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 shrink-0 bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400" data-testid={`badge-gm-${course.id}`}>
                   GM
+                </Badge>
+              )}
+              {providerName === "zest" && (
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 shrink-0 bg-green-500/10 text-green-600 border-green-500/30 dark:bg-green-500/20 dark:text-green-400" data-testid={`badge-zest-${course.id}`}>
+                  LIVE
                 </Badge>
               )}
               {isBestDeal && (

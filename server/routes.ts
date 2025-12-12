@@ -2446,9 +2446,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return teeTimeMinutes >= fromMinutes && teeTimeMinutes <= toMinutes;
                 })
                 .map((tt: any) => {
-                  // Find price for the requested number of players
-                  const playerPricing = tt.pricing?.find((p: any) => parseInt(p.players) === numPlayers);
+                  // Find price for the requested number of players (players can be number or string)
+                  const playerPricing = tt.pricing?.find((p: any) => Number(p.players) === numPlayers);
                   const priceAmount = playerPricing?.price?.amount || tt.pricing?.[0]?.price?.amount || 0;
+                  // Price from Zest is total for all players, so divide by number of players
                   const perPlayerPrice = Math.round(priceAmount / numPlayers);
                   
                   return {
