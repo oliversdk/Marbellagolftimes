@@ -101,6 +101,7 @@ export function AvailabilityDotsCompact({
     <div 
       className={cn("flex items-center gap-px", className)}
       title={`${available} ${available === 1 ? 'spot' : 'spots'} available`}
+      data-testid="availability-dots"
     >
       {Array.from({ length: 4 }).map((_, index) => {
         const isFilled = index < available;

@@ -54,6 +54,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { StarRating } from "@/components/StarRating";
+import { AvailabilityDots } from "@/components/AvailabilityDots";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -668,14 +669,20 @@ export default function CourseDetail() {
                               <Button
                                 key={slot.id || index}
                                 variant={isSelected ? "default" : "outline"}
-                                className="h-14 flex flex-col items-center justify-center gap-0.5"
+                                className="h-16 flex flex-col items-center justify-center gap-1 px-2"
                                 onClick={() => {
                                   setSelectedSlot(slot);
                                   setSelectedPackage(null);
                                 }}
                                 data-testid={`slot-${index}`}
                               >
-                                <span className="font-medium">{timeStr}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-medium">{timeStr}</span>
+                                  <AvailabilityDots 
+                                    slotsAvailable={slot.slotsAvailable} 
+                                    size="sm"
+                                  />
+                                </div>
                                 {hasPrice && (
                                   <span className="text-xs opacity-80">€{slot.greenFee}</span>
                                 )}
