@@ -21,6 +21,12 @@ import fs from "fs/promises";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import Stripe from "stripe";
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2025-11-17.clover" as const,
+});
 
 // ============================================================
 // OnTee-inspired Booking API - In-memory storage for orders
@@ -2859,6 +2865,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(bookings);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch bookings" });
+    }
+  });
+
+  // ============================================================
+  // Stripe Payment Endpoints
+  // ============================================================
+
+  // POST /api/create-checkout-session - Create Stripe checkout session
+  app.post("/api/create-checkout-session", async (req: any, res) => {
+    try {
+      const { 
+        courseId, 
+        courseName, 
+        teeTime, 
+        players, 
+        greenFee, 
+        addOns, 
+        totalAmount,
+        customerName,
+        customerEmail,
+        customerPhone
+      } = req.body;
+
+      if (!courseId || !teeTime || !players || !totalAmount) {
+        return res.status(400).json({ error: "Missing required booking details" });
+      }
+
+      // Build line items for Stripe
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+      // Green fee line item
+      lineItems.push({
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: `Green Fee - ${courseName}`,
+            description: `${players} player${players > 1 ? 's' : ''} at ${new Date(teeTime).toLocaleString('en-GB', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}`,
+          },
+          unit_amount: Math.round(greenFee * 100), // Convert to cents
+        },
+        quantity: players,
+      });
+
+      // Add-on line items
+      if (addOns && Array.isArray(addOns)) {
+        for (const addon of addOns) {
+          lineItems.push({
+            price_data: {
+              currency: "eur",
+              product_data: {
+                name: addon.name,
+                description: addon.description || undefined,
+              },
+              unit_amount: Math.round(addon.unitPrice * 100), // Convert to cents
+            },
+            quantity: addon.quantity,
+          });
+        }
+      }
+
+      // Create Stripe checkout session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        mode: "payment",
+        success_url: `${req.headers.origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin}/course/${courseId}`,
+        customer_email: customerEmail || undefined,
+        metadata: {
+          courseId,
+          courseName,
+          teeTime,
+          players: String(players),
+          customerName: customerName || "",
+          customerPhone: customerPhone || "",
+          totalAmount: String(totalAmount),
+        },
+      });
+
+      res.json({ 
+        sessionId: session.id,
+        url: session.url 
+      });
+    } catch (error) {
+      console.error("Stripe checkout error:", error);
+      res.status(500).json({ 
+        error: "Failed to create checkout session",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // GET /api/checkout-session/:sessionId - Get checkout session details
+  app.get("/api/checkout-session/:sessionId", async (req, res) => {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(req.params.sessionId, {
+        expand: ["line_items", "payment_intent"],
+      });
+
+      res.json({
+        id: session.id,
+        status: session.status,
+        payment_status: session.payment_status,
+        customer_email: session.customer_email,
+        amount_total: session.amount_total,
+        currency: session.currency,
+        metadata: session.metadata,
+      });
+    } catch (error) {
+      console.error("Stripe session retrieval error:", error);
+      res.status(500).json({ error: "Failed to retrieve checkout session" });
+    }
+  });
+
+  // POST /api/stripe-webhook - Handle Stripe webhooks
+  app.post("/api/stripe-webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    // If no webhook secret configured, just acknowledge
+    if (!webhookSecret) {
+      console.log("Stripe webhook received but STRIPE_WEBHOOK_SECRET not configured");
+      return res.json({ received: true });
+    }
+
+    try {
+      const event = stripe.webhooks.constructEvent(req.body, sig as string, webhookSecret);
+
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          console.log(`Payment successful for session ${session.id}`);
+          
+          // Create booking in database
+          const metadata = session.metadata || {};
+          if (metadata.courseId && metadata.teeTime) {
+            const booking = await storage.createBooking({
+              courseId: metadata.courseId,
+              teeTime: metadata.teeTime,
+              players: parseInt(metadata.players || "2", 10),
+              customerName: metadata.customerName || "Guest",
+              customerEmail: session.customer_email || "",
+              customerPhone: metadata.customerPhone || "",
+              userId: null,
+              status: "confirmed",
+              paymentStatus: "paid",
+              paymentIntentId: typeof session.payment_intent === 'string' 
+                ? session.payment_intent 
+                : session.payment_intent?.id || null,
+            });
+            console.log(`Booking created: ${booking.id}`);
+          }
+          break;
+        }
+        case 'payment_intent.payment_failed': {
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          console.log(`Payment failed: ${paymentIntent.id}`);
+          break;
+        }
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Stripe webhook error:", error);
+      res.status(400).json({ error: "Webhook error" });
     }
   });
 

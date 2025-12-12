@@ -16,6 +16,7 @@ const Admin = lazy(() => import("@/pages/Admin"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Login = lazy(() => import("@/pages/Login"));
 const Signup = lazy(() => import("@/pages/Signup"));
+const BookingSuccess = lazy(() => import("@/pages/BookingSuccess"));
 
 function LoadingFallback() {
   return (
@@ -52,6 +53,11 @@ function Router() {
       <Route path="/profile">
         <Suspense fallback={<LoadingFallback />}>
           <Profile />
+        </Suspense>
+      </Route>
+      <Route path="/booking-success">
+        <Suspense fallback={<LoadingFallback />}>
+          <BookingSuccess />
         </Suspense>
       </Route>
       <Route component={NotFound} />

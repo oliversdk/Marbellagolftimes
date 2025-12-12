@@ -340,9 +340,74 @@ export default function CourseDetail() {
     });
   };
 
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   const handleBookingModalOpen = () => {
     trackEvent('booking_modal_opened', 'booking', course?.name);
     setBookingModalOpen(true);
+  };
+
+  const handleStripeCheckout = async () => {
+    if (!selectedSlot || !course) return;
+    
+    setIsProcessingPayment(true);
+    trackEvent('checkout_initiated', 'booking', course?.name);
+
+    try {
+      // Build add-ons data for Stripe
+      const addOnsData = courseAddOns
+        .filter(addon => selectedAddOns.has(addon.id))
+        .map(addon => {
+          const price = addon.priceCents / 100;
+          let quantity = 1;
+          
+          if (addon.type === 'buggy_shared') {
+            quantity = Math.ceil(players / 2);
+          } else if (addon.perPlayer === 'true') {
+            quantity = players;
+          }
+          
+          return {
+            name: addon.name,
+            description: addon.description,
+            unitPrice: price,
+            quantity,
+          };
+        });
+
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId: course.id,
+          courseName: course.name,
+          teeTime: selectedSlot.teeTime,
+          players,
+          greenFee: selectedSlot.greenFee || 0,
+          addOns: addOnsData,
+          totalAmount: calculateTotal(),
+          customerName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : undefined,
+          customerEmail: user?.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast({
+        title: 'Checkout Error',
+        description: error instanceof Error ? error.message : 'Failed to start checkout',
+        variant: 'destructive',
+      });
+      setIsProcessingPayment(false);
+    }
   };
 
   if (isLoading) {
@@ -764,10 +829,18 @@ export default function CourseDetail() {
                       <Button
                         size="lg"
                         className="w-full min-h-[48px]"
-                        onClick={handleBookingModalOpen}
+                        onClick={handleStripeCheckout}
+                        disabled={isProcessingPayment}
                         data-testid="button-proceed-booking"
                       >
-                        Book Now - €{calculateTotal().toFixed(0)}
+                        {isProcessingPayment ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Processing...
+                          </>
+                        ) : (
+                          <>Pay Now - €{calculateTotal().toFixed(0)}</>
+                        )}
                       </Button>
                     </CardContent>
                   </Card>

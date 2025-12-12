@@ -158,6 +158,11 @@ export const bookingRequests = pgTable("booking_requests", {
   estimatedPrice: real("estimated_price"), // Estimated revenue in EUR
   cancelledAt: timestamp("cancelled_at"),
   cancellationReason: text("cancellation_reason"),
+  // Payment fields
+  paymentStatus: text("payment_status").default("pending"), // pending, paid, failed, refunded
+  paymentIntentId: text("payment_intent_id"), // Stripe payment intent ID
+  totalAmountCents: integer("total_amount_cents"), // Total paid in cents
+  addOnsJson: text("add_ons_json"), // JSON string of selected add-ons
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
