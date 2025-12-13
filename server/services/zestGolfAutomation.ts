@@ -832,7 +832,7 @@ export class ZestGolfAutomation {
     }
 
     try {
-      console.log(`[Zest Portal Scraper] Navigating to facility ${facilityId} contacts page...`);
+      console.log(`[Zest Portal Scraper] Navigating to facility ${facilityId} page...`);
       
       const facilityUrl = `${ZEST_CM_URL}/management/facility/${facilityId}`;
       await this.page.goto(facilityUrl, { waitUntil: "networkidle2", timeout: 30000 });
@@ -850,24 +850,54 @@ export class ZestGolfAutomation {
         };
       }
 
+      // Take screenshot of main facility page first
+      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-main.png`, fullPage: true });
+      console.log(`[Zest Portal Scraper] Screenshot of main page saved to /tmp/zest-facility-${facilityId}-main.png`);
+
+      // Check if the page is a 404 error
+      const is404Page = await this.page.evaluate(() => {
+        const bodyText = document.body.textContent?.toLowerCase() || '';
+        const title = document.title.toLowerCase();
+        return bodyText.includes('404') || bodyText.includes('not found') || 
+               title.includes('404') || title.includes('not found');
+      });
+
+      if (is404Page) {
+        console.log(`[Zest Portal Scraper] Facility ${facilityId} page returns 404 - this account may not have access to this facility`);
+        return {
+          success: false,
+          facilityId,
+          contacts: [],
+          error: "Facility page not accessible - this Zest account may not have permission to view this facility's details",
+        };
+      }
+
+      // Try to find contacts on the main facility page first
       let contactsTabClicked = false;
       
-      const contactsTabHref = await this.page.$('a[href*="contacts"]');
+      // Look for any tabs or navigation that might lead to contacts section
+      const contactsTabHref = await this.page.$('a[href*="contacts"], a[href*="contact"]');
       if (contactsTabHref) {
         console.log("[Zest Portal Scraper] Found Contacts tab by href, clicking...");
         await contactsTabHref.click();
         await new Promise(resolve => setTimeout(resolve, 2000));
         contactsTabClicked = true;
+        await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
       }
       
+      // If no href-based tab, look for clickable elements with "contact" text
       if (!contactsTabClicked) {
         const clickedContactsTab = await this.page.evaluate(() => {
-          const elements = document.querySelectorAll('a, button, li, span, div');
-          for (const el of Array.from(elements)) {
-            const text = el.textContent?.trim().toLowerCase() || '';
-            if (text === 'contacts' || text === 'contact') {
-              (el as HTMLElement).click();
-              return true;
+          // Look for tab-like elements that might contain contact info
+          const tabSelectors = ['[role="tab"]', '.nav-link', '.tab', 'li.nav-item a', 'button[data-toggle]'];
+          for (const selector of tabSelectors) {
+            const elements = document.querySelectorAll(selector);
+            for (const el of Array.from(elements)) {
+              const text = el.textContent?.trim().toLowerCase() || '';
+              if (text.includes('contact')) {
+                (el as HTMLElement).click();
+                return true;
+              }
             }
           }
           return false;
@@ -877,16 +907,16 @@ export class ZestGolfAutomation {
           console.log("[Zest Portal Scraper] Found Contacts tab by text, clicked...");
           await new Promise(resolve => setTimeout(resolve, 2000));
           contactsTabClicked = true;
+          await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
         }
       }
       
+      // If no contacts tab found, we'll scrape from the main page - don't navigate to /contacts (404)
       if (!contactsTabClicked) {
-        console.log("[Zest Portal Scraper] No Contacts tab found, trying direct URL...");
-        await this.page.goto(`${facilityUrl}/contacts`, { waitUntil: "networkidle2", timeout: 15000 });
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log("[Zest Portal Scraper] No Contacts tab found, will scrape from main facility page...");
       }
 
-      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
+      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-final.png`, fullPage: true });
       console.log(`[Zest Portal Scraper] Screenshot saved to /tmp/zest-facility-${facilityId}-contacts.png`);
 
       // Use page.evaluate with string function to avoid esbuild __name helper issues
