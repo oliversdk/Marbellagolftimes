@@ -5879,6 +5879,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save/upsert course contact by role
+  app.post("/api/admin/courses/:courseId/contacts", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { role, name, email, phone } = req.body;
+      
+      if (!role) {
+        return res.status(400).json({ success: false, message: "Role is required" });
+      }
+      
+      const existingContact = await db.select()
+        .from(courseContacts)
+        .where(and(
+          eq(courseContacts.courseId, courseId),
+          eq(courseContacts.role, role)
+        ))
+        .limit(1);
+      
+      if (existingContact.length > 0) {
+        await db.update(courseContacts)
+          .set({
+            name: name || null,
+            email: email || null,
+            phone: phone || null,
+          })
+          .where(eq(courseContacts.id, existingContact[0].id));
+      } else {
+        await db.insert(courseContacts).values({
+          courseId,
+          role,
+          name: name || "",
+          email: email || null,
+          phone: phone || null,
+          isPrimary: role === "Zest Primary" ? "true" : "false",
+        });
+      }
+      
+      // Also update courseOnboarding if saving Primary contact
+      if (role === "Zest Primary") {
+        const existingOnboarding = await db.select()
+          .from(courseOnboarding)
+          .where(eq(courseOnboarding.courseId, courseId))
+          .limit(1);
+          
+        if (existingOnboarding.length > 0) {
+          await db.update(courseOnboarding)
+            .set({
+              contactPerson: name || existingOnboarding[0].contactPerson,
+              contactEmail: email || existingOnboarding[0].contactEmail,
+              contactPhone: phone || existingOnboarding[0].contactPhone,
+              updatedAt: new Date(),
+            })
+            .where(eq(courseOnboarding.courseId, courseId));
+        }
+      }
+      
+      res.json({ success: true, message: `${role} contact saved` });
+    } catch (error: any) {
+      console.error("Failed to save course contact:", error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   app.post("/api/zest/contacts/scrape/:courseId", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { courseId } = req.params;

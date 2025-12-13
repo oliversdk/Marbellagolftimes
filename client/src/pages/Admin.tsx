@@ -411,6 +411,97 @@ function SortableImage({
   );
 }
 
+function ContactFormTab({ 
+  contact, 
+  role, 
+  label, 
+  courseId, 
+  color 
+}: { 
+  contact: CourseContactWithCourse | undefined; 
+  role: string; 
+  label: string;
+  courseId: string;
+  color: string;
+}) {
+  const { toast } = useToast();
+  const [name, setName] = useState(contact?.name || "");
+  const [email, setEmail] = useState(contact?.email || "");
+  const [phone, setPhone] = useState(contact?.phone || "");
+  
+  useEffect(() => {
+    setName(contact?.name || "");
+    setEmail(contact?.email || "");
+    setPhone(contact?.phone || "");
+  }, [contact]);
+
+  const saveContactMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/admin/courses/${courseId}/contacts`, {
+        role,
+        name,
+        email,
+        phone,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: `${label} contact saved` });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", courseId, "contacts"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to save contact", description: error.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <div className={`p-4 border rounded-md ${color}`}>
+      <div className="space-y-3">
+        <div>
+          <Label htmlFor={`${role}-name`} className="text-xs text-muted-foreground">Name</Label>
+          <Input 
+            id={`${role}-name`}
+            value={name} 
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Contact name"
+            data-testid={`input-${label.toLowerCase()}-name`}
+          />
+        </div>
+        <div>
+          <Label htmlFor={`${role}-email`} className="text-xs text-muted-foreground">Email</Label>
+          <Input 
+            id={`${role}-email`}
+            type="email"
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="email@example.com"
+            data-testid={`input-${label.toLowerCase()}-email`}
+          />
+        </div>
+        <div>
+          <Label htmlFor={`${role}-phone`} className="text-xs text-muted-foreground">Phone</Label>
+          <Input 
+            id={`${role}-phone`}
+            value={phone} 
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+34 123 456 789"
+            data-testid={`input-${label.toLowerCase()}-phone`}
+          />
+        </div>
+        <Button 
+          onClick={() => saveContactMutation.mutate()}
+          disabled={saveContactMutation.isPending || !courseId}
+          size="sm"
+          data-testid={`button-save-${label.toLowerCase()}-contact`}
+        >
+          <Save className="h-3 w-3 mr-1" />
+          {saveContactMutation.isPending ? "Saving..." : `Save ${label} Contact`}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface ZestPendingFacility {
   id: string;
   name: string;
@@ -4250,99 +4341,139 @@ export default function Admin() {
 
                     {/* Partnership Tab */}
                     <TabsContent value="partnership" className="space-y-4 mt-4">
-                      <Form {...onboardingForm}>
-                        <form onSubmit={onboardingForm.handleSubmit(handleSaveProfilePartnership)} className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                              control={onboardingForm.control}
-                              name="contactPerson"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Contact Person</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} data-testid="input-profile-contact-person" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={onboardingForm.control}
-                              name="contactEmail"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Contact Email</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} type="email" data-testid="input-profile-contact-email" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                              control={onboardingForm.control}
-                              name="contactPhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Contact Phone</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} data-testid="input-profile-contact-phone" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={onboardingForm.control}
-                              name="agreedCommission"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Agreed Commission (%)</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      type="number" 
-                                      {...field} 
-                                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                      data-testid="input-profile-commission" 
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <FormField
-                            control={onboardingForm.control}
-                            name="notes"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Notes</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} className="min-h-[100px]" data-testid="textarea-profile-notes" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <div className="flex gap-2">
-                            <Button type="submit" disabled={updateOnboardingMutation.isPending} data-testid="button-save-profile-partnership">
-                              {updateOnboardingMutation.isPending ? "Saving..." : "Save Partnership Info"}
-                            </Button>
+                      {/* Contact Sub-Tabs */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div>
+                              <CardTitle className="text-base flex items-center gap-2">
+                                <Contact className="h-4 w-4" />
+                                Partnership Contacts
+                              </CardTitle>
+                              <CardDescription>
+                                Primary, Billing, and Reservations contacts for this partnership
+                              </CardDescription>
+                            </div>
                             <Button 
-                              type="button"
+                              size="sm"
                               variant="outline"
                               onClick={() => selectedCourseProfile && syncZestContactsMutation.mutate(selectedCourseProfile.id)}
                               disabled={syncZestContactsMutation.isPending || !selectedCourseProfile}
                               data-testid="button-sync-zest-contacts"
                             >
-                              <RefreshCw className={`h-4 w-4 mr-2 ${syncZestContactsMutation.isPending ? 'animate-spin' : ''}`} />
-                              {syncZestContactsMutation.isPending ? "Scraping Portal..." : "Sync from Zest Portal"}
+                              <RefreshCw className={`h-3 w-3 mr-1 ${syncZestContactsMutation.isPending ? 'animate-spin' : ''}`} />
+                              {syncZestContactsMutation.isPending ? "Syncing..." : "Sync from Zest Portal"}
                             </Button>
                           </div>
-                        </form>
-                      </Form>
+                        </CardHeader>
+                        <CardContent>
+                          {(() => {
+                            const zestContacts = profileContacts.filter(c => c.role?.startsWith('Zest '));
+                            const primaryContact = zestContacts.find(c => c.role === 'Zest Primary');
+                            const billingContact = zestContacts.find(c => c.role === 'Zest Billing');
+                            const reservationsContact = zestContacts.find(c => c.role === 'Zest Reservations');
+
+                            return (
+                              <Tabs defaultValue="primary" className="w-full">
+                                <TabsList className="grid w-full grid-cols-3 mb-4">
+                                  <TabsTrigger value="primary" data-testid="tab-contact-primary">
+                                    <User className="h-3 w-3 mr-1" />
+                                    Primary
+                                  </TabsTrigger>
+                                  <TabsTrigger value="reservations" data-testid="tab-contact-reservations">
+                                    <CalendarIcon className="h-3 w-3 mr-1" />
+                                    Reservations
+                                  </TabsTrigger>
+                                  <TabsTrigger value="billing" data-testid="tab-contact-billing">
+                                    <DollarSign className="h-3 w-3 mr-1" />
+                                    Billing
+                                  </TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="primary" className="mt-0" data-testid="content-contact-primary">
+                                  <ContactFormTab 
+                                    contact={primaryContact}
+                                    role="Zest Primary"
+                                    label="Primary"
+                                    courseId={selectedCourseProfile?.id || ""}
+                                    color="bg-green-50 dark:bg-green-900/20"
+                                  />
+                                </TabsContent>
+                                <TabsContent value="reservations" className="mt-0" data-testid="content-contact-reservations">
+                                  <ContactFormTab 
+                                    contact={reservationsContact}
+                                    role="Zest Reservations"
+                                    label="Reservations"
+                                    courseId={selectedCourseProfile?.id || ""}
+                                    color="bg-orange-50 dark:bg-orange-900/20"
+                                  />
+                                </TabsContent>
+                                <TabsContent value="billing" className="mt-0" data-testid="content-contact-billing">
+                                  <ContactFormTab 
+                                    contact={billingContact}
+                                    role="Zest Billing"
+                                    label="Billing"
+                                    courseId={selectedCourseProfile?.id || ""}
+                                    color="bg-blue-50 dark:bg-blue-900/20"
+                                  />
+                                </TabsContent>
+                              </Tabs>
+                            );
+                          })()}
+                        </CardContent>
+                      </Card>
+
+                      {/* Partnership Settings */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Handshake className="h-4 w-4" />
+                            Partnership Settings
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <Form {...onboardingForm}>
+                            <form onSubmit={onboardingForm.handleSubmit(handleSaveProfilePartnership)} className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                  control={onboardingForm.control}
+                                  name="agreedCommission"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Agreed Commission (%)</FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          type="number" 
+                                          {...field} 
+                                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                          data-testid="input-profile-commission" 
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <FormField
+                                control={onboardingForm.control}
+                                name="notes"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Notes</FormLabel>
+                                    <FormControl>
+                                      <Textarea {...field} className="min-h-[100px]" data-testid="textarea-profile-notes" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Button type="submit" disabled={updateOnboardingMutation.isPending} data-testid="button-save-profile-partnership">
+                                {updateOnboardingMutation.isPending ? "Saving..." : "Save Partnership Info"}
+                              </Button>
+                            </form>
+                          </Form>
+                        </CardContent>
+                      </Card>
 
                       {/* Extracted Kickback Rates from Contracts */}
                       <Card className="mt-6">
