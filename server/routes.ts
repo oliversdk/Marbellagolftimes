@@ -5490,6 +5490,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Zest Golf Automation - Puppeteer-based facility management
+  app.get("/api/zest/automation/test", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ZestGolfAutomation } = await import("./services/zestGolfAutomation");
+      const automation = new ZestGolfAutomation();
+      const result = await automation.testConnection();
+      res.json(result);
+    } catch (error: any) {
+      console.error("Zest automation test failed:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.post("/api/zest/automation/resend-all", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ZestGolfAutomation } = await import("./services/zestGolfAutomation");
+      const automation = new ZestGolfAutomation();
+      const result = await automation.runFullAutomation();
+      res.json(result);
+    } catch (error: any) {
+      console.error("Zest automation failed:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get("/api/zest/automation/pending", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ZestGolfAutomation } = await import("./services/zestGolfAutomation");
+      const automation = new ZestGolfAutomation();
+      await automation.initialize();
+      const loginSuccess = await automation.login();
+      
+      if (!loginSuccess) {
+        await automation.close();
+        return res.status(401).json({ success: false, error: "Failed to login to Zest Golf" });
+      }
+      
+      const facilities = await automation.getPendingFacilities();
+      await automation.close();
+      
+      res.json({ success: true, facilities });
+    } catch (error: any) {
+      console.error("Failed to get pending facilities:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
