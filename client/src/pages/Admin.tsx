@@ -1304,6 +1304,15 @@ export default function Admin() {
       if (data.success) {
         toast({ title: "Contact Synced", description: `Synced: ${data.contactPerson || 'No name'} - ${data.contactEmail || 'No email'}` });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
+        // Update form with newly synced contact data
+        onboardingForm.reset({
+          contactPerson: data.contactPerson || "",
+          contactEmail: data.contactEmail || "",
+          contactPhone: data.contactPhone || "",
+          agreedCommission: onboardingForm.getValues("agreedCommission") || 0,
+          notes: onboardingForm.getValues("notes") || "",
+        });
       } else {
         toast({ title: "Sync Failed", description: data.message || data.error, variant: "destructive" });
       }
