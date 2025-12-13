@@ -5557,7 +5557,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (matchedCourse) {
               const onboarding = await storage.getOnboardingByCourseId(matchedCourse.id);
-              if (onboarding && onboarding.onboardingStage === "NOT_CONTACTED") {
+              // Update if no onboarding record exists OR stage is NOT_CONTACTED or null
+              if (!onboarding || !onboarding.stage || onboarding.stage === "NOT_CONTACTED") {
                 await storage.updateOnboardingStage(matchedCourse.id, "OUTREACH_SENT");
                 coursesUpdated++;
                 matchedCourses.push(matchedCourse.name);
