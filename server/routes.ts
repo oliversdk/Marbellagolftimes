@@ -5210,6 +5210,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/admin/fill-form - Upload PDF form and get filled version with company data
+  app.post("/api/admin/fill-form", isAuthenticated, isAdmin, documentUpload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      if (!req.file.mimetype.includes("pdf")) {
+        return res.status(400).json({ error: "Only PDF files are supported" });
+      }
+
+      const { formFiller } = await import("./services/formFiller");
+      const result = await formFiller.fillForm(req.file.buffer);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="filled-form.pdf"`);
+      res.setHeader("X-Fields-Matched", result.fieldsMatched.join(","));
+      res.setHeader("X-Fields-Unmatched", result.fieldsUnmatched.join(","));
+      res.send(result.pdfBuffer);
+    } catch (error) {
+      console.error("Failed to fill form:", error);
+      res.status(500).json({ error: `Failed to fill form: ${error}` });
+    }
+  });
+
   // ==========================================
   // CONTRACT PROCESSING & RATE PERIODS
   // ==========================================

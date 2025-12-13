@@ -909,6 +909,47 @@ export default function Admin() {
     },
   });
 
+  // AI Form Filler - upload form and get filled PDF
+  const [isFillingForm, setIsFillingForm] = useState(false);
+  const fillFormMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setIsFillingForm(true);
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const response = await fetch("/api/admin/fill-form", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fill form");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `filled-${file.name}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      setIsFillingForm(false);
+      toast({ title: "Form filled!", description: "Your filled PDF has been downloaded" });
+    },
+    onError: (error: Error) => {
+      setIsFillingForm(false);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Update booking status mutation (Admin)
   const updateBookingStatusMutation = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
@@ -3856,6 +3897,66 @@ export default function Admin() {
                               </Table>
                             );
                           })()}
+                        </CardContent>
+                      </Card>
+
+                      {/* AI Form Filler */}
+                      <Card className="mt-6">
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" />
+                            AI Form Filler
+                          </CardTitle>
+                          <CardDescription>
+                            Upload a PDF form from a golf course and AI will fill it with your company details
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div
+                            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                              isFillingForm ? "opacity-50" : "hover:border-primary cursor-pointer"
+                            }`}
+                            onClick={() => !isFillingForm && document.getElementById("form-filler-input")?.click()}
+                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-primary", "bg-primary/5"); }}
+                            onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.classList.remove("border-primary", "bg-primary/5");
+                              const file = e.dataTransfer.files[0];
+                              if (file && file.type === "application/pdf") {
+                                fillFormMutation.mutate(file);
+                              }
+                            }}
+                          >
+                            <input
+                              id="form-filler-input"
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  fillFormMutation.mutate(file);
+                                  e.target.value = "";
+                                }
+                              }}
+                              data-testid="input-form-filler-upload"
+                            />
+                            {isFillingForm ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+                                <p className="text-sm text-muted-foreground">AI is filling the form...</p>
+                              </div>
+                            ) : (
+                              <>
+                                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                                <p className="text-sm font-medium">Drop PDF form here or click to upload</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Form will be auto-filled with your company profile data
+                                </p>
+                              </>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
 
