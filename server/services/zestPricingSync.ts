@@ -1,8 +1,8 @@
 import { db } from "../db";
-import { zestPricingData, golfCourses, courseProviderLinks, teeTimeProviders } from "@shared/schema";
+import { zestPricingData, golfCourses, courseProviderLinks, teeTimeProviders, courseOnboarding } from "@shared/schema";
 import type { ZestPricingJson } from "@shared/schema";
 import { eq, and, ilike } from "drizzle-orm";
-import { getZestGolfService, ZestTeeTimeResponse, ZestProduct } from "./zestGolf";
+import { getZestGolfService, ZestTeeTimeResponse, ZestProduct, ZestFacilityDetails } from "./zestGolf";
 
 interface SyncResult {
   success: boolean;
@@ -288,4 +288,145 @@ export async function getAllZestPricingData(): Promise<Array<{
     ...p,
     pricingJson: p.pricingJson as unknown as ZestPricingJson,
   }));
+}
+
+interface ContactSyncResult {
+  success: boolean;
+  courseName: string;
+  courseId: string;
+  zestFacilityId: number;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  error?: string;
+}
+
+interface ContactSyncSummary {
+  totalCourses: number;
+  successCount: number;
+  errorCount: number;
+  results: ContactSyncResult[];
+}
+
+export async function syncZestContactForCourse(
+  courseId: string,
+  zestFacilityId: number,
+  courseName: string
+): Promise<ContactSyncResult> {
+  try {
+    const zestService = getZestGolfService();
+    
+    const facilityDetails: ZestFacilityDetails = await zestService.getFacilityDetails(zestFacilityId);
+    
+    const contactPerson = facilityDetails.reservationsContact?.name || null;
+    const contactEmail = facilityDetails.reservationsContact?.email || facilityDetails.email || null;
+    const contactPhone = facilityDetails.reservationsContact?.phoneNumber || facilityDetails.phoneNumber || null;
+
+    if (!contactPerson && !contactEmail && !contactPhone) {
+      return {
+        success: false,
+        courseName,
+        courseId,
+        zestFacilityId,
+        error: "No contact information available from Zest",
+      };
+    }
+
+    const existingOnboarding = await db.select()
+      .from(courseOnboarding)
+      .where(eq(courseOnboarding.courseId, courseId))
+      .limit(1);
+
+    if (existingOnboarding.length > 0) {
+      await db.update(courseOnboarding)
+        .set({
+          contactPerson: contactPerson || existingOnboarding[0].contactPerson,
+          contactEmail: contactEmail || existingOnboarding[0].contactEmail,
+          contactPhone: contactPhone || existingOnboarding[0].contactPhone,
+          updatedAt: new Date(),
+        })
+        .where(eq(courseOnboarding.courseId, courseId));
+    } else {
+      await db.insert(courseOnboarding).values({
+        courseId,
+        stage: "NOT_CONTACTED",
+        contactPerson,
+        contactEmail,
+        contactPhone,
+      });
+    }
+
+    return {
+      success: true,
+      courseName,
+      courseId,
+      zestFacilityId,
+      contactPerson: contactPerson || undefined,
+      contactEmail: contactEmail || undefined,
+      contactPhone: contactPhone || undefined,
+    };
+
+  } catch (error) {
+    console.error(`Error syncing Zest contact for ${courseName}:`, error);
+    return {
+      success: false,
+      courseName,
+      courseId,
+      zestFacilityId,
+      error: String(error),
+    };
+  }
+}
+
+export async function syncAllZestContacts(): Promise<ContactSyncSummary> {
+  const zestProvider = await db.select()
+    .from(teeTimeProviders)
+    .where(ilike(teeTimeProviders.name, "%zest%"))
+    .limit(1);
+
+  if (zestProvider.length === 0) {
+    return {
+      totalCourses: 0,
+      successCount: 0,
+      errorCount: 0,
+      results: [],
+    };
+  }
+
+  const zestCourses = await db.select({
+    courseId: golfCourses.id,
+    courseName: golfCourses.name,
+    providerCode: courseProviderLinks.providerCourseCode,
+  })
+    .from(courseProviderLinks)
+    .innerJoin(golfCourses, eq(courseProviderLinks.courseId, golfCourses.id))
+    .where(eq(courseProviderLinks.providerId, zestProvider[0].id));
+
+  const results: ContactSyncResult[] = [];
+
+  for (const course of zestCourses) {
+    if (!course.providerCode) continue;
+    
+    const facilityIdMatch = course.providerCode.match(/zest:(\d+)/);
+    if (!facilityIdMatch) continue;
+    
+    const zestFacilityId = parseInt(facilityIdMatch[1]);
+    
+    const result = await syncZestContactForCourse(
+      course.courseId,
+      zestFacilityId,
+      course.courseName
+    );
+    
+    results.push(result);
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  return {
+    totalCourses: results.length,
+    successCount: results.filter(r => r.success).length,
+    errorCount: results.filter(r => !r.success).length,
+    results,
+  };
 }

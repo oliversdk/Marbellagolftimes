@@ -5817,6 +5817,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/zest/contacts/sync", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { syncAllZestContacts } = await import("./services/zestPricingSync");
+      
+      const result = await syncAllZestContacts();
+      
+      res.json({
+        success: true,
+        message: `Synced contacts for ${result.successCount} of ${result.totalCourses} courses`,
+        ...result,
+      });
+    } catch (error: any) {
+      console.error("Failed to sync Zest contacts:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message });
+    }
+  });
+
+  app.post("/api/zest/contacts/sync/:courseId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { syncZestContactForCourse } = await import("./services/zestPricingSync");
+      
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ success: false, message: "Course not found" });
+      }
+      
+      const providerLink = await db.select()
+        .from(courseProviderLinks)
+        .innerJoin(teeTimeProviders, eq(courseProviderLinks.providerId, teeTimeProviders.id))
+        .where(and(
+          eq(courseProviderLinks.courseId, courseId),
+          ilike(teeTimeProviders.name, "%zest%")
+        ))
+        .limit(1);
+      
+      if (providerLink.length === 0) {
+        return res.status(400).json({ success: false, message: "Course is not linked to Zest Golf" });
+      }
+      
+      const providerCode = providerLink[0].course_provider_links.providerCourseCode;
+      const facilityIdMatch = providerCode?.match(/zest:(\d+)/);
+      
+      if (!facilityIdMatch) {
+        return res.status(400).json({ success: false, message: "Invalid Zest facility ID in provider link" });
+      }
+      
+      const zestFacilityId = parseInt(facilityIdMatch[1]);
+      const result = await syncZestContactForCourse(courseId, zestFacilityId, course.name);
+      
+      const { success, ...resultData } = result;
+      res.json({
+        success,
+        message: success ? "Contact info synced successfully" : result.error,
+        ...resultData,
+      });
+    } catch (error: any) {
+      console.error("Failed to sync Zest contact for course:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

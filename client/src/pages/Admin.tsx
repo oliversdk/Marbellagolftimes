@@ -1294,6 +1294,25 @@ export default function Admin() {
     },
   });
 
+  // Sync Zest contacts mutation
+  const syncZestContactsMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      const response = await fetch(`/api/zest/contacts/sync/${courseId}`, { method: "POST" });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "Contact Synced", description: `Synced: ${data.contactPerson || 'No name'} - ${data.contactEmail || 'No email'}` });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      } else {
+        toast({ title: "Sync Failed", description: data.message || data.error, variant: "destructive" });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Sync Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   // AI Form Filler - upload form and get filled PDF
   const [isFillingForm, setIsFillingForm] = useState(false);
   const fillFormMutation = useMutation({
@@ -4290,9 +4309,21 @@ export default function Admin() {
                               </FormItem>
                             )}
                           />
-                          <Button type="submit" disabled={updateOnboardingMutation.isPending} data-testid="button-save-profile-partnership">
-                            {updateOnboardingMutation.isPending ? "Saving..." : "Save Partnership Info"}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button type="submit" disabled={updateOnboardingMutation.isPending} data-testid="button-save-profile-partnership">
+                              {updateOnboardingMutation.isPending ? "Saving..." : "Save Partnership Info"}
+                            </Button>
+                            <Button 
+                              type="button"
+                              variant="outline"
+                              onClick={() => selectedCourseProfile && syncZestContactsMutation.mutate(selectedCourseProfile.id)}
+                              disabled={syncZestContactsMutation.isPending || !selectedCourseProfile}
+                              data-testid="button-sync-zest-contacts"
+                            >
+                              <RefreshCw className={`h-4 w-4 mr-2 ${syncZestContactsMutation.isPending ? 'animate-spin' : ''}`} />
+                              {syncZestContactsMutation.isPending ? "Syncing..." : "Sync from Zest"}
+                            </Button>
+                          </div>
                         </form>
                       </Form>
 
