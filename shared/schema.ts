@@ -876,3 +876,28 @@ export interface AffiliateEmailCourse extends GolfCourse {
   emailCount: number;
   onboardingStage: string | null;
 }
+
+// Booking Notifications - Admin alerts for new bookings
+export const bookingNotifications = pgTable("booking_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull().references(() => bookingRequests.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("NEW_BOOKING"), // NEW_BOOKING
+  status: text("status").notNull().default("UNREAD"), // UNREAD, READ
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBookingNotificationSchema = createInsertSchema(bookingNotifications).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export type InsertBookingNotification = z.infer<typeof insertBookingNotificationSchema>;
+export type BookingNotification = typeof bookingNotifications.$inferSelect;
+
+// Notification statuses
+export const NOTIFICATION_STATUSES = ["UNREAD", "READ"] as const;
+export type NotificationStatus = typeof NOTIFICATION_STATUSES[number];
+
+// Notification types
+export const NOTIFICATION_TYPES = ["NEW_BOOKING"] as const;
+export type NotificationType = typeof NOTIFICATION_TYPES[number];

@@ -272,6 +272,16 @@ type CourseContactWithCourse = {
   notes: string | null;
 };
 
+type BookingNotificationWithDetails = {
+  id: string;
+  bookingId: string;
+  type: string;
+  status: string;
+  createdAt: string;
+  booking?: BookingRequest;
+  courseName?: string;
+};
+
 const ONBOARDING_STAGES: { value: OnboardingStage; label: string; color: string; icon: typeof CircleDot }[] = [
   { value: "NOT_CONTACTED", label: "Not Contacted", color: "bg-gray-100 text-gray-700", icon: CircleDot },
   { value: "OUTREACH_SENT", label: "Outreach Sent", color: "bg-blue-100 text-blue-700", icon: Mail },
@@ -1015,6 +1025,42 @@ export default function Admin() {
   const { data: affiliateEmailCourses } = useQuery<AffiliateEmailCourse[]>({
     queryKey: ["/api/admin/affiliate-email-courses"],
     enabled: isAuthenticated && isAdmin,
+  });
+
+  // Fetch admin notification count
+  const { data: notificationCountData } = useQuery<{ count: number }>({
+    queryKey: ["/api/admin/notifications/count"],
+    enabled: isAuthenticated && isAdmin,
+    refetchInterval: 30000,
+  });
+
+  // Fetch admin notifications
+  const { data: notifications } = useQuery<BookingNotificationWithDetails[]>({
+    queryKey: ["/api/admin/notifications"],
+    enabled: isAuthenticated && isAdmin,
+  });
+
+  // Mark notification as read mutation
+  const markNotificationReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      return await apiRequest(`/api/admin/notifications/${notificationId}/read`, "PATCH");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications/count"] });
+    },
+  });
+
+  // Mark all notifications as read mutation
+  const markAllNotificationsReadMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("/api/admin/notifications/mark-all-read", "PATCH");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications/count"] });
+      toast({ title: "All notifications marked as read" });
+    },
   });
 
   // Create API key mutation
@@ -3158,11 +3204,90 @@ export default function Admin() {
       <Header />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8">
-          <h1 className="font-serif text-4xl font-bold mb-2">{t('admin.dashboardTitle')}</h1>
-          <p className="text-muted-foreground">
-            {t('admin.dashboardDescription')}
-          </p>
+        <div className="mb-8 flex flex-row items-start justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-4xl font-bold mb-2">{t('admin.dashboardTitle')}</h1>
+            <p className="text-muted-foreground">
+              {t('admin.dashboardDescription')}
+            </p>
+          </div>
+          {isAdmin && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="relative"
+                  data-testid="button-notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {(notificationCountData?.count ?? 0) > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-2 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold"
+                      data-testid="badge-notification-count"
+                    >
+                      {notificationCountData!.count > 99 ? "99+" : notificationCountData!.count}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-3 border-b flex items-center justify-between">
+                  <h4 className="font-semibold text-sm">New Booking Alerts</h4>
+                  {(notifications?.length ?? 0) > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => markAllNotificationsReadMutation.mutate()}
+                      disabled={markAllNotificationsReadMutation.isPending}
+                      data-testid="button-mark-all-read"
+                    >
+                      Mark all read
+                    </Button>
+                  )}
+                </div>
+                <ScrollArea className="max-h-80">
+                  {(!notifications || notifications.length === 0) ? (
+                    <div className="p-4 text-center text-muted-foreground text-sm">
+                      No new booking notifications
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {notifications.map((notification) => (
+                        <div 
+                          key={notification.id} 
+                          className="p-3 hover-elevate cursor-pointer"
+                          onClick={() => {
+                            markNotificationReadMutation.mutate(notification.id);
+                            setActiveTab("bookings");
+                          }}
+                          data-testid={`notification-item-${notification.id}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="bg-primary/10 rounded-full p-1.5 mt-0.5">
+                              <Bell className="h-3 w-3 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                New booking: {notification.booking?.customerName || "Unknown"}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {notification.courseName || "Unknown course"} • {notification.booking?.players || 0} players
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(notification.createdAt), "MMM d, h:mm a")}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

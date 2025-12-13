@@ -39,6 +39,8 @@ import {
   type InsertCompanyProfile,
   type PartnershipForm,
   type InsertPartnershipForm,
+  type BookingNotification,
+  type InsertBookingNotification,
   golfCourses,
   courseDocuments,
   teeTimeProviders,
@@ -61,6 +63,7 @@ import {
   apiKeys,
   companyProfile,
   partnershipForms,
+  bookingNotifications,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -234,6 +237,13 @@ export interface IStorage {
   createPartnershipForm(form: InsertPartnershipForm): Promise<PartnershipForm>;
   updatePartnershipForm(id: string, updates: Partial<PartnershipForm>): Promise<PartnershipForm | undefined>;
   deletePartnershipForm(id: string): Promise<boolean>;
+
+  // Booking Notifications
+  getUnreadNotifications(): Promise<(BookingNotification & { booking?: BookingRequest; courseName?: string })[]>;
+  getUnreadNotificationCount(): Promise<number>;
+  createBookingNotification(notification: InsertBookingNotification): Promise<BookingNotification>;
+  markNotificationAsRead(id: string): Promise<BookingNotification | undefined>;
+  markAllNotificationsAsRead(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -3229,6 +3239,56 @@ export class DatabaseStorage implements IStorage {
       .where(eq(partnershipForms.id, id))
       .returning();
     return results.length > 0;
+  }
+
+  // Booking Notifications
+  async getUnreadNotifications(): Promise<(BookingNotification & { booking?: BookingRequest; courseName?: string })[]> {
+    const results = await db
+      .select({
+        notification: bookingNotifications,
+        booking: bookingRequests,
+        courseName: golfCourses.name,
+      })
+      .from(bookingNotifications)
+      .leftJoin(bookingRequests, eq(bookingNotifications.bookingId, bookingRequests.id))
+      .leftJoin(golfCourses, eq(bookingRequests.courseId, golfCourses.id))
+      .where(eq(bookingNotifications.status, "UNREAD"))
+      .orderBy(desc(bookingNotifications.createdAt));
+    
+    return results.map(r => ({
+      ...r.notification,
+      booking: r.booking || undefined,
+      courseName: r.courseName || undefined,
+    }));
+  }
+
+  async getUnreadNotificationCount(): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(bookingNotifications)
+      .where(eq(bookingNotifications.status, "UNREAD"));
+    return result[0]?.count || 0;
+  }
+
+  async createBookingNotification(notification: InsertBookingNotification): Promise<BookingNotification> {
+    const results = await db.insert(bookingNotifications).values(notification).returning();
+    return results[0];
+  }
+
+  async markNotificationAsRead(id: string): Promise<BookingNotification | undefined> {
+    const results = await db
+      .update(bookingNotifications)
+      .set({ status: "READ" })
+      .where(eq(bookingNotifications.id, id))
+      .returning();
+    return results[0];
+  }
+
+  async markAllNotificationsAsRead(): Promise<void> {
+    await db
+      .update(bookingNotifications)
+      .set({ status: "READ" })
+      .where(eq(bookingNotifications.status, "UNREAD"));
   }
 }
 

@@ -866,6 +866,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Booking Notifications
+  app.get("/api/admin/notifications", isAdmin, async (req, res) => {
+    try {
+      const notifications = await storage.getUnreadNotifications();
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/admin/notifications/count", isAdmin, async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount();
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching notification count:", error);
+      res.status(500).json({ error: "Failed to fetch notification count" });
+    }
+  });
+
+  app.patch("/api/admin/notifications/:id/read", isAdmin, async (req, res) => {
+    try {
+      const notification = await storage.markNotificationAsRead(req.params.id);
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  app.patch("/api/admin/notifications/mark-all-read", isAdmin, async (req, res) => {
+    try {
+      await storage.markAllNotificationsAsRead();
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ error: "Failed to mark notifications as read" });
+    }
+  });
+
   // GET /api/admin/campaigns - Get all ad campaigns
   app.get("/api/admin/campaigns", isAdmin, async (req, res) => {
     try {
@@ -2989,6 +3033,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send notification email to golf course (non-blocking)
         sendCourseBookingNotification(booking, course).catch(() => {});
+      }
+      
+      // Create admin notification for new booking
+      try {
+        await storage.createBookingNotification({
+          bookingId: booking.id,
+          type: "NEW_BOOKING",
+          status: "UNREAD",
+        });
+      } catch (notifError) {
+        console.warn("Failed to create booking notification:", notifError);
       }
       
       res.status(201).json(booking);
