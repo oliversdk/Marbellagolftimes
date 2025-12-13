@@ -8,9 +8,9 @@ import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/gol
 import { teeoneClient } from "./providers/teeone";
 import { getZestGolfService } from "./services/zestGolf";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
@@ -5702,6 +5702,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Failed to get commission rates:", error);
       res.status(500).json({ success: false, message: error.message, error: error.message, rates: [] });
+    }
+  });
+
+  // Zest Golf Pricing Sync - API-based pricing data sync
+  app.post("/api/zest/pricing/sync", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { syncAllZestPricing } = await import("./services/zestPricingSync");
+      
+      console.log("Starting Zest pricing sync...");
+      const result = await syncAllZestPricing();
+      
+      console.log(`Zest pricing sync complete: ${result.successCount}/${result.totalCourses} courses synced`);
+      
+      res.json({
+        success: true,
+        message: `Synced pricing for ${result.successCount} of ${result.totalCourses} courses`,
+        ...result,
+      });
+    } catch (error: any) {
+      console.error("Failed to sync Zest pricing:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message });
+    }
+  });
+
+  app.post("/api/zest/pricing/sync/:courseId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { syncZestPricingForCourse } = await import("./services/zestPricingSync");
+      
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ success: false, message: "Course not found" });
+      }
+      
+      const providerLink = await db.select()
+        .from(courseProviderLinks)
+        .innerJoin(teeTimeProviders, eq(courseProviderLinks.providerId, teeTimeProviders.id))
+        .where(and(
+          eq(courseProviderLinks.courseId, courseId),
+          ilike(teeTimeProviders.name, "%zest%")
+        ))
+        .limit(1);
+      
+      if (providerLink.length === 0) {
+        return res.status(400).json({ success: false, message: "Course is not linked to Zest Golf" });
+      }
+      
+      const facilityIdMatch = providerLink[0].course_provider_links.providerCourseCode?.match(/zest:(\d+)/);
+      if (!facilityIdMatch) {
+        return res.status(400).json({ success: false, message: "Invalid Zest facility ID" });
+      }
+      
+      const zestFacilityId = parseInt(facilityIdMatch[1]);
+      const result = await syncZestPricingForCourse(courseId, zestFacilityId, course.name);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Failed to sync Zest pricing for course:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message });
+    }
+  });
+
+  app.get("/api/zest/pricing", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { getAllZestPricingData } = await import("./services/zestPricingSync");
+      
+      const pricingData = await getAllZestPricingData();
+      
+      res.json({
+        success: true,
+        count: pricingData.length,
+        data: pricingData,
+      });
+    } catch (error: any) {
+      console.error("Failed to get Zest pricing data:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message });
+    }
+  });
+
+  app.get("/api/zest/pricing/:courseId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { getZestPricingData } = await import("./services/zestPricingSync");
+      
+      const pricingData = await getZestPricingData(courseId);
+      
+      if (!pricingData) {
+        return res.status(404).json({ success: false, message: "No pricing data found for this course" });
+      }
+      
+      res.json({
+        success: true,
+        data: pricingData,
+      });
+    } catch (error: any) {
+      console.error("Failed to get Zest pricing data:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message });
     }
   });
 
