@@ -832,11 +832,11 @@ export class ZestGolfAutomation {
     }
 
     try {
-      console.log(`[Zest Portal Scraper] Navigating to facility list to find facility ${facilityId}...`);
+      console.log(`[Zest Portal Scraper] Navigating to Partners tab for facility ${facilityId}...`);
       
-      // Navigate to facility list page - contacts are in a side panel, not a separate page
-      await this.page.goto(`${ZEST_CM_URL}/management/myFacilityList`, { waitUntil: "networkidle2", timeout: 30000 });
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Navigate to facility list page with Partners tab (tab=1)
+      await this.page.goto(`${ZEST_CM_URL}/management/myFacilityList?tab=1`, { waitUntil: "networkidle2", timeout: 30000 });
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       const currentUrl = this.page.url();
       console.log(`[Zest Portal Scraper] Current URL: ${currentUrl}`);
@@ -853,53 +853,213 @@ export class ZestGolfAutomation {
       await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-list.png`, fullPage: true });
       console.log(`[Zest Portal Scraper] Screenshot of facility list saved`);
 
-      // Find and click on the facility row to open the side panel
-      const facilityClicked = await this.page.evaluate((targetId: number) => {
-        // Look for the facility ID in the table
-        const rows = document.querySelectorAll('table tbody tr');
-        for (const row of Array.from(rows)) {
-          const cells = row.querySelectorAll('td');
-          for (const cell of Array.from(cells)) {
-            const text = cell.textContent?.trim() || '';
-            // Check if this cell contains the facility ID
-            if (text === String(targetId)) {
-              // Click on the row to open the details panel
-              (row as HTMLElement).click();
-              return { clicked: true, facilityId: text };
+      // Find the facility row by ID and click the ellipsis menu (zest-icon-button in last cell)
+      const menuButtonClicked = await this.page.evaluate((targetId: number) => {
+        const rows = document.querySelectorAll('vaadin-grid-cell-content');
+        let targetRow: Element | null = null;
+        
+        // Find the row containing this facility ID
+        for (const cell of Array.from(rows)) {
+          const text = cell.textContent?.trim() || '';
+          if (text === String(targetId)) {
+            // Found the ID cell, now find the parent row
+            targetRow = cell.closest('tr') || cell.closest('vaadin-grid-row');
+            break;
+          }
+        }
+        
+        // Look for ellipsis menu button in all rows if specific ID not found
+        const allRows = document.querySelectorAll('tr, vaadin-grid-row');
+        for (const row of Array.from(allRows)) {
+          const cells = row.querySelectorAll('td, vaadin-grid-cell-content');
+          const lastCell = cells[cells.length - 1];
+          if (lastCell) {
+            const menuBtn = lastCell.querySelector('zest-icon-button, button[icon="ellipsis-v"], [class*="ellipsis"]');
+            if (menuBtn) {
+              (menuBtn as HTMLElement).click();
+              return { clicked: true, note: 'Clicked ellipsis menu' };
             }
           }
         }
-        // Try clicking on the first row if no specific facility found
-        const firstRow = document.querySelector('table tbody tr');
-        if (firstRow) {
-          (firstRow as HTMLElement).click();
-          return { clicked: true, note: 'Clicked first row' };
+        
+        // Fallback: click any zest-icon-button
+        const anyMenuBtn = document.querySelector('zest-icon-button');
+        if (anyMenuBtn) {
+          (anyMenuBtn as HTMLElement).click();
+          return { clicked: true, note: 'Clicked first zest-icon-button' };
         }
+        
         return { clicked: false };
       }, facilityId);
 
-      console.log(`[Zest Portal Scraper] Facility click result:`, facilityClicked);
+      console.log(`[Zest Portal Scraper] Menu button click result:`, menuButtonClicked);
       await new Promise(resolve => setTimeout(resolve, 2000));
       await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-panel.png`, fullPage: true });
 
-      // Now click on the Contacts tab in the side panel
+      // Click on Contacts tab (index 5 in vaadin-tabs)
       const contactsTabClicked = await this.page.evaluate(() => {
-        // Look for "Contacts" tab in the details panel
-        const tabs = document.querySelectorAll('a, button, [role="tab"], span, div');
-        for (const tab of Array.from(tabs)) {
+        // Try vaadin-tab elements first
+        const vaadinTabs = document.querySelectorAll('vaadin-tab');
+        if (vaadinTabs.length > 5) {
+          (vaadinTabs[5] as HTMLElement).click();
+          return { clicked: true, method: 'vaadin-tab index 5' };
+        }
+        
+        // Fallback: look for "Contacts" text
+        const allTabs = document.querySelectorAll('vaadin-tab, [role="tab"], button, a');
+        for (const tab of Array.from(allTabs)) {
           const text = tab.textContent?.trim().toLowerCase() || '';
           if (text === 'contacts' || text === 'contact') {
             (tab as HTMLElement).click();
-            return true;
+            return { clicked: true, method: 'text match' };
           }
         }
-        return false;
+        return { clicked: false };
       });
 
-      console.log(`[Zest Portal Scraper] Contacts tab clicked: ${contactsTabClicked}`);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log(`[Zest Portal Scraper] Contacts tab clicked:`, contactsTabClicked);
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait longer for Vaadin to load
       await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
       console.log(`[Zest Portal Scraper] Screenshot of contacts panel saved`);
+
+      // STRATEGY 1: Try to access Vaadin's client-side state
+      const vaadinStateData = await this.page.evaluate(() => {
+        const result: any = { method: 'vaadin-state', contacts: [], debug: {} };
+        
+        try {
+          // Access Vaadin Flow clients
+          const vaadinObj = (window as any).Vaadin;
+          if (vaadinObj && vaadinObj.Flow && vaadinObj.Flow.clients) {
+            const clients = vaadinObj.Flow.clients;
+            result.debug.hasVaadinClients = true;
+            result.debug.clientKeys = Object.keys(clients);
+            
+            // Try to traverse the component tree
+            for (const clientKey of Object.keys(clients)) {
+              const client = clients[clientKey];
+              if (client && client.getByNodeId) {
+                result.debug.hasGetByNodeId = true;
+              }
+            }
+          }
+        } catch (e) {
+          result.debug.vaadinError = String(e);
+        }
+        
+        return result;
+      });
+      console.log(`[Zest Portal Scraper] Vaadin state probe:`, JSON.stringify(vaadinStateData.debug));
+
+      // STRATEGY 2: Extract values from vaadin-text-field elements using CDP
+      const textFieldValues = await this.page.evaluate(() => {
+        const values: any[] = [];
+        
+        // Query all text fields and inputs
+        const textFields = document.querySelectorAll('vaadin-text-field, vaadin-email-field, input[type="text"], input[type="email"], input[type="tel"]');
+        
+        textFields.forEach((field, idx) => {
+          const el = field as HTMLInputElement;
+          const value = el.value || '';
+          const label = field.getAttribute('label') || field.getAttribute('placeholder') || '';
+          const inputInner = field.querySelector('input');
+          const innerValue = inputInner ? inputInner.value : '';
+          
+          values.push({
+            index: idx,
+            tagName: field.tagName,
+            value: value,
+            innerValue: innerValue,
+            label: label,
+          });
+        });
+        
+        return values;
+      });
+      console.log(`[Zest Portal Scraper] Found ${textFieldValues.length} text fields`);
+
+      // STRATEGY 3: Try getting values via CDP (Chrome DevTools Protocol)
+      const cdpSession = await this.page.createCDPSession();
+      
+      // Get document for CDP queries
+      const { root } = await cdpSession.send('DOM.getDocument');
+      
+      // Search for input elements with pierce: selector
+      let cdpInputValues: any[] = [];
+      try {
+        const { nodeIds } = await cdpSession.send('DOM.querySelectorAll', {
+          nodeId: root.nodeId,
+          selector: 'input',
+        });
+        
+        for (const nodeId of nodeIds.slice(0, 30)) { // Limit to first 30
+          try {
+            const { attributes } = await cdpSession.send('DOM.getAttributes', { nodeId });
+            const attrMap: Record<string, string> = {};
+            for (let i = 0; i < attributes.length; i += 2) {
+              attrMap[attributes[i]] = attributes[i + 1];
+            }
+            
+            // Get the value using JS
+            const { result } = await cdpSession.send('Runtime.evaluate', {
+              expression: `document.querySelector('[data-testid="${attrMap['data-testid']}"]')?.value || document.querySelectorAll('input')[${nodeIds.indexOf(nodeId)}]?.value || ''`,
+            });
+            
+            cdpInputValues.push({
+              nodeId,
+              type: attrMap['type'],
+              value: result?.value || '',
+            });
+          } catch {}
+        }
+      } catch (e) {
+        console.log(`[Zest Portal Scraper] CDP query error:`, e);
+      }
+      
+      await cdpSession.detach();
+      console.log(`[Zest Portal Scraper] CDP found ${cdpInputValues.length} inputs`);
+
+      // STRATEGY 4: Parse visible text for contact information
+      const visibleTextData = await this.page.evaluate(() => {
+        const bodyText = document.body.innerText || '';
+        
+        // Look for email patterns
+        const emails = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+        
+        // Look for phone patterns (Spanish format)
+        const phones = bodyText.match(/\+?[\d\s()-]{9,}/g) || [];
+        
+        // Look for names near contact headers
+        const lines = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
+        const contactSections: any = {};
+        
+        let currentSection = '';
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const lineLower = line.toLowerCase();
+          
+          if (lineLower.includes('primary contact')) currentSection = 'Primary';
+          else if (lineLower.includes('billing contact')) currentSection = 'Billing';
+          else if (lineLower.includes('reservations contact')) currentSection = 'Reservations';
+          
+          if (currentSection && !contactSections[currentSection]) {
+            contactSections[currentSection] = { lines: [] };
+          }
+          if (currentSection) {
+            contactSections[currentSection].lines.push(line);
+          }
+        }
+        
+        return {
+          emails: emails.slice(0, 10),
+          phones: phones.slice(0, 10),
+          contactSections,
+          sampleText: bodyText.substring(0, 3000),
+        };
+      });
+      
+      console.log(`[Zest Portal Scraper] Found emails:`, visibleTextData.emails);
+      console.log(`[Zest Portal Scraper] Found phones:`, visibleTextData.phones);
+      console.log(`[Zest Portal Scraper] Contact sections:`, Object.keys(visibleTextData.contactSections));
 
       // Use page.evaluate with string function to avoid esbuild __name helper issues
       // The Zest panel has sections: PRIMARY CONTACT, BILLING CONTACT, RESERVATIONS CONTACT
@@ -1046,25 +1206,154 @@ export class ZestGolfAutomation {
       `) as () => { contacts: Array<{ role: string; name: string | null; email: string | null; phone: string | null }>; facilityName: string | null; debugHtml: string });
 
       console.log(`[Zest Portal Scraper] Scraped ${scrapedData.contacts.length} contacts for facility ${facilityId}`);
-      if (scrapedData.contacts.length === 0) {
-        console.log("[Zest Portal Scraper] Debug HTML (first 2000 chars):", scrapedData.debugHtml.substring(0, 2000));
+      
+      // Combine all extracted data to build contacts
+      const finalContacts: ZestScrapedContact[] = [];
+      
+      // First, try the old text-based scraping result
+      if (scrapedData.contacts.length > 0) {
+        for (const c of scrapedData.contacts) {
+          if (c.name || c.email || c.phone) {
+            finalContacts.push({
+              role: c.role as "Primary" | "Billing" | "Reservations",
+              name: c.name,
+              email: c.email,
+              phone: c.phone,
+            });
+          }
+        }
       }
-
-      const validContacts: ZestScrapedContact[] = scrapedData.contacts
-        .filter((c, idx, arr) => arr.findIndex(x => x.role === c.role) === idx)
-        .filter(c => c.name || c.email || c.phone)
-        .map(c => ({
-          role: c.role as "Primary" | "Billing" | "Reservations",
-          name: c.name,
-          email: c.email,
-          phone: c.phone,
-        }));
+      
+      // If no contacts found yet, try to match emails/phones from visible text to contact sections
+      if (finalContacts.length === 0 && (visibleTextData.emails.length > 0 || visibleTextData.phones.length > 0)) {
+        console.log(`[Zest Portal Scraper] Attempting to build contacts from visible text data...`);
+        
+        const roles = ['Primary', 'Billing', 'Reservations'];
+        const usedEmails = new Set<string>();
+        const usedPhones = new Set<string>();
+        
+        for (let i = 0; i < roles.length; i++) {
+          const role = roles[i];
+          const sectionData = visibleTextData.contactSections[role];
+          
+          let email: string | null = null;
+          let phone: string | null = null;
+          let name: string | null = null;
+          
+          // Find email for this section
+          if (sectionData && sectionData.lines) {
+            for (const line of sectionData.lines) {
+              const emailMatch = line.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+              if (emailMatch && !usedEmails.has(emailMatch[0])) {
+                email = emailMatch[0];
+                usedEmails.add(email as string);
+                break;
+              }
+            }
+            
+            // Find phone for this section
+            for (const line of sectionData.lines) {
+              const phoneMatch = line.match(/\+?[\d\s()-]{9,}/);
+              if (phoneMatch && !usedPhones.has(phoneMatch[0].trim())) {
+                phone = phoneMatch[0].trim();
+                usedPhones.add(phone as string);
+                break;
+              }
+            }
+            
+            // Try to find a name (line that doesn't look like label, email, or phone)
+            for (const line of sectionData.lines) {
+              const lineLower = line.toLowerCase();
+              if (!lineLower.includes('contact') && 
+                  !lineLower.includes('name') && 
+                  !lineLower.includes('email') && 
+                  !lineLower.includes('phone') &&
+                  !line.includes('@') &&
+                  !/^\+?[\d\s()-]+$/.test(line) &&
+                  line.length > 2 && line.length < 50) {
+                // Looks like it could be a name
+                const words = line.split(' ');
+                if (words.length >= 1 && words.length <= 4 && words.every((w: string) => /^[A-Za-zÀ-ÿ]+$/.test(w))) {
+                  name = line;
+                  break;
+                }
+              }
+            }
+          }
+          
+          // Fallback: assign from global lists if section didn't have specific data
+          if (!email && visibleTextData.emails.length > i && !usedEmails.has(visibleTextData.emails[i])) {
+            email = visibleTextData.emails[i];
+            usedEmails.add(email);
+          }
+          if (!phone && visibleTextData.phones.length > i && !usedPhones.has(visibleTextData.phones[i])) {
+            phone = visibleTextData.phones[i];
+            usedPhones.add(phone);
+          }
+          
+          if (name || email || phone) {
+            finalContacts.push({
+              role: role as "Primary" | "Billing" | "Reservations",
+              name,
+              email,
+              phone,
+            });
+          }
+        }
+      }
+      
+      // If still no contacts, try from text field values
+      if (finalContacts.length === 0 && textFieldValues.length > 0) {
+        console.log(`[Zest Portal Scraper] Attempting to build contacts from text field values...`);
+        
+        // Group fields by their position - assume groups of 4 (firstName, lastName, email, phone)
+        const fieldsWithValues = textFieldValues.filter(f => f.value || f.innerValue);
+        if (fieldsWithValues.length > 0) {
+          const roles = ['Primary', 'Billing', 'Reservations'];
+          let roleIdx = 0;
+          let currentContact: any = { role: roles[0] };
+          
+          for (const field of fieldsWithValues) {
+            const val = field.innerValue || field.value;
+            const label = field.label?.toLowerCase() || '';
+            
+            if (val && val.length > 0) {
+              if (label.includes('first') || label.includes('name')) {
+                if (currentContact.name) {
+                  currentContact.name += ' ' + val;
+                } else {
+                  currentContact.name = val;
+                }
+              } else if (label.includes('last')) {
+                currentContact.name = (currentContact.name || '') + ' ' + val;
+              } else if (val.includes('@')) {
+                currentContact.email = val;
+              } else if (/^\+?[\d\s()-]{9,}$/.test(val)) {
+                currentContact.phone = val;
+              }
+            }
+          }
+          
+          if (currentContact.name || currentContact.email || currentContact.phone) {
+            finalContacts.push(currentContact);
+          }
+        }
+      }
+      
+      // Debug output
+      if (finalContacts.length === 0) {
+        console.log("[Zest Portal Scraper] No contacts extracted. Debug info:");
+        console.log("[Zest Portal Scraper] Text fields with values:", textFieldValues.filter(f => f.value || f.innerValue));
+        console.log("[Zest Portal Scraper] Sample page text:", visibleTextData.sampleText.substring(0, 1500));
+      } else {
+        console.log(`[Zest Portal Scraper] Successfully extracted ${finalContacts.length} contacts:`, finalContacts);
+      }
 
       return {
         success: true,
         facilityId,
         facilityName: scrapedData.facilityName || undefined,
-        contacts: validContacts,
+        contacts: finalContacts,
       };
 
     } catch (error) {
