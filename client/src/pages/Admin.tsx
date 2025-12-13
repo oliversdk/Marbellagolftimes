@@ -2845,9 +2845,16 @@ export default function Admin() {
     return stage !== "NOT_CONTACTED";
   };
 
-  // Filter courses by provider for email section, excluding those already contacted via Zest
+  // Helper to check if course is members only (not public)
+  const isMembersOnly = (course: GolfCourse): boolean => {
+    return course.membersOnly === "true";
+  };
+
+  // Filter courses by provider for email section, excluding those already contacted via Zest or members only
   const filteredEmailCourses = courses?.filter((course) => {
-    // First check if already contacted via Zest - exclude these
+    // Exclude members only courses - they shouldn't receive partnership emails
+    if (isMembersOnly(course)) return false;
+    // Exclude courses already contacted via Zest
     if (isContactedViaZest(course.id)) return false;
     // Then apply provider filter
     if (emailProviderFilter === "ALL") return true;
@@ -2856,8 +2863,18 @@ export default function Admin() {
 
   // Get courses that were filtered out because they were contacted via Zest
   const zestContactedCourses = courses?.filter((course) => {
+    // Don't show members only courses here either
+    if (isMembersOnly(course)) return false;
     // Check if contacted via Zest
     if (!isContactedViaZest(course.id)) return false;
+    // Apply provider filter
+    if (emailProviderFilter === "ALL") return true;
+    return getCourseProvider(course.id) === emailProviderFilter;
+  }) || [];
+
+  // Get courses that are members only (excluded from email outreach)
+  const membersOnlyCourses = courses?.filter((course) => {
+    if (!isMembersOnly(course)) return false;
     // Apply provider filter
     if (emailProviderFilter === "ALL") return true;
     return getCourseProvider(course.id) === emailProviderFilter;
@@ -5332,6 +5349,48 @@ export default function Admin() {
                               </div>
                             );
                           })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Members Only Courses Section */}
+                    {membersOnlyCourses.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                            <Lock className="h-3 w-3 mr-1" />
+                            Members Only
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            ({membersOnlyCourses.length} course{membersOnlyCourses.length !== 1 && "s"} - not public)
+                          </span>
+                        </div>
+                        <div className="border rounded-md max-h-[150px] overflow-y-auto bg-muted/30">
+                          {membersOnlyCourses.map((course) => (
+                            <div
+                              key={course.id}
+                              className="flex items-center justify-between gap-3 p-3 border-b last:border-b-0"
+                              data-testid={`members-only-course-${course.id}`}
+                            >
+                              <div className="flex-1 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-muted-foreground">{course.name}</span>
+                                  {getCourseProvider(course.id) === "golfmanager" && (
+                                    <Badge variant="outline" className="text-xs">Golfmanager</Badge>
+                                  )}
+                                  {getCourseProvider(course.id) === "teeone" && (
+                                    <Badge variant="outline" className="text-xs">TeeOne</Badge>
+                                  )}
+                                </div>
+                                <div className="text-muted-foreground text-xs">
+                                  {course.email || "No email"}
+                                </div>
+                              </div>
+                              <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700">
+                                Private
+                              </Badge>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
