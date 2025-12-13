@@ -8,57 +8,38 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-const FORM_ANALYSIS_PROMPT = `You are an expert at analyzing PDF forms and determining where to place text values.
-
-Given:
-1. The text content extracted from a PDF form
-2. The page dimensions (width x height in points)
-3. Company profile data to fill in
-
-Your task is to determine the exact X,Y coordinates where each piece of company data should be placed on the PDF.
-
-The coordinate system is:
-- Origin (0,0) is at the BOTTOM-LEFT corner of the page
-- X increases to the right
-- Y increases upward
-- Standard A4 page is approximately 595 x 842 points
-
-The company profile has these fields:
-- commercialName: Legal company name (Nombre comercial)
-- tradingName: Trading/brand name (Razón social)
-- cifVat: CIF or VAT number
-- website: Company website
-- businessStreet: Business address street
-- businessPostalCode: Postal code
-- businessCity: City  
-- businessCountry: Country
-- invoiceStreet, invoicePostalCode, invoiceCity, invoiceCountry: Invoice address
-- invoiceSameAsBusiness: If "true", use business address for invoicing
-- reservationsName, reservationsEmail, reservationsPhone: Reservations contact
-- contractsName, contractsEmail, contractsPhone: Contracts contact
-- invoicingName, invoicingEmail, invoicingPhone: Invoicing contact
-
-IMPORTANT: 
-- Analyze the form layout and find the RIGHT side of each label where the value should go
-- For forms with label...value layout, place text to the RIGHT of the label
-- Look for patterns like "Nombre comercial" followed by blank space - that's where the value goes
-- Standard forms usually have labels on the left (around x=50-150) and values on the right (around x=200-400)
-- Each section (Business details, Addresses, Contact persons) is typically vertically separated
-
-Return a JSON object with:
-{
-  "textPlacements": [
-    {
-      "text": "the text value to place",
-      "x": 250,
-      "y": 750,
-      "fontSize": 10,
-      "fieldName": "which field this fills"
-    }
-  ],
-  "fieldsMatched": ["list of profile fields that were used"],
-  "fieldsUnmatched": ["list of form fields that couldn't be matched"]
-}`;
+// For standard "Datos empresa / Company details" forms, use fixed coordinates
+// These are calibrated for the Golf Torrequebrada form layout (A4 size: 595 x 842 points)
+const STANDARD_COMPANY_DETAILS_PLACEMENTS = {
+  // Y coordinates from TOP of page (will be converted to bottom-origin)
+  pageHeight: 842,
+  fields: [
+    { field: "commercialName", x: 245, yFromTop: 95, label: "Nombre comercial" },
+    { field: "tradingName", x: 245, yFromTop: 115, label: "Razón social" },
+    { field: "cifVat", x: 245, yFromTop: 135, label: "CIF" },
+    { field: "website", x: 245, yFromTop: 220, label: "Web" },
+    // Business address
+    { field: "businessStreet", x: 245, yFromTop: 180, label: "Calle (business)" },
+    { field: "businessPostalCity", x: 245, yFromTop: 200, label: "Codigo postal y Ciudad" },
+    { field: "businessCountry", x: 245, yFromTop: 218, label: "Pais (business)" },
+    // Invoice address  
+    { field: "invoiceStreet", x: 245, yFromTop: 262, label: "Calle (invoice)" },
+    { field: "invoicePostalCity", x: 245, yFromTop: 282, label: "Codigo postal y Ciudad (invoice)" },
+    { field: "invoiceCountry", x: 245, yFromTop: 300, label: "Pais (invoice)" },
+    // Reservations contact
+    { field: "reservationsName", x: 245, yFromTop: 358, label: "Nombre (reservas)" },
+    { field: "reservationsEmail", x: 245, yFromTop: 378, label: "E-mail (reservas)" },
+    { field: "reservationsPhone", x: 245, yFromTop: 398, label: "Telefono (reservas)" },
+    // Contracts contact
+    { field: "contractsName", x: 245, yFromTop: 450, label: "Nombre (contratos)" },
+    { field: "contractsEmail", x: 245, yFromTop: 470, label: "E-mail (contratos)" },
+    { field: "contractsPhone", x: 245, yFromTop: 490, label: "Telefono (contratos)" },
+    // Invoicing contact
+    { field: "invoicingName", x: 245, yFromTop: 545, label: "Nombre (facturacion)" },
+    { field: "invoicingEmail", x: 245, yFromTop: 565, label: "E-mail (facturacion)" },
+    { field: "invoicingPhone", x: 245, yFromTop: 585, label: "Telefono (facturacion)" },
+  ]
+};
 
 interface CompanyProfileData {
   commercialName: string;
@@ -112,42 +93,96 @@ export class FormFillerService {
     return profile || null;
   }
 
-  async analyzeFormAndGetPlacements(
-    formText: string, 
-    profile: CompanyProfileData,
-    pageWidth: number,
-    pageHeight: number
-  ): Promise<{
-    textPlacements: TextPlacement[];
-    fieldsMatched: string[];
-    fieldsUnmatched: string[];
-  }> {
-    const profileJson = JSON.stringify(profile, null, 2);
+  isStandardCompanyDetailsForm(formText: string): boolean {
+    // Check if this is the standard "Datos empresa / Company details" form
+    const indicators = [
+      "Datos de la empresa",
+      "Business details",
+      "Nombre comercial",
+      "Commercial name",
+      "Razón social",
+      "Trading name",
+      "CIF or VAT",
+      "Direcciones",
+      "Addresses",
+      "Personas de contacto",
+      "Contact persons"
+    ];
     
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: FORM_ANALYSIS_PROMPT },
-        { 
-          role: "user", 
-          content: `Form text content:\n\n${formText}\n\n---\n\nPage dimensions: ${pageWidth} x ${pageHeight} points (A4)\n\n---\n\nCompany profile data:\n${profileJson}\n\nAnalyze this form and provide the exact coordinates for placing each value.`
+    const matchCount = indicators.filter(i => formText.toLowerCase().includes(i.toLowerCase())).length;
+    return matchCount >= 6; // At least 6 indicators match
+  }
+
+  getFieldValue(profile: CompanyProfileData, fieldName: string): string {
+    const useBusinessForInvoice = profile.invoiceSameAsBusiness === "true";
+    
+    switch (fieldName) {
+      case "commercialName":
+        return profile.commercialName || "";
+      case "tradingName":
+        return profile.tradingName || "";
+      case "cifVat":
+        return profile.cifVat || "";
+      case "website":
+        return profile.website || "";
+      case "businessStreet":
+        return profile.businessStreet || "";
+      case "businessPostalCity":
+        return `${profile.businessPostalCode || ""} ${profile.businessCity || ""}`.trim();
+      case "businessCountry":
+        return profile.businessCountry || "";
+      case "invoiceStreet":
+        return useBusinessForInvoice ? (profile.businessStreet || "") : (profile.invoiceStreet || "");
+      case "invoicePostalCity":
+        if (useBusinessForInvoice) {
+          return `${profile.businessPostalCode || ""} ${profile.businessCity || ""}`.trim();
         }
-      ],
-      temperature: 0.1,
-      response_format: { type: "json_object" }
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error("No response from AI");
+        return `${profile.invoicePostalCode || ""} ${profile.invoiceCity || ""}`.trim();
+      case "invoiceCountry":
+        return useBusinessForInvoice ? (profile.businessCountry || "") : (profile.invoiceCountry || "");
+      case "reservationsName":
+        return profile.reservationsName || "";
+      case "reservationsEmail":
+        return profile.reservationsEmail || "";
+      case "reservationsPhone":
+        return profile.reservationsPhone || "";
+      case "contractsName":
+        return profile.contractsName || "";
+      case "contractsEmail":
+        return profile.contractsEmail || "";
+      case "contractsPhone":
+        return profile.contractsPhone || "";
+      case "invoicingName":
+        return profile.invoicingName || "";
+      case "invoicingEmail":
+        return profile.invoicingEmail || "";
+      case "invoicingPhone":
+        return profile.invoicingPhone || "";
+      default:
+        return "";
     }
+  }
 
-    const parsed = JSON.parse(content);
-    return {
-      textPlacements: parsed.textPlacements || [],
-      fieldsMatched: parsed.fieldsMatched || [],
-      fieldsUnmatched: parsed.fieldsUnmatched || []
-    };
+  getStandardFormPlacements(profile: CompanyProfileData, pageHeight: number): TextPlacement[] {
+    const placements: TextPlacement[] = [];
+    const config = STANDARD_COMPANY_DETAILS_PLACEMENTS;
+    
+    for (const field of config.fields) {
+      const value = this.getFieldValue(profile, field.field);
+      if (value) {
+        // Convert from top-origin to bottom-origin coordinate system
+        const y = pageHeight - field.yFromTop;
+        placements.push({
+          text: value,
+          x: field.x,
+          y: y,
+          fontSize: 9,
+          fieldName: field.label
+        });
+      }
+    }
+    
+    return placements;
   }
 
   async fillFormWithOverlay(pdfBuffer: Buffer, profile: CompanyProfileData): Promise<{
@@ -167,16 +202,22 @@ export class FormFillerService {
     const formText = await this.extractTextFromPdf(pdfBuffer);
     console.log(`Extracted ${formText.length} characters from form`);
 
-    // Get AI to analyze and determine text placements
-    console.log("Analyzing form structure with AI...");
-    const { textPlacements, fieldsMatched, fieldsUnmatched } = await this.analyzeFormAndGetPlacements(
-      formText,
-      profile,
-      width,
-      height
-    );
+    let textPlacements: TextPlacement[];
+    let fieldsMatched: string[] = [];
+    let fieldsUnmatched: string[] = [];
 
-    console.log(`AI suggested ${textPlacements.length} text placements`);
+    // Check if this is a standard company details form
+    if (this.isStandardCompanyDetailsForm(formText)) {
+      console.log("Detected standard 'Datos empresa / Company details' form - using calibrated placements");
+      textPlacements = this.getStandardFormPlacements(profile, height);
+      fieldsMatched = textPlacements.map(p => p.fieldName);
+    } else {
+      console.log("Unknown form type - would need AI analysis (not implemented for this form)");
+      textPlacements = [];
+      fieldsUnmatched = ["Form type not recognized"];
+    }
+
+    console.log(`Placing ${textPlacements.length} text values`);
 
     // Embed a font for writing text
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -187,11 +228,11 @@ export class FormFillerService {
         firstPage.drawText(placement.text, {
           x: placement.x,
           y: placement.y,
-          size: placement.fontSize || 10,
+          size: placement.fontSize || 9,
           font: font,
           color: rgb(0, 0, 0),
         });
-        console.log(`Placed "${placement.text}" at (${placement.x}, ${placement.y})`);
+        console.log(`Placed "${placement.text}" at (${placement.x}, ${placement.y}) for ${placement.fieldName}`);
       }
     }
 
