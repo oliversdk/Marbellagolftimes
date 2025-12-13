@@ -12,6 +12,7 @@ import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchem
 import { db } from "./db";
 import { eq, and, ilike } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
+import { courseBookingNotificationEmail, type CourseBookingNotificationDetails } from "./templates/course-booking-notification";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
 import { z } from "zod";
 import bcrypt from "bcrypt";
@@ -103,6 +104,91 @@ setInterval(() => {
     }
   });
 }, 5 * 60 * 1000);
+
+// Helper function to get course contact email with priority
+// Priority: "Zest Primary" > "Zest Reservations" > course.email
+async function getCourseNotificationEmail(courseId: string, fallbackEmail?: string | null): Promise<string | null> {
+  try {
+    const contacts = await db.select().from(courseContacts).where(eq(courseContacts.courseId, courseId));
+    
+    // Priority 1: Look for "Zest Primary" role
+    const zestPrimary = contacts.find(c => c.role === "Zest Primary" && c.email);
+    if (zestPrimary?.email) return zestPrimary.email;
+    
+    // Priority 2: Look for "Zest Reservations" role
+    const zestReservations = contacts.find(c => c.role === "Zest Reservations" && c.email);
+    if (zestReservations?.email) return zestReservations.email;
+    
+    // Priority 3: Any primary contact with email
+    const primaryContact = contacts.find(c => c.isPrimary === "true" && c.email);
+    if (primaryContact?.email) return primaryContact.email;
+    
+    // Priority 4: Any contact with email
+    const anyContact = contacts.find(c => c.email);
+    if (anyContact?.email) return anyContact.email;
+    
+    // Fallback to course.email
+    return fallbackEmail || null;
+  } catch (error) {
+    console.warn("[Email] Error fetching course contacts:", error);
+    return fallbackEmail || null;
+  }
+}
+
+// Helper function to send course booking notification email
+async function sendCourseBookingNotification(
+  booking: { id: string; customerName: string; customerEmail: string; customerPhone?: string | null; teeTime: Date | string; players: number; totalAmountCents?: number | null },
+  course: { id: string; name: string; email?: string | null }
+): Promise<void> {
+  try {
+    const emailConfig = getEmailConfig();
+    if (!emailConfig) {
+      console.warn("[Email] SMTP not configured - skipping course notification");
+      return;
+    }
+    
+    const courseEmail = await getCourseNotificationEmail(course.id, course.email);
+    if (!courseEmail) {
+      console.warn(`[Email] No contact email found for course ${course.name} - skipping notification`);
+      return;
+    }
+    
+    const notificationDetails: CourseBookingNotificationDetails = {
+      bookingId: booking.id,
+      courseName: course.name,
+      customerName: booking.customerName,
+      customerEmail: booking.customerEmail,
+      customerPhone: booking.customerPhone || undefined,
+      teeTime: typeof booking.teeTime === 'string' ? new Date(booking.teeTime) : booking.teeTime,
+      players: booking.players,
+      totalAmountCents: booking.totalAmountCents || undefined,
+    };
+    
+    const emailContent = courseBookingNotificationEmail(notificationDetails);
+    
+    const transporter = nodemailer.createTransport({
+      host: emailConfig.host,
+      port: emailConfig.port,
+      secure: emailConfig.port === 465,
+      auth: {
+        user: emailConfig.user,
+        pass: emailConfig.pass,
+      },
+    });
+    
+    await transporter.sendMail({
+      from: emailConfig.from,
+      to: courseEmail,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+    });
+    
+    console.log(`✓ Course notification email sent to ${courseEmail} for booking ${booking.id}`);
+  } catch (error) {
+    console.warn(`⚠ Failed to send course notification email:`, error instanceof Error ? error.message : error);
+  }
+}
 
 // TeeOne tenant mapping for courses
 const TEEONE_TENANTS: Record<string, string> = {
@@ -2900,6 +2986,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Email sending failed:', emailError instanceof Error ? emailError.message : emailError);
           console.warn('⚠ Booking created successfully but confirmation email could not be sent');
         }
+        
+        // Send notification email to golf course (non-blocking)
+        sendCourseBookingNotification(booking, course).catch(() => {});
       }
       
       res.status(201).json(booking);
@@ -3146,6 +3235,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 addOnsJson: metadata.addOnsJson || null,
               });
               console.log(`✓ Booking created via webhook: ${booking.id}`);
+              
+              // Send notification email to golf course (non-blocking)
+              const course = await storage.getCourseById(metadata.courseId);
+              if (course) {
+                sendCourseBookingNotification(booking, course).catch(() => {});
+              }
             } catch (err) {
               console.error("Error creating booking from webhook:", err);
             }
@@ -3223,6 +3318,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log(`✓ Booking confirmed via success page: ${booking.id}`);
+      
+      // Send notification email to golf course (non-blocking)
+      const course = await storage.getCourseById(metadata.courseId);
+      if (course) {
+        sendCourseBookingNotification(booking, course).catch(() => {});
+      }
+      
       res.json({ booking, alreadyExists: false });
     } catch (error) {
       console.error("Payment confirmation error:", error);
