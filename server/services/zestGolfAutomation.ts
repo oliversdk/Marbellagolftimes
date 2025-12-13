@@ -172,27 +172,25 @@ export class ZestGolfAutomation {
       await passwordInput.click({ clickCount: 3 }); // Select all
       await passwordInput.type(password, { delay: 30 });
 
-      // Find and click submit button
-      const buttonSelectors = [
-        'button[type="submit"]',
-        'input[type="submit"]',
-        'button:not([type="button"])',
-        '.login-button',
-        '.btn-login',
-        '[data-testid*="login"]',
-      ];
-      
-      let submitButton = null;
-      for (const selector of buttonSelectors) {
-        submitButton = await this.page.$(selector);
-        if (submitButton) {
-          console.log(`Found submit button with selector: ${selector}`);
-          break;
+      // Find and click submit button - look for button containing "Log in" text
+      let submitButton = await this.page.evaluateHandle(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        for (const btn of buttons) {
+          const text = btn.textContent?.toLowerCase() || '';
+          if (text.includes('log in') || text.includes('login') || text.includes('sign in')) {
+            return btn;
+          }
         }
-      }
-
-      if (submitButton) {
-        await submitButton.click();
+        // Fallback to any submit button
+        return document.querySelector('button[type="submit"]') || 
+               document.querySelector('input[type="submit"]') ||
+               document.querySelector('form button');
+      });
+      
+      const buttonElement = submitButton.asElement();
+      if (buttonElement) {
+        console.log("Found login button, clicking...");
+        await buttonElement.click();
       } else {
         console.log("No submit button found, pressing Enter");
         await this.page.keyboard.press("Enter");
