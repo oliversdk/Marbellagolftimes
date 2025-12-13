@@ -1,45 +1,62 @@
 import OpenAI from "openai";
-import puppeteer from "puppeteer";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { db } from "../db";
 import { companyProfile } from "../../shared/schema";
-import { ObjectStorageService } from "../objectStorage";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
-const FORM_ANALYSIS_PROMPT = `You are an expert at analyzing form templates and mapping them to company data.
-Given a form template text and company profile data, generate HTML that replicates the form with all fields filled in.
+const FORM_ANALYSIS_PROMPT = `You are an expert at analyzing PDF forms and determining where to place text values.
+
+Given:
+1. The text content extracted from a PDF form
+2. The page dimensions (width x height in points)
+3. Company profile data to fill in
+
+Your task is to determine the exact X,Y coordinates where each piece of company data should be placed on the PDF.
+
+The coordinate system is:
+- Origin (0,0) is at the BOTTOM-LEFT corner of the page
+- X increases to the right
+- Y increases upward
+- Standard A4 page is approximately 595 x 842 points
 
 The company profile has these fields:
-- commercialName: Legal company name
+- commercialName: Legal company name (Nombre comercial)
 - tradingName: Trading/brand name (Razón social)
 - cifVat: CIF or VAT number
 - website: Company website
 - businessStreet: Business address street
 - businessPostalCode: Postal code
-- businessCity: City
+- businessCity: City  
 - businessCountry: Country
-- invoiceStreet, invoicePostalCode, invoiceCity, invoiceCountry: Invoice address (or use business address if same)
+- invoiceStreet, invoicePostalCode, invoiceCity, invoiceCountry: Invoice address
 - invoiceSameAsBusiness: If "true", use business address for invoicing
 - reservationsName, reservationsEmail, reservationsPhone: Reservations contact
 - contractsName, contractsEmail, contractsPhone: Contracts contact
 - invoicingName, invoicingEmail, invoicingPhone: Invoicing contact
 
-IMPORTANT INSTRUCTIONS:
-1. Analyze the form structure (sections, labels, field positions)
-2. Map each form field to the appropriate company profile field
-3. Generate clean HTML that looks like the original form with fields filled in
-4. Use a professional, printable layout suitable for PDF
-5. Include both Spanish and English labels as shown in the original form
-6. Leave signature areas EMPTY for the user to sign manually
-7. Keep the golf course logo/footer if mentioned in the form
+IMPORTANT: 
+- Analyze the form layout and find the RIGHT side of each label where the value should go
+- For forms with label...value layout, place text to the RIGHT of the label
+- Look for patterns like "Nombre comercial" followed by blank space - that's where the value goes
+- Standard forms usually have labels on the left (around x=50-150) and values on the right (around x=200-400)
+- Each section (Business details, Addresses, Contact persons) is typically vertically separated
 
 Return a JSON object with:
 {
-  "html": "Complete HTML document with inline CSS styling",
-  "fieldsMatched": ["list of fields that were filled"],
+  "textPlacements": [
+    {
+      "text": "the text value to place",
+      "x": 250,
+      "y": 750,
+      "fontSize": 10,
+      "fieldName": "which field this fills"
+    }
+  ],
+  "fieldsMatched": ["list of profile fields that were used"],
   "fieldsUnmatched": ["list of form fields that couldn't be matched"]
 }`;
 
@@ -68,13 +85,15 @@ interface CompanyProfileData {
   invoicingPhone?: string | null;
 }
 
+interface TextPlacement {
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  fieldName: string;
+}
+
 export class FormFillerService {
-  private objectStorage: ObjectStorageService;
-
-  constructor() {
-    this.objectStorage = new ObjectStorageService();
-  }
-
   async extractTextFromPdf(buffer: Buffer): Promise<string> {
     try {
       const { extractText, getDocumentProxy } = await import("unpdf");
@@ -93,8 +112,13 @@ export class FormFillerService {
     return profile || null;
   }
 
-  async generateFilledFormHtml(formText: string, profile: CompanyProfileData): Promise<{
-    html: string;
+  async analyzeFormAndGetPlacements(
+    formText: string, 
+    profile: CompanyProfileData,
+    pageWidth: number,
+    pageHeight: number
+  ): Promise<{
+    textPlacements: TextPlacement[];
     fieldsMatched: string[];
     fieldsUnmatched: string[];
   }> {
@@ -106,7 +130,7 @@ export class FormFillerService {
         { role: "system", content: FORM_ANALYSIS_PROMPT },
         { 
           role: "user", 
-          content: `Form template text:\n\n${formText}\n\n---\n\nCompany profile data:\n${profileJson}\n\nPlease generate the filled HTML form.`
+          content: `Form text content:\n\n${formText}\n\n---\n\nPage dimensions: ${pageWidth} x ${pageHeight} points (A4)\n\n---\n\nCompany profile data:\n${profileJson}\n\nAnalyze this form and provide the exact coordinates for placing each value.`
         }
       ],
       temperature: 0.1,
@@ -120,38 +144,65 @@ export class FormFillerService {
 
     const parsed = JSON.parse(content);
     return {
-      html: parsed.html,
+      textPlacements: parsed.textPlacements || [],
       fieldsMatched: parsed.fieldsMatched || [],
       fieldsUnmatched: parsed.fieldsUnmatched || []
     };
   }
 
-  async convertHtmlToPdf(html: string): Promise<Buffer> {
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
-    });
+  async fillFormWithOverlay(pdfBuffer: Buffer, profile: CompanyProfileData): Promise<{
+    pdfBuffer: Buffer;
+    fieldsMatched: string[];
+    fieldsUnmatched: string[];
+  }> {
+    // Load the original PDF
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[0];
+    const { width, height } = firstPage.getSize();
+    
+    console.log(`PDF page size: ${width} x ${height} points`);
 
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20mm',
-          right: '15mm',
-          bottom: '20mm',
-          left: '15mm'
-        }
-      });
+    // Extract text to understand form structure
+    const formText = await this.extractTextFromPdf(pdfBuffer);
+    console.log(`Extracted ${formText.length} characters from form`);
 
-      return Buffer.from(pdfBuffer);
-    } finally {
-      await browser.close();
+    // Get AI to analyze and determine text placements
+    console.log("Analyzing form structure with AI...");
+    const { textPlacements, fieldsMatched, fieldsUnmatched } = await this.analyzeFormAndGetPlacements(
+      formText,
+      profile,
+      width,
+      height
+    );
+
+    console.log(`AI suggested ${textPlacements.length} text placements`);
+
+    // Embed a font for writing text
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    // Place each text on the PDF
+    for (const placement of textPlacements) {
+      if (placement.text && placement.text.trim()) {
+        firstPage.drawText(placement.text, {
+          x: placement.x,
+          y: placement.y,
+          size: placement.fontSize || 10,
+          font: font,
+          color: rgb(0, 0, 0),
+        });
+        console.log(`Placed "${placement.text}" at (${placement.x}, ${placement.y})`);
+      }
     }
+
+    // Save the modified PDF
+    const modifiedPdfBytes = await pdfDoc.save();
+    
+    return {
+      pdfBuffer: Buffer.from(modifiedPdfBytes),
+      fieldsMatched,
+      fieldsUnmatched
+    };
   }
 
   async fillForm(pdfBuffer: Buffer): Promise<{
@@ -165,29 +216,8 @@ export class FormFillerService {
       throw new Error("Company profile not found. Please set up your company details in Admin Settings first.");
     }
 
-    // Extract form text
-    console.log("Extracting text from PDF form...");
-    const formText = await this.extractTextFromPdf(pdfBuffer);
-    console.log(`Extracted ${formText.length} characters from form`);
-
-    // Generate filled HTML
-    console.log("Generating filled form with AI...");
-    const { html, fieldsMatched, fieldsUnmatched } = await this.generateFilledFormHtml(formText, profile);
-    console.log(`Matched fields: ${fieldsMatched.join(", ")}`);
-    if (fieldsUnmatched.length > 0) {
-      console.log(`Unmatched fields: ${fieldsUnmatched.join(", ")}`);
-    }
-
-    // Convert to PDF
-    console.log("Converting to PDF...");
-    const filledPdfBuffer = await this.convertHtmlToPdf(html);
-    console.log(`Generated PDF: ${filledPdfBuffer.length} bytes`);
-
-    return {
-      pdfBuffer: filledPdfBuffer,
-      fieldsMatched,
-      fieldsUnmatched
-    };
+    console.log("Filling form by overlaying text on original PDF...");
+    return this.fillFormWithOverlay(pdfBuffer, profile);
   }
 }
 
