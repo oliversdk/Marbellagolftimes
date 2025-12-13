@@ -5493,47 +5493,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Zest Golf Automation - Puppeteer-based facility management
   app.get("/api/zest/automation/test", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { ZestGolfAutomation } = await import("./services/zestGolfAutomation");
+      const { ZestGolfAutomation, validateZestCredentials, isAutomationBusy } = await import("./services/zestGolfAutomation");
+      
+      const credCheck = validateZestCredentials();
+      if (!credCheck.valid) {
+        return res.status(400).json({ success: false, message: credCheck.error, error: credCheck.error });
+      }
+      
+      if (isAutomationBusy()) {
+        return res.status(409).json({ success: false, message: "Another automation task is already running", error: "Busy" });
+      }
+      
       const automation = new ZestGolfAutomation();
       const result = await automation.testConnection();
+      
+      if (!result.success) {
+        return res.status(result.error?.includes("Login") ? 401 : 500).json(result);
+      }
+      
       res.json(result);
     } catch (error: any) {
       console.error("Zest automation test failed:", error);
-      res.status(500).json({ success: false, error: error.message });
+      res.status(500).json({ success: false, message: error.message, error: error.message });
     }
   });
 
   app.post("/api/zest/automation/resend-all", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { ZestGolfAutomation } = await import("./services/zestGolfAutomation");
+      const { ZestGolfAutomation, validateZestCredentials, isAutomationBusy } = await import("./services/zestGolfAutomation");
+      
+      const credCheck = validateZestCredentials();
+      if (!credCheck.valid) {
+        return res.status(400).json({ success: false, message: credCheck.error, error: credCheck.error });
+      }
+      
+      if (isAutomationBusy()) {
+        return res.status(409).json({ success: false, message: "Another automation task is already running", error: "Busy" });
+      }
+      
       const automation = new ZestGolfAutomation();
       const result = await automation.runFullAutomation();
+      
+      if (!result.success) {
+        return res.status(result.error?.includes("Login") ? 401 : 500).json(result);
+      }
+      
       res.json(result);
     } catch (error: any) {
       console.error("Zest automation failed:", error);
-      res.status(500).json({ success: false, error: error.message });
+      res.status(500).json({ success: false, message: error.message, error: error.message });
     }
   });
 
   app.get("/api/zest/automation/pending", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { ZestGolfAutomation } = await import("./services/zestGolfAutomation");
+      const { ZestGolfAutomation, validateZestCredentials, isAutomationBusy } = await import("./services/zestGolfAutomation");
+      
+      const credCheck = validateZestCredentials();
+      if (!credCheck.valid) {
+        return res.status(400).json({ success: false, message: credCheck.error, error: credCheck.error });
+      }
+      
+      if (isAutomationBusy()) {
+        return res.status(409).json({ success: false, message: "Another automation task is already running", error: "Busy" });
+      }
+      
       const automation = new ZestGolfAutomation();
       await automation.initialize();
       const loginSuccess = await automation.login();
       
       if (!loginSuccess) {
         await automation.close();
-        return res.status(401).json({ success: false, error: "Failed to login to Zest Golf" });
+        return res.status(401).json({ success: false, message: "Failed to login to Zest Golf", error: "Login failed" });
       }
       
       const facilities = await automation.getPendingFacilities();
       await automation.close();
       
-      res.json({ success: true, facilities });
+      res.json({ success: true, message: `Found ${facilities.length} pending facilities`, facilities });
     } catch (error: any) {
       console.error("Failed to get pending facilities:", error);
-      res.status(500).json({ success: false, error: error.message });
+      res.status(500).json({ success: false, message: error.message, error: error.message });
     }
   });
 

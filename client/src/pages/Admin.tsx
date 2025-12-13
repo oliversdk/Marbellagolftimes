@@ -43,7 +43,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip, Globe, Loader2 } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
 import {
   Select,
@@ -395,6 +395,168 @@ function SortableImage({
         </Button>
       </div>
     </div>
+  );
+}
+
+interface ZestPendingFacility {
+  id: string;
+  name: string;
+  country: string;
+  city: string;
+  status: string;
+  holes: number;
+  onZestSince: string;
+}
+
+interface ZestAutomationResponse {
+  success: boolean;
+  message: string;
+  facilitiesProcessed?: number;
+  facilities?: ZestPendingFacility[];
+  error?: string;
+}
+
+function ZestAutomationCard() {
+  const { toast } = useToast();
+  const [pendingFacilities, setPendingFacilities] = useState<ZestPendingFacility[]>([]);
+  
+  const testConnectionMutation = useMutation({
+    mutationFn: async (): Promise<ZestAutomationResponse> => {
+      const response = await fetch("/api/zest/automation/test");
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Connection test failed");
+      }
+      return result;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.success ? "Connection successful" : "Connection failed",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+      if (data.facilities) {
+        setPendingFacilities(data.facilities);
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Connection failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resendAllMutation = useMutation({
+    mutationFn: async (): Promise<ZestAutomationResponse> => {
+      const response = await fetch("/api/zest/automation/resend-all", { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Resend failed");
+      }
+      return result;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.success ? "Resend triggered" : "Resend failed",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+      if (data.facilities) {
+        setPendingFacilities(data.facilities);
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Resend failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5" />
+          Zest Golf Automation
+        </CardTitle>
+        <CardDescription>
+          Manage pending facility connections in Zest Golf Channel Manager
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            onClick={() => testConnectionMutation.mutate()} 
+            disabled={testConnectionMutation.isPending || resendAllMutation.isPending}
+            variant="outline"
+            data-testid="button-zest-connection-test"
+          >
+            {testConnectionMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Test Connection
+              </>
+            )}
+          </Button>
+          
+          <Button 
+            onClick={() => resendAllMutation.mutate()} 
+            disabled={resendAllMutation.isPending || testConnectionMutation.isPending || pendingFacilities.length === 0}
+            variant="default"
+            data-testid="button-zest-resend-all"
+          >
+            {resendAllMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Resending...
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 mr-2" />
+                Resend Invites to All
+              </>
+            )}
+          </Button>
+        </div>
+        
+        {pendingFacilities.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Pending Facilities ({pendingFacilities.length})</h4>
+            <div className="max-h-48 overflow-y-auto border rounded-md">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr>
+                    <th className="text-left p-2">Name</th>
+                    <th className="text-left p-2">City</th>
+                    <th className="text-left p-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingFacilities.map((facility, idx) => (
+                    <tr key={facility.id || idx} className="border-t" data-testid={`row-zest-facility-${facility.id || idx}`}>
+                      <td className="p-2" data-testid={`text-facility-name-${facility.id || idx}`}>{facility.name}</td>
+                      <td className="p-2">{facility.city}</td>
+                      <td className="p-2">
+                        <Badge variant="outline">{facility.status}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -6093,6 +6255,8 @@ export default function Admin() {
                   </Link>
                 </CardContent>
               </Card>
+
+              <ZestAutomationCard />
             </div>
           </TabsContent>
         </Tabs>

@@ -4,6 +4,8 @@ const ZEST_CM_URL = "https://cm.zest.golf";
 const LOGIN_URL = `${ZEST_CM_URL}/login`;
 const FACILITY_LIST_URL = `${ZEST_CM_URL}/management/myFacilityList`;
 
+let isAutomationRunning = false;
+
 export interface ZestPendingFacility {
   id: string;
   name: string;
@@ -22,32 +24,63 @@ export interface ZestAutomationResult {
   error?: string;
 }
 
+export function validateZestCredentials(): { valid: boolean; error?: string } {
+  const username = process.env.ZEST_GOLF_USERNAME;
+  const password = process.env.ZEST_GOLF_PASSWORD;
+  
+  if (!username) {
+    return { valid: false, error: "ZEST_GOLF_USERNAME environment variable not set" };
+  }
+  if (!password) {
+    return { valid: false, error: "ZEST_GOLF_PASSWORD environment variable not set" };
+  }
+  return { valid: true };
+}
+
+export function isAutomationBusy(): boolean {
+  return isAutomationRunning;
+}
+
 export class ZestGolfAutomation {
   private browser: Browser | null = null;
   private page: Page | null = null;
 
   async initialize(): Promise<void> {
-    this.browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
-    });
-    this.page = await this.browser.newPage();
-    await this.page.setViewport({ width: 1920, height: 1080 });
-    await this.page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    );
+    if (isAutomationRunning) {
+      throw new Error("Another automation task is already running");
+    }
+    isAutomationRunning = true;
+    
+    try {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+        ],
+      });
+      this.page = await this.browser.newPage();
+      await this.page.setViewport({ width: 1920, height: 1080 });
+      await this.page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      );
+    } catch (error) {
+      isAutomationRunning = false;
+      throw error;
+    }
   }
 
   async close(): Promise<void> {
-    if (this.browser) {
-      await this.browser.close();
+    try {
+      if (this.browser) {
+        await this.browser.close();
+      }
+    } finally {
       this.browser = null;
       this.page = null;
+      isAutomationRunning = false;
     }
   }
 
