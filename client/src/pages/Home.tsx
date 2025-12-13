@@ -260,20 +260,6 @@ export default function Home() {
         `Morten! Du gør det bare så godt! 🎯`,
         `Hej boss! Costa del Sol venter på dig! 🌴`,
       ],
-      "Frida": [
-        `Hej Frida, din snygga tjej! 🌟`,
-        `Frida! Ska vi signa några golfbanor idag? ✨`,
-        `God morgon Frida! Du är en stjärna! ⭐`,
-        `Hey Frida - låt oss göra magin! 💫`,
-        `Frida! Redo att crusha det idag? 🔥`,
-        `Frida! Har någon berättat för dig hur fantastisk du är idag? 🌟`,
-        `Hey Frida - du är helt enkelt för cool! 👑`,
-        `Frida! Du gör det bara så bra! 🎯`,
-        `God morgon vackra! Redo att erövra världen? 💪`,
-        `Frida! Costa del Sol har tur som har dig! 🌴`,
-        `Hey champion! Redo att vara fantastisk igen? 🏆`,
-        `Frida! Du är bäst - ingen diskussion! 💎`,
-      ],
     };
     
     // Get base greeting

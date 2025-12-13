@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 
-const STORAGE_KEY = 'fridas-golf-favorites';
+const STORAGE_KEY = 'marbella-golf-favorites';
 
 interface FavoritesContextType {
   favorites: Set<string>;

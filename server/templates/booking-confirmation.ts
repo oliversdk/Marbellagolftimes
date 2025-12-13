@@ -102,7 +102,7 @@ export function bookingConfirmationEmail(booking: BookingDetails) {
         <div class="content">
           <p>Dear ${booking.customerName},</p>
           
-          <p>Thank you for choosing Fridas Golf! Your tee time booking request has been received and is being processed.</p>
+          <p>Thank you for choosing Marbella Golf Times! Your tee time booking request has been received and is being processed.</p>
           
           <div class="booking-details">
             <div class="detail-item">
@@ -140,7 +140,7 @@ export function bookingConfirmationEmail(booking: BookingDetails) {
           <p>If you have any questions or need to make changes to your booking, please reply to this email or contact us with your booking reference.</p>
           
           <div class="footer">
-            <p><strong>Fridas Golf</strong><br>
+            <p><strong>Marbella Golf Times</strong><br>
             Your Personal Guide to Costa del Sol Golf</p>
             <p style="font-size: 12px; color: #9ca3af;">This is an automated confirmation email. Please do not reply directly to this message.</p>
           </div>
@@ -153,7 +153,7 @@ Booking Confirmation - ${booking.courseName}
 
 Dear ${booking.customerName},
 
-Thank you for choosing Fridas Golf! Your tee time booking request has been received and is being processed.
+Thank you for choosing Marbella Golf Times! Your tee time booking request has been received and is being processed.
 
 BOOKING DETAILS:
 Course: ${booking.courseName}
@@ -170,7 +170,7 @@ We're working on confirming your tee time with the course. You'll receive a conf
 If you have any questions or need to make changes to your booking, please reply to this email or contact us with your booking reference.
 
 ---
-Fridas Golf
+Marbella Golf Times
 Your Personal Guide to Costa del Sol Golf
     `.trim()
   };

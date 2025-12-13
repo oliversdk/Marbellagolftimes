@@ -445,8 +445,8 @@ export default function CourseDetail() {
     "@type": ["LocalBusiness", "GolfCourse"],
     "name": course.name,
     "description": course.notes || t('courseDetail.defaultDescription'),
-    "image": course.imageUrl || "https://fridasgolf.com/favicon.png",
-    "url": `https://fridasgolf.com/course/${course.id}`,
+    "image": course.imageUrl || "https://marbellagolftimes.com/favicon.png",
+    "url": `https://marbellagolftimes.com/course/${course.id}`,
     "address": {
       "@type": "PostalAddress",
       "addressLocality": course.city,
@@ -468,10 +468,10 @@ export default function CourseDetail() {
   return (
     <div className="min-h-screen bg-background">
       <SEO
-        title={`${course.name} - Golf Tee Times | Fridas Golf`}
+        title={`${course.name} - Golf Tee Times | Marbella Golf Times`}
         description={courseDescription}
         image={course.imageUrl || undefined}
-        url={`https://fridasgolf.com/course/${course.id}`}
+        url={`https://marbellagolftimes.com/course/${course.id}`}
         type="article"
         structuredData={courseSchema}
       />

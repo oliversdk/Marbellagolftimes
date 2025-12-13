@@ -3263,11 +3263,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const eventDetails: CalendarEventDetails = {
         summary: `Golf at ${course.name}`,
-        description: `Tee time booking for ${booking.players} ${booking.players === 1 ? 'player' : 'players'} at ${course.name}.\\n\\nBooking Reference: ${booking.id}\\n\\nBooked via Fridas Golf - Your Personal Guide to Costa del Sol Golf`,
+        description: `Tee time booking for ${booking.players} ${booking.players === 1 ? 'player' : 'players'} at ${course.name}.\\n\\nBooking Reference: ${booking.id}\\n\\nBooked via Marbella Golf Times - Your Personal Guide to Costa del Sol Golf`,
         location: `${course.name}, ${course.city}, ${course.province}, Spain`,
         startTime: startTime,
         endTime: endTime,
-        organizer: 'mailto:bookings@fridasgolf.com'
+        organizer: 'mailto:bookings@marbellagolftimes.com'
       };
 
       const icsContent = generateICalendar(eventDetails);
@@ -3302,7 +3302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const eventDetails: CalendarEventDetails = {
         summary: `Golf at ${course.name}`,
-        description: `Tee time booking for ${booking.players} ${booking.players === 1 ? 'player' : 'players'} at ${course.name}.\n\nBooking Reference: ${booking.id}\n\nBooked via Fridas Golf - Your Personal Guide to Costa del Sol Golf`,
+        description: `Tee time booking for ${booking.players} ${booking.players === 1 ? 'player' : 'players'} at ${course.name}.\n\nBooking Reference: ${booking.id}\n\nBooked via Marbella Golf Times - Your Personal Guide to Costa del Sol Golf`,
         location: `${course.name}, ${course.city}, ${course.province}, Spain`,
         startTime: startTime,
         endTime: endTime,

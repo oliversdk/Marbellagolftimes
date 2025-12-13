@@ -52,7 +52,7 @@ export function ShareMenu({ course, variant = "outline", size = "default", class
   };
 
   const handleEmail = () => {
-    const subject = `${shareTitle} - Fridas Golf`;
+    const subject = `${shareTitle} - Marbella Golf Times`;
     const body = `${shareText}\n\n${shareUrl}`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };

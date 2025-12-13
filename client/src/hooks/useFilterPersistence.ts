@@ -13,7 +13,7 @@ export type SearchFilters = {
 export type SortMode = "distance-asc" | "distance-desc" | "price-asc" | "price-desc";
 export type ViewMode = "list" | "map";
 
-const STORAGE_KEY = "fridas-golf-filters";
+const STORAGE_KEY = "marbella-golf-filters";
 
 const DEFAULT_FILTERS: SearchFilters = {
   players: 2,

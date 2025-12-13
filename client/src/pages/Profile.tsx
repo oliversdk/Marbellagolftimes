@@ -466,7 +466,7 @@ export default function Profile() {
   return (
     <>
       <SEO 
-        title={`${t('profile.title')} - Fridas Golf`}
+        title={`${t('profile.title')} - Marbella Golf Times`}
         description="View your booking history and manage your golf tee time reservations"
       />
       <div className="container mx-auto p-4 md:p-6 max-w-6xl" data-testid="page-profile">

@@ -26,7 +26,7 @@ export function generateICalendar(event: CalendarEventDetails): string {
   };
 
   // Generate unique identifier
-  const uid = `${Date.now()}@fridasgolf.com`;
+  const uid = `${Date.now()}@marbellagolftimes.com`;
   
   // Current timestamp for DTSTAMP
   const now = new Date();
@@ -49,7 +49,7 @@ export function generateICalendar(event: CalendarEventDetails): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Fridas Golf//Booking System//EN',
+    'PRODID:-//Marbella Golf Times//Booking System//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
