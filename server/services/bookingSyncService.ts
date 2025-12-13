@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { courseProviderLinks, teeTimeProviders, type BookingRequest, type GolfCourse } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import type { ZestBookingRequest } from "./zestGolf";
 
 export interface BookingSyncResult {
   success: boolean;
@@ -73,7 +74,7 @@ async function syncToZest(
   }
 
   try {
-    const { getZestGolfService, type ZestBookingRequest } = await import("./zestGolf");
+    const { getZestGolfService } = await import("./zestGolf");
     const zestService = getZestGolfService();
     
     const nameParts = booking.customerName.split(" ");
