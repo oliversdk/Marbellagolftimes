@@ -5978,9 +5978,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await automation.scrapeFacilityContactsWithLogin(zestFacilityId);
       
       if (result.success && result.contacts.length > 0) {
+        // Helper to clean phone numbers from scraper artifacts
+        const cleanPhone = (phone: string | null | undefined): string | null => {
+          if (!phone) return null;
+          // Remove tabs, newlines, and excessive whitespace, keep only digits, +, (, ), -, spaces
+          const cleaned = phone.replace(/[\t\n\r]+/g, '').replace(/\s+/g, ' ').trim();
+          // Extract just digits to check if valid phone
+          const digits = cleaned.replace(/[^\d]/g, '');
+          return digits.length >= 6 ? cleaned : null;
+        };
+
         for (const contact of result.contacts) {
           const role = contact.role === "Primary" ? "Zest Primary" : 
                        contact.role === "Billing" ? "Zest Billing" : "Zest Reservations";
+          
+          const cleanedPhone = cleanPhone(contact.phone);
+          const cleanedName = contact.name?.trim() || null;
+          const cleanedEmail = contact.email?.trim()?.toLowerCase() || null;
           
           const existingContact = await db.select()
             .from(courseContacts)
@@ -5991,20 +6005,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .limit(1);
 
           if (existingContact.length > 0) {
-            await db.update(courseContacts)
-              .set({
-                name: contact.name || existingContact[0].name,
-                email: contact.email || existingContact[0].email,
-                phone: contact.phone || existingContact[0].phone,
-              })
-              .where(eq(courseContacts.id, existingContact[0].id));
-          } else if (contact.name) {
+            // Build update object only with non-null scraped values
+            const updateData: Record<string, any> = {};
+            if (cleanedName) updateData.name = cleanedName;
+            if (cleanedEmail) updateData.email = cleanedEmail;
+            if (cleanedPhone) updateData.phone = cleanedPhone;
+            
+            if (Object.keys(updateData).length > 0) {
+              await db.update(courseContacts)
+                .set(updateData)
+                .where(eq(courseContacts.id, existingContact[0].id));
+            }
+          } else {
+            // Insert new contact even without a name (use role as placeholder)
             await db.insert(courseContacts).values({
               courseId,
               role,
-              name: contact.name,
-              email: contact.email,
-              phone: contact.phone,
+              name: cleanedName || `${role.replace('Zest ', '')} Contact`,
+              email: cleanedEmail,
+              phone: cleanedPhone,
               isPrimary: role === "Zest Primary" ? "true" : "false",
               notes: "Scraped from Zest Golf Portal",
             });
@@ -6013,27 +6032,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const primaryContact = result.contacts.find(c => c.role === "Primary");
         if (primaryContact) {
+          const pCleanName = primaryContact.name?.trim() || null;
+          const pCleanEmail = primaryContact.email?.trim()?.toLowerCase() || null;
+          const pCleanPhone = cleanPhone(primaryContact.phone);
+          
           const existingOnboarding = await db.select()
             .from(courseOnboarding)
             .where(eq(courseOnboarding.courseId, courseId))
             .limit(1);
 
           if (existingOnboarding.length > 0) {
+            const onboardingUpdate: Record<string, any> = { updatedAt: new Date() };
+            if (pCleanName) onboardingUpdate.contactPerson = pCleanName;
+            if (pCleanEmail) onboardingUpdate.contactEmail = pCleanEmail;
+            if (pCleanPhone) onboardingUpdate.contactPhone = pCleanPhone;
+            
             await db.update(courseOnboarding)
-              .set({
-                contactPerson: primaryContact.name || existingOnboarding[0].contactPerson,
-                contactEmail: primaryContact.email || existingOnboarding[0].contactEmail,
-                contactPhone: primaryContact.phone || existingOnboarding[0].contactPhone,
-                updatedAt: new Date(),
-              })
+              .set(onboardingUpdate)
               .where(eq(courseOnboarding.courseId, courseId));
           } else {
             await db.insert(courseOnboarding).values({
               courseId,
               stage: "NOT_CONTACTED",
-              contactPerson: primaryContact.name,
-              contactEmail: primaryContact.email,
-              contactPhone: primaryContact.phone,
+              contactPerson: pCleanName,
+              contactEmail: pCleanEmail,
+              contactPhone: pCleanPhone,
             });
           }
         }
