@@ -897,9 +897,9 @@ export class ZestGolfAutomation {
           phone: string | null;
         }> = [];
 
-        const parseContactSection = (roleText: string, element: Element) => {
+        // Use inline parsing to avoid esbuild __name helper issues in browser context
+        const parseContact = function(roleText: string, element: Element): { role: string; name: string | null; email: string | null; phone: string | null } {
           const text = element.textContent || "";
-          const nextSibling = element.nextElementSibling;
           
           let name: string | null = null;
           let email: string | null = null;
@@ -911,8 +911,9 @@ export class ZestGolfAutomation {
           const phoneMatch = text.match(/(\+?\d[\d\s-]{8,})/);
           if (phoneMatch) phone = phoneMatch[1].trim();
 
-          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-          for (const line of lines) {
+          const lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
             if (!line.includes('@') && !line.match(/^\+?\d/) && line.length > 2 && line.length < 100) {
               if (!line.toLowerCase().includes('contact') && !line.toLowerCase().includes('primary') && 
                   !line.toLowerCase().includes('billing') && !line.toLowerCase().includes('reservation')) {
@@ -922,51 +923,51 @@ export class ZestGolfAutomation {
             }
           }
 
-          return { role: roleText, name, email, phone };
+          return { role: roleText, name: name, email: email, phone: phone };
         };
 
         const allElements = document.querySelectorAll('*');
-        allElements.forEach(el => {
+        allElements.forEach(function(el) {
           const text = el.textContent?.toLowerCase() || "";
           const directText = Array.from(el.childNodes)
-            .filter(n => n.nodeType === Node.TEXT_NODE)
-            .map(n => n.textContent?.trim())
+            .filter(function(n) { return n.nodeType === Node.TEXT_NODE; })
+            .map(function(n) { return n.textContent?.trim(); })
             .join(' ')
             .toLowerCase();
 
           if (directText.includes('primary contact') || (directText === 'primary' && text.includes('contact'))) {
             const container = el.closest('div, section, article') || el.parentElement;
             if (container) {
-              contacts.push(parseContactSection("Primary", container));
+              contacts.push(parseContact("Primary", container));
             }
           }
           if (directText.includes('billing contact') || (directText === 'billing' && text.includes('contact'))) {
             const container = el.closest('div, section, article') || el.parentElement;
             if (container) {
-              contacts.push(parseContactSection("Billing", container));
+              contacts.push(parseContact("Billing", container));
             }
           }
           if (directText.includes('reservations contact') || directText.includes('reservation contact')) {
             const container = el.closest('div, section, article') || el.parentElement;
             if (container) {
-              contacts.push(parseContactSection("Reservations", container));
+              contacts.push(parseContact("Reservations", container));
             }
           }
         });
 
         const cards = document.querySelectorAll('[class*="card"], [class*="contact"], .panel, .section');
-        cards.forEach(card => {
+        cards.forEach(function(card) {
           const cardText = card.textContent || "";
           const cardLower = cardText.toLowerCase();
           
-          if (cardLower.includes('primary') && cardLower.includes('contact') && !contacts.find(c => c.role === "Primary")) {
-            contacts.push(parseContactSection("Primary", card));
+          if (cardLower.includes('primary') && cardLower.includes('contact') && !contacts.find(function(c) { return c.role === "Primary"; })) {
+            contacts.push(parseContact("Primary", card));
           }
-          if (cardLower.includes('billing') && cardLower.includes('contact') && !contacts.find(c => c.role === "Billing")) {
-            contacts.push(parseContactSection("Billing", card));
+          if (cardLower.includes('billing') && cardLower.includes('contact') && !contacts.find(function(c) { return c.role === "Billing"; })) {
+            contacts.push(parseContact("Billing", card));
           }
-          if (cardLower.includes('reservation') && cardLower.includes('contact') && !contacts.find(c => c.role === "Reservations")) {
-            contacts.push(parseContactSection("Reservations", card));
+          if (cardLower.includes('reservation') && cardLower.includes('contact') && !contacts.find(function(c) { return c.role === "Reservations"; })) {
+            contacts.push(parseContact("Reservations", card));
           }
         });
 
