@@ -889,34 +889,29 @@ export class ZestGolfAutomation {
       await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
       console.log(`[Zest Portal Scraper] Screenshot saved to /tmp/zest-facility-${facilityId}-contacts.png`);
 
-      const scrapedData = await this.page.evaluate(() => {
-        const contacts: Array<{
-          role: string;
-          name: string | null;
-          email: string | null;
-          phone: string | null;
-        }> = [];
+      // Use page.evaluate with string function to avoid esbuild __name helper issues
+      const scrapedData = await this.page.evaluate(new Function(`
+        var contacts = [];
 
-        // Use inline parsing to avoid esbuild __name helper issues in browser context
-        const parseContact = function(roleText: string, element: Element): { role: string; name: string | null; email: string | null; phone: string | null } {
-          const text = element.textContent || "";
-          
-          let name: string | null = null;
-          let email: string | null = null;
-          let phone: string | null = null;
+        function parseContact(roleText, element) {
+          var text = element.textContent || "";
+          var name = null;
+          var email = null;
+          var phone = null;
 
-          const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+          var emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);
           if (emailMatch) email = emailMatch[1];
 
-          const phoneMatch = text.match(/(\+?\d[\d\s-]{8,})/);
+          var phoneMatch = text.match(/(\\+?\\d[\\d\\s-]{8,})/);
           if (phoneMatch) phone = phoneMatch[1].trim();
 
-          const lines = text.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (!line.includes('@') && !line.match(/^\+?\d/) && line.length > 2 && line.length < 100) {
-              if (!line.toLowerCase().includes('contact') && !line.toLowerCase().includes('primary') && 
-                  !line.toLowerCase().includes('billing') && !line.toLowerCase().includes('reservation')) {
+          var lines = text.split('\\n').map(function(l) { return l.trim(); }).filter(Boolean);
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (line.indexOf('@') === -1 && !line.match(/^\\+?\\d/) && line.length > 2 && line.length < 100) {
+              var lineLower = line.toLowerCase();
+              if (lineLower.indexOf('contact') === -1 && lineLower.indexOf('primary') === -1 && 
+                  lineLower.indexOf('billing') === -1 && lineLower.indexOf('reservation') === -1) {
                 name = line;
                 break;
               }
@@ -924,62 +919,78 @@ export class ZestGolfAutomation {
           }
 
           return { role: roleText, name: name, email: email, phone: phone };
-        };
+        }
 
-        const allElements = document.querySelectorAll('*');
-        allElements.forEach(function(el) {
-          const text = el.textContent?.toLowerCase() || "";
-          const directText = Array.from(el.childNodes)
-            .filter(function(n) { return n.nodeType === Node.TEXT_NODE; })
-            .map(function(n) { return n.textContent?.trim(); })
-            .join(' ')
-            .toLowerCase();
+        var allElements = document.querySelectorAll('*');
+        for (var i = 0; i < allElements.length; i++) {
+          var el = allElements[i];
+          var text = (el.textContent || "").toLowerCase();
+          var childNodes = el.childNodes;
+          var directTextArr = [];
+          for (var j = 0; j < childNodes.length; j++) {
+            if (childNodes[j].nodeType === Node.TEXT_NODE) {
+              var t = childNodes[j].textContent;
+              if (t) directTextArr.push(t.trim());
+            }
+          }
+          var directText = directTextArr.join(' ').toLowerCase();
 
-          if (directText.includes('primary contact') || (directText === 'primary' && text.includes('contact'))) {
-            const container = el.closest('div, section, article') || el.parentElement;
+          if (directText.indexOf('primary contact') !== -1 || (directText === 'primary' && text.indexOf('contact') !== -1)) {
+            var container = el.closest('div, section, article') || el.parentElement;
             if (container) {
               contacts.push(parseContact("Primary", container));
             }
           }
-          if (directText.includes('billing contact') || (directText === 'billing' && text.includes('contact'))) {
-            const container = el.closest('div, section, article') || el.parentElement;
+          if (directText.indexOf('billing contact') !== -1 || (directText === 'billing' && text.indexOf('contact') !== -1)) {
+            var container = el.closest('div, section, article') || el.parentElement;
             if (container) {
               contacts.push(parseContact("Billing", container));
             }
           }
-          if (directText.includes('reservations contact') || directText.includes('reservation contact')) {
-            const container = el.closest('div, section, article') || el.parentElement;
+          if (directText.indexOf('reservations contact') !== -1 || directText.indexOf('reservation contact') !== -1) {
+            var container = el.closest('div, section, article') || el.parentElement;
             if (container) {
               contacts.push(parseContact("Reservations", container));
             }
           }
-        });
+        }
 
-        const cards = document.querySelectorAll('[class*="card"], [class*="contact"], .panel, .section');
-        cards.forEach(function(card) {
-          const cardText = card.textContent || "";
-          const cardLower = cardText.toLowerCase();
+        var cards = document.querySelectorAll('[class*="card"], [class*="contact"], .panel, .section');
+        for (var k = 0; k < cards.length; k++) {
+          var card = cards[k];
+          var cardText = card.textContent || "";
+          var cardLower = cardText.toLowerCase();
           
-          if (cardLower.includes('primary') && cardLower.includes('contact') && !contacts.find(function(c) { return c.role === "Primary"; })) {
+          var hasPrimary = false;
+          var hasBilling = false;
+          var hasReservations = false;
+          for (var m = 0; m < contacts.length; m++) {
+            if (contacts[m].role === "Primary") hasPrimary = true;
+            if (contacts[m].role === "Billing") hasBilling = true;
+            if (contacts[m].role === "Reservations") hasReservations = true;
+          }
+          
+          if (cardLower.indexOf('primary') !== -1 && cardLower.indexOf('contact') !== -1 && !hasPrimary) {
             contacts.push(parseContact("Primary", card));
           }
-          if (cardLower.includes('billing') && cardLower.includes('contact') && !contacts.find(function(c) { return c.role === "Billing"; })) {
+          if (cardLower.indexOf('billing') !== -1 && cardLower.indexOf('contact') !== -1 && !hasBilling) {
             contacts.push(parseContact("Billing", card));
           }
-          if (cardLower.includes('reservation') && cardLower.includes('contact') && !contacts.find(function(c) { return c.role === "Reservations"; })) {
+          if (cardLower.indexOf('reservation') !== -1 && cardLower.indexOf('contact') !== -1 && !hasReservations) {
             contacts.push(parseContact("Reservations", card));
           }
-        });
+        }
 
-        const pageHtml = document.body.innerHTML.substring(0, 10000);
-        const facilityName = document.querySelector('h1, h2, .facility-name, [class*="title"]')?.textContent?.trim() || null;
+        var pageHtml = document.body.innerHTML.substring(0, 10000);
+        var facilityNameEl = document.querySelector('h1, h2, .facility-name, [class*="title"]');
+        var facilityName = facilityNameEl ? facilityNameEl.textContent.trim() : null;
 
         return {
-          contacts,
-          facilityName,
-          debugHtml: pageHtml,
+          contacts: contacts,
+          facilityName: facilityName,
+          debugHtml: pageHtml
         };
-      });
+      `) as () => { contacts: Array<{ role: string; name: string | null; email: string | null; phone: string | null }>; facilityName: string | null; debugHtml: string });
 
       console.log(`[Zest Portal Scraper] Scraped ${scrapedData.contacts.length} contacts for facility ${facilityId}`);
       if (scrapedData.contacts.length === 0) {
