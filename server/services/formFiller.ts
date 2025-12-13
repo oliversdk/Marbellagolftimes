@@ -9,35 +9,43 @@ const openai = new OpenAI({
 });
 
 // For standard "Datos empresa / Company details" forms, use fixed coordinates
-// These are calibrated for the Golf Torrequebrada form layout (A4 size: 595 x 842 points)
+// Calibrated for Golf Torrequebrada form layout (A4: 595 x 842 points)
+// Y coordinates are from TOP of page, will be converted to bottom-origin
 const STANDARD_COMPANY_DETAILS_PLACEMENTS = {
-  // Y coordinates from TOP of page (will be converted to bottom-origin)
   pageHeight: 842,
   fields: [
-    { field: "commercialName", x: 245, yFromTop: 95, label: "Nombre comercial" },
-    { field: "tradingName", x: 245, yFromTop: 115, label: "Razón social" },
-    { field: "cifVat", x: 245, yFromTop: 135, label: "CIF" },
-    { field: "website", x: 245, yFromTop: 220, label: "Web" },
+    // Section 1: Business details (after "Datos de la empresa" header ~line 1-2)
+    { field: "commercialName", x: 170, yFromTop: 128, label: "Nombre comercial" },
+    { field: "tradingName", x: 170, yFromTop: 160, label: "Razón social" },
+    { field: "cifVat", x: 170, yFromTop: 192, label: "CIF" },
+    
+    // Section 2: Addresses (after "Direcciones - Addresses" header)
     // Business address
-    { field: "businessStreet", x: 245, yFromTop: 180, label: "Calle (business)" },
-    { field: "businessPostalCity", x: 245, yFromTop: 200, label: "Codigo postal y Ciudad" },
-    { field: "businessCountry", x: 245, yFromTop: 218, label: "Pais (business)" },
-    // Invoice address  
-    { field: "invoiceStreet", x: 245, yFromTop: 262, label: "Calle (invoice)" },
-    { field: "invoicePostalCity", x: 245, yFromTop: 282, label: "Codigo postal y Ciudad (invoice)" },
-    { field: "invoiceCountry", x: 245, yFromTop: 300, label: "Pais (invoice)" },
-    // Reservations contact
-    { field: "reservationsName", x: 245, yFromTop: 358, label: "Nombre (reservas)" },
-    { field: "reservationsEmail", x: 245, yFromTop: 378, label: "E-mail (reservas)" },
-    { field: "reservationsPhone", x: 245, yFromTop: 398, label: "Telefono (reservas)" },
-    // Contracts contact
-    { field: "contractsName", x: 245, yFromTop: 450, label: "Nombre (contratos)" },
-    { field: "contractsEmail", x: 245, yFromTop: 470, label: "E-mail (contratos)" },
-    { field: "contractsPhone", x: 245, yFromTop: 490, label: "Telefono (contratos)" },
-    // Invoicing contact
-    { field: "invoicingName", x: 245, yFromTop: 545, label: "Nombre (facturacion)" },
-    { field: "invoicingEmail", x: 245, yFromTop: 565, label: "E-mail (facturacion)" },
-    { field: "invoicingPhone", x: 245, yFromTop: 585, label: "Telefono (facturacion)" },
+    { field: "businessStreet", x: 170, yFromTop: 280, label: "Calle (domicilio)" },
+    { field: "businessPostalCity", x: 170, yFromTop: 312, label: "Codigo postal y Ciudad" },
+    { field: "businessCountry", x: 170, yFromTop: 344, label: "Pais" },
+    { field: "website", x: 170, yFromTop: 376, label: "Web" },
+    
+    // Invoice address
+    { field: "invoiceStreet", x: 170, yFromTop: 424, label: "Calle (facturacion)" },
+    { field: "invoicePostalCity", x: 170, yFromTop: 456, label: "Codigo postal (facturacion)" },
+    { field: "invoiceCountry", x: 170, yFromTop: 488, label: "Pais (facturacion)" },
+    
+    // Section 3: Contact persons (after "Personas de contacto" header)
+    // Reservations
+    { field: "reservationsName", x: 170, yFromTop: 560, label: "Nombre (reservas)" },
+    { field: "reservationsEmail", x: 170, yFromTop: 592, label: "E-mail (reservas)" },
+    { field: "reservationsPhone", x: 170, yFromTop: 624, label: "Telefono (reservas)" },
+    
+    // Contracts
+    { field: "contractsName", x: 170, yFromTop: 680, label: "Nombre (contratos)" },
+    { field: "contractsEmail", x: 170, yFromTop: 712, label: "E-mail (contratos)" },
+    { field: "contractsPhone", x: 170, yFromTop: 744, label: "Telefono (contratos)" },
+    
+    // Invoicing - these may be on page 2 or very bottom
+    { field: "invoicingName", x: 170, yFromTop: 800, label: "Nombre (facturacion)" },
+    { field: "invoicingEmail", x: 170, yFromTop: 832, label: "E-mail (facturacion)" },
+    { field: "invoicingPhone", x: 170, yFromTop: 864, label: "Telefono (facturacion)" },
   ]
 };
 
@@ -94,7 +102,6 @@ export class FormFillerService {
   }
 
   isStandardCompanyDetailsForm(formText: string): boolean {
-    // Check if this is the standard "Datos empresa / Company details" form
     const indicators = [
       "Datos de la empresa",
       "Business details",
@@ -110,7 +117,7 @@ export class FormFillerService {
     ];
     
     const matchCount = indicators.filter(i => formText.toLowerCase().includes(i.toLowerCase())).length;
-    return matchCount >= 6; // At least 6 indicators match
+    return matchCount >= 6;
   }
 
   getFieldValue(profile: CompanyProfileData, fieldName: string): string {
@@ -172,13 +179,16 @@ export class FormFillerService {
       if (value) {
         // Convert from top-origin to bottom-origin coordinate system
         const y = pageHeight - field.yFromTop;
-        placements.push({
-          text: value,
-          x: field.x,
-          y: y,
-          fontSize: 9,
-          fieldName: field.label
-        });
+        // Only place if y is positive (on the page)
+        if (y > 0) {
+          placements.push({
+            text: value,
+            x: field.x,
+            y: y,
+            fontSize: 9,
+            fieldName: field.label
+          });
+        }
       }
     }
     
@@ -190,7 +200,6 @@ export class FormFillerService {
     fieldsMatched: string[];
     fieldsUnmatched: string[];
   }> {
-    // Load the original PDF
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
@@ -198,7 +207,6 @@ export class FormFillerService {
     
     console.log(`PDF page size: ${width} x ${height} points`);
 
-    // Extract text to understand form structure
     const formText = await this.extractTextFromPdf(pdfBuffer);
     console.log(`Extracted ${formText.length} characters from form`);
 
@@ -206,23 +214,20 @@ export class FormFillerService {
     let fieldsMatched: string[] = [];
     let fieldsUnmatched: string[] = [];
 
-    // Check if this is a standard company details form
     if (this.isStandardCompanyDetailsForm(formText)) {
-      console.log("Detected standard 'Datos empresa / Company details' form - using calibrated placements");
+      console.log("Detected standard 'Datos empresa / Company details' form");
       textPlacements = this.getStandardFormPlacements(profile, height);
       fieldsMatched = textPlacements.map(p => p.fieldName);
     } else {
-      console.log("Unknown form type - would need AI analysis (not implemented for this form)");
+      console.log("Unknown form type");
       textPlacements = [];
       fieldsUnmatched = ["Form type not recognized"];
     }
 
-    console.log(`Placing ${textPlacements.length} text values`);
+    console.log(`Placing ${textPlacements.length} text values on page (height: ${height})`);
 
-    // Embed a font for writing text
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Place each text on the PDF
     for (const placement of textPlacements) {
       if (placement.text && placement.text.trim()) {
         firstPage.drawText(placement.text, {
@@ -236,7 +241,6 @@ export class FormFillerService {
       }
     }
 
-    // Save the modified PDF
     const modifiedPdfBytes = await pdfDoc.save();
     
     return {
@@ -251,7 +255,6 @@ export class FormFillerService {
     fieldsMatched: string[];
     fieldsUnmatched: string[];
   }> {
-    // Get company profile
     const profile = await this.getCompanyProfile();
     if (!profile) {
       throw new Error("Company profile not found. Please set up your company details in Admin Settings first.");
