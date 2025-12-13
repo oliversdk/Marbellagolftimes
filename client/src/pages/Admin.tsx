@@ -2833,8 +2833,32 @@ export default function Admin() {
     return "none";
   };
 
-  // Filter courses by provider for email section
+  // Helper to get onboarding stage for a course
+  const getCourseOnboardingStage = (courseId: string): OnboardingStage => {
+    const onboarding = onboardingData?.find(o => o.courseId === courseId);
+    return onboarding?.stage || "NOT_CONTACTED";
+  };
+
+  // Helper to check if course has been contacted via Zest (OUTREACH_SENT or later stages)
+  const isContactedViaZest = (courseId: string): boolean => {
+    const stage = getCourseOnboardingStage(courseId);
+    return stage !== "NOT_CONTACTED";
+  };
+
+  // Filter courses by provider for email section, excluding those already contacted via Zest
   const filteredEmailCourses = courses?.filter((course) => {
+    // First check if already contacted via Zest - exclude these
+    if (isContactedViaZest(course.id)) return false;
+    // Then apply provider filter
+    if (emailProviderFilter === "ALL") return true;
+    return getCourseProvider(course.id) === emailProviderFilter;
+  }) || [];
+
+  // Get courses that were filtered out because they were contacted via Zest
+  const zestContactedCourses = courses?.filter((course) => {
+    // Check if contacted via Zest
+    if (!isContactedViaZest(course.id)) return false;
+    // Apply provider filter
     if (emailProviderFilter === "ALL") return true;
     return getCourseProvider(course.id) === emailProviderFilter;
   }) || [];
@@ -5262,6 +5286,55 @@ export default function Admin() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Already Contacted via Zest Section */}
+                    {zestContactedCourses.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Already Contacted via Zest
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            ({zestContactedCourses.length} course{zestContactedCourses.length !== 1 && "s"})
+                          </span>
+                        </div>
+                        <div className="border rounded-md max-h-[200px] overflow-y-auto bg-muted/30">
+                          {zestContactedCourses.map((course) => {
+                            const stage = getCourseOnboardingStage(course.id);
+                            const stageInfo = ONBOARDING_STAGES.find(s => s.value === stage);
+                            return (
+                              <div
+                                key={course.id}
+                                className="flex items-center justify-between gap-3 p-3 border-b last:border-b-0"
+                                data-testid={`zest-contacted-course-${course.id}`}
+                              >
+                                <div className="flex-1 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-muted-foreground">{course.name}</span>
+                                    {getCourseProvider(course.id) === "golfmanager" && (
+                                      <Badge variant="outline" className="text-xs">Golfmanager</Badge>
+                                    )}
+                                    {getCourseProvider(course.id) === "teeone" && (
+                                      <Badge variant="outline" className="text-xs">TeeOne</Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-muted-foreground text-xs">
+                                    {course.email || "No email"}
+                                  </div>
+                                </div>
+                                <Badge 
+                                  variant="secondary" 
+                                  className={`text-xs ${stageInfo?.color || ''}`}
+                                >
+                                  {stageInfo?.label || stage}
+                                </Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 border-t">
                       <p className="text-sm text-muted-foreground">
