@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import puppeteer from "puppeteer";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { db } from "../db";
 import { companyProfile } from "../../shared/schema";
 
@@ -33,6 +33,61 @@ interface CompanyProfileData {
   invoicingPhone?: string | null;
 }
 
+// Field name mappings - maps common form field names to profile fields
+const FIELD_MAPPINGS: Record<string, (p: CompanyProfileData) => string> = {
+  // Spanish field names
+  "nombre_comercial": (p) => p.commercialName || "",
+  "nombrecomercial": (p) => p.commercialName || "",
+  "razon_social": (p) => p.tradingName || "",
+  "razonsocial": (p) => p.tradingName || "",
+  "cif": (p) => p.cifVat || "",
+  "nif": (p) => p.cifVat || "",
+  "vat": (p) => p.cifVat || "",
+  "web": (p) => p.website || "",
+  "website": (p) => p.website || "",
+  "pagina_web": (p) => p.website || "",
+  
+  // Address fields
+  "calle": (p) => p.businessStreet || "",
+  "street": (p) => p.businessStreet || "",
+  "direccion": (p) => p.businessStreet || "",
+  "domicilio": (p) => p.businessStreet || "",
+  "codigo_postal": (p) => p.businessPostalCode || "",
+  "cp": (p) => p.businessPostalCode || "",
+  "postal": (p) => p.businessPostalCode || "",
+  "ciudad": (p) => p.businessCity || "",
+  "city": (p) => p.businessCity || "",
+  "pais": (p) => p.businessCountry || "",
+  "country": (p) => p.businessCountry || "",
+  
+  // Invoice address
+  "calle_facturacion": (p) => p.invoiceSameAsBusiness === "true" ? (p.businessStreet || "") : (p.invoiceStreet || ""),
+  "cp_facturacion": (p) => p.invoiceSameAsBusiness === "true" ? (p.businessPostalCode || "") : (p.invoicePostalCode || ""),
+  "ciudad_facturacion": (p) => p.invoiceSameAsBusiness === "true" ? (p.businessCity || "") : (p.invoiceCity || ""),
+  "pais_facturacion": (p) => p.invoiceSameAsBusiness === "true" ? (p.businessCountry || "") : (p.invoiceCountry || ""),
+  
+  // Contact fields - Reservations
+  "nombre_reservas": (p) => p.reservationsName || "",
+  "email_reservas": (p) => p.reservationsEmail || "",
+  "telefono_reservas": (p) => p.reservationsPhone || "",
+  
+  // Contact fields - Contracts
+  "nombre_contratos": (p) => p.contractsName || "",
+  "email_contratos": (p) => p.contractsEmail || "",
+  "telefono_contratos": (p) => p.contractsPhone || "",
+  
+  // Contact fields - Invoicing
+  "nombre_facturacion": (p) => p.invoicingName || "",
+  "email_facturacion": (p) => p.invoicingEmail || "",
+  "telefono_facturacion": (p) => p.invoicingPhone || "",
+  
+  // English field names
+  "commercial_name": (p) => p.commercialName || "",
+  "trading_name": (p) => p.tradingName || "",
+  "business_name": (p) => p.commercialName || "",
+  "company_name": (p) => p.commercialName || "",
+};
+
 export class FormFillerService {
   async extractTextFromPdf(buffer: Buffer): Promise<string> {
     try {
@@ -52,245 +107,82 @@ export class FormFillerService {
     return profile || null;
   }
 
-  extractFooterInfo(formText: string): { courseName: string; address: string; phone: string; email: string; website: string } {
-    // Try to extract footer info from the form
-    const lines = formText.split('\n').filter(l => l.trim());
-    const lastLines = lines.slice(-10);
+  findFieldValue(fieldName: string, profile: CompanyProfileData): string | null {
+    const normalizedName = fieldName.toLowerCase().replace(/[\s\-_.]/g, "_").replace(/__+/g, "_");
     
-    let courseName = "Golf Course";
-    let address = "";
-    let phone = "";
-    let email = "";
-    let website = "";
+    // Direct mapping
+    if (FIELD_MAPPINGS[normalizedName]) {
+      return FIELD_MAPPINGS[normalizedName](profile);
+    }
     
-    for (const line of lastLines) {
-      if (line.includes("C/.") || line.includes("Calle")) {
-        address = line.trim();
-      }
-      if (line.includes("Tel.") || line.includes("+34")) {
-        const match = line.match(/Tel\.\s*([+\d\s]+)/);
-        if (match) phone = match[1].trim();
-        const emailMatch = line.match(/E-mail:\s*([^\s]+)/);
-        if (emailMatch) email = emailMatch[1].trim();
-      }
-      if (line.includes("www.")) {
-        website = line.trim();
-      }
-      if (line.includes("29630") || line.includes("Málaga")) {
-        address = line.trim();
+    // Fuzzy matching
+    for (const [key, getter] of Object.entries(FIELD_MAPPINGS)) {
+      if (normalizedName.includes(key) || key.includes(normalizedName)) {
+        return getter(profile);
       }
     }
     
-    // Check for Golf Torrequebrada specifically
-    if (formText.toLowerCase().includes("torrequebrada")) {
-      courseName = "Golf Torrequebrada";
-      address = "C/. Club de Golf, 1 - 29630 Benalmádena Costa (Málaga) – Spain";
-      phone = "+34 952 442 742";
-      email = "bookings@golftorrequebrada.com";
-      website = "www.golftorrequebrada.com";
-    }
-    
-    return { courseName, address, phone, email, website };
+    return null;
   }
 
-  generateFilledFormHtml(profile: CompanyProfileData, footer: { courseName: string; address: string; phone: string; email: string; website: string }): string {
-    const useBusinessForInvoice = profile.invoiceSameAsBusiness === "true";
+  async fillFormFields(pdfBuffer: Buffer, profile: CompanyProfileData): Promise<{
+    pdfBuffer: Buffer;
+    fieldsMatched: string[];
+    fieldsUnmatched: string[];
+    hasFormFields: boolean;
+  }> {
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const form = pdfDoc.getForm();
+    const fields = form.getFields();
     
-    const invoiceStreet = useBusinessForInvoice ? profile.businessStreet : profile.invoiceStreet;
-    const invoicePostalCode = useBusinessForInvoice ? profile.businessPostalCode : profile.invoicePostalCode;
-    const invoiceCity = useBusinessForInvoice ? profile.businessCity : profile.invoiceCity;
-    const invoiceCountry = useBusinessForInvoice ? profile.businessCountry : profile.invoiceCountry;
+    console.log(`Found ${fields.length} form fields in PDF`);
     
-    const businessFullAddress = [
-      profile.businessStreet,
-      [profile.businessPostalCode, profile.businessCity].filter(Boolean).join(", "),
-      profile.businessCountry
-    ].filter(Boolean).join(", ");
-    
-    const invoiceFullAddress = [
-      invoiceStreet,
-      [invoicePostalCode, invoiceCity].filter(Boolean).join(", "),
-      invoiceCountry
-    ].filter(Boolean).join(", ");
+    if (fields.length === 0) {
+      return {
+        pdfBuffer: pdfBuffer,
+        fieldsMatched: [],
+        fieldsUnmatched: [],
+        hasFormFields: false
+      };
+    }
 
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    @page { size: A4; margin: 15mm 20mm 25mm 20mm; }
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 11pt;
-      line-height: 1.4;
-      color: #000;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 100%;
-    }
-    h1 {
-      text-align: center;
-      font-size: 14pt;
-      font-weight: bold;
-      margin-bottom: 20px;
-      border-bottom: 1px solid #000;
-      padding-bottom: 8px;
-    }
-    h2 {
-      font-size: 11pt;
-      font-weight: bold;
-      margin: 20px 0 12px 0;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 4px;
-    }
-    .field-row {
-      display: flex;
-      margin-bottom: 8px;
-    }
-    .label {
-      width: 200px;
-      flex-shrink: 0;
-      font-weight: normal;
-    }
-    .value {
-      flex: 1;
-      font-weight: normal;
-    }
-    .contact-section {
-      margin-bottom: 15px;
-    }
-    .contact-title {
-      font-weight: bold;
-      margin-bottom: 6px;
-    }
-    .signature-area {
-      margin-top: 40px;
-      border-top: 1px solid #000;
-      padding-top: 10px;
-    }
-    .signature-line {
-      margin-top: 40px;
-      border-top: 1px solid #000;
-      width: 200px;
-      text-align: center;
-      padding-top: 5px;
-      font-size: 10pt;
-    }
-    .footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      text-align: center;
-      font-size: 9pt;
-      border-top: 1px solid #ccc;
-      padding-top: 10px;
-      color: #333;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Datos de la empresa ‐ Business details</h1>
-    
-    <div class="field-row">
-      <div class="label">Nombre comercial / Commercial name:</div>
-      <div class="value">${profile.commercialName || ''}</div>
-    </div>
-    
-    <div class="field-row">
-      <div class="label">Razón social / Trading name:</div>
-      <div class="value">${profile.tradingName || ''}</div>
-    </div>
-    
-    <div class="field-row">
-      <div class="label">CIF / CIF or VAT number:</div>
-      <div class="value">${profile.cifVat || ''}</div>
-    </div>
-    
-    <div class="field-row">
-      <div class="label">Web / Web page:</div>
-      <div class="value">${profile.website || ''}</div>
-    </div>
-    
-    <h2>Direcciones ‐ Addresses</h2>
-    
-    <div class="field-row">
-      <div class="label">Domicilio social / Business address:</div>
-      <div class="value">${businessFullAddress}</div>
-    </div>
-    
-    <div class="field-row">
-      <div class="label">Dirección de facturación / Invoice address:</div>
-      <div class="value">${invoiceFullAddress}</div>
-    </div>
-    
-    <h2>Personas de contacto ‐ Contact persons</h2>
-    
-    <div class="contact-section">
-      <div class="contact-title">Reservas / Reservations:</div>
-      <div class="field-row">
-        <div class="value">${[profile.reservationsName, profile.reservationsEmail, profile.reservationsPhone].filter(Boolean).join(', ')}</div>
-      </div>
-    </div>
-    
-    <div class="contact-section">
-      <div class="contact-title">Facturación / Invoicing:</div>
-      <div class="field-row">
-        <div class="value">${[profile.invoicingName, profile.invoicingEmail, profile.invoicingPhone].filter(Boolean).join(', ')}</div>
-      </div>
-    </div>
-    
-    <div class="contact-section">
-      <div class="contact-title">Contratación / Contracts:</div>
-      <div class="field-row">
-        <div class="value">${[profile.contractsName, profile.contractsEmail, profile.contractsPhone].filter(Boolean).join(', ')}</div>
-      </div>
-    </div>
-    
-    <div class="signature-area">
-      <p><strong>Firma / Signature</strong></p>
-      <div class="signature-line">Firma / Signature</div>
-    </div>
-  </div>
-  
-  <div class="footer">
-    ${footer.address}<br>
-    Tel. ${footer.phone} * E-mail: ${footer.email}<br>
-    ${footer.website}
-  </div>
-</body>
-</html>`;
-  }
+    const fieldsMatched: string[] = [];
+    const fieldsUnmatched: string[] = [];
 
-  async convertHtmlToPdf(html: string): Promise<Buffer> {
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
-    });
-
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+    for (const field of fields) {
+      const fieldName = field.getName();
+      const fieldType = field.constructor.name;
       
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '15mm',
-          right: '20mm',
-          bottom: '25mm',
-          left: '20mm'
+      console.log(`Field: "${fieldName}" (${fieldType})`);
+      
+      const value = this.findFieldValue(fieldName, profile);
+      
+      if (value !== null && fieldType === 'PDFTextField') {
+        try {
+          const textField = form.getTextField(fieldName);
+          textField.setText(value);
+          fieldsMatched.push(fieldName);
+          console.log(`Filled "${fieldName}" with "${value}"`);
+        } catch (e) {
+          console.error(`Could not fill field "${fieldName}":`, e);
+          fieldsUnmatched.push(fieldName);
         }
-      });
-
-      return Buffer.from(pdfBuffer);
-    } finally {
-      await browser.close();
+      } else {
+        fieldsUnmatched.push(fieldName);
+      }
     }
+
+    // Flatten the form to make it non-editable
+    form.flatten();
+    
+    const modifiedPdfBytes = await pdfDoc.save();
+    
+    return {
+      pdfBuffer: Buffer.from(modifiedPdfBytes),
+      fieldsMatched,
+      fieldsUnmatched,
+      hasFormFields: true
+    };
   }
 
   async fillForm(pdfBuffer: Buffer): Promise<{
@@ -303,31 +195,21 @@ export class FormFillerService {
       throw new Error("Company profile not found. Please set up your company details in Admin Settings first.");
     }
 
-    console.log("Extracting form text to identify source...");
-    const formText = await this.extractTextFromPdf(pdfBuffer);
+    console.log("Checking for fillable form fields...");
+    const result = await this.fillFormFields(pdfBuffer, profile);
     
-    console.log("Extracting footer info from original form...");
-    const footer = this.extractFooterInfo(formText);
-    console.log(`Detected course: ${footer.courseName}`);
-
-    console.log("Generating filled form HTML...");
-    const html = this.generateFilledFormHtml(profile, footer);
-
-    console.log("Converting to PDF...");
-    const filledPdfBuffer = await this.convertHtmlToPdf(html);
-    console.log(`Generated PDF: ${filledPdfBuffer.length} bytes`);
-
-    const fieldsMatched = [
-      "commercialName", "tradingName", "cifVat", "website",
-      "businessAddress", "invoiceAddress",
-      "reservationsContact", "invoicingContact", "contractsContact"
-    ];
-
-    return {
-      pdfBuffer: filledPdfBuffer,
-      fieldsMatched,
-      fieldsUnmatched: []
-    };
+    if (result.hasFormFields) {
+      console.log(`Filled ${result.fieldsMatched.length} form fields`);
+      return {
+        pdfBuffer: result.pdfBuffer,
+        fieldsMatched: result.fieldsMatched,
+        fieldsUnmatched: result.fieldsUnmatched
+      };
+    }
+    
+    // If no form fields, the PDF is not a fillable form
+    console.log("No fillable form fields found - this PDF is not an interactive form");
+    throw new Error("This PDF does not have fillable form fields. Please request a fillable PDF form from the golf course, or fill it manually.");
   }
 }
 
