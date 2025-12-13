@@ -437,7 +437,7 @@ function ContactFormTab({
 
   const saveContactMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/admin/courses/${courseId}/contacts`, {
+      const response = await apiRequest(`/api/admin/courses/${courseId}/contacts`, "POST", {
         role,
         name,
         email,
