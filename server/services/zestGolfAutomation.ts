@@ -172,26 +172,36 @@ export class ZestGolfAutomation {
       await passwordInput.click({ clickCount: 3 }); // Select all
       await passwordInput.type(password, { delay: 30 });
 
-      // Find and click submit button - look for button containing "Log in" text
-      let submitButton = await this.page.evaluateHandle(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        for (const btn of buttons) {
-          const text = btn.textContent?.toLowerCase() || '';
-          if (text.includes('log in') || text.includes('login') || text.includes('sign in')) {
-            return btn;
-          }
-        }
-        // Fallback to any submit button
-        return document.querySelector('button[type="submit"]') || 
-               document.querySelector('input[type="submit"]') ||
-               document.querySelector('form button');
-      });
+      // Wait a moment for any dynamic content
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      const buttonElement = submitButton.asElement();
-      if (buttonElement) {
-        console.log("Found login button, clicking...");
-        await buttonElement.click();
-      } else {
+      // Find and click submit button - look for button containing "Log In" text
+      const allButtons = await this.page.$$('button');
+      console.log(`Found ${allButtons.length} buttons on page`);
+      
+      let foundButton = false;
+      for (const btn of allButtons) {
+        const text = await btn.evaluate(el => el.textContent || '');
+        console.log(`Button text: "${text.trim()}"`);
+        if (text.toLowerCase().includes('log in') || text.toLowerCase().includes('login')) {
+          console.log("Found login button, clicking...");
+          await btn.click();
+          foundButton = true;
+          break;
+        }
+      }
+      
+      if (!foundButton) {
+        // Try clicking any button in the form
+        const formButton = await this.page.$('form button');
+        if (formButton) {
+          console.log("Found form button, clicking...");
+          await formButton.click();
+          foundButton = true;
+        }
+      }
+      
+      if (!foundButton) {
         console.log("No submit button found, pressing Enter");
         await this.page.keyboard.press("Enter");
       }
