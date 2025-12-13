@@ -28,6 +28,14 @@ export interface ZestFacility {
   address: ZestFacilityAddress;
 }
 
+export interface ZestContact {
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
+  phoneNumber?: string;
+}
+
 export interface ZestFacilityDetails extends ZestFacility {
   latitude: number;
   longitude: number;
@@ -53,11 +61,9 @@ export interface ZestFacilityDetails extends ZestFacility {
   };
   logo?: string;
   images?: string[];
-  reservationsContact?: {
-    name: string;
-    email: string;
-    phoneNumber: string;
-  };
+  primaryContact?: ZestContact;
+  billingContact?: ZestContact;
+  reservationsContact?: ZestContact;
 }
 
 export interface ZestPrice {

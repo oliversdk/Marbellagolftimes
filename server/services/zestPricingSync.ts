@@ -1,8 +1,8 @@
 import { db } from "../db";
-import { zestPricingData, golfCourses, courseProviderLinks, teeTimeProviders, courseOnboarding } from "@shared/schema";
+import { zestPricingData, golfCourses, courseProviderLinks, teeTimeProviders, courseOnboarding, courseContacts } from "@shared/schema";
 import type { ZestPricingJson } from "@shared/schema";
 import { eq, and, ilike } from "drizzle-orm";
-import { getZestGolfService, ZestTeeTimeResponse, ZestProduct, ZestFacilityDetails } from "./zestGolf";
+import { getZestGolfService, ZestTeeTimeResponse, ZestProduct, ZestFacilityDetails, ZestContact } from "./zestGolf";
 
 interface SyncResult {
   success: boolean;
@@ -290,6 +290,13 @@ export async function getAllZestPricingData(): Promise<Array<{
   }));
 }
 
+interface ZestContactInfo {
+  role: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
 interface ContactSyncResult {
   success: boolean;
   courseName: string;
@@ -298,6 +305,7 @@ interface ContactSyncResult {
   contactPerson?: string;
   contactEmail?: string;
   contactPhone?: string;
+  contacts?: ZestContactInfo[];
   error?: string;
 }
 
@@ -306,6 +314,53 @@ interface ContactSyncSummary {
   successCount: number;
   errorCount: number;
   results: ContactSyncResult[];
+}
+
+function extractContactName(contact: ZestContact | undefined): string | null {
+  if (!contact) return null;
+  if (contact.name) return contact.name;
+  if (contact.firstName || contact.lastName) {
+    return [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+  }
+  return null;
+}
+
+async function upsertZestContact(
+  courseId: string,
+  role: string,
+  name: string | null,
+  email: string | null,
+  phone: string | null
+): Promise<void> {
+  if (!name && !email && !phone) return;
+
+  const existingContact = await db.select()
+    .from(courseContacts)
+    .where(and(
+      eq(courseContacts.courseId, courseId),
+      eq(courseContacts.role, role)
+    ))
+    .limit(1);
+
+  if (existingContact.length > 0) {
+    await db.update(courseContacts)
+      .set({
+        name: name || existingContact[0].name,
+        email: email || existingContact[0].email,
+        phone: phone || existingContact[0].phone,
+      })
+      .where(eq(courseContacts.id, existingContact[0].id));
+  } else if (name) {
+    await db.insert(courseContacts).values({
+      courseId,
+      role,
+      name,
+      email,
+      phone,
+      isPrimary: role === "Zest Primary" ? "true" : "false",
+      notes: "Synced from Zest Golf",
+    });
+  }
 }
 
 export async function syncZestContactForCourse(
@@ -318,11 +373,46 @@ export async function syncZestContactForCourse(
     
     const facilityDetails: ZestFacilityDetails = await zestService.getFacilityDetails(zestFacilityId);
     
-    const contactPerson = facilityDetails.reservationsContact?.name || null;
-    const contactEmail = facilityDetails.reservationsContact?.email || facilityDetails.email || null;
-    const contactPhone = facilityDetails.reservationsContact?.phoneNumber || facilityDetails.phoneNumber || null;
+    const contacts: ZestContactInfo[] = [];
+    
+    // Extract Primary Contact
+    const primaryName = extractContactName(facilityDetails.primaryContact);
+    const primaryEmail = facilityDetails.primaryContact?.email || null;
+    const primaryPhone = facilityDetails.primaryContact?.phoneNumber || null;
+    if (primaryName || primaryEmail || primaryPhone) {
+      contacts.push({ role: "Zest Primary", name: primaryName, email: primaryEmail, phone: primaryPhone });
+      await upsertZestContact(courseId, "Zest Primary", primaryName, primaryEmail, primaryPhone);
+    }
+    
+    // Extract Billing Contact
+    const billingName = extractContactName(facilityDetails.billingContact);
+    const billingEmail = facilityDetails.billingContact?.email || null;
+    const billingPhone = facilityDetails.billingContact?.phoneNumber || null;
+    if (billingName || billingEmail || billingPhone) {
+      contacts.push({ role: "Zest Billing", name: billingName, email: billingEmail, phone: billingPhone });
+      await upsertZestContact(courseId, "Zest Billing", billingName, billingEmail, billingPhone);
+    }
+    
+    // Extract Reservations Contact
+    const reservationsName = extractContactName(facilityDetails.reservationsContact);
+    const reservationsEmail = facilityDetails.reservationsContact?.email || null;
+    const reservationsPhone = facilityDetails.reservationsContact?.phoneNumber || null;
+    if (reservationsName || reservationsEmail || reservationsPhone) {
+      contacts.push({ role: "Zest Reservations", name: reservationsName, email: reservationsEmail, phone: reservationsPhone });
+      await upsertZestContact(courseId, "Zest Reservations", reservationsName, reservationsEmail, reservationsPhone);
+    }
 
-    if (!contactPerson && !contactEmail && !contactPhone) {
+    // Fall back to facility-level contact info if no contacts found
+    if (contacts.length === 0 && (facilityDetails.email || facilityDetails.phoneNumber)) {
+      contacts.push({ 
+        role: "Zest Facility", 
+        name: null, 
+        email: facilityDetails.email || null, 
+        phone: facilityDetails.phoneNumber || null 
+      });
+    }
+
+    if (contacts.length === 0) {
       return {
         success: false,
         courseName,
@@ -331,6 +421,12 @@ export async function syncZestContactForCourse(
         error: "No contact information available from Zest",
       };
     }
+
+    // Use primary contact (or first available) for courseOnboarding
+    const mainContact = contacts.find(c => c.role === "Zest Primary") || contacts[0];
+    const contactPerson = mainContact.name;
+    const contactEmail = mainContact.email;
+    const contactPhone = mainContact.phone;
 
     const existingOnboarding = await db.select()
       .from(courseOnboarding)
@@ -364,6 +460,7 @@ export async function syncZestContactForCourse(
       contactPerson: contactPerson || undefined,
       contactEmail: contactEmail || undefined,
       contactPhone: contactPhone || undefined,
+      contacts,
     };
 
   } catch (error) {

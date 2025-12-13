@@ -1302,9 +1302,14 @@ export default function Admin() {
     },
     onSuccess: (data) => {
       if (data.success) {
-        toast({ title: "Contact Synced", description: `Synced: ${data.contactPerson || 'No name'} - ${data.contactEmail || 'No email'}` });
+        const contactCount = data.contacts?.length || 0;
+        toast({ 
+          title: "Contacts Synced", 
+          description: `Synced ${contactCount} contact(s): ${data.contacts?.map((c: any) => c.role.replace('Zest ', '')).join(', ') || 'No contacts'}` 
+        });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "contacts"] });
         // Update form with newly synced contact data
         onboardingForm.reset({
           contactPerson: data.contactPerson || "",
