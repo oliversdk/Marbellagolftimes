@@ -869,3 +869,10 @@ export interface ZestPricingJson {
     timePeriod: number; // Hours before tee time
   }>;
 }
+
+// Affiliate Email Course data with email stats
+export interface AffiliateEmailCourse extends GolfCourse {
+  lastAffiliateSentAt: Date | null;
+  emailCount: number;
+  onboardingStage: string | null;
+}

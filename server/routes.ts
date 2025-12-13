@@ -3428,6 +3428,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/affiliate-email-courses - Get all courses with affiliate email stats (Admin only)
+  app.get("/api/admin/affiliate-email-courses", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const courses = await storage.getAffiliateEmailCourses();
+      res.json(courses);
+    } catch (error) {
+      console.error("Failed to fetch affiliate email courses:", error);
+      res.status(500).json({ error: "Failed to fetch affiliate email courses" });
+    }
+  });
+
   // GET /api/providers - Get all tee time providers
   app.get("/api/providers", async (req, res) => {
     try {

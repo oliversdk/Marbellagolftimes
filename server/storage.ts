@@ -100,6 +100,7 @@ export interface IStorage {
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
   createAffiliateEmail(email: InsertAffiliateEmail): Promise<AffiliateEmail>;
   updateAffiliateEmail(id: string, updates: Partial<AffiliateEmail>): Promise<AffiliateEmail | undefined>;
+  getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null }>>;
 
   // Users
   getUser(id: string): Promise<User | undefined>;
@@ -1366,6 +1367,15 @@ export class MemStorage implements IStorage {
     return updatedEmail;
   }
 
+  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null }>> {
+    return Array.from(this.courses.values()).map(course => ({
+      ...course,
+      lastAffiliateSentAt: null,
+      emailCount: 0,
+      onboardingStage: null,
+    }));
+  }
+
   // Users
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
@@ -2177,6 +2187,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(affiliateEmails.id, id))
       .returning();
     return results[0];
+  }
+
+  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null }>> {
+    const results = await db
+      .select({
+        course: golfCourses,
+        lastAffiliateSentAt: sql<Date | null>`MAX(${affiliateEmails.sentAt})`,
+        emailCount: sql<number>`COUNT(${affiliateEmails.id})::int`,
+        onboardingStage: courseOnboarding.stage,
+      })
+      .from(golfCourses)
+      .leftJoin(affiliateEmails, eq(golfCourses.id, affiliateEmails.courseId))
+      .leftJoin(courseOnboarding, eq(golfCourses.id, courseOnboarding.courseId))
+      .groupBy(golfCourses.id, courseOnboarding.stage);
+    
+    return results.map(r => ({
+      ...r.course,
+      lastAffiliateSentAt: r.lastAffiliateSentAt,
+      emailCount: r.emailCount || 0,
+      onboardingStage: r.onboardingStage || null,
+    }));
   }
 
   // User operations
