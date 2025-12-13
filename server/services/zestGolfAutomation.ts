@@ -100,40 +100,110 @@ export class ZestGolfAutomation {
       console.log("Navigating to Zest Golf login page...");
       await this.page.goto(LOGIN_URL, { waitUntil: "networkidle2", timeout: 30000 });
 
-      await this.page.waitForSelector('input[type="email"], input[name="email"], input[placeholder*="email" i]', { timeout: 10000 });
+      // Wait for page to be fully loaded
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const emailInput = await this.page.$('input[type="email"]') || 
-                         await this.page.$('input[name="email"]') ||
-                         await this.page.$('input[placeholder*="email" i]');
+      // Log the page content for debugging
+      const pageContent = await this.page.content();
+      console.log("Page title:", await this.page.title());
+      console.log("Page URL:", this.page.url());
       
-      const passwordInput = await this.page.$('input[type="password"]');
-
-      if (!emailInput || !passwordInput) {
-        console.log("Login form not found, trying alternative selectors...");
-        const inputs = await this.page.$$('input');
-        if (inputs.length >= 2) {
-          await inputs[0].type(username, { delay: 50 });
-          await inputs[1].type(password, { delay: 50 });
-        } else {
-          throw new Error("Could not find login form inputs");
+      // Try multiple selector strategies for the login form
+      let emailInput = null;
+      let passwordInput = null;
+      
+      // Strategy 1: Look for common input selectors
+      const inputSelectors = [
+        'input[type="email"]',
+        'input[name="email"]',
+        'input[name="username"]',
+        'input[id*="email"]',
+        'input[id*="user"]',
+        'input[placeholder*="email" i]',
+        'input[placeholder*="user" i]',
+        'input[autocomplete="email"]',
+        'input[autocomplete="username"]',
+      ];
+      
+      for (const selector of inputSelectors) {
+        emailInput = await this.page.$(selector);
+        if (emailInput) {
+          console.log(`Found email input with selector: ${selector}`);
+          break;
         }
-      } else {
-        await emailInput.type(username, { delay: 50 });
-        await passwordInput.type(password, { delay: 50 });
+      }
+      
+      passwordInput = await this.page.$('input[type="password"]');
+      
+      // Strategy 2: Find all visible inputs if specific selectors fail
+      if (!emailInput) {
+        console.log("Trying fallback: looking for all text inputs...");
+        const allInputs = await this.page.$$('input:not([type="hidden"]):not([type="submit"]):not([type="button"])');
+        console.log(`Found ${allInputs.length} visible inputs`);
+        
+        for (const input of allInputs) {
+          const inputType = await input.evaluate((el) => (el as HTMLInputElement).type);
+          const inputName = await input.evaluate((el) => (el as HTMLInputElement).name);
+          const inputId = await input.evaluate((el) => (el as HTMLInputElement).id);
+          console.log(`Input: type=${inputType}, name=${inputName}, id=${inputId}`);
+          
+          if (inputType !== 'password' && !emailInput) {
+            emailInput = input;
+          }
+          if (inputType === 'password') {
+            passwordInput = input;
+          }
+        }
       }
 
-      const submitButton = await this.page.$('button[type="submit"]') ||
-                           await this.page.$('input[type="submit"]') ||
-                           await this.page.$('button:has-text("Login")') ||
-                           await this.page.$('button:has-text("Sign in")');
+      if (!emailInput || !passwordInput) {
+        console.log("Could not find login form inputs");
+        // Take a screenshot for debugging
+        const screenshotPath = '/tmp/zest-login-debug.png';
+        await this.page.screenshot({ path: screenshotPath, fullPage: true });
+        console.log(`Screenshot saved to ${screenshotPath}`);
+        throw new Error("Could not find login form inputs on Zest Golf page");
+      }
+      
+      // Clear and type credentials
+      await emailInput.click({ clickCount: 3 }); // Select all
+      await emailInput.type(username, { delay: 30 });
+      
+      await passwordInput.click({ clickCount: 3 }); // Select all
+      await passwordInput.type(password, { delay: 30 });
+
+      // Find and click submit button
+      const buttonSelectors = [
+        'button[type="submit"]',
+        'input[type="submit"]',
+        'button:not([type="button"])',
+        '.login-button',
+        '.btn-login',
+        '[data-testid*="login"]',
+      ];
+      
+      let submitButton = null;
+      for (const selector of buttonSelectors) {
+        submitButton = await this.page.$(selector);
+        if (submitButton) {
+          console.log(`Found submit button with selector: ${selector}`);
+          break;
+        }
+      }
 
       if (submitButton) {
         await submitButton.click();
       } else {
+        console.log("No submit button found, pressing Enter");
         await this.page.keyboard.press("Enter");
       }
 
-      await this.page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
+      // Wait for navigation or page change
+      try {
+        await this.page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 });
+      } catch (e) {
+        console.log("Navigation timeout, checking if already logged in...");
+      }
 
       const currentUrl = this.page.url();
       const isLoggedIn = !currentUrl.includes("/login");
@@ -141,12 +211,20 @@ export class ZestGolfAutomation {
       if (isLoggedIn) {
         console.log("Successfully logged into Zest Golf");
       } else {
-        console.log("Login may have failed, still on login page");
+        console.log("Login may have failed, still on login page:", currentUrl);
+        // Take screenshot on failure
+        await this.page.screenshot({ path: '/tmp/zest-login-failed.png', fullPage: true });
       }
 
       return isLoggedIn;
     } catch (error) {
       console.error("Login error:", error);
+      // Take screenshot on error
+      if (this.page) {
+        try {
+          await this.page.screenshot({ path: '/tmp/zest-login-error.png', fullPage: true });
+        } catch {}
+      }
       return false;
     }
   }
@@ -482,7 +560,7 @@ export class ZestGolfAutomation {
 
       await this.close();
       
-      const uniqueEndpoints = [...new Set(apiCalls.map(c => `${c.method} ${new URL(c.url).pathname}`))];
+      const uniqueEndpoints = Array.from(new Set(apiCalls.map(c => `${c.method} ${new URL(c.url).pathname}`)));
       
       return {
         success: true,
