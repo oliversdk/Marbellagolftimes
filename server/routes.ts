@@ -5678,6 +5678,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get commission rates from Zest Golf
+  app.get("/api/zest/automation/commission-rates", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ZestGolfAutomation, validateZestCredentials, isAutomationBusy } = await import("./services/zestGolfAutomation");
+      
+      const credCheck = validateZestCredentials();
+      if (!credCheck.valid) {
+        return res.status(400).json({ success: false, message: credCheck.error, error: credCheck.error });
+      }
+      
+      if (isAutomationBusy()) {
+        return res.status(409).json({ success: false, message: "Another automation task is already running", error: "Busy" });
+      }
+      
+      console.log("Fetching commission rates from Zest Golf...");
+      const automation = new ZestGolfAutomation();
+      const result = await automation.getCommissionRates();
+      
+      console.log("Commission rates result:", result.message);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Failed to get commission rates:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message, rates: [] });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

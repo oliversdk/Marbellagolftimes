@@ -723,6 +723,108 @@ export class ZestGolfAutomation {
       };
     }
   }
+
+  async getCommissionRates(): Promise<{ success: boolean; rates: ZestCommissionRate[]; message: string }> {
+    const rates: ZestCommissionRate[] = [];
+    
+    try {
+      await this.initialize();
+      
+      const loginSuccess = await this.login();
+      if (!loginSuccess) {
+        await this.close();
+        return {
+          success: false,
+          rates: [],
+          message: "Failed to log into Zest Golf",
+        };
+      }
+
+      console.log("Navigating to commission rates page...");
+      await this.page!.goto("https://cm.zest.golf/management/commissionPerCourse", { 
+        waitUntil: "networkidle2", 
+        timeout: 30000 
+      });
+
+      // Wait for page to load
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Take screenshot for debugging
+      await this.page!.screenshot({ path: '/tmp/zest-commission-page.png', fullPage: true });
+      console.log("Screenshot saved to /tmp/zest-commission-page.png");
+
+      // Log page content for debugging
+      const pageTitle = await this.page!.title();
+      const pageUrl = this.page!.url();
+      console.log(`Commission page: ${pageTitle} - ${pageUrl}`);
+
+      // Try to extract data from table
+      const tableData = await this.page!.evaluate(() => {
+        const results: any[] = [];
+        
+        // Look for table rows
+        const tables = document.querySelectorAll("table");
+        console.log(`Found ${tables.length} tables`);
+        
+        tables.forEach((table, tableIdx) => {
+          const rows = table.querySelectorAll("tbody tr");
+          rows.forEach((row, rowIdx) => {
+            const cells = row.querySelectorAll("td");
+            const rowData: string[] = [];
+            cells.forEach(cell => {
+              rowData.push(cell.textContent?.trim() || "");
+            });
+            if (rowData.length > 0) {
+              results.push({ tableIdx, rowIdx, cells: rowData });
+            }
+          });
+        });
+
+        // Also look for any cards or divs with rate info
+        const cards = document.querySelectorAll('[class*="card"], [class*="rate"], [class*="commission"]');
+        cards.forEach((card, idx) => {
+          results.push({ 
+            type: 'card', 
+            idx, 
+            text: card.textContent?.substring(0, 500) 
+          });
+        });
+
+        return results;
+      });
+
+      console.log("Extracted data:", JSON.stringify(tableData, null, 2));
+
+      // Parse the table data into commission rates
+      for (const row of tableData) {
+        if (row.cells && row.cells.length >= 2) {
+          const rate: ZestCommissionRate = {
+            courseName: row.cells[0] || "Unknown",
+            commissionPercent: parseFloat(row.cells[1]?.replace('%', '')) || null,
+            greenFeeRate: row.cells[2] || null,
+            buggyRate: row.cells[3] || null,
+            otherRates: row.cells.slice(4).join(', ') || null,
+          };
+          rates.push(rate);
+        }
+      }
+
+      await this.close();
+      
+      return {
+        success: true,
+        rates,
+        message: `Found ${rates.length} commission rates. Raw data logged for analysis.`,
+      };
+    } catch (error) {
+      await this.close();
+      return {
+        success: false,
+        rates: [],
+        message: `Failed to get commission rates: ${String(error)}`,
+      };
+    }
+  }
 }
 
 export interface NetworkCall {
@@ -733,6 +835,14 @@ export interface NetworkCall {
   timestamp: string;
   status?: number;
   responseBody?: string;
+}
+
+export interface ZestCommissionRate {
+  courseName: string;
+  commissionPercent: number | null;
+  greenFeeRate: string | null;
+  buggyRate: string | null;
+  otherRates: string | null;
 }
 
 let automationInstance: ZestGolfAutomation | null = null;
