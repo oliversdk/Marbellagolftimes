@@ -5541,31 +5541,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update only the matching Zest Golf pending facilities in our database
       let coursesUpdated = 0;
       const matchedCourses: string[] = [];
+      const unmatchedFacilities: string[] = [];
       try {
         if (result.facilities && result.facilities.length > 0) {
           const allCourses = await storage.getCourses();
+          console.log(`[Zest Matching] Processing ${result.facilities.length} facilities against ${allCourses.length} courses`);
           
           for (const facility of result.facilities) {
-            // Try to match Zest facility name to our course name
-            const facilityName = facility.name.toLowerCase().trim();
+            // Log facility details for debugging
+            console.log(`[Zest Matching] Facility: name="${facility.name}", city="${facility.city}", status="${facility.status}"`);
+            
+            // Try to match Zest facility to our course by name OR city
+            const facilityName = (facility.name || "").toLowerCase().trim();
+            const facilityCity = (facility.city || "").toLowerCase().trim();
+            
             const matchedCourse = allCourses.find(course => {
               const courseName = course.name.toLowerCase().trim();
-              return courseName.includes(facilityName) || 
-                     facilityName.includes(courseName) ||
-                     courseName === facilityName;
+              const courseCity = (course.city || "").toLowerCase().trim();
+              
+              // Match by name
+              if (facilityName && (
+                courseName.includes(facilityName) || 
+                facilityName.includes(courseName) ||
+                courseName === facilityName
+              )) {
+                return true;
+              }
+              
+              // Match by city if name match failed - find courses in the same city
+              // with city name appearing in either the course name or exact city match
+              if (facilityCity && (
+                courseCity === facilityCity ||
+                courseCity.includes(facilityCity) ||
+                facilityCity.includes(courseCity) ||
+                courseName.includes(facilityCity)
+              )) {
+                return true;
+              }
+              
+              return false;
             });
             
             if (matchedCourse) {
+              console.log(`[Zest Matching] Matched: "${facility.name || facility.city}" -> "${matchedCourse.name}"`);
               const onboarding = await storage.getOnboardingByCourseId(matchedCourse.id);
               // Update if no onboarding record exists OR stage is NOT_CONTACTED or null
               if (!onboarding || !onboarding.stage || onboarding.stage === "NOT_CONTACTED") {
                 await storage.updateOnboardingStage(matchedCourse.id, "OUTREACH_SENT");
                 coursesUpdated++;
                 matchedCourses.push(matchedCourse.name);
+              } else {
+                console.log(`[Zest Matching] Skipped "${matchedCourse.name}" - already at stage: ${onboarding.stage}`);
               }
+            } else {
+              unmatchedFacilities.push(facility.name || facility.city || "Unknown");
+              console.log(`[Zest Matching] No match found for: "${facility.name || facility.city}"`);
             }
           }
-          console.log(`Updated ${coursesUpdated} courses from NOT_CONTACTED to OUTREACH_SENT:`, matchedCourses);
+          console.log(`[Zest Matching] Updated ${coursesUpdated} courses to OUTREACH_SENT:`, matchedCourses);
+          if (unmatchedFacilities.length > 0) {
+            console.log(`[Zest Matching] Unmatched facilities:`, unmatchedFacilities);
+          }
         }
       } catch (updateError) {
         console.error("Error updating onboarding stages:", updateError);
