@@ -208,6 +208,19 @@ type CreateApiKeyResponse = ApiKey & {
   rawKey: string;
 };
 
+type AffiliateEmailCourse = {
+  id: string;
+  name: string;
+  city: string;
+  email: string | null;
+  membersOnly: string;
+  lastAffiliateSentAt: string | null;
+  emailCount: number;
+  onboardingStage: string | null;
+};
+
+const MAX_EMAIL_BATCH = 10;
+
 type CourseOnboardingData = {
   courseId: string;
   courseName: string;
@@ -822,6 +835,12 @@ export default function Admin() {
   const [ratePeriodsSearchQuery, setRatePeriodsSearchQuery] = useState("");
   const [expandedRateCourses, setExpandedRateCourses] = useState<Set<string>>(new Set());
   
+  // Affiliate Emails tab state
+  const [hasEmailFilter, setHasEmailFilter] = useState(false);
+  const [cityFilter, setCityFilter] = useState<string>("ALL");
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [showResendConfirmDialog, setShowResendConfirmDialog] = useState(false);
+  
   // Update active tab when URL changes
   useEffect(() => {
     if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox", "api-keys", "rates", "settings"].includes(tabFromUrl)) {
@@ -898,6 +917,12 @@ export default function Admin() {
   // Fetch API keys (admin only)
   const { data: apiKeys, isLoading: isLoadingApiKeys } = useQuery<ApiKey[]>({
     queryKey: ["/api/admin/api-keys"],
+    enabled: isAuthenticated && isAdmin,
+  });
+
+  // Fetch courses with affiliate email stats for the Affiliate Emails tab
+  const { data: affiliateEmailCourses } = useQuery<AffiliateEmailCourse[]>({
+    queryKey: ["/api/admin/affiliate-email-courses"],
     enabled: isAuthenticated && isAdmin,
   });
 
@@ -2846,39 +2871,84 @@ export default function Admin() {
   };
 
   // Helper to check if course is members only (not public)
-  const isMembersOnly = (course: GolfCourse): boolean => {
+  const isMembersOnly = (course: GolfCourse | AffiliateEmailCourse): boolean => {
     return course.membersOnly === "true";
   };
 
-  // Filter courses by provider for email section, excluding those already contacted via Zest or members only
-  const filteredEmailCourses = courses?.filter((course) => {
-    // Exclude members only courses - they shouldn't receive partnership emails
-    if (isMembersOnly(course)) return false;
-    // Exclude courses already contacted via Zest
-    if (isContactedViaZest(course.id)) return false;
-    // Then apply provider filter
-    if (emailProviderFilter === "ALL") return true;
-    return getCourseProvider(course.id) === emailProviderFilter;
-  }) || [];
+  // Helper to check if course was recently contacted (within 7 days)
+  const isRecentlyContacted = (course: AffiliateEmailCourse): { recent: boolean; daysAgo: number } => {
+    if (!course.lastAffiliateSentAt) return { recent: false, daysAgo: 0 };
+    const sentDate = new Date(course.lastAffiliateSentAt);
+    const daysAgo = differenceInDays(new Date(), sentDate);
+    return { recent: daysAgo <= 7, daysAgo };
+  };
+
+  // Get unique cities from affiliate email courses for filter dropdown
+  const uniqueCities = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    const cities = [...new Set(affiliateEmailCourses.map(c => c.city))].sort();
+    return cities;
+  }, [affiliateEmailCourses]);
+
+  // Filter courses for email section using affiliate email courses data
+  const filteredEmailCourses = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    return affiliateEmailCourses.filter((course) => {
+      // Exclude members only courses
+      if (isMembersOnly(course)) return false;
+      // Exclude courses already contacted via Zest (onboardingStage is set)
+      if (course.onboardingStage && course.onboardingStage !== "NOT_CONTACTED") return false;
+      // Apply hasEmail filter
+      if (hasEmailFilter && !course.email) return false;
+      // Apply city filter
+      if (cityFilter !== "ALL" && course.city !== cityFilter) return false;
+      // Apply provider filter
+      if (emailProviderFilter !== "ALL") {
+        const provider = getCourseProvider(course.id);
+        if (provider !== emailProviderFilter) return false;
+      }
+      return true;
+    });
+  }, [affiliateEmailCourses, hasEmailFilter, cityFilter, emailProviderFilter, getCourseProvider]);
 
   // Get courses that were filtered out because they were contacted via Zest
-  const zestContactedCourses = courses?.filter((course) => {
-    // Don't show members only courses here either
-    if (isMembersOnly(course)) return false;
-    // Check if contacted via Zest
-    if (!isContactedViaZest(course.id)) return false;
-    // Apply provider filter
-    if (emailProviderFilter === "ALL") return true;
-    return getCourseProvider(course.id) === emailProviderFilter;
-  }) || [];
+  const zestContactedCourses = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    return affiliateEmailCourses.filter((course) => {
+      if (isMembersOnly(course)) return false;
+      if (!course.onboardingStage || course.onboardingStage === "NOT_CONTACTED") return false;
+      if (emailProviderFilter !== "ALL") {
+        const provider = getCourseProvider(course.id);
+        if (provider !== emailProviderFilter) return false;
+      }
+      return true;
+    });
+  }, [affiliateEmailCourses, emailProviderFilter, getCourseProvider]);
 
   // Get courses that are members only (excluded from email outreach)
-  const membersOnlyCourses = courses?.filter((course) => {
-    if (!isMembersOnly(course)) return false;
-    // Apply provider filter
-    if (emailProviderFilter === "ALL") return true;
-    return getCourseProvider(course.id) === emailProviderFilter;
-  }) || [];
+  const membersOnlyCourses = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    return affiliateEmailCourses.filter((course) => {
+      if (!isMembersOnly(course)) return false;
+      if (emailProviderFilter !== "ALL") {
+        const provider = getCourseProvider(course.id);
+        if (provider !== emailProviderFilter) return false;
+      }
+      return true;
+    });
+  }, [affiliateEmailCourses, emailProviderFilter, getCourseProvider]);
+
+  // Count of excluded courses
+  const excludedCount = zestContactedCourses.length + membersOnlyCourses.length;
+
+  // Check if any selected courses were recently contacted
+  const recentlyContactedSelected = useMemo(() => {
+    return selectedCourseIds.filter(id => {
+      const course = affiliateEmailCourses?.find(c => c.id === id);
+      if (!course) return false;
+      return isRecentlyContacted(course).recent;
+    });
+  }, [selectedCourseIds, affiliateEmailCourses]);
 
   const handleToggleAll = () => {
     if (selectedCourseIds.length === filteredEmailCourses.length) {
@@ -2907,6 +2977,30 @@ export default function Admin() {
       return;
     }
 
+    if (selectedCourseIds.length > MAX_EMAIL_BATCH) {
+      toast({
+        title: "Too many courses selected",
+        description: `Maximum ${MAX_EMAIL_BATCH} courses can be emailed at once`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (recentlyContactedSelected.length > 0) {
+      setShowResendConfirmDialog(true);
+      return;
+    }
+
+    sendEmailsMutation.mutate({
+      courseIds: selectedCourseIds,
+      subject: emailSubject,
+      body: emailBody,
+      senderName,
+    });
+  };
+
+  const confirmResendEmails = () => {
+    setShowResendConfirmDialog(false);
     sendEmailsMutation.mutate({
       courseIds: selectedCourseIds,
       subject: emailSubject,
@@ -5241,8 +5335,35 @@ export default function Admin() {
 
                   <div className="space-y-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <Label>Select Golf Courses</Label>
+                      <Label>
+                        Select Golf Courses 
+                        <span className="text-muted-foreground font-normal ml-1">
+                          ({filteredEmailCourses.length} available, {excludedCount} excluded)
+                        </span>
+                      </Label>
                       <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id="has-email-filter"
+                            checked={hasEmailFilter}
+                            onCheckedChange={setHasEmailFilter}
+                            data-testid="switch-has-email-filter"
+                          />
+                          <Label htmlFor="has-email-filter" className="text-sm font-normal cursor-pointer">
+                            Has Email
+                          </Label>
+                        </div>
+                        <Select value={cityFilter} onValueChange={setCityFilter}>
+                          <SelectTrigger className="w-[140px]" data-testid="select-city-filter">
+                            <SelectValue placeholder="All Cities" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ALL">All Cities</SelectItem>
+                            {uniqueCities.map((city) => (
+                              <SelectItem key={city} value={city}>{city}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Select value={emailProviderFilter} onValueChange={(v) => setEmailProviderFilter(v as typeof emailProviderFilter)}>
                           <SelectTrigger className="w-[160px]" data-testid="select-email-provider-filter">
                             <SelectValue placeholder="Filter by provider" />
@@ -5267,41 +5388,64 @@ export default function Admin() {
                       </div>
                     </div>
 
+                    {selectedCourseIds.length > MAX_EMAIL_BATCH && (
+                      <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20" data-testid="batch-limit-warning">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span className="text-sm text-destructive">
+                          Too many courses selected. Maximum {MAX_EMAIL_BATCH} courses can be emailed at once.
+                        </span>
+                      </div>
+                    )}
+
                     <div className="border rounded-md max-h-[300px] overflow-y-auto">
                       {filteredEmailCourses.length === 0 ? (
                         <div className="p-4 text-center text-muted-foreground">
                           No courses match the selected filter
                         </div>
-                      ) : filteredEmailCourses.map((course) => (
-                        <div
-                          key={course.id}
-                          className="flex items-center space-x-3 p-3 border-b last:border-b-0 hover-elevate"
-                          data-testid={`checkbox-course-${course.id}`}
-                        >
-                          <Checkbox
-                            id={`course-${course.id}`}
-                            checked={selectedCourseIds.includes(course.id)}
-                            onCheckedChange={() => handleToggleCourse(course.id)}
-                          />
-                          <label
-                            htmlFor={`course-${course.id}`}
-                            className="flex-1 text-sm cursor-pointer"
+                      ) : filteredEmailCourses.map((course) => {
+                        const contactStatus = isRecentlyContacted(course);
+                        return (
+                          <div
+                            key={course.id}
+                            className="flex items-center space-x-3 p-3 border-b last:border-b-0 hover-elevate"
+                            data-testid={`checkbox-course-${course.id}`}
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{course.name}</span>
-                              {getCourseProvider(course.id) === "golfmanager" && (
-                                <Badge variant="outline" className="text-xs">Golfmanager</Badge>
-                              )}
-                              {getCourseProvider(course.id) === "teeone" && (
-                                <Badge variant="outline" className="text-xs">TeeOne</Badge>
-                              )}
-                            </div>
-                            <div className="text-muted-foreground text-xs">
-                              {course.email || "No email"}
-                            </div>
-                          </label>
-                        </div>
-                      ))}
+                            <Checkbox
+                              id={`course-${course.id}`}
+                              checked={selectedCourseIds.includes(course.id)}
+                              onCheckedChange={() => handleToggleCourse(course.id)}
+                            />
+                            <label
+                              htmlFor={`course-${course.id}`}
+                              className="flex-1 text-sm cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium">{course.name}</span>
+                                {getCourseProvider(course.id) === "golfmanager" && (
+                                  <Badge variant="outline" className="text-xs">Golfmanager</Badge>
+                                )}
+                                {getCourseProvider(course.id) === "teeone" && (
+                                  <Badge variant="outline" className="text-xs">TeeOne</Badge>
+                                )}
+                                {contactStatus.recent && (
+                                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border-orange-200" data-testid={`badge-recently-contacted-${course.id}`}>
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Sent {contactStatus.daysAgo} day{contactStatus.daysAgo !== 1 ? 's' : ''} ago
+                                  </Badge>
+                                )}
+                                {course.emailCount > 0 && !contactStatus.recent && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {course.emailCount} email{course.emailCount !== 1 ? 's' : ''} sent
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-muted-foreground text-xs">
+                                {course.email || "No email"}
+                              </div>
+                            </label>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Already Contacted via Zest Section */}
@@ -5398,20 +5542,116 @@ export default function Admin() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 border-t">
                       <p className="text-sm text-muted-foreground">
                         {selectedCourseIds.length} course{selectedCourseIds.length !== 1 && "s"} selected
+                        {recentlyContactedSelected.length > 0 && (
+                          <span className="text-orange-600 ml-2">
+                            ({recentlyContactedSelected.length} recently contacted)
+                          </span>
+                        )}
                       </p>
-                      <Button
-                        onClick={handleSendEmails}
-                        disabled={selectedCourseIds.length === 0 || sendEmailsMutation.isPending}
-                        className="w-full sm:w-auto"
-                        data-testid="button-send-emails"
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        {sendEmailsMutation.isPending ? "Sending..." : "Send Partnership Emails"}
-                      </Button>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowPreviewDialog(true)}
+                          disabled={selectedCourseIds.length === 0}
+                          data-testid="button-preview-email"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Preview Email
+                        </Button>
+                        <Button
+                          onClick={handleSendEmails}
+                          disabled={selectedCourseIds.length === 0 || selectedCourseIds.length > MAX_EMAIL_BATCH || sendEmailsMutation.isPending}
+                          data-testid="button-send-emails"
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          {sendEmailsMutation.isPending ? "Sending..." : "Send Partnership Emails"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Email Preview Dialog */}
+              <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Email Preview</DialogTitle>
+                    <DialogDescription>
+                      Preview of the email that will be sent (using first selected course)
+                    </DialogDescription>
+                  </DialogHeader>
+                  {(() => {
+                    const previewCourse = affiliateEmailCourses?.find(c => c.id === selectedCourseIds[0]);
+                    const previewSubject = emailSubject.replace(/\[COURSE_NAME\]/g, previewCourse?.name || "[COURSE_NAME]");
+                    const previewBody = emailBody
+                      .replace(/\[COURSE_NAME\]/g, previewCourse?.name || "[COURSE_NAME]")
+                      .replace(/\[SENDER_NAME\]/g, senderName || "[SENDER_NAME]");
+                    
+                    return (
+                      <div className="space-y-4" data-testid="email-preview-content">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">To</Label>
+                          <p className="text-sm font-medium">{previewCourse?.email || "No email"}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Subject</Label>
+                          <p className="text-sm font-medium" data-testid="preview-subject">{previewSubject}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Body</Label>
+                          <div className="mt-1 p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap font-mono" data-testid="preview-body">
+                            {previewBody}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowPreviewDialog(false)} data-testid="button-close-preview">
+                      Close
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Re-send Confirmation Dialog */}
+              <Dialog open={showResendConfirmDialog} onOpenChange={setShowResendConfirmDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-orange-600">
+                      <AlertTriangle className="h-5 w-5" />
+                      Recently Contacted Courses
+                    </DialogTitle>
+                    <DialogDescription>
+                      Some of the selected courses were contacted within the last 7 days. Are you sure you want to send emails to them again?
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {recentlyContactedSelected.map(courseId => {
+                      const course = affiliateEmailCourses?.find(c => c.id === courseId);
+                      const contactStatus = course ? isRecentlyContacted(course) : { daysAgo: 0 };
+                      return (
+                        <div key={courseId} className="flex items-center justify-between p-2 border rounded-md" data-testid={`resend-confirm-course-${courseId}`}>
+                          <span className="text-sm font-medium">{course?.name}</span>
+                          <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">
+                            {contactStatus.daysAgo} day{contactStatus.daysAgo !== 1 ? 's' : ''} ago
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setShowResendConfirmDialog(false)} data-testid="button-cancel-resend">
+                      Cancel
+                    </Button>
+                    <Button onClick={confirmResendEmails} data-testid="button-confirm-resend">
+                      <Send className="h-4 w-4 mr-2" />
+                      Send Anyway
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Unmatched Inbound Emails */}
               <Card>

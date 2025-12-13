@@ -3326,6 +3326,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "courseIds array is required" });
       }
 
+      if (courseIds.length > 10) {
+        return res.status(400).json({ error: "Maximum 10 courses can be emailed at once" });
+      }
+
       if (!subject || !body || !senderName) {
         return res.status(400).json({ error: "subject, body, and senderName are required" });
       }
