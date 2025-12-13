@@ -64,7 +64,7 @@ import { getPersonalFeedback } from "@/lib/personalFeedback";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { CommissionDashboard } from "@/components/CommissionDashboard";
 import { AdCampaigns } from "@/components/AdCampaigns";
-import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog, CourseImage, CourseDocument, CourseRatePeriod, CourseContact } from "@shared/schema";
+import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog, CourseImage, CourseDocument, CourseRatePeriod, CourseContact, PartnershipForm } from "@shared/schema";
 import { CONTACT_LOG_TYPES } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -464,7 +464,7 @@ export default function Admin() {
   
   // Update active tab when URL changes
   useEffect(() => {
-    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox", "api-keys", "rates"].includes(tabFromUrl)) {
+    if (tabFromUrl && ["analytics", "money", "bookings", "users", "courses", "emails", "inbox", "api-keys", "rates", "settings"].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl]);
@@ -803,6 +803,12 @@ export default function Admin() {
     enabled: !!selectedCourseProfile,
   });
 
+  // Fetch partnership forms for selected course profile
+  const { data: partnershipForms = [], isLoading: isLoadingPartnershipForms } = useQuery<PartnershipForm[]>({
+    queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "partnership-forms"],
+    enabled: !!selectedCourseProfile?.id,
+  });
+
   // Gallery images for profile sheet
   const { data: profileGalleryImages = [] } = useQuery<CourseImage[]>({
     queryKey: ['/api/courses', selectedCourseProfile?.id, 'images'],
@@ -860,6 +866,46 @@ export default function Admin() {
         description: "Failed to delete email",
         variant: "destructive",
       });
+    },
+  });
+
+  // Partnership forms mutations
+  const createPartnershipFormMutation = useMutation({
+    mutationFn: async (data: { courseId: string; formType: string; formName: string; notes?: string }) => {
+      return await apiRequest(`/api/admin/courses/${data.courseId}/partnership-forms`, "POST", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "partnership-forms"] });
+      toast({ title: "Form created", description: "Partnership form has been added" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create partnership form", variant: "destructive" });
+    },
+  });
+
+  const updatePartnershipFormMutation = useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; status?: string; notes?: string }) => {
+      return await apiRequest(`/api/admin/partnership-forms/${id}`, "PATCH", updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "partnership-forms"] });
+      toast({ title: "Form updated", description: "Partnership form status updated" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update form", variant: "destructive" });
+    },
+  });
+
+  const deletePartnershipFormMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest(`/api/admin/partnership-forms/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "partnership-forms"] });
+      toast({ title: "Form deleted", description: "Partnership form has been removed" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete form", variant: "destructive" });
     },
   });
 
@@ -2503,6 +2549,12 @@ export default function Admin() {
                 Kickback Rates
               </TabsTrigger>
             )}
+            {isAdmin && (
+              <TabsTrigger value="settings" data-testid="tab-settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="analytics">
@@ -3804,6 +3856,153 @@ export default function Admin() {
                               </Table>
                             );
                           })()}
+                        </CardContent>
+                      </Card>
+
+                      {/* Partnership Forms Tracking */}
+                      <Card className="mt-6">
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle className="text-base flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                Partnership Forms
+                              </CardTitle>
+                              <CardDescription>
+                                Track forms sent to and received from this course
+                              </CardDescription>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" data-testid="button-add-partnership-form">
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Add Form
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  onClick={() => createPartnershipFormMutation.mutate({
+                                    courseId: selectedCourseProfile!.id,
+                                    formType: "COMPANY_DETAILS",
+                                    formName: "Datos empresa - Company Details"
+                                  })}
+                                  data-testid="menu-add-company-details"
+                                >
+                                  Company Details Form
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => createPartnershipFormMutation.mutate({
+                                    courseId: selectedCourseProfile!.id,
+                                    formType: "CONTRACT",
+                                    formName: "Partnership Contract"
+                                  })}
+                                  data-testid="menu-add-contract"
+                                >
+                                  Contract
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => createPartnershipFormMutation.mutate({
+                                    courseId: selectedCourseProfile!.id,
+                                    formType: "RATE_CARD",
+                                    formName: "Rate Card / Price List"
+                                  })}
+                                  data-testid="menu-add-rate-card"
+                                >
+                                  Rate Card
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => createPartnershipFormMutation.mutate({
+                                    courseId: selectedCourseProfile!.id,
+                                    formType: "AGREEMENT",
+                                    formName: "Collaboration Agreement"
+                                  })}
+                                  data-testid="menu-add-agreement"
+                                >
+                                  Agreement
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {isLoadingPartnershipForms ? (
+                            <div className="flex justify-center py-4">
+                              <GolfLoader />
+                            </div>
+                          ) : partnershipForms.length === 0 ? (
+                            <div className="text-center py-6 text-muted-foreground">
+                              <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No partnership forms tracked yet</p>
+                              <p className="text-sm">Add forms to track sent/received documents</p>
+                            </div>
+                          ) : (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Form</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Sent</TableHead>
+                                  <TableHead>Received</TableHead>
+                                  <TableHead className="w-[80px]"></TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {partnershipForms.map((form) => (
+                                  <TableRow key={form.id} data-testid={`row-partnership-form-${form.id}`}>
+                                    <TableCell>
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="font-medium text-sm">{form.formName}</span>
+                                        <Badge variant="outline" className="w-fit text-xs">
+                                          {form.formType.replace(/_/g, " ")}
+                                        </Badge>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Select
+                                        value={form.status}
+                                        onValueChange={(value) => updatePartnershipFormMutation.mutate({ id: form.id, status: value })}
+                                      >
+                                        <SelectTrigger className="h-8 w-[120px]" data-testid={`select-form-status-${form.id}`}>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="PENDING">
+                                            <Badge variant="secondary">Pending</Badge>
+                                          </SelectItem>
+                                          <SelectItem value="SENT">
+                                            <Badge className="bg-blue-100 text-blue-700">Sent</Badge>
+                                          </SelectItem>
+                                          <SelectItem value="RECEIVED">
+                                            <Badge className="bg-green-100 text-green-700">Received</Badge>
+                                          </SelectItem>
+                                          <SelectItem value="PROCESSED">
+                                            <Badge className="bg-purple-100 text-purple-700">Processed</Badge>
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {form.sentAt ? format(new Date(form.sentAt), "PP") : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {form.receivedAt ? format(new Date(form.receivedAt), "PP") : "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => deletePartnershipFormMutation.mutate(form.id)}
+                                        disabled={deletePartnershipFormMutation.isPending}
+                                        data-testid={`button-delete-form-${form.id}`}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          )}
                         </CardContent>
                       </Card>
                     </TabsContent>
@@ -5757,6 +5956,30 @@ export default function Admin() {
                       </span>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Company Settings
+                  </CardTitle>
+                  <CardDescription>
+                    Manage your company profile and business details for partnership forms.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/admin/settings">
+                    <Button data-testid="button-company-profile">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Manage Company Profile
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             </div>

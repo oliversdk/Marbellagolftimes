@@ -35,6 +35,10 @@ import {
   type ApiKey,
   type CourseDocument,
   type InsertCourseDocument,
+  type CompanyProfile,
+  type InsertCompanyProfile,
+  type PartnershipForm,
+  type InsertPartnershipForm,
   golfCourses,
   courseDocuments,
   teeTimeProviders,
@@ -55,6 +59,8 @@ import {
   inboundEmails,
   adminAlertSettings,
   apiKeys,
+  companyProfile,
+  partnershipForms,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -216,6 +222,17 @@ export interface IStorage {
   getCourseDocument(id: string): Promise<CourseDocument | undefined>;
   createCourseDocument(doc: InsertCourseDocument): Promise<CourseDocument>;
   deleteCourseDocument(id: string): Promise<boolean>;
+
+  // Company Profile
+  getCompanyProfile(): Promise<CompanyProfile | undefined>;
+  createCompanyProfile(profile: InsertCompanyProfile): Promise<CompanyProfile>;
+  updateCompanyProfile(id: string, updates: Partial<CompanyProfile>): Promise<CompanyProfile | undefined>;
+
+  // Partnership Forms
+  getPartnershipFormsByCourseId(courseId: string): Promise<PartnershipForm[]>;
+  createPartnershipForm(form: InsertPartnershipForm): Promise<PartnershipForm>;
+  updatePartnershipForm(id: string, updates: Partial<PartnershipForm>): Promise<PartnershipForm | undefined>;
+  deletePartnershipForm(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -3128,6 +3145,57 @@ export class DatabaseStorage implements IStorage {
     const results = await db
       .delete(courseDocuments)
       .where(eq(courseDocuments.id, id))
+      .returning();
+    return results.length > 0;
+  }
+
+  // Company Profile
+  async getCompanyProfile(): Promise<CompanyProfile | undefined> {
+    const results = await db.select().from(companyProfile).limit(1);
+    return results[0];
+  }
+
+  async createCompanyProfile(profile: InsertCompanyProfile): Promise<CompanyProfile> {
+    const results = await db.insert(companyProfile).values(profile).returning();
+    return results[0];
+  }
+
+  async updateCompanyProfile(id: string, updates: Partial<CompanyProfile>): Promise<CompanyProfile | undefined> {
+    const results = await db
+      .update(companyProfile)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(companyProfile.id, id))
+      .returning();
+    return results[0];
+  }
+
+  // Partnership Forms
+  async getPartnershipFormsByCourseId(courseId: string): Promise<PartnershipForm[]> {
+    return await db
+      .select()
+      .from(partnershipForms)
+      .where(eq(partnershipForms.courseId, courseId))
+      .orderBy(desc(partnershipForms.createdAt));
+  }
+
+  async createPartnershipForm(form: InsertPartnershipForm): Promise<PartnershipForm> {
+    const results = await db.insert(partnershipForms).values(form).returning();
+    return results[0];
+  }
+
+  async updatePartnershipForm(id: string, updates: Partial<PartnershipForm>): Promise<PartnershipForm | undefined> {
+    const results = await db
+      .update(partnershipForms)
+      .set(updates)
+      .where(eq(partnershipForms.id, id))
+      .returning();
+    return results[0];
+  }
+
+  async deletePartnershipForm(id: string): Promise<boolean> {
+    const results = await db
+      .delete(partnershipForms)
+      .where(eq(partnershipForms.id, id))
       .returning();
     return results.length > 0;
   }

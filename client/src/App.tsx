@@ -13,6 +13,7 @@ import NotFound from "@/pages/not-found";
 
 const CourseDetail = lazy(() => import("@/pages/CourseDetail"));
 const Admin = lazy(() => import("@/pages/Admin"));
+const AdminCompanyProfile = lazy(() => import("@/pages/AdminCompanyProfile"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Login = lazy(() => import("@/pages/Login"));
 const Signup = lazy(() => import("@/pages/Signup"));
@@ -43,6 +44,11 @@ function Router() {
       <Route path="/admin">
         <Suspense fallback={<LoadingFallback />}>
           <Admin />
+        </Suspense>
+      </Route>
+      <Route path="/admin/settings">
+        <Suspense fallback={<LoadingFallback />}>
+          <AdminCompanyProfile />
         </Suspense>
       </Route>
       <Route path="/course/:id">

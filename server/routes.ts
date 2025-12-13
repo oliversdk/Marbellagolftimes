@@ -8,7 +8,7 @@ import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/gol
 import { teeoneClient } from "./providers/teeone";
 import { getZestGolfService } from "./services/zestGolf";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
@@ -5082,6 +5082,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete document:", error);
       res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
+  // ============================================================
+  // Company Profile API - Business details for partnership forms
+  // ============================================================
+
+  // GET /api/admin/company-profile - Get company profile
+  app.get("/api/admin/company-profile", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const profile = await storage.getCompanyProfile();
+      res.json(profile || null);
+    } catch (error) {
+      console.error("Failed to get company profile:", error);
+      res.status(500).json({ error: "Failed to get company profile" });
+    }
+  });
+
+  // POST /api/admin/company-profile - Create or update company profile (upsert)
+  app.post("/api/admin/company-profile", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Validate request body
+      const validation = insertCompanyProfileSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid input", details: validation.error.flatten() });
+      }
+      
+      const existing = await storage.getCompanyProfile();
+      
+      if (existing) {
+        // Update existing profile
+        const updated = await storage.updateCompanyProfile(existing.id, validation.data);
+        res.json(updated);
+      } else {
+        // Create new profile
+        const created = await storage.createCompanyProfile(validation.data);
+        res.json(created);
+      }
+    } catch (error) {
+      console.error("Failed to save company profile:", error);
+      res.status(500).json({ error: "Failed to save company profile" });
+    }
+  });
+
+  // ============================================================
+  // Partnership Forms API - Track forms sent/received per course
+  // ============================================================
+
+  // GET /api/admin/courses/:courseId/partnership-forms - Get forms for a course
+  app.get("/api/admin/courses/:courseId/partnership-forms", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const forms = await storage.getPartnershipFormsByCourseId(req.params.courseId);
+      res.json(forms);
+    } catch (error) {
+      console.error("Failed to get partnership forms:", error);
+      res.status(500).json({ error: "Failed to get partnership forms" });
+    }
+  });
+
+  // POST /api/admin/courses/:courseId/partnership-forms - Create partnership form
+  app.post("/api/admin/courses/:courseId/partnership-forms", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Validate request body (merge courseId from params)
+      const validation = insertPartnershipFormSchema.safeParse({
+        ...req.body,
+        courseId: req.params.courseId,
+      });
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid input", details: validation.error.flatten() });
+      }
+      
+      const form = await storage.createPartnershipForm(validation.data);
+      res.json(form);
+    } catch (error) {
+      console.error("Failed to create partnership form:", error);
+      res.status(500).json({ error: "Failed to create partnership form" });
+    }
+  });
+
+  // PATCH /api/admin/partnership-forms/:id - Update form status
+  app.patch("/api/admin/partnership-forms/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Validate partial update - allow any subset of fields
+      const partialSchema = insertPartnershipFormSchema.partial();
+      const validation = partialSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid input", details: validation.error.flatten() });
+      }
+      
+      const updates = { ...validation.data } as any;
+      
+      // Auto-set timestamps based on status changes
+      if (updates.status === "SENT" && !updates.sentAt) {
+        updates.sentAt = new Date();
+        updates.sentByUserId = (req.session as any)?.userId;
+      }
+      if (updates.status === "RECEIVED" && !updates.receivedAt) {
+        updates.receivedAt = new Date();
+      }
+      if (updates.status === "PROCESSED" && !updates.processedAt) {
+        updates.processedAt = new Date();
+      }
+      
+      const updated = await storage.updatePartnershipForm(req.params.id, updates);
+      if (!updated) {
+        return res.status(404).json({ error: "Partnership form not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update partnership form:", error);
+      res.status(500).json({ error: "Failed to update partnership form" });
+    }
+  });
+
+  // DELETE /api/admin/partnership-forms/:id - Delete form
+  app.delete("/api/admin/partnership-forms/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const success = await storage.deletePartnershipForm(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Partnership form not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete partnership form:", error);
+      res.status(500).json({ error: "Failed to delete partnership form" });
     }
   });
 
