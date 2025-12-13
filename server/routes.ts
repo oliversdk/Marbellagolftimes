@@ -5538,17 +5538,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(result.error?.includes("Login") ? 401 : 500).json(result);
       }
       
-      // Update all NOT_CONTACTED courses to OUTREACH_SENT in our database
+      // Update only the matching Zest Golf pending facilities in our database
       let coursesUpdated = 0;
+      const matchedCourses: string[] = [];
       try {
-        const onboardingRecords = await storage.getAllOnboarding();
-        for (const record of onboardingRecords) {
-          if (record.onboardingStage === "NOT_CONTACTED") {
-            await storage.updateOnboardingStage(record.courseId, "OUTREACH_SENT");
-            coursesUpdated++;
+        if (result.facilities && result.facilities.length > 0) {
+          const allCourses = await storage.getCourses();
+          
+          for (const facility of result.facilities) {
+            // Try to match Zest facility name to our course name
+            const facilityName = facility.name.toLowerCase().trim();
+            const matchedCourse = allCourses.find(course => {
+              const courseName = course.name.toLowerCase().trim();
+              return courseName.includes(facilityName) || 
+                     facilityName.includes(courseName) ||
+                     courseName === facilityName;
+            });
+            
+            if (matchedCourse) {
+              const onboarding = await storage.getOnboardingByCourseId(matchedCourse.id);
+              if (onboarding && onboarding.onboardingStage === "NOT_CONTACTED") {
+                await storage.updateOnboardingStage(matchedCourse.id, "OUTREACH_SENT");
+                coursesUpdated++;
+                matchedCourses.push(matchedCourse.name);
+              }
+            }
           }
+          console.log(`Updated ${coursesUpdated} courses from NOT_CONTACTED to OUTREACH_SENT:`, matchedCourses);
         }
-        console.log(`Updated ${coursesUpdated} courses from NOT_CONTACTED to OUTREACH_SENT`);
       } catch (updateError) {
         console.error("Error updating onboarding stages:", updateError);
       }
@@ -5556,7 +5573,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         ...result,
         coursesUpdated,
-        message: `${result.message}. Updated ${coursesUpdated} courses to Outreach Sent.`
+        matchedCourses,
+        message: `${result.message}. Updated ${coursesUpdated} matching courses to Outreach Sent.`
       });
     } catch (error: any) {
       console.error("Zest automation failed:", error);
