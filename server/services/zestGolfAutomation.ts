@@ -832,10 +832,10 @@ export class ZestGolfAutomation {
     }
 
     try {
-      console.log(`[Zest Portal Scraper] Navigating to facility ${facilityId} page...`);
+      console.log(`[Zest Portal Scraper] Navigating to facility list to find facility ${facilityId}...`);
       
-      const facilityUrl = `${ZEST_CM_URL}/management/facility/${facilityId}`;
-      await this.page.goto(facilityUrl, { waitUntil: "networkidle2", timeout: 30000 });
+      // Navigate to facility list page - contacts are in a side panel, not a separate page
+      await this.page.goto(`${ZEST_CM_URL}/management/myFacilityList`, { waitUntil: "networkidle2", timeout: 30000 });
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       const currentUrl = this.page.url();
@@ -850,170 +850,193 @@ export class ZestGolfAutomation {
         };
       }
 
-      // Take screenshot of main facility page first
-      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-main.png`, fullPage: true });
-      console.log(`[Zest Portal Scraper] Screenshot of main page saved to /tmp/zest-facility-${facilityId}-main.png`);
+      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-list.png`, fullPage: true });
+      console.log(`[Zest Portal Scraper] Screenshot of facility list saved`);
 
-      // Check if the page is a 404 error
-      const is404Page = await this.page.evaluate(() => {
-        const bodyText = document.body.textContent?.toLowerCase() || '';
-        const title = document.title.toLowerCase();
-        return bodyText.includes('404') || bodyText.includes('not found') || 
-               title.includes('404') || title.includes('not found');
+      // Find and click on the facility row to open the side panel
+      const facilityClicked = await this.page.evaluate((targetId: number) => {
+        // Look for the facility ID in the table
+        const rows = document.querySelectorAll('table tbody tr');
+        for (const row of Array.from(rows)) {
+          const cells = row.querySelectorAll('td');
+          for (const cell of Array.from(cells)) {
+            const text = cell.textContent?.trim() || '';
+            // Check if this cell contains the facility ID
+            if (text === String(targetId)) {
+              // Click on the row to open the details panel
+              (row as HTMLElement).click();
+              return { clicked: true, facilityId: text };
+            }
+          }
+        }
+        // Try clicking on the first row if no specific facility found
+        const firstRow = document.querySelector('table tbody tr');
+        if (firstRow) {
+          (firstRow as HTMLElement).click();
+          return { clicked: true, note: 'Clicked first row' };
+        }
+        return { clicked: false };
+      }, facilityId);
+
+      console.log(`[Zest Portal Scraper] Facility click result:`, facilityClicked);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-panel.png`, fullPage: true });
+
+      // Now click on the Contacts tab in the side panel
+      const contactsTabClicked = await this.page.evaluate(() => {
+        // Look for "Contacts" tab in the details panel
+        const tabs = document.querySelectorAll('a, button, [role="tab"], span, div');
+        for (const tab of Array.from(tabs)) {
+          const text = tab.textContent?.trim().toLowerCase() || '';
+          if (text === 'contacts' || text === 'contact') {
+            (tab as HTMLElement).click();
+            return true;
+          }
+        }
+        return false;
       });
 
-      if (is404Page) {
-        console.log(`[Zest Portal Scraper] Facility ${facilityId} page returns 404 - this account may not have access to this facility`);
-        return {
-          success: false,
-          facilityId,
-          contacts: [],
-          error: "Facility page not accessible - this Zest account may not have permission to view this facility's details",
-        };
-      }
-
-      // Try to find contacts on the main facility page first
-      let contactsTabClicked = false;
-      
-      // Look for any tabs or navigation that might lead to contacts section
-      const contactsTabHref = await this.page.$('a[href*="contacts"], a[href*="contact"]');
-      if (contactsTabHref) {
-        console.log("[Zest Portal Scraper] Found Contacts tab by href, clicking...");
-        await contactsTabHref.click();
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        contactsTabClicked = true;
-        await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
-      }
-      
-      // If no href-based tab, look for clickable elements with "contact" text
-      if (!contactsTabClicked) {
-        const clickedContactsTab = await this.page.evaluate(() => {
-          // Look for tab-like elements that might contain contact info
-          const tabSelectors = ['[role="tab"]', '.nav-link', '.tab', 'li.nav-item a', 'button[data-toggle]'];
-          for (const selector of tabSelectors) {
-            const elements = document.querySelectorAll(selector);
-            for (const el of Array.from(elements)) {
-              const text = el.textContent?.trim().toLowerCase() || '';
-              if (text.includes('contact')) {
-                (el as HTMLElement).click();
-                return true;
-              }
-            }
-          }
-          return false;
-        });
-        
-        if (clickedContactsTab) {
-          console.log("[Zest Portal Scraper] Found Contacts tab by text, clicked...");
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          contactsTabClicked = true;
-          await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
-        }
-      }
-      
-      // If no contacts tab found, we'll scrape from the main page - don't navigate to /contacts (404)
-      if (!contactsTabClicked) {
-        console.log("[Zest Portal Scraper] No Contacts tab found, will scrape from main facility page...");
-      }
-
-      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-final.png`, fullPage: true });
-      console.log(`[Zest Portal Scraper] Screenshot saved to /tmp/zest-facility-${facilityId}-contacts.png`);
+      console.log(`[Zest Portal Scraper] Contacts tab clicked: ${contactsTabClicked}`);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
+      console.log(`[Zest Portal Scraper] Screenshot of contacts panel saved`);
 
       // Use page.evaluate with string function to avoid esbuild __name helper issues
+      // The Zest panel has sections: PRIMARY CONTACT, BILLING CONTACT, RESERVATIONS CONTACT
+      // Each section has fields: First Name, Last Name, Email, Phone
       const scrapedData = await this.page.evaluate(new Function(`
         var contacts = [];
-
-        function parseContact(roleText, element) {
-          var text = element.textContent || "";
-          var name = null;
-          var email = null;
-          var phone = null;
-
-          var emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);
-          if (emailMatch) email = emailMatch[1];
-
-          var phoneMatch = text.match(/(\\+?\\d[\\d\\s-]{8,})/);
-          if (phoneMatch) phone = phoneMatch[1].trim();
-
-          var lines = text.split('\\n').map(function(l) { return l.trim(); }).filter(Boolean);
+        var pageText = document.body.textContent || "";
+        
+        // Helper function to find the value after a label
+        function findFieldValue(sectionText, fieldName) {
+          var lines = sectionText.split('\\n').map(function(l) { return l.trim(); }).filter(Boolean);
           for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-            if (line.indexOf('@') === -1 && !line.match(/^\\+?\\d/) && line.length > 2 && line.length < 100) {
-              var lineLower = line.toLowerCase();
-              if (lineLower.indexOf('contact') === -1 && lineLower.indexOf('primary') === -1 && 
-                  lineLower.indexOf('billing') === -1 && lineLower.indexOf('reservation') === -1) {
-                name = line;
-                break;
+            if (lines[i].toLowerCase().indexOf(fieldName.toLowerCase()) !== -1) {
+              // The value is typically on the next line or in the same element
+              if (i + 1 < lines.length && lines[i + 1].length > 0) {
+                var nextLine = lines[i + 1];
+                // Skip if next line is another field label
+                if (nextLine.toLowerCase().indexOf('name') === -1 && 
+                    nextLine.toLowerCase().indexOf('email') === -1 && 
+                    nextLine.toLowerCase().indexOf('phone') === -1) {
+                  return nextLine;
+                }
               }
             }
           }
-
-          return { role: roleText, name: name, email: email, phone: phone };
+          return null;
         }
 
-        var allElements = document.querySelectorAll('*');
-        for (var i = 0; i < allElements.length; i++) {
-          var el = allElements[i];
-          var text = (el.textContent || "").toLowerCase();
-          var childNodes = el.childNodes;
-          var directTextArr = [];
-          for (var j = 0; j < childNodes.length; j++) {
-            if (childNodes[j].nodeType === Node.TEXT_NODE) {
-              var t = childNodes[j].textContent;
-              if (t) directTextArr.push(t.trim());
-            }
-          }
-          var directText = directTextArr.join(' ').toLowerCase();
-
-          if (directText.indexOf('primary contact') !== -1 || (directText === 'primary' && text.indexOf('contact') !== -1)) {
-            var container = el.closest('div, section, article') || el.parentElement;
-            if (container) {
-              contacts.push(parseContact("Primary", container));
-            }
-          }
-          if (directText.indexOf('billing contact') !== -1 || (directText === 'billing' && text.indexOf('contact') !== -1)) {
-            var container = el.closest('div, section, article') || el.parentElement;
-            if (container) {
-              contacts.push(parseContact("Billing", container));
-            }
-          }
-          if (directText.indexOf('reservations contact') !== -1 || directText.indexOf('reservation contact') !== -1) {
-            var container = el.closest('div, section, article') || el.parentElement;
-            if (container) {
-              contacts.push(parseContact("Reservations", container));
-            }
-          }
-        }
-
-        var cards = document.querySelectorAll('[class*="card"], [class*="contact"], .panel, .section');
-        for (var k = 0; k < cards.length; k++) {
-          var card = cards[k];
-          var cardText = card.textContent || "";
-          var cardLower = cardText.toLowerCase();
+        // Find contact sections by looking for the headers
+        function parseContactSection(sectionName) {
+          var sectionHeader = sectionName.toUpperCase() + ' CONTACT';
+          var bodyText = document.body.textContent || '';
+          var headerIndex = bodyText.indexOf(sectionHeader);
           
-          var hasPrimary = false;
-          var hasBilling = false;
-          var hasReservations = false;
-          for (var m = 0; m < contacts.length; m++) {
-            if (contacts[m].role === "Primary") hasPrimary = true;
-            if (contacts[m].role === "Billing") hasBilling = true;
-            if (contacts[m].role === "Reservations") hasReservations = true;
+          if (headerIndex === -1) return null;
+          
+          // Find the next section or end
+          var nextSections = ['PRIMARY CONTACT', 'BILLING CONTACT', 'RESERVATIONS CONTACT', 'Organization', 'Booking Conditions'];
+          var endIndex = bodyText.length;
+          
+          for (var i = 0; i < nextSections.length; i++) {
+            if (nextSections[i].toUpperCase() !== sectionHeader) {
+              var nextIdx = bodyText.indexOf(nextSections[i], headerIndex + sectionHeader.length);
+              if (nextIdx !== -1 && nextIdx < endIndex) {
+                endIndex = nextIdx;
+              }
+            }
           }
           
-          if (cardLower.indexOf('primary') !== -1 && cardLower.indexOf('contact') !== -1 && !hasPrimary) {
-            contacts.push(parseContact("Primary", card));
+          var sectionText = bodyText.substring(headerIndex, endIndex);
+          
+          // Extract fields - look for input values or text after labels
+          var firstName = null;
+          var lastName = null;
+          var email = null;
+          var phone = null;
+          
+          // Get all inputs in the panel
+          var allInputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"]');
+          var inputValues = [];
+          for (var j = 0; j < allInputs.length; j++) {
+            var inp = allInputs[j];
+            if (inp.value && inp.value.trim()) {
+              inputValues.push(inp.value.trim());
+            }
           }
-          if (cardLower.indexOf('billing') !== -1 && cardLower.indexOf('contact') !== -1 && !hasBilling) {
-            contacts.push(parseContact("Billing", card));
+          
+          // Parse the section text for field values
+          var lines = sectionText.split('\\n').map(function(l) { return l.trim(); }).filter(Boolean);
+          var currentField = null;
+          
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            var lineLower = line.toLowerCase();
+            
+            if (lineLower === 'first name' || lineLower.indexOf('first name') !== -1) {
+              currentField = 'firstName';
+            } else if (lineLower === 'last name' || lineLower.indexOf('last name') !== -1) {
+              currentField = 'lastName';
+            } else if (lineLower === 'email') {
+              currentField = 'email';
+            } else if (lineLower === 'phone') {
+              currentField = 'phone';
+            } else if (currentField && line.length > 0) {
+              // This is a value
+              if (currentField === 'firstName' && !firstName) firstName = line;
+              else if (currentField === 'lastName' && !lastName) lastName = line;
+              else if (currentField === 'email' && !email && line.indexOf('@') !== -1) email = line;
+              else if (currentField === 'phone' && !phone && line.match(/^\\+?\\d/)) phone = line;
+              currentField = null;
+            }
           }
-          if (cardLower.indexOf('reservation') !== -1 && cardLower.indexOf('contact') !== -1 && !hasReservations) {
-            contacts.push(parseContact("Reservations", card));
+          
+          // Combine first and last name
+          var fullName = null;
+          if (firstName && lastName) {
+            fullName = firstName + ' ' + lastName;
+          } else if (firstName) {
+            fullName = firstName;
+          } else if (lastName) {
+            fullName = lastName;
+          }
+          
+          if (fullName || email || phone) {
+            return {
+              role: sectionName,
+              name: fullName,
+              email: email,
+              phone: phone
+            };
+          }
+          return null;
+        }
+
+        // Parse each contact type
+        var primary = parseContactSection('Primary');
+        if (primary) contacts.push(primary);
+        
+        var billing = parseContactSection('Billing');
+        if (billing) contacts.push(billing);
+        
+        var reservations = parseContactSection('Reservations');
+        if (reservations) contacts.push(reservations);
+
+        // Get facility name from the panel header
+        var facilityNameEl = document.querySelector('h1, h2, h3, [class*="title"], [class*="header"]');
+        var facilityName = null;
+        if (facilityNameEl) {
+          var nameText = facilityNameEl.textContent || '';
+          if (nameText.toLowerCase().indexOf('details') !== -1) {
+            facilityName = nameText.replace(/details/i, '').trim();
+          } else {
+            facilityName = nameText.trim();
           }
         }
 
-        var pageHtml = document.body.innerHTML.substring(0, 10000);
-        var facilityNameEl = document.querySelector('h1, h2, .facility-name, [class*="title"]');
-        var facilityName = facilityNameEl ? facilityNameEl.textContent.trim() : null;
+        var pageHtml = document.body.innerHTML.substring(0, 15000);
 
         return {
           contacts: contacts,
