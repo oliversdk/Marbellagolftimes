@@ -175,28 +175,50 @@ export class ZestGolfAutomation {
       // Wait a moment for any dynamic content
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Find and click submit button - look for button containing "Log In" text
-      const allButtons = await this.page.$$('button');
-      console.log(`Found ${allButtons.length} buttons on page`);
-      
+      // Find and click submit element - could be button, input, or other element
       let foundButton = false;
-      for (const btn of allButtons) {
-        const text = await btn.evaluate(el => el.textContent || '');
-        console.log(`Button text: "${text.trim()}"`);
-        if (text.toLowerCase().includes('log in') || text.toLowerCase().includes('login')) {
-          console.log("Found login button, clicking...");
-          await btn.click();
+      
+      // Strategy 1: Look for input[type="submit"]
+      const submitInput = await this.page.$('input[type="submit"]');
+      if (submitInput) {
+        const value = await submitInput.evaluate(el => (el as HTMLInputElement).value || '');
+        console.log(`Found input[type="submit"] with value: "${value}"`);
+        await submitInput.click();
+        foundButton = true;
+      }
+      
+      // Strategy 2: Look for any element containing "Log" text
+      if (!foundButton) {
+        const loginElement = await this.page.evaluateHandle(() => {
+          const allElements = document.querySelectorAll('button, input, a, div[role="button"], span[role="button"]');
+          for (const el of Array.from(allElements)) {
+            const text = el.textContent?.toLowerCase() || '';
+            const value = (el as HTMLInputElement).value?.toLowerCase() || '';
+            if (text.includes('log in') || text.includes('login') || 
+                value.includes('log in') || value.includes('login')) {
+              return el;
+            }
+          }
+          return null;
+        });
+        
+        const element = loginElement.asElement();
+        if (element) {
+          console.log("Found login element by text search, clicking...");
+          await element.click();
           foundButton = true;
-          break;
         }
       }
       
+      // Strategy 3: Submit the form directly
       if (!foundButton) {
-        // Try clicking any button in the form
-        const formButton = await this.page.$('form button');
-        if (formButton) {
-          console.log("Found form button, clicking...");
-          await formButton.click();
+        const form = await this.page.$('form');
+        if (form) {
+          console.log("Submitting form directly...");
+          await this.page.evaluate(() => {
+            const formEl = document.querySelector('form');
+            if (formEl) formEl.submit();
+          });
           foundButton = true;
         }
       }
