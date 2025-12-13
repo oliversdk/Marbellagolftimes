@@ -5538,7 +5538,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(result.error?.includes("Login") ? 401 : 500).json(result);
       }
       
-      res.json(result);
+      // Update all NOT_CONTACTED courses to OUTREACH_SENT in our database
+      let coursesUpdated = 0;
+      try {
+        const onboardingRecords = await storage.getAllOnboarding();
+        for (const record of onboardingRecords) {
+          if (record.onboardingStage === "NOT_CONTACTED") {
+            await storage.updateOnboardingStage(record.courseId, "OUTREACH_SENT");
+            coursesUpdated++;
+          }
+        }
+        console.log(`Updated ${coursesUpdated} courses from NOT_CONTACTED to OUTREACH_SENT`);
+      } catch (updateError) {
+        console.error("Error updating onboarding stages:", updateError);
+      }
+      
+      res.json({
+        ...result,
+        coursesUpdated,
+        message: `${result.message}. Updated ${coursesUpdated} courses to Outreach Sent.`
+      });
     } catch (error: any) {
       console.error("Zest automation failed:", error);
       res.status(500).json({ success: false, message: error.message, error: error.message });
