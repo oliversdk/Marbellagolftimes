@@ -5577,6 +5577,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/zest/automation/analyze", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ZestGolfAutomation, validateZestCredentials, isAutomationBusy } = await import("./services/zestGolfAutomation");
+      
+      const credCheck = validateZestCredentials();
+      if (!credCheck.valid) {
+        return res.status(400).json({ success: false, message: credCheck.error, error: credCheck.error });
+      }
+      
+      if (isAutomationBusy()) {
+        return res.status(409).json({ success: false, message: "Another automation task is already running", error: "Busy" });
+      }
+      
+      console.log("Starting Zest Golf API analysis...");
+      const automation = new ZestGolfAutomation();
+      const result = await automation.analyzeNetworkRequests();
+      
+      console.log("Zest API Analysis Result:", result.message);
+      console.log("Discovered endpoints:", result.apiCalls.map(c => `${c.method} ${c.url}`));
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Failed to analyze Zest API:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message, apiCalls: [] });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

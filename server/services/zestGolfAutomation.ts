@@ -398,6 +398,116 @@ export class ZestGolfAutomation {
       };
     }
   }
+
+  async analyzeNetworkRequests(): Promise<{ success: boolean; apiCalls: NetworkCall[]; message: string }> {
+    const apiCalls: NetworkCall[] = [];
+    
+    try {
+      await this.initialize();
+      
+      if (!this.page) {
+        throw new Error("Browser not initialized");
+      }
+
+      await this.page.setRequestInterception(true);
+      
+      this.page.on('request', (request) => {
+        const url = request.url();
+        if (url.includes('/api/') || url.includes('/management/')) {
+          apiCalls.push({
+            method: request.method(),
+            url: url,
+            postData: request.postData() || undefined,
+            headers: request.headers(),
+            timestamp: new Date().toISOString(),
+          });
+        }
+        request.continue();
+      });
+
+      this.page.on('response', async (response) => {
+        const url = response.url();
+        if (url.includes('/api/') || url.includes('/management/')) {
+          const call = apiCalls.find(c => c.url === url && !c.status);
+          if (call) {
+            call.status = response.status();
+            try {
+              const text = await response.text();
+              if (text.length < 5000) {
+                call.responseBody = text;
+              } else {
+                call.responseBody = text.substring(0, 5000) + "... [truncated]";
+              }
+            } catch {}
+          }
+        }
+      });
+
+      const loginSuccess = await this.login();
+      if (!loginSuccess) {
+        await this.close();
+        return {
+          success: false,
+          apiCalls,
+          message: "Login failed",
+        };
+      }
+
+      console.log("Navigating to facility list to capture API calls...");
+      await this.page.goto(`${FACILITY_LIST_URL}?tab=2`, { 
+        waitUntil: "networkidle2", 
+        timeout: 30000 
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      const rows = await this.page.$$("table tbody tr");
+      if (rows.length > 0) {
+        const firstRow = rows[0];
+        const menuBtn = await firstRow.$('button[aria-label*="menu"], button:has(svg[data-icon="ellipsis"]), .dropdown-trigger, td:last-child button');
+        if (menuBtn) {
+          console.log("Clicking menu button to capture API calls...");
+          await menuBtn.click();
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          const menuItems = await this.page.$$('[role="menuitem"], .dropdown-item, .menu-item');
+          for (const item of menuItems) {
+            const text = await item.evaluate(el => el.textContent);
+            console.log(`Found menu item: ${text}`);
+          }
+          
+          await this.page.keyboard.press("Escape");
+        }
+      }
+
+      await this.close();
+      
+      const uniqueEndpoints = [...new Set(apiCalls.map(c => `${c.method} ${new URL(c.url).pathname}`))];
+      
+      return {
+        success: true,
+        apiCalls,
+        message: `Captured ${apiCalls.length} API calls. Found ${uniqueEndpoints.length} unique endpoints: ${uniqueEndpoints.join(', ')}`,
+      };
+    } catch (error) {
+      await this.close();
+      return {
+        success: false,
+        apiCalls,
+        message: `Analysis failed: ${String(error)}`,
+      };
+    }
+  }
+}
+
+export interface NetworkCall {
+  method: string;
+  url: string;
+  postData?: string;
+  headers: Record<string, string>;
+  timestamp: string;
+  status?: number;
+  responseBody?: string;
 }
 
 let automationInstance: ZestGolfAutomation | null = null;
