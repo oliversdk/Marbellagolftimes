@@ -1294,30 +1294,33 @@ export default function Admin() {
     },
   });
 
-  // Sync Zest contacts mutation
+  // Scrape Zest portal contacts mutation (gets all 3 contact types: Primary, Billing, Reservations)
   const syncZestContactsMutation = useMutation({
     mutationFn: async (courseId: string) => {
-      const response = await fetch(`/api/zest/contacts/sync/${courseId}`, { method: "POST" });
+      const response = await fetch(`/api/zest/contacts/scrape/${courseId}`, { method: "POST" });
       return response.json();
     },
     onSuccess: (data) => {
       if (data.success) {
         const contactCount = data.contacts?.length || 0;
+        const contactTypes = data.contacts?.map((c: any) => c.role.replace('Zest ', '')).join(', ') || 'None';
         toast({ 
-          title: "Contacts Synced", 
-          description: `Synced ${contactCount} contact(s): ${data.contacts?.map((c: any) => c.role.replace('Zest ', '')).join(', ') || 'No contacts'}` 
+          title: "Portal Contacts Synced", 
+          description: `Found ${contactCount} contact(s): ${contactTypes}` 
         });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/onboarding"] });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/courses", selectedCourseProfile?.id, "contacts"] });
-        // Update form with newly synced contact data
-        onboardingForm.reset({
-          contactPerson: data.contactPerson || "",
-          contactEmail: data.contactEmail || "",
-          contactPhone: data.contactPhone || "",
-          agreedCommission: onboardingForm.getValues("agreedCommission") || 0,
-          notes: onboardingForm.getValues("notes") || "",
-        });
+        // Update form with primary contact data
+        if (data.primaryContact) {
+          onboardingForm.reset({
+            contactPerson: data.primaryContact.name || "",
+            contactEmail: data.primaryContact.email || "",
+            contactPhone: data.primaryContact.phone || "",
+            agreedCommission: onboardingForm.getValues("agreedCommission") || 0,
+            notes: onboardingForm.getValues("notes") || "",
+          });
+        }
       } else {
         toast({ title: "Sync Failed", description: data.message || data.error, variant: "destructive" });
       }
@@ -4335,7 +4338,7 @@ export default function Admin() {
                               data-testid="button-sync-zest-contacts"
                             >
                               <RefreshCw className={`h-4 w-4 mr-2 ${syncZestContactsMutation.isPending ? 'animate-spin' : ''}`} />
-                              {syncZestContactsMutation.isPending ? "Syncing..." : "Sync from Zest"}
+                              {syncZestContactsMutation.isPending ? "Scraping Portal..." : "Sync from Zest Portal"}
                             </Button>
                           </div>
                         </form>
@@ -5055,11 +5058,143 @@ export default function Admin() {
 
                     {/* Contacts Tab */}
                     <TabsContent value="contacts" className="space-y-4 mt-4">
+                      {/* Zest Portal Contacts */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <CardTitle className="text-base flex items-center gap-2">
+                                <UserPlus className="h-4 w-4" />
+                                Zest Portal Contacts
+                              </CardTitle>
+                              <CardDescription>
+                                Primary, Billing, and Reservations contacts from Zest Golf portal
+                              </CardDescription>
+                            </div>
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              onClick={() => selectedCourseProfile && syncZestContactsMutation.mutate(selectedCourseProfile.id)}
+                              disabled={syncZestContactsMutation.isPending || !selectedCourseProfile}
+                              data-testid="button-sync-zest-portal-contacts"
+                            >
+                              <RefreshCw className={`h-3 w-3 mr-1 ${syncZestContactsMutation.isPending ? 'animate-spin' : ''}`} />
+                              {syncZestContactsMutation.isPending ? "Syncing..." : "Sync"}
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {isLoadingProfileContacts ? (
+                            <div className="py-6">
+                              <GolfLoader size="sm" text="Loading contacts..." />
+                            </div>
+                          ) : (() => {
+                            const zestContacts = profileContacts.filter(c => c.role?.startsWith('Zest '));
+                            const primaryContact = zestContacts.find(c => c.role === 'Zest Primary');
+                            const billingContact = zestContacts.find(c => c.role === 'Zest Billing');
+                            const reservationsContact = zestContacts.find(c => c.role === 'Zest Reservations');
+                            
+                            if (zestContacts.length === 0) {
+                              return (
+                                <div className="text-center py-6 text-muted-foreground">
+                                  <UserPlus className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                                  <p className="text-sm">No Zest contacts synced yet</p>
+                                  <p className="text-xs mt-1">Click "Sync" to fetch contacts from Zest portal</p>
+                                </div>
+                              );
+                            }
+                            
+                            return (
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Primary Contact */}
+                                <div className="p-3 border rounded-md bg-green-50 dark:bg-green-900/20" data-testid="contact-zest-primary">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge className="bg-green-600 text-white text-xs">Primary</Badge>
+                                  </div>
+                                  {primaryContact ? (
+                                    <div className="space-y-1">
+                                      <p className="font-medium text-sm">{primaryContact.name}</p>
+                                      {primaryContact.email && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Mail className="h-3 w-3" />
+                                          <a href={`mailto:${primaryContact.email}`} className="hover:underline truncate">{primaryContact.email}</a>
+                                        </div>
+                                      )}
+                                      {primaryContact.phone && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <PhoneCall className="h-3 w-3" />
+                                          <a href={`tel:${primaryContact.phone}`} className="hover:underline">{primaryContact.phone}</a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">Not available</p>
+                                  )}
+                                </div>
+                                
+                                {/* Billing Contact */}
+                                <div className="p-3 border rounded-md bg-blue-50 dark:bg-blue-900/20" data-testid="contact-zest-billing">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge className="bg-blue-600 text-white text-xs">Billing</Badge>
+                                  </div>
+                                  {billingContact ? (
+                                    <div className="space-y-1">
+                                      <p className="font-medium text-sm">{billingContact.name}</p>
+                                      {billingContact.email && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Mail className="h-3 w-3" />
+                                          <a href={`mailto:${billingContact.email}`} className="hover:underline truncate">{billingContact.email}</a>
+                                        </div>
+                                      )}
+                                      {billingContact.phone && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <PhoneCall className="h-3 w-3" />
+                                          <a href={`tel:${billingContact.phone}`} className="hover:underline">{billingContact.phone}</a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">Not available</p>
+                                  )}
+                                </div>
+                                
+                                {/* Reservations Contact */}
+                                <div className="p-3 border rounded-md bg-orange-50 dark:bg-orange-900/20" data-testid="contact-zest-reservations">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Badge className="bg-orange-600 text-white text-xs">Reservations</Badge>
+                                  </div>
+                                  {reservationsContact ? (
+                                    <div className="space-y-1">
+                                      <p className="font-medium text-sm">{reservationsContact.name}</p>
+                                      {reservationsContact.email && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Mail className="h-3 w-3" />
+                                          <a href={`mailto:${reservationsContact.email}`} className="hover:underline truncate">{reservationsContact.email}</a>
+                                        </div>
+                                      )}
+                                      {reservationsContact.phone && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                          <PhoneCall className="h-3 w-3" />
+                                          <a href={`tel:${reservationsContact.phone}`} className="hover:underline">{reservationsContact.phone}</a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">Not available</p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </CardContent>
+                      </Card>
+
+                      {/* Other Extracted Contacts */}
                       <Card>
                         <CardHeader className="pb-3">
                           <CardTitle className="text-base flex items-center gap-2">
                             <UserPlus className="h-4 w-4" />
-                            Course Contacts
+                            Other Contacts
                           </CardTitle>
                           <CardDescription>
                             Contact information extracted from contracts and documents
@@ -5067,52 +5202,58 @@ export default function Admin() {
                         </CardHeader>
                         <CardContent>
                           {isLoadingProfileContacts ? (
-                            <div className="py-8">
+                            <div className="py-6">
                               <GolfLoader size="sm" text="Loading contacts..." />
                             </div>
-                          ) : profileContacts.length > 0 ? (
-                            <div className="space-y-3">
-                              {profileContacts.map((contact) => (
-                                <div 
-                                  key={contact.id} 
-                                  className="flex items-start justify-between p-3 border rounded-md"
-                                  data-testid={`contact-row-${contact.id}`}
-                                >
-                                  <div className="space-y-1">
-                                    <p className="font-medium">{contact.name}</p>
-                                    {contact.role && (
-                                      <Badge variant="outline" className="text-xs">{contact.role}</Badge>
-                                    )}
-                                    <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
-                                      {contact.email && (
-                                        <div className="flex items-center gap-1">
-                                          <Mail className="h-3 w-3" />
-                                          <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
-                                        </div>
-                                      )}
-                                      {contact.phone && (
-                                        <div className="flex items-center gap-1">
-                                          <PhoneCall className="h-3 w-3" />
-                                          <a href={`tel:${contact.phone}`} className="hover:underline">{contact.phone}</a>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {contact.extractedFrom && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      From: {contact.extractedFrom}
-                                    </Badge>
-                                  )}
+                          ) : (() => {
+                            const otherContacts = profileContacts.filter(c => !c.role?.startsWith('Zest '));
+                            if (otherContacts.length === 0) {
+                              return (
+                                <div className="text-center py-6 text-muted-foreground">
+                                  <UserPlus className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                                  <p className="text-sm">No other contacts extracted yet</p>
+                                  <p className="text-xs mt-1">Process documents to extract contact information</p>
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-muted-foreground">
-                              <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                              <p>No contacts extracted yet</p>
-                              <p className="text-sm mt-1">Process documents to extract contact information</p>
-                            </div>
-                          )}
+                              );
+                            }
+                            return (
+                              <div className="space-y-3">
+                                {otherContacts.map((contact) => (
+                                  <div 
+                                    key={contact.id} 
+                                    className="flex items-start justify-between p-3 border rounded-md"
+                                    data-testid={`contact-row-${contact.id}`}
+                                  >
+                                    <div className="space-y-1">
+                                      <p className="font-medium">{contact.name}</p>
+                                      {contact.role && (
+                                        <Badge variant="outline" className="text-xs">{contact.role}</Badge>
+                                      )}
+                                      <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
+                                        {contact.email && (
+                                          <div className="flex items-center gap-1">
+                                            <Mail className="h-3 w-3" />
+                                            <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
+                                          </div>
+                                        )}
+                                        {contact.phone && (
+                                          <div className="flex items-center gap-1">
+                                            <PhoneCall className="h-3 w-3" />
+                                            <a href={`tel:${contact.phone}`} className="hover:underline">{contact.phone}</a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {contact.extractedFrom && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        From: {contact.extractedFrom}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </CardContent>
                       </Card>
                     </TabsContent>
