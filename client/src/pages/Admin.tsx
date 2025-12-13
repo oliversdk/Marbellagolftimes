@@ -4382,6 +4382,16 @@ export default function Admin() {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      asChild
+                                      data-testid={`button-download-document-${doc.id}`}
+                                    >
+                                      <a href={(doc as any).fileUrl} target="_blank" rel="noopener noreferrer" title="View/Download">
+                                        <Download className="h-4 w-4" />
+                                      </a>
+                                    </Button>
                                     {(doc as any).isProcessed ? (
                                       <Badge variant="secondary" className="text-green-600">
                                         <CheckCircle2 className="h-3 w-3 mr-1" />
