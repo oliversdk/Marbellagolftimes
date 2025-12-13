@@ -802,3 +802,70 @@ export type PartnershipFormType = typeof PARTNERSHIP_FORM_TYPES[number];
 // Partnership form statuses
 export const PARTNERSHIP_FORM_STATUSES = ["PENDING", "SENT", "RECEIVED", "PROCESSED"] as const;
 export type PartnershipFormStatus = typeof PARTNERSHIP_FORM_STATUSES[number];
+
+// Zest Golf Pricing Data - Comprehensive pricing storage from Zest API
+export const zestPricingData = pgTable("zest_pricing_data", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
+  zestFacilityId: integer("zest_facility_id").notNull(),
+  
+  // Pricing data as JSON (contains full pricing structure from Zest)
+  // Structure: { greenFees: [...], extraProducts: [...] }
+  pricingJson: jsonb("pricing_json").notNull(),
+  
+  // Calculated commission data
+  averageCommissionPercent: real("average_commission_percent"), // Calculated from netRate vs publicRate
+  
+  // Sync metadata
+  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+  syncStatus: text("sync_status").notNull().default("success"), // success, error
+  syncError: text("sync_error"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertZestPricingDataSchema = createInsertSchema(zestPricingData).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true,
+  lastSyncedAt: true 
+});
+
+export type InsertZestPricingData = z.infer<typeof insertZestPricingDataSchema>;
+export type ZestPricingData = typeof zestPricingData.$inferSelect;
+
+// Type for the pricing JSON structure
+export interface ZestPricingJson {
+  facilityName: string;
+  facilityId: number;
+  syncDate: string;
+  
+  // Sample tee time pricing for different player counts
+  greenFeePricing: Array<{
+    players: number;
+    price: { amount: number; currency: string };
+    netRate: { amount: number; currency: string };
+    publicRate: { amount: number; currency: string };
+    commissionPercent: number; // Calculated: (publicRate - netRate) / publicRate * 100
+  }>;
+  
+  // Extra products with pricing
+  extraProducts: Array<{
+    mid: number;
+    name: string;
+    category: string; // Buggy, Trolley, ClubRental, etc.
+    holes: number;
+    price: { amount: number; currency: string };
+    netRate: { amount: number; currency: string };
+    publicRate: { amount: number; currency: string };
+    commissionPercent: number;
+  }>;
+  
+  // Cancellation policy
+  cancellationPolicy?: Array<{
+    minimumPlayer: number;
+    maximumPlayer: number;
+    timePeriod: number; // Hours before tee time
+  }>;
+}
