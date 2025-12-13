@@ -7,6 +7,7 @@ import { sendAffiliateEmail, getEmailConfig } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { teeoneClient } from "./providers/teeone";
 import { getZestGolfService } from "./services/zestGolf";
+import { syncBookingToProvider } from "./services/bookingSyncService";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts } from "@shared/schema";
 import { db } from "./db";
@@ -4845,6 +4846,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       hold.bookingId = booking.id;
 
       console.log(`[OnTee API] Booking confirmed: ${booking.id} for ${course.name}`);
+
+      // Sync booking to external provider (Zest/TeeOne) - non-blocking
+      syncBookingToProvider(booking, course).then(async (syncResult) => {
+        try {
+          if (syncResult.provider) {
+            await storage.updateBookingSyncStatus(
+              booking.id,
+              syncResult.success ? "success" : "failed",
+              syncResult.error || null,
+              syncResult.providerBookingId || null
+            );
+            console.log(`[BookingSync] Updated sync status for booking ${booking.id}: ${syncResult.success ? "success" : "failed"}`);
+          }
+        } catch (err) {
+          console.error(`[BookingSync] Failed to update sync status for booking ${booking.id}:`, err);
+        }
+      }).catch((err) => {
+        console.error(`[BookingSync] Error syncing booking ${booking.id}:`, err);
+      });
 
       // Generate voucher URL (placeholder - in production this would be a real PDF)
       const voucherUrl = `/api/bookings/${booking.id}/voucher`;

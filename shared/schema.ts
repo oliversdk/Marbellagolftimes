@@ -163,6 +163,10 @@ export const bookingRequests = pgTable("booking_requests", {
   paymentIntentId: text("payment_intent_id"), // Stripe payment intent ID
   totalAmountCents: integer("total_amount_cents"), // Total paid in cents
   addOnsJson: text("add_ons_json"), // JSON string of selected add-ons
+  // Provider sync fields (Zest/TeeOne booking forwarding)
+  providerSyncStatus: text("provider_sync_status"), // null, pending, success, failed
+  providerSyncError: text("provider_sync_error"), // Error message if sync failed
+  providerBookingId: text("provider_booking_id"), // External booking ID from Zest/TeeOne
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

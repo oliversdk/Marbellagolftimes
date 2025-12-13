@@ -98,6 +98,7 @@ export interface IStorage {
   createBooking(booking: InsertBookingRequest): Promise<BookingRequest>;
   cancelBooking(id: string, reason?: string): Promise<BookingRequest | undefined>;
   updateBookingStatus(id: string, status: string): Promise<BookingRequest | undefined>;
+  updateBookingSyncStatus(id: string, syncStatus: string, syncError?: string | null, providerBookingId?: string | null): Promise<BookingRequest | undefined>;
 
   // Affiliate Emails
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
@@ -1348,6 +1349,20 @@ export class MemStorage implements IStorage {
     return updatedBooking;
   }
 
+  async updateBookingSyncStatus(id: string, syncStatus: string, syncError?: string | null, providerBookingId?: string | null): Promise<BookingRequest | undefined> {
+    const booking = this.bookings.get(id);
+    if (!booking) return undefined;
+    
+    const updatedBooking = {
+      ...booking,
+      providerSyncStatus: syncStatus,
+      providerSyncError: syncError || null,
+      providerBookingId: providerBookingId || null,
+    };
+    this.bookings.set(id, updatedBooking);
+    return updatedBooking;
+  }
+
   // Affiliate Emails
   async getAllAffiliateEmails(): Promise<AffiliateEmail[]> {
     return Array.from(this.affiliateEmails.values());
@@ -2175,6 +2190,19 @@ export class DatabaseStorage implements IStorage {
     const [booking] = await db
       .update(bookingRequests)
       .set({ status })
+      .where(eq(bookingRequests.id, id))
+      .returning();
+    return booking;
+  }
+
+  async updateBookingSyncStatus(id: string, syncStatus: string, syncError?: string | null, providerBookingId?: string | null): Promise<BookingRequest | undefined> {
+    const [booking] = await db
+      .update(bookingRequests)
+      .set({
+        providerSyncStatus: syncStatus,
+        providerSyncError: syncError || null,
+        providerBookingId: providerBookingId || null,
+      })
       .where(eq(bookingRequests.id, id))
       .returning();
     return booking;
