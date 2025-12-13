@@ -205,10 +205,16 @@ export class ZestGolfService {
   }
 
   /**
-   * Get available tee times for a facility
+   * Get available tee times for a facility (v5 API)
+   * @param facilityId - ID of the facility
+   * @param courseId - ID of the course within the facility
+   * @param bookingDate - Date for the booking
+   * @param players - Number of players (1-4)
+   * @param holes - Number of holes (9 or 18)
    */
   async getTeeTimes(
     facilityId: number,
+    courseId: number,
     bookingDate: Date,
     players: number,
     holes: 9 | 18 = 18
@@ -219,8 +225,8 @@ export class ZestGolfService {
     const year = bookingDate.getFullYear();
     const formattedDate = `${day}-${month}-${year}`;
 
-    // Note: Trailing slash is required by Zest API
-    const response = await this.client.get(`/api/v3/teetimes/${facilityId}/`, {
+    // v5 API endpoint with facility and course IDs
+    const response = await this.client.get(`/api/v5/teetimes/${facilityId}/${courseId}`, {
       params: {
         bookingDate: formattedDate,
         players,
@@ -229,13 +235,45 @@ export class ZestGolfService {
     });
     
     if (response.data.success) {
-      // Handle both v2 and v3 response formats
       return {
-        teeTimeV3: response.data.data.teeTimeV3 || response.data.data.teeTimeV2 || [],
+        teeTimeV3: response.data.data.teeTimeV3 || [],
         facilityCancellationPolicyRange: response.data.data.facilityCancellationPolicyRange || [],
       };
     }
     throw new Error("Failed to fetch tee times");
+  }
+
+  /**
+   * Get tee times for multiple facilities over a date range (v5 API)
+   * This is an async endpoint - results are sent to a callback URL
+   */
+  async getTeeTimesMultiple(
+    facilityIds: number[],
+    fromDate: Date,
+    toDate: Date,
+    players: number,
+    holes: 9 | 18,
+    callbackUrl: string
+  ): Promise<boolean> {
+    const formatDate = (date: Date) => {
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    };
+
+    const response = await this.client.get("/api/v5/teetimes", {
+      params: {
+        facilityIds: facilityIds.join(","),
+        fromDate: formatDate(fromDate),
+        toDate: formatDate(toDate),
+        players,
+        holes,
+        callbackUrl,
+      },
+    });
+    
+    return response.data.success === true;
   }
 
   /**
