@@ -212,30 +212,91 @@ export class ZestGolfAutomation {
       // Find and click submit element - could be button, input, or other element
       let foundButton = false;
       
-      // Strategy 1: Look for button/element with "Log In" text (matches the orange button in screenshot)
-      const loginButtonClicked = await this.page.evaluate(() => {
-        // Look for all clickable elements
-        const allElements = document.querySelectorAll('button, input[type="submit"], a, div[role="button"], span[role="button"], *[onclick]');
-        for (const el of Array.from(allElements)) {
-          const text = el.textContent?.trim().toLowerCase() || '';
-          const value = (el as HTMLInputElement).value?.toLowerCase() || '';
-          // Match "Log In" button from screenshot
-          if (text === 'log in' || text.includes('log in') || text === 'login' ||
-              value === 'log in' || value.includes('log in') || value === 'login') {
-            console.log(`Found login element: tag=${el.tagName}, text="${el.textContent?.trim()}"`);
-            (el as HTMLElement).click();
-            return true;
+      // First, log all clickable elements for debugging
+      const debugInfo = await this.page.evaluate(() => {
+        const elements: string[] = [];
+        const allClickable = document.querySelectorAll('button, input[type="submit"], a, [role="button"], [type="submit"]');
+        allClickable.forEach(el => {
+          const tag = el.tagName;
+          const text = el.textContent?.trim().substring(0, 50) || '';
+          const className = el.className?.toString().substring(0, 50) || '';
+          const type = (el as HTMLInputElement).type || '';
+          elements.push(`${tag}[type=${type}][class=${className}]: "${text}"`);
+        });
+        return elements;
+      });
+      console.log("Found clickable elements:", debugInfo);
+      
+      // Strategy 1: Try to find button by common patterns
+      // Look for button elements that could be the login button
+      const buttonSelectors = [
+        'button[type="submit"]',
+        'form button',
+        'button:not([type="button"])',
+        '.login-button',
+        '[class*="login"]',
+        '[class*="submit"]',
+        'button.btn',
+        'button.btn-primary',
+        'button.btn-warning',
+        'a.btn',
+      ];
+      
+      for (const selector of buttonSelectors) {
+        const btn = await this.page.$(selector);
+        if (btn) {
+          const text = await btn.evaluate(el => el.textContent?.trim() || '');
+          console.log(`Found button with selector "${selector}": "${text}"`);
+          if (text.toLowerCase().includes('log') || text.toLowerCase().includes('sign')) {
+            console.log("Clicking this login button...");
+            await btn.click();
+            foundButton = true;
+            break;
           }
         }
-        return false;
-      });
-      
-      if (loginButtonClicked) {
-        console.log("Found login button, clicked it");
-        foundButton = true;
       }
       
-      // Strategy 2: Look for input[type="submit"]
+      // Strategy 2: Look for ANY button/link with "Log In" text using XPath-style search
+      if (!foundButton) {
+        const loginButtonClicked = await this.page.evaluate(() => {
+          // Search ALL elements and find those with login-related text
+          const allElements = document.querySelectorAll('*');
+          for (const el of Array.from(allElements)) {
+            const text = el.textContent?.trim().toLowerCase() || '';
+            const directText = Array.from(el.childNodes)
+              .filter(n => n.nodeType === Node.TEXT_NODE)
+              .map(n => n.textContent?.trim())
+              .join(' ')
+              .toLowerCase();
+            
+            // Check if this element directly contains "log in" (not inherited from children)
+            if ((directText.includes('log in') || directText === 'login') && 
+                (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'DIV' || el.tagName === 'SPAN')) {
+              (el as HTMLElement).click();
+              return { found: true, tag: el.tagName, text: el.textContent?.trim() };
+            }
+          }
+          
+          // Fallback: click any element that has "log in" anywhere in its text
+          for (const el of Array.from(allElements)) {
+            const text = el.textContent?.trim().toLowerCase() || '';
+            if ((text === 'log in' || text === 'login') && 
+                (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'SPAN' || el.tagName === 'DIV')) {
+              (el as HTMLElement).click();
+              return { found: true, tag: el.tagName, text: el.textContent?.trim() };
+            }
+          }
+          
+          return { found: false };
+        });
+        
+        if (loginButtonClicked.found) {
+          console.log(`Found and clicked login element: ${loginButtonClicked.tag} - "${loginButtonClicked.text}"`);
+          foundButton = true;
+        }
+      }
+      
+      // Strategy 3: Look for input[type="submit"]
       if (!foundButton) {
         const submitInput = await this.page.$('input[type="submit"]');
         if (submitInput) {
@@ -246,7 +307,7 @@ export class ZestGolfAutomation {
         }
       }
       
-      // Strategy 3: Submit the form directly
+      // Strategy 4: Submit the form directly
       if (!foundButton) {
         const form = await this.page.$('form');
         if (form) {
@@ -259,8 +320,11 @@ export class ZestGolfAutomation {
         }
       }
       
+      // Strategy 5: Press Tab then Enter to submit
       if (!foundButton) {
-        console.log("No submit button found, pressing Enter");
+        console.log("No submit button found, pressing Tab then Enter");
+        await this.page.keyboard.press("Tab");
+        await new Promise(resolve => setTimeout(resolve, 200));
         await this.page.keyboard.press("Enter");
       }
 
