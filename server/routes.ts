@@ -8,7 +8,7 @@ import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/gol
 import { teeoneClient } from "./providers/teeone";
 import { getZestGolfService } from "./services/zestGolf";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ilike } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
@@ -5875,6 +5875,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Failed to sync Zest contact for course:", error);
+      res.status(500).json({ success: false, message: error.message, error: error.message });
+    }
+  });
+
+  app.post("/api/zest/contacts/scrape/:courseId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { ZestGolfAutomation } = await import("./services/zestGolfAutomation");
+      
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ success: false, message: "Course not found" });
+      }
+      
+      const providerLink = await db.select()
+        .from(courseProviderLinks)
+        .innerJoin(teeTimeProviders, eq(courseProviderLinks.providerId, teeTimeProviders.id))
+        .where(and(
+          eq(courseProviderLinks.courseId, courseId),
+          ilike(teeTimeProviders.name, "%zest%")
+        ))
+        .limit(1);
+      
+      if (providerLink.length === 0) {
+        return res.status(400).json({ success: false, message: "Course is not linked to Zest Golf" });
+      }
+      
+      const providerCode = providerLink[0].course_provider_links.providerCourseCode;
+      const facilityIdMatch = providerCode?.match(/zest:(\d+)/);
+      
+      if (!facilityIdMatch) {
+        return res.status(400).json({ success: false, message: "Invalid Zest facility ID in provider link" });
+      }
+      
+      const zestFacilityId = parseInt(facilityIdMatch[1]);
+      
+      const automation = new ZestGolfAutomation();
+      const result = await automation.scrapeFacilityContactsWithLogin(zestFacilityId);
+      
+      if (result.success && result.contacts.length > 0) {
+        for (const contact of result.contacts) {
+          const role = contact.role === "Primary" ? "Zest Primary" : 
+                       contact.role === "Billing" ? "Zest Billing" : "Zest Reservations";
+          
+          const existingContact = await db.select()
+            .from(courseContacts)
+            .where(and(
+              eq(courseContacts.courseId, courseId),
+              eq(courseContacts.role, role)
+            ))
+            .limit(1);
+
+          if (existingContact.length > 0) {
+            await db.update(courseContacts)
+              .set({
+                name: contact.name || existingContact[0].name,
+                email: contact.email || existingContact[0].email,
+                phone: contact.phone || existingContact[0].phone,
+              })
+              .where(eq(courseContacts.id, existingContact[0].id));
+          } else if (contact.name) {
+            await db.insert(courseContacts).values({
+              courseId,
+              role,
+              name: contact.name,
+              email: contact.email,
+              phone: contact.phone,
+              isPrimary: role === "Zest Primary" ? "true" : "false",
+              notes: "Scraped from Zest Golf Portal",
+            });
+          }
+        }
+
+        const primaryContact = result.contacts.find(c => c.role === "Primary");
+        if (primaryContact) {
+          const existingOnboarding = await db.select()
+            .from(courseOnboarding)
+            .where(eq(courseOnboarding.courseId, courseId))
+            .limit(1);
+
+          if (existingOnboarding.length > 0) {
+            await db.update(courseOnboarding)
+              .set({
+                contactPerson: primaryContact.name || existingOnboarding[0].contactPerson,
+                contactEmail: primaryContact.email || existingOnboarding[0].contactEmail,
+                contactPhone: primaryContact.phone || existingOnboarding[0].contactPhone,
+                updatedAt: new Date(),
+              })
+              .where(eq(courseOnboarding.courseId, courseId));
+          } else {
+            await db.insert(courseOnboarding).values({
+              courseId,
+              stage: "NOT_CONTACTED",
+              contactPerson: primaryContact.name,
+              contactEmail: primaryContact.email,
+              contactPhone: primaryContact.phone,
+            });
+          }
+        }
+      }
+      
+      res.json({
+        success: result.success,
+        message: result.success 
+          ? `Scraped ${result.contacts.length} contacts from Zest Portal` 
+          : result.error,
+        facilityId: zestFacilityId,
+        contacts: result.contacts,
+      });
+    } catch (error: any) {
+      console.error("Failed to scrape Zest contacts from portal:", error);
       res.status(500).json({ success: false, message: error.message, error: error.message });
     }
   });

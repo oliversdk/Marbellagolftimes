@@ -825,6 +825,228 @@ export class ZestGolfAutomation {
       };
     }
   }
+
+  async scrapeFacilityContacts(facilityId: number): Promise<ZestContactScrapeResult> {
+    if (!this.page) {
+      throw new Error("Browser not initialized");
+    }
+
+    try {
+      console.log(`[Zest Portal Scraper] Navigating to facility ${facilityId} contacts page...`);
+      
+      const facilityUrl = `${ZEST_CM_URL}/management/facility/${facilityId}`;
+      await this.page.goto(facilityUrl, { waitUntil: "networkidle2", timeout: 30000 });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const currentUrl = this.page.url();
+      console.log(`[Zest Portal Scraper] Current URL: ${currentUrl}`);
+
+      if (currentUrl.includes("/login")) {
+        return {
+          success: false,
+          facilityId,
+          contacts: [],
+          error: "Session expired - need to re-login",
+        };
+      }
+
+      let contactsTabClicked = false;
+      
+      const contactsTabHref = await this.page.$('a[href*="contacts"]');
+      if (contactsTabHref) {
+        console.log("[Zest Portal Scraper] Found Contacts tab by href, clicking...");
+        await contactsTabHref.click();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        contactsTabClicked = true;
+      }
+      
+      if (!contactsTabClicked) {
+        const clickedContactsTab = await this.page.evaluate(() => {
+          const elements = document.querySelectorAll('a, button, li, span, div');
+          for (const el of Array.from(elements)) {
+            const text = el.textContent?.trim().toLowerCase() || '';
+            if (text === 'contacts' || text === 'contact') {
+              (el as HTMLElement).click();
+              return true;
+            }
+          }
+          return false;
+        });
+        
+        if (clickedContactsTab) {
+          console.log("[Zest Portal Scraper] Found Contacts tab by text, clicked...");
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          contactsTabClicked = true;
+        }
+      }
+      
+      if (!contactsTabClicked) {
+        console.log("[Zest Portal Scraper] No Contacts tab found, trying direct URL...");
+        await this.page.goto(`${facilityUrl}/contacts`, { waitUntil: "networkidle2", timeout: 15000 });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-contacts.png`, fullPage: true });
+      console.log(`[Zest Portal Scraper] Screenshot saved to /tmp/zest-facility-${facilityId}-contacts.png`);
+
+      const scrapedData = await this.page.evaluate(() => {
+        const contacts: Array<{
+          role: string;
+          name: string | null;
+          email: string | null;
+          phone: string | null;
+        }> = [];
+
+        const parseContactSection = (roleText: string, element: Element) => {
+          const text = element.textContent || "";
+          const nextSibling = element.nextElementSibling;
+          
+          let name: string | null = null;
+          let email: string | null = null;
+          let phone: string | null = null;
+
+          const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+          if (emailMatch) email = emailMatch[1];
+
+          const phoneMatch = text.match(/(\+?\d[\d\s-]{8,})/);
+          if (phoneMatch) phone = phoneMatch[1].trim();
+
+          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+          for (const line of lines) {
+            if (!line.includes('@') && !line.match(/^\+?\d/) && line.length > 2 && line.length < 100) {
+              if (!line.toLowerCase().includes('contact') && !line.toLowerCase().includes('primary') && 
+                  !line.toLowerCase().includes('billing') && !line.toLowerCase().includes('reservation')) {
+                name = line;
+                break;
+              }
+            }
+          }
+
+          return { role: roleText, name, email, phone };
+        };
+
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+          const text = el.textContent?.toLowerCase() || "";
+          const directText = Array.from(el.childNodes)
+            .filter(n => n.nodeType === Node.TEXT_NODE)
+            .map(n => n.textContent?.trim())
+            .join(' ')
+            .toLowerCase();
+
+          if (directText.includes('primary contact') || (directText === 'primary' && text.includes('contact'))) {
+            const container = el.closest('div, section, article') || el.parentElement;
+            if (container) {
+              contacts.push(parseContactSection("Primary", container));
+            }
+          }
+          if (directText.includes('billing contact') || (directText === 'billing' && text.includes('contact'))) {
+            const container = el.closest('div, section, article') || el.parentElement;
+            if (container) {
+              contacts.push(parseContactSection("Billing", container));
+            }
+          }
+          if (directText.includes('reservations contact') || directText.includes('reservation contact')) {
+            const container = el.closest('div, section, article') || el.parentElement;
+            if (container) {
+              contacts.push(parseContactSection("Reservations", container));
+            }
+          }
+        });
+
+        const cards = document.querySelectorAll('[class*="card"], [class*="contact"], .panel, .section');
+        cards.forEach(card => {
+          const cardText = card.textContent || "";
+          const cardLower = cardText.toLowerCase();
+          
+          if (cardLower.includes('primary') && cardLower.includes('contact') && !contacts.find(c => c.role === "Primary")) {
+            contacts.push(parseContactSection("Primary", card));
+          }
+          if (cardLower.includes('billing') && cardLower.includes('contact') && !contacts.find(c => c.role === "Billing")) {
+            contacts.push(parseContactSection("Billing", card));
+          }
+          if (cardLower.includes('reservation') && cardLower.includes('contact') && !contacts.find(c => c.role === "Reservations")) {
+            contacts.push(parseContactSection("Reservations", card));
+          }
+        });
+
+        const pageHtml = document.body.innerHTML.substring(0, 10000);
+        const facilityName = document.querySelector('h1, h2, .facility-name, [class*="title"]')?.textContent?.trim() || null;
+
+        return {
+          contacts,
+          facilityName,
+          debugHtml: pageHtml,
+        };
+      });
+
+      console.log(`[Zest Portal Scraper] Scraped ${scrapedData.contacts.length} contacts for facility ${facilityId}`);
+      if (scrapedData.contacts.length === 0) {
+        console.log("[Zest Portal Scraper] Debug HTML (first 2000 chars):", scrapedData.debugHtml.substring(0, 2000));
+      }
+
+      const validContacts: ZestScrapedContact[] = scrapedData.contacts
+        .filter((c, idx, arr) => arr.findIndex(x => x.role === c.role) === idx)
+        .filter(c => c.name || c.email || c.phone)
+        .map(c => ({
+          role: c.role as "Primary" | "Billing" | "Reservations",
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+        }));
+
+      return {
+        success: true,
+        facilityId,
+        facilityName: scrapedData.facilityName || undefined,
+        contacts: validContacts,
+      };
+
+    } catch (error) {
+      console.error(`[Zest Portal Scraper] Error scraping facility ${facilityId}:`, error);
+      if (this.page) {
+        try {
+          await this.page.screenshot({ path: `/tmp/zest-facility-${facilityId}-error.png`, fullPage: true });
+        } catch {}
+      }
+      return {
+        success: false,
+        facilityId,
+        contacts: [],
+        error: String(error),
+      };
+    }
+  }
+
+  async scrapeFacilityContactsWithLogin(facilityId: number): Promise<ZestContactScrapeResult> {
+    try {
+      await this.initialize();
+      
+      const loginSuccess = await this.login();
+      if (!loginSuccess) {
+        await this.close();
+        return {
+          success: false,
+          facilityId,
+          contacts: [],
+          error: "Failed to log into Zest Golf portal",
+        };
+      }
+
+      const result = await this.scrapeFacilityContacts(facilityId);
+      
+      await this.close();
+      return result;
+    } catch (error) {
+      await this.close();
+      return {
+        success: false,
+        facilityId,
+        contacts: [],
+        error: String(error),
+      };
+    }
+  }
 }
 
 export interface NetworkCall {
@@ -843,6 +1065,21 @@ export interface ZestCommissionRate {
   greenFeeRate: string | null;
   buggyRate: string | null;
   otherRates: string | null;
+}
+
+export interface ZestScrapedContact {
+  role: "Primary" | "Billing" | "Reservations";
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface ZestContactScrapeResult {
+  success: boolean;
+  facilityId: number;
+  facilityName?: string;
+  contacts: ZestScrapedContact[];
+  error?: string;
 }
 
 let automationInstance: ZestGolfAutomation | null = null;
