@@ -373,6 +373,15 @@ export async function syncZestContactForCourse(
     
     const facilityDetails: ZestFacilityDetails = await zestService.getFacilityDetails(zestFacilityId);
     
+    // Debug logging to see what Zest API returns
+    console.log(`[Zest Contact Sync] Facility ${zestFacilityId} (${courseName}) raw data:`, JSON.stringify({
+      primaryContact: facilityDetails.primaryContact,
+      billingContact: facilityDetails.billingContact,
+      reservationsContact: facilityDetails.reservationsContact,
+      email: facilityDetails.email,
+      phoneNumber: facilityDetails.phoneNumber,
+    }, null, 2));
+    
     const contacts: ZestContactInfo[] = [];
     
     // Extract Primary Contact
