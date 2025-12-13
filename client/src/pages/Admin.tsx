@@ -43,7 +43,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip, Globe, Loader2 } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip, Globe, Loader2, RefreshCw } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
 import {
   Select,
@@ -416,10 +416,79 @@ interface ZestAutomationResponse {
   error?: string;
 }
 
+interface ZestPricingEntry {
+  courseId: string;
+  courseName: string;
+  zestFacilityId: number;
+  averageCommissionPercent: number | null;
+  lastSyncedAt: string | null;
+  syncStatus: string;
+  pricingJson: {
+    facilityName: string;
+    syncDate: string;
+    greenFeePricing: Array<{
+      players: number;
+      price: { amount: number; currency: string };
+      netRate: { amount: number; currency: string };
+      publicRate: { amount: number; currency: string };
+      commissionPercent: number;
+    }>;
+    extraProducts: Array<{
+      mid: number;
+      name: string;
+      category: string;
+      price: { amount: number; currency: string };
+      netRate: { amount: number; currency: string };
+      publicRate: { amount: number; currency: string };
+      commissionPercent: number;
+    }>;
+  };
+}
+
 function ZestAutomationCard() {
   const { toast } = useToast();
   const [pendingFacilities, setPendingFacilities] = useState<ZestPendingFacility[]>([]);
+  const [pricingData, setPricingData] = useState<ZestPricingEntry[]>([]);
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
   
+  const pricingQuery = useQuery({
+    queryKey: ["/api/zest/pricing"],
+    queryFn: async () => {
+      const response = await fetch("/api/zest/pricing");
+      if (!response.ok) throw new Error("Failed to fetch pricing");
+      return response.json();
+    },
+  });
+
+  useEffect(() => {
+    if (pricingQuery.data?.data) {
+      setPricingData(pricingQuery.data.data);
+    }
+  }, [pricingQuery.data]);
+
+  const syncPricingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/zest/pricing/sync", { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Sync failed");
+      return result;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Pricing synced",
+        description: data.message,
+      });
+      pricingQuery.refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Sync failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const testConnectionMutation = useMutation({
     mutationFn: async (): Promise<ZestAutomationResponse> => {
       const response = await fetch("/api/zest/automation/test");
@@ -555,6 +624,135 @@ function ZestAutomationCard() {
             </div>
           </div>
         )}
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Commission Rates & Pricing
+            </h4>
+            <Button
+              onClick={() => syncPricingMutation.mutate()}
+              disabled={syncPricingMutation.isPending}
+              size="sm"
+              variant="outline"
+              data-testid="button-zest-sync-pricing"
+            >
+              {syncPricingMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sync Pricing from API
+                </>
+              )}
+            </Button>
+          </div>
+
+          {pricingQuery.isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : pricingData.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pricing data synced yet. Click "Sync Pricing from API" to fetch current rates.</p>
+          ) : (
+            <div className="space-y-3">
+              {pricingData.map((entry) => (
+                <div key={entry.courseId} className="border rounded-md">
+                  <button
+                    onClick={() => setExpandedCourse(expandedCourse === entry.courseId ? null : entry.courseId)}
+                    className="w-full p-3 flex items-center justify-between hover-elevate"
+                    data-testid={`button-expand-pricing-${entry.courseId}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{entry.courseName}</span>
+                      <Badge variant="secondary" data-testid={`badge-commission-${entry.courseId}`}>
+                        {entry.averageCommissionPercent?.toFixed(1) || 0}% avg commission
+                      </Badge>
+                      {entry.syncStatus === "success" ? (
+                        <Badge variant="outline" className="text-green-600">Synced</Badge>
+                      ) : (
+                        <Badge variant="destructive">Error</Badge>
+                      )}
+                    </div>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedCourse === entry.courseId ? "rotate-180" : ""}`} />
+                  </button>
+                  
+                  {expandedCourse === entry.courseId && entry.pricingJson && (
+                    <div className="p-3 border-t bg-muted/20 space-y-4">
+                      <p className="text-xs text-muted-foreground">
+                        Last synced: {entry.lastSyncedAt ? new Date(entry.lastSyncedAt).toLocaleString() : "Never"}
+                      </p>
+                      
+                      {entry.pricingJson.greenFeePricing?.length > 0 && (
+                        <div>
+                          <h5 className="text-sm font-medium mb-2">Green Fee Pricing</h5>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted/50">
+                                <tr>
+                                  <th className="text-left p-2">Players</th>
+                                  <th className="text-right p-2">Public Rate</th>
+                                  <th className="text-right p-2">Net Rate</th>
+                                  <th className="text-right p-2">Commission</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {entry.pricingJson.greenFeePricing.map((gf, idx) => (
+                                  <tr key={idx} className="border-t">
+                                    <td className="p-2">{gf.players} player(s)</td>
+                                    <td className="p-2 text-right">{gf.publicRate.amount.toFixed(2)} {gf.publicRate.currency}</td>
+                                    <td className="p-2 text-right">{gf.netRate.amount.toFixed(2)} {gf.netRate.currency}</td>
+                                    <td className="p-2 text-right font-medium text-green-600">{gf.commissionPercent.toFixed(1)}%</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {entry.pricingJson.extraProducts?.length > 0 && (
+                        <div>
+                          <h5 className="text-sm font-medium mb-2">Extra Products</h5>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted/50">
+                                <tr>
+                                  <th className="text-left p-2">Product</th>
+                                  <th className="text-left p-2">Category</th>
+                                  <th className="text-right p-2">Public Rate</th>
+                                  <th className="text-right p-2">Net Rate</th>
+                                  <th className="text-right p-2">Commission</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {entry.pricingJson.extraProducts.map((ep, idx) => (
+                                  <tr key={idx} className="border-t">
+                                    <td className="p-2">{ep.name}</td>
+                                    <td className="p-2">{ep.category}</td>
+                                    <td className="p-2 text-right">{ep.publicRate.amount.toFixed(2)} {ep.publicRate.currency}</td>
+                                    <td className="p-2 text-right">{ep.netRate.amount.toFixed(2)} {ep.netRate.currency}</td>
+                                    <td className="p-2 text-right font-medium text-green-600">{ep.commissionPercent.toFixed(1)}%</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
