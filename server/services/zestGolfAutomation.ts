@@ -1,7 +1,12 @@
 import puppeteer, { Browser, Page } from "puppeteer";
 
 const ZEST_CM_URL = "https://cm.zest.golf";
-const LOGIN_URL = `${ZEST_CM_URL}/login`;
+const ZEST_WWW_URL = "https://www.zest.golf";
+// Try www.zest.golf login first as that's the main entry point
+const LOGIN_URLS = [
+  `${ZEST_WWW_URL}/login`,
+  `${ZEST_CM_URL}/login`,
+];
 const FACILITY_LIST_URL = `${ZEST_CM_URL}/management/myFacilityList`;
 
 let isAutomationRunning = false;
@@ -96,81 +101,110 @@ export class ZestGolfAutomation {
       throw new Error("Zest Golf credentials not configured");
     }
 
+    // Try each login URL until one works
+    for (const loginUrl of LOGIN_URLS) {
+      console.log(`Trying login URL: ${loginUrl}`);
+      const success = await this.tryLoginAtUrl(loginUrl, username, password);
+      if (success) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private async tryLoginAtUrl(loginUrl: string, username: string, password: string): Promise<boolean> {
+    if (!this.page) {
+      throw new Error("Browser not initialized");
+    }
+
     try {
-      console.log("Navigating to Zest Golf login page...");
-      await this.page.goto(LOGIN_URL, { waitUntil: "networkidle2", timeout: 30000 });
+      console.log(`Navigating to: ${loginUrl}`);
+      await this.page.goto(loginUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
       // Wait for page to be fully loaded
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Log the page content for debugging
-      const pageContent = await this.page.content();
       console.log("Page title:", await this.page.title());
       console.log("Page URL:", this.page.url());
       
       // Try multiple selector strategies for the login form
-      let emailInput = null;
+      let usernameInput = null;
       let passwordInput = null;
       
-      // Strategy 1: Look for common input selectors
-      const inputSelectors = [
+      // Strategy 1: Look for common input selectors (prioritize placeholder text from screenshot)
+      const usernameSelectors = [
+        'input[placeholder*="Username" i]',
+        'input[placeholder*="Enter Username" i]',
+        'input[name="username"]',
+        'input[name="user"]',
+        'input[id*="user" i]',
+        'input[type="text"]',
         'input[type="email"]',
         'input[name="email"]',
-        'input[name="username"]',
-        'input[id*="email"]',
-        'input[id*="user"]',
         'input[placeholder*="email" i]',
-        'input[placeholder*="user" i]',
-        'input[autocomplete="email"]',
-        'input[autocomplete="username"]',
       ];
       
-      for (const selector of inputSelectors) {
-        emailInput = await this.page.$(selector);
-        if (emailInput) {
-          console.log(`Found email input with selector: ${selector}`);
+      for (const selector of usernameSelectors) {
+        usernameInput = await this.page.$(selector);
+        if (usernameInput) {
+          console.log(`Found username input with selector: ${selector}`);
           break;
         }
       }
       
-      passwordInput = await this.page.$('input[type="password"]');
+      // Look for password input
+      const passwordSelectors = [
+        'input[type="password"]',
+        'input[placeholder*="Password" i]',
+        'input[name="password"]',
+      ];
+      
+      for (const selector of passwordSelectors) {
+        passwordInput = await this.page.$(selector);
+        if (passwordInput) {
+          console.log(`Found password input with selector: ${selector}`);
+          break;
+        }
+      }
       
       // Strategy 2: Find all visible inputs if specific selectors fail
-      if (!emailInput) {
+      if (!usernameInput || !passwordInput) {
         console.log("Trying fallback: looking for all text inputs...");
-        const allInputs = await this.page.$$('input:not([type="hidden"]):not([type="submit"]):not([type="button"])');
+        const allInputs = await this.page.$$('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="checkbox"])');
         console.log(`Found ${allInputs.length} visible inputs`);
         
         for (const input of allInputs) {
           const inputType = await input.evaluate((el) => (el as HTMLInputElement).type);
           const inputName = await input.evaluate((el) => (el as HTMLInputElement).name);
           const inputId = await input.evaluate((el) => (el as HTMLInputElement).id);
-          console.log(`Input: type=${inputType}, name=${inputName}, id=${inputId}`);
+          const inputPlaceholder = await input.evaluate((el) => (el as HTMLInputElement).placeholder);
+          console.log(`Input: type=${inputType}, name=${inputName}, id=${inputId}, placeholder=${inputPlaceholder}`);
           
-          if (inputType !== 'password' && !emailInput) {
-            emailInput = input;
-          }
           if (inputType === 'password') {
             passwordInput = input;
+          } else if (!usernameInput && (inputType === 'text' || inputType === 'email')) {
+            usernameInput = input;
           }
         }
       }
 
-      if (!emailInput || !passwordInput) {
-        console.log("Could not find login form inputs");
-        // Take a screenshot for debugging
+      if (!usernameInput || !passwordInput) {
+        console.log("Could not find login form inputs on this URL");
         const screenshotPath = '/tmp/zest-login-debug.png';
         await this.page.screenshot({ path: screenshotPath, fullPage: true });
         console.log(`Screenshot saved to ${screenshotPath}`);
-        throw new Error("Could not find login form inputs on Zest Golf page");
+        return false;
       }
       
       // Clear and type credentials
-      await emailInput.click({ clickCount: 3 }); // Select all
-      await emailInput.type(username, { delay: 30 });
+      console.log("Entering username...");
+      await usernameInput.click({ clickCount: 3 }); // Select all
+      await usernameInput.type(username, { delay: 50 });
       
+      console.log("Entering password...");
       await passwordInput.click({ clickCount: 3 }); // Select all
-      await passwordInput.type(password, { delay: 30 });
+      await passwordInput.type(password, { delay: 50 });
 
       // Wait a moment for any dynamic content
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -178,34 +212,36 @@ export class ZestGolfAutomation {
       // Find and click submit element - could be button, input, or other element
       let foundButton = false;
       
-      // Strategy 1: Look for input[type="submit"]
-      const submitInput = await this.page.$('input[type="submit"]');
-      if (submitInput) {
-        const value = await submitInput.evaluate(el => (el as HTMLInputElement).value || '');
-        console.log(`Found input[type="submit"] with value: "${value}"`);
-        await submitInput.click();
+      // Strategy 1: Look for button/element with "Log In" text (matches the orange button in screenshot)
+      const loginButtonClicked = await this.page.evaluate(() => {
+        // Look for all clickable elements
+        const allElements = document.querySelectorAll('button, input[type="submit"], a, div[role="button"], span[role="button"], *[onclick]');
+        for (const el of Array.from(allElements)) {
+          const text = el.textContent?.trim().toLowerCase() || '';
+          const value = (el as HTMLInputElement).value?.toLowerCase() || '';
+          // Match "Log In" button from screenshot
+          if (text === 'log in' || text.includes('log in') || text === 'login' ||
+              value === 'log in' || value.includes('log in') || value === 'login') {
+            console.log(`Found login element: tag=${el.tagName}, text="${el.textContent?.trim()}"`);
+            (el as HTMLElement).click();
+            return true;
+          }
+        }
+        return false;
+      });
+      
+      if (loginButtonClicked) {
+        console.log("Found login button, clicked it");
         foundButton = true;
       }
       
-      // Strategy 2: Look for any element containing "Log" text
+      // Strategy 2: Look for input[type="submit"]
       if (!foundButton) {
-        const loginElement = await this.page.evaluateHandle(() => {
-          const allElements = document.querySelectorAll('button, input, a, div[role="button"], span[role="button"]');
-          for (const el of Array.from(allElements)) {
-            const text = el.textContent?.toLowerCase() || '';
-            const value = (el as HTMLInputElement).value?.toLowerCase() || '';
-            if (text.includes('log in') || text.includes('login') || 
-                value.includes('log in') || value.includes('login')) {
-              return el;
-            }
-          }
-          return null;
-        });
-        
-        const element = loginElement.asElement();
-        if (element) {
-          console.log("Found login element by text search, clicking...");
-          await element.click();
+        const submitInput = await this.page.$('input[type="submit"]');
+        if (submitInput) {
+          const value = await submitInput.evaluate(el => (el as HTMLInputElement).value || '');
+          console.log(`Found input[type="submit"] with value: "${value}"`);
+          await submitInput.click();
           foundButton = true;
         }
       }
@@ -235,21 +271,38 @@ export class ZestGolfAutomation {
         console.log("Navigation timeout, checking if already logged in...");
       }
 
+      // Check if login was successful
       const currentUrl = this.page.url();
-      const isLoggedIn = !currentUrl.includes("/login");
+      console.log("Current URL after login attempt:", currentUrl);
+      
+      // Check for success indicators
+      const isLoggedIn = !currentUrl.includes("/login") && 
+                         (currentUrl.includes("management") || 
+                          currentUrl.includes("dashboard") ||
+                          currentUrl.includes("home") ||
+                          currentUrl.includes("cm.zest.golf"));
       
       if (isLoggedIn) {
-        console.log("Successfully logged into Zest Golf");
-      } else {
-        console.log("Login may have failed, still on login page:", currentUrl);
-        // Take screenshot on failure
-        await this.page.screenshot({ path: '/tmp/zest-login-failed.png', fullPage: true });
+        console.log("Successfully logged into Zest Golf!");
+        return true;
       }
-
-      return isLoggedIn;
+      
+      // Check for error messages on page
+      const errorMessage = await this.page.evaluate(() => {
+        const errorEl = document.querySelector('.error, .alert-danger, [class*="error"], [class*="Error"]');
+        return errorEl?.textContent?.trim() || null;
+      });
+      
+      if (errorMessage) {
+        console.log("Login error message:", errorMessage);
+      }
+      
+      console.log("Login may have failed, still on login page");
+      await this.page.screenshot({ path: '/tmp/zest-login-failed.png', fullPage: true });
+      return false;
+      
     } catch (error) {
       console.error("Login error:", error);
-      // Take screenshot on error
       if (this.page) {
         try {
           await this.page.screenshot({ path: '/tmp/zest-login-error.png', fullPage: true });
