@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -2840,6 +2840,107 @@ export default function Admin() {
     });
   };
 
+  // Helper to determine course provider type from provider links
+  const getCourseProvider = useCallback((courseId: string): "golfmanager" | "teeone" | "none" => {
+    const providerInfo = courseProviders?.find(p => p.id === courseId);
+    if (!providerInfo?.providerType) return "none";
+    if (providerInfo.providerType === "golfmanager_v1" || providerInfo.providerType === "golfmanager_v3") return "golfmanager";
+    if (providerInfo.providerType === "teeone") return "teeone";
+    return "none";
+  }, [courseProviders]);
+
+  // Helper to get onboarding stage for a course
+  const getCourseOnboardingStage = useCallback((courseId: string): OnboardingStage => {
+    const onboarding = onboardingData?.find(o => o.courseId === courseId);
+    return onboarding?.stage || "NOT_CONTACTED";
+  }, [onboardingData]);
+
+  // Helper to check if course has been contacted via Zest (OUTREACH_SENT or later stages)
+  const isContactedViaZest = useCallback((courseId: string): boolean => {
+    const stage = getCourseOnboardingStage(courseId);
+    return stage !== "NOT_CONTACTED";
+  }, [getCourseOnboardingStage]);
+
+  // Helper to check if course is members only (not public)
+  const isMembersOnly = useCallback((course: GolfCourse | AffiliateEmailCourse): boolean => {
+    return course.membersOnly === "true";
+  }, []);
+
+  // Helper to check if course was recently contacted (within 7 days)
+  const isRecentlyContacted = useCallback((course: AffiliateEmailCourse): { recent: boolean; daysAgo: number } => {
+    if (!course.lastAffiliateSentAt) return { recent: false, daysAgo: 0 };
+    const sentDate = new Date(course.lastAffiliateSentAt);
+    const daysAgo = differenceInDays(new Date(), sentDate);
+    return { recent: daysAgo <= 7, daysAgo };
+  }, []);
+
+  // Get unique cities from affiliate email courses for filter dropdown
+  const uniqueCities = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    const cities = [...new Set(affiliateEmailCourses.map(c => c.city))].sort();
+    return cities;
+  }, [affiliateEmailCourses]);
+
+  // Filter courses for email section using affiliate email courses data
+  const filteredEmailCourses = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    return affiliateEmailCourses.filter((course) => {
+      // Exclude members only courses
+      if (isMembersOnly(course)) return false;
+      // Exclude courses already contacted via Zest (onboardingStage is set)
+      if (course.onboardingStage && course.onboardingStage !== "NOT_CONTACTED") return false;
+      // Apply hasEmail filter
+      if (hasEmailFilter && !course.email) return false;
+      // Apply city filter
+      if (cityFilter !== "ALL" && course.city !== cityFilter) return false;
+      // Apply provider filter
+      if (emailProviderFilter !== "ALL") {
+        const provider = getCourseProvider(course.id);
+        if (provider !== emailProviderFilter) return false;
+      }
+      return true;
+    });
+  }, [affiliateEmailCourses, hasEmailFilter, cityFilter, emailProviderFilter, getCourseProvider, isMembersOnly]);
+
+  // Get courses that were filtered out because they were contacted via Zest
+  const zestContactedCourses = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    return affiliateEmailCourses.filter((course) => {
+      if (isMembersOnly(course)) return false;
+      if (!course.onboardingStage || course.onboardingStage === "NOT_CONTACTED") return false;
+      if (emailProviderFilter !== "ALL") {
+        const provider = getCourseProvider(course.id);
+        if (provider !== emailProviderFilter) return false;
+      }
+      return true;
+    });
+  }, [affiliateEmailCourses, emailProviderFilter, getCourseProvider, isMembersOnly]);
+
+  // Get courses that are members only (excluded from email outreach)
+  const membersOnlyCourses = useMemo(() => {
+    if (!affiliateEmailCourses) return [];
+    return affiliateEmailCourses.filter((course) => {
+      if (!isMembersOnly(course)) return false;
+      if (emailProviderFilter !== "ALL") {
+        const provider = getCourseProvider(course.id);
+        if (provider !== emailProviderFilter) return false;
+      }
+      return true;
+    });
+  }, [affiliateEmailCourses, emailProviderFilter, getCourseProvider, isMembersOnly]);
+
+  // Count of excluded courses
+  const excludedCount = zestContactedCourses.length + membersOnlyCourses.length;
+
+  // Check if any selected courses were recently contacted
+  const recentlyContactedSelected = useMemo(() => {
+    return selectedCourseIds.filter(id => {
+      const course = affiliateEmailCourses?.find(c => c.id === id);
+      if (!course) return false;
+      return isRecentlyContacted(course).recent;
+    });
+  }, [selectedCourseIds, affiliateEmailCourses, isRecentlyContacted]);
+
   // Page-level auth protection - Code from blueprint:javascript_log_in_with_replit
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -2881,107 +2982,6 @@ export default function Admin() {
         : [...prev, courseId]
     );
   };
-
-  // Helper to determine course provider type from provider links
-  const getCourseProvider = (courseId: string): "golfmanager" | "teeone" | "none" => {
-    const providerInfo = courseProviders?.find(p => p.id === courseId);
-    if (!providerInfo?.providerType) return "none";
-    if (providerInfo.providerType === "golfmanager_v1" || providerInfo.providerType === "golfmanager_v3") return "golfmanager";
-    if (providerInfo.providerType === "teeone") return "teeone";
-    return "none";
-  };
-
-  // Helper to get onboarding stage for a course
-  const getCourseOnboardingStage = (courseId: string): OnboardingStage => {
-    const onboarding = onboardingData?.find(o => o.courseId === courseId);
-    return onboarding?.stage || "NOT_CONTACTED";
-  };
-
-  // Helper to check if course has been contacted via Zest (OUTREACH_SENT or later stages)
-  const isContactedViaZest = (courseId: string): boolean => {
-    const stage = getCourseOnboardingStage(courseId);
-    return stage !== "NOT_CONTACTED";
-  };
-
-  // Helper to check if course is members only (not public)
-  const isMembersOnly = (course: GolfCourse | AffiliateEmailCourse): boolean => {
-    return course.membersOnly === "true";
-  };
-
-  // Helper to check if course was recently contacted (within 7 days)
-  const isRecentlyContacted = (course: AffiliateEmailCourse): { recent: boolean; daysAgo: number } => {
-    if (!course.lastAffiliateSentAt) return { recent: false, daysAgo: 0 };
-    const sentDate = new Date(course.lastAffiliateSentAt);
-    const daysAgo = differenceInDays(new Date(), sentDate);
-    return { recent: daysAgo <= 7, daysAgo };
-  };
-
-  // Get unique cities from affiliate email courses for filter dropdown
-  const uniqueCities = useMemo(() => {
-    if (!affiliateEmailCourses) return [];
-    const cities = [...new Set(affiliateEmailCourses.map(c => c.city))].sort();
-    return cities;
-  }, [affiliateEmailCourses]);
-
-  // Filter courses for email section using affiliate email courses data
-  const filteredEmailCourses = useMemo(() => {
-    if (!affiliateEmailCourses) return [];
-    return affiliateEmailCourses.filter((course) => {
-      // Exclude members only courses
-      if (isMembersOnly(course)) return false;
-      // Exclude courses already contacted via Zest (onboardingStage is set)
-      if (course.onboardingStage && course.onboardingStage !== "NOT_CONTACTED") return false;
-      // Apply hasEmail filter
-      if (hasEmailFilter && !course.email) return false;
-      // Apply city filter
-      if (cityFilter !== "ALL" && course.city !== cityFilter) return false;
-      // Apply provider filter
-      if (emailProviderFilter !== "ALL") {
-        const provider = getCourseProvider(course.id);
-        if (provider !== emailProviderFilter) return false;
-      }
-      return true;
-    });
-  }, [affiliateEmailCourses, hasEmailFilter, cityFilter, emailProviderFilter, getCourseProvider]);
-
-  // Get courses that were filtered out because they were contacted via Zest
-  const zestContactedCourses = useMemo(() => {
-    if (!affiliateEmailCourses) return [];
-    return affiliateEmailCourses.filter((course) => {
-      if (isMembersOnly(course)) return false;
-      if (!course.onboardingStage || course.onboardingStage === "NOT_CONTACTED") return false;
-      if (emailProviderFilter !== "ALL") {
-        const provider = getCourseProvider(course.id);
-        if (provider !== emailProviderFilter) return false;
-      }
-      return true;
-    });
-  }, [affiliateEmailCourses, emailProviderFilter, getCourseProvider]);
-
-  // Get courses that are members only (excluded from email outreach)
-  const membersOnlyCourses = useMemo(() => {
-    if (!affiliateEmailCourses) return [];
-    return affiliateEmailCourses.filter((course) => {
-      if (!isMembersOnly(course)) return false;
-      if (emailProviderFilter !== "ALL") {
-        const provider = getCourseProvider(course.id);
-        if (provider !== emailProviderFilter) return false;
-      }
-      return true;
-    });
-  }, [affiliateEmailCourses, emailProviderFilter, getCourseProvider]);
-
-  // Count of excluded courses
-  const excludedCount = zestContactedCourses.length + membersOnlyCourses.length;
-
-  // Check if any selected courses were recently contacted
-  const recentlyContactedSelected = useMemo(() => {
-    return selectedCourseIds.filter(id => {
-      const course = affiliateEmailCourses?.find(c => c.id === id);
-      if (!course) return false;
-      return isRecentlyContacted(course).recent;
-    });
-  }, [selectedCourseIds, affiliateEmailCourses]);
 
   const handleToggleAll = () => {
     if (selectedCourseIds.length === filteredEmailCourses.length) {
