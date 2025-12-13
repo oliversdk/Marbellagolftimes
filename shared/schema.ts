@@ -719,3 +719,86 @@ export interface CourseWithReviews extends GolfCourse {
   reviewCount?: number;
   reviews?: CourseReview[];
 }
+
+// Company Profile - Marbella Golf Times business details for partnership forms
+export const companyProfile = pgTable("company_profile", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // Company identification
+  commercialName: text("commercial_name").notNull(), // Nombre comercial
+  tradingName: text("trading_name"), // Razón social
+  cifVat: text("cif_vat").notNull(), // CIF or VAT number
+  website: text("website"),
+  // Business address (Domicilio social)
+  businessStreet: text("business_street"),
+  businessPostalCode: text("business_postal_code"),
+  businessCity: text("business_city"),
+  businessCountry: text("business_country").default("Spain"),
+  // Invoice address (Dirección de facturación)
+  invoiceStreet: text("invoice_street"),
+  invoicePostalCode: text("invoice_postal_code"),
+  invoiceCity: text("invoice_city"),
+  invoiceCountry: text("invoice_country").default("Spain"),
+  invoiceSameAsBusiness: text("invoice_same_as_business").default("true"),
+  // Contact: Reservations
+  reservationsName: text("reservations_name"),
+  reservationsEmail: text("reservations_email"),
+  reservationsPhone: text("reservations_phone"),
+  // Contact: Contracts
+  contractsName: text("contracts_name"),
+  contractsEmail: text("contracts_email"),
+  contractsPhone: text("contracts_phone"),
+  // Contact: Invoicing
+  invoicingName: text("invoicing_name"),
+  invoicingEmail: text("invoicing_email"),
+  invoicingPhone: text("invoicing_phone"),
+  // Metadata
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCompanyProfileSchema = createInsertSchema(companyProfile).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true 
+});
+
+export type InsertCompanyProfile = z.infer<typeof insertCompanyProfileSchema>;
+export type CompanyProfile = typeof companyProfile.$inferSelect;
+
+// Partnership Forms - Track forms sent/received per golf course
+export const partnershipForms = pgTable("partnership_forms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
+  formType: text("form_type").notNull(), // COMPANY_DETAILS, CONTRACT, RATE_CARD, AGREEMENT
+  formName: text("form_name").notNull(), // Display name (e.g., "Datos empresa - Company details")
+  status: text("status").notNull().default("PENDING"), // PENDING, SENT, RECEIVED, PROCESSED
+  // Tracking
+  sentAt: timestamp("sent_at"),
+  sentByUserId: varchar("sent_by_user_id").references(() => users.id),
+  receivedAt: timestamp("received_at"),
+  processedAt: timestamp("processed_at"),
+  // Document link (if form is stored as document)
+  documentId: varchar("document_id").references(() => courseDocuments.id),
+  // Notes
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPartnershipFormSchema = createInsertSchema(partnershipForms).omit({ 
+  id: true, 
+  createdAt: true,
+  sentAt: true,
+  receivedAt: true,
+  processedAt: true 
+});
+
+export type InsertPartnershipForm = z.infer<typeof insertPartnershipFormSchema>;
+export type PartnershipForm = typeof partnershipForms.$inferSelect;
+
+// Partnership form types
+export const PARTNERSHIP_FORM_TYPES = ["COMPANY_DETAILS", "CONTRACT", "RATE_CARD", "AGREEMENT", "OTHER"] as const;
+export type PartnershipFormType = typeof PARTNERSHIP_FORM_TYPES[number];
+
+// Partnership form statuses
+export const PARTNERSHIP_FORM_STATUSES = ["PENDING", "SENT", "RECEIVED", "PROCESSED"] as const;
+export type PartnershipFormStatus = typeof PARTNERSHIP_FORM_STATUSES[number];
