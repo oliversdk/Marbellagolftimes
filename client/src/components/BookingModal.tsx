@@ -21,12 +21,13 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Clock, ChevronRight, Car, Utensils, Sun, Sunset, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CalendarIcon, Clock, ChevronRight, Car, Utensils, Sun, Sunset, Users, ShoppingBag } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { AvailabilityDots } from "@/components/AvailabilityDots";
-import type { GolfCourse, CourseWithSlots, TeeTimeSlot, User, CourseRatePeriod } from "@shared/schema";
+import type { GolfCourse, CourseWithSlots, TeeTimeSlot, User, CourseRatePeriod, CourseAddOn } from "@shared/schema";
 
 interface SelectedPackage {
   id: string;
@@ -56,6 +57,7 @@ interface BookingModalProps {
     customerPhone: string;
     packageType?: string;
     estimatedPrice?: number;
+    addOns?: { id: string; name: string; type: string; priceCents: number }[];
   }) => void;
   isPending?: boolean;
 }
@@ -70,11 +72,12 @@ export function BookingModal({
 }: BookingModalProps) {
   const { t } = useI18n();
   const { user, isAuthenticated } = useAuth();
-  const [step, setStep] = useState<'select-time' | 'select-package' | 'fill-details'>('select-time');
+  const [step, setStep] = useState<'select-time' | 'customize-booking' | 'fill-details'>('select-time');
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<SelectedPackage | null>(null);
+  const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
   const [searchDate, setSearchDate] = useState<Date>(new Date());
-  const [players, setPlayers] = useState<string>("2");
+  const [players, setPlayers] = useState<number>(2);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -89,6 +92,52 @@ export function BookingModal({
       return res.json();
     },
   });
+
+  // Fetch course add-ons (buggy, clubs, trolley, etc.)
+  const { data: courseAddOns = [] } = useQuery<CourseAddOn[]>({
+    queryKey: ['/api/courses', course?.id, 'add-ons'],
+    enabled: !!course?.id && open,
+    queryFn: async () => {
+      const res = await fetch(`/api/courses/${course!.id}/add-ons`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  // Calculate total price including add-ons
+  const calculateTotal = () => {
+    // If package selected, use package rate; otherwise use slot greenFee
+    const baseRate = selectedPackage ? selectedPackage.rackRate : (selectedSlot?.greenFee || 0);
+    let addOnsTotal = 0;
+    
+    courseAddOns.forEach(addon => {
+      if (selectedAddOns.has(addon.id)) {
+        const price = addon.priceCents / 100;
+        if (addon.type === 'buggy_shared') {
+          addOnsTotal += price * Math.ceil(players / 2);
+        } else if (addon.perPlayer === 'true') {
+          addOnsTotal += price * players;
+        } else {
+          addOnsTotal += price;
+        }
+      }
+    });
+    
+    return (baseRate * players) + addOnsTotal;
+  };
+
+  // Toggle add-on selection
+  const toggleAddOn = (addOnId: string) => {
+    setSelectedAddOns(prev => {
+      const next = new Set(prev);
+      if (next.has(addOnId)) {
+        next.delete(addOnId);
+      } else {
+        next.add(addOnId);
+      }
+      return next;
+    });
+  };
 
   // Helper to handle boolean values (may come as string "true"/"false" or actual booleans)
   const toBool = (val: any): boolean => val === true || val === "true";
@@ -208,25 +257,23 @@ export function BookingModal({
   useEffect(() => {
     if (preSelectedSlot) {
       setSelectedSlot(preSelectedSlot);
-      // Don't set step here - wait for packages to load
-      setPlayers(preSelectedSlot.players.toString());
+      // Don't set step here - wait for data to load
+      setPlayers(preSelectedSlot.players || 2);
     } else {
       setStep('select-time');
       setSelectedSlot(null);
     }
   }, [preSelectedSlot, open]);
 
-  // Navigate to correct step after packages are loaded (when slot is pre-selected)
+  // Navigate to customize-booking step after data is loaded (when slot is pre-selected)
   useEffect(() => {
     if (open && preSelectedSlot && selectedSlot && ratePeriods !== undefined) {
-      // Packages have loaded, now determine the correct step
-      if (availablePackages.length > 0 && !selectedPackage) {
-        setStep('select-package');
-      } else if (step !== 'fill-details') {
-        setStep('fill-details');
+      // Data has loaded, always go to customize-booking step
+      if (step !== 'fill-details') {
+        setStep('customize-booking');
       }
     }
-  }, [open, preSelectedSlot, selectedSlot, ratePeriods, availablePackages.length, selectedPackage, step]);
+  }, [open, preSelectedSlot, selectedSlot, ratePeriods, step]);
 
   // Auto-fill name/email/phone for logged-in users when modal opens
   useEffect(() => {
@@ -244,8 +291,9 @@ export function BookingModal({
       setStep('select-time');
       setSelectedSlot(null);
       setSelectedPackage(null);
+      setSelectedAddOns(new Set());
       setSearchDate(new Date());
-      setPlayers("2");
+      setPlayers(2);
       setCustomerName("");
       setCustomerEmail("");
       setCustomerPhone("");
@@ -283,51 +331,67 @@ export function BookingModal({
 
   const handleSlotSelect = (slot: TeeTimeSlot) => {
     setSelectedSlot(slot);
-    // If packages are available, go to package selection; otherwise straight to details
-    if (availablePackages.length > 0) {
-      setStep('select-package');
-    } else {
-      setStep('fill-details');
+    // Always go to customize-booking step to allow players/add-ons selection
+    setStep('customize-booking');
+    // Adjust player count if it exceeds available slots
+    const maxSlots = slot.slotsAvailable || 4;
+    if (players > maxSlots) {
+      setPlayers(maxSlots);
     }
   };
 
   const handlePackageSelect = (pkg: SelectedPackage) => {
     setSelectedPackage(pkg);
-    setStep('fill-details');
   };
 
   const handleBackToSlots = () => {
     setStep('select-time');
     setSelectedSlot(null);
     setSelectedPackage(null);
+    setSelectedAddOns(new Set());
   };
 
-  const handleBackToPackages = () => {
-    setStep('select-package');
-    setSelectedPackage(null);
+  const handleContinueToDetails = () => {
+    setStep('fill-details');
+  };
+
+  const handleBackToCustomize = () => {
+    setStep('customize-booking');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!course || !selectedSlot) return;
 
+    // Build add-ons data for submission
+    const addOnsData = courseAddOns
+      .filter(addon => selectedAddOns.has(addon.id))
+      .map(addon => ({
+        id: addon.id,
+        name: addon.name,
+        type: addon.type,
+        priceCents: addon.priceCents,
+      }));
+
     onSubmit({
       courseId: course.id,
       teeTime: selectedSlot.teeTime,
-      players: parseInt(players),
+      players,
       customerName,
       customerEmail,
       customerPhone,
       packageType: selectedPackage?.packageType,
-      estimatedPrice: selectedPackage?.rackRate || selectedSlot.greenFee,
+      estimatedPrice: calculateTotal(),
+      addOns: addOnsData,
     });
 
     // Reset form
     setStep('select-time');
     setSelectedSlot(null);
     setSelectedPackage(null);
+    setSelectedAddOns(new Set());
     setSearchDate(new Date());
-    setPlayers("2");
+    setPlayers(2);
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
@@ -384,7 +448,10 @@ export function BookingModal({
 
         <div className="space-y-2">
           <Label className="text-sm">{t('booking.numberOfPlayers')}</Label>
-          <Select value={players} onValueChange={setPlayers}>
+          <Select value={String(players)} onValueChange={(val) => {
+            const n = parseInt(val, 10);
+            if (!isNaN(n)) setPlayers(n);
+          }}>
             <SelectTrigger data-testid="select-players-search" className="min-h-[44px] text-base sm:text-sm">
               <SelectValue />
             </SelectTrigger>
@@ -469,120 +536,243 @@ export function BookingModal({
     </>
   );
 
-  const renderPackageSelection = () => (
-    <>
-      <DialogHeader className="pb-2">
-        <DialogTitle className="font-serif text-lg sm:text-xl">Select Package</DialogTitle>
-        <DialogDescription>
-          {course && (
-            <>
-              <span className="font-medium text-foreground block text-sm sm:text-base">
-                {course.name} - {course.city}
-              </span>
-              {selectedSlot && (
-                <span className="text-xs sm:text-sm text-primary mt-1 block">
-                  {format(new Date(selectedSlot.teeTime), "PPp")}
+  const renderCustomizeBooking = () => {
+    const maxSlots = selectedSlot?.slotsAvailable || 4;
+    const basePrice = selectedPackage?.rackRate || selectedSlot?.greenFee || 0;
+
+    return (
+      <>
+        <DialogHeader className="pb-2">
+          <DialogTitle className="font-serif text-lg sm:text-xl">Customize Your Booking</DialogTitle>
+          <DialogDescription>
+            {course && (
+              <>
+                <span className="font-medium text-foreground block text-sm sm:text-base">
+                  {course.name} - {course.city}
                 </span>
-              )}
-            </>
+                {selectedSlot && (
+                  <span className="text-xs sm:text-sm text-primary mt-1 block">
+                    {format(new Date(selectedSlot.teeTime), "PPp")}
+                  </span>
+                )}
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2 sm:py-4 flex-1 overflow-y-auto max-h-[50vh]">
+          {/* Number of Players */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Number of Players
+            </Label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map((num) => {
+                const isDisabled = num > maxSlots;
+                return (
+                  <Button
+                    key={num}
+                    variant={players === num ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPlayers(num)}
+                    disabled={isDisabled}
+                    data-testid={`button-players-${num}`}
+                    title={isDisabled ? `Only ${maxSlots} ${maxSlots === 1 ? 'spot' : 'spots'} available` : undefined}
+                  >
+                    {num}
+                  </Button>
+                );
+              })}
+            </div>
+            {maxSlots < 4 && (
+              <p className="text-xs text-muted-foreground">
+                {maxSlots} {maxSlots === 1 ? 'spot' : 'spots'} available for this tee time
+              </p>
+            )}
+          </div>
+
+          {/* Green Fee Summary */}
+          <div className="p-3 bg-muted/50 rounded-md">
+            <div className="flex justify-between items-center">
+              <span className="text-sm">Green Fee ({players}x €{basePrice})</span>
+              <span className="font-medium">€{basePrice * players}</span>
+            </div>
+          </div>
+
+          {/* Rate Period Packages (if available) */}
+          {availablePackages.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Special Packages (Optional)</Label>
+              <div className="space-y-2" data-testid="list-packages">
+                {availablePackages.map((pkg, index) => {
+                  const isSelected = selectedPackage?.id === pkg.id;
+                  return (
+                    <div
+                      key={pkg.id}
+                      className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
+                        isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setSelectedPackage(isSelected ? null : pkg)}
+                      data-testid={`package-option-${index}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => setSelectedPackage(isSelected ? null : pkg)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm">
+                              {formatPackageType(pkg.packageType)}
+                            </span>
+                            {pkg.isEarlyBird && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Sun className="h-3 w-3 mr-1" />
+                                Early Bird
+                              </Badge>
+                            )}
+                            {pkg.isTwilight && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Sunset className="h-3 w-3 mr-1" />
+                                Twilight
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-1 flex-wrap items-center">
+                            {pkg.includesBuggy && (
+                              <Badge variant="outline" className="text-xs">
+                                <Car className="h-3 w-3 mr-1" />Buggy
+                              </Badge>
+                            )}
+                            {pkg.includesLunch && (
+                              <Badge variant="outline" className="text-xs">
+                                <Utensils className="h-3 w-3 mr-1" />Lunch
+                              </Badge>
+                            )}
+                          </div>
+                          {pkg.minPlayersForDiscount && (
+                            <span className="text-xs text-green-600 flex items-center gap-1">
+                              {pkg.freePlayersPerGroup || 1} free per {pkg.minPlayersForDiscount} players
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="font-medium text-sm text-primary">€{pkg.rackRate}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
-        </DialogDescription>
-      </DialogHeader>
 
-      <div className="space-y-4 py-2 sm:py-4 flex-1 overflow-y-auto">
-        <Label className="text-sm">Choose your package</Label>
-        <div className="space-y-2" data-testid="list-packages">
-          {availablePackages.map((pkg, index) => (
-            <Card
-              key={pkg.id}
-              className="hover-elevate active-elevate-2 cursor-pointer"
-              onClick={() => handlePackageSelect(pkg)}
-              data-testid={`package-option-${index}`}
-            >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm sm:text-base">
-                        {formatPackageType(pkg.packageType)}
+          {/* Add-ons */}
+          {courseAddOns.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Optional Add-ons</Label>
+              <div className="space-y-2" data-testid="list-addons">
+                {courseAddOns.map((addon) => {
+                  const isSelected = selectedAddOns.has(addon.id);
+                  const price = addon.priceCents / 100;
+                  let displayPrice = price;
+                  let priceLabel = "";
+                  
+                  if (addon.type === 'buggy_shared') {
+                    displayPrice = price * Math.ceil(players / 2);
+                    priceLabel = `€${price}/buggy`;
+                  } else if (addon.perPlayer === 'true') {
+                    displayPrice = price * players;
+                    priceLabel = `€${price}/player`;
+                  } else {
+                    priceLabel = `€${price}`;
+                  }
+
+                  return (
+                    <div
+                      key={addon.id}
+                      className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
+                        isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => toggleAddOn(addon.id)}
+                      data-testid={`addon-${addon.type}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleAddOn(addon.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {addon.type === 'buggy_shared' || addon.type === 'buggy_individual' ? (
+                              <Car className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <span className="font-medium text-sm">{addon.name}</span>
+                          </div>
+                          {addon.description && (
+                            <p className="text-xs text-muted-foreground">{addon.description}</p>
+                          )}
+                          <span className="text-xs text-muted-foreground">{priceLabel}</span>
+                        </div>
+                      </div>
+                      <span className="font-medium text-sm">
+                        {isSelected ? `+€${displayPrice.toFixed(0)}` : `€${displayPrice.toFixed(0)}`}
                       </span>
-                      {pkg.isEarlyBird && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Sun className="h-3 w-3 mr-1" />
-                          Early Bird
-                        </Badge>
-                      )}
-                      {pkg.isTwilight && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Sunset className="h-3 w-3 mr-1" />
-                          Twilight
-                        </Badge>
-                      )}
                     </div>
-                    <div className="flex gap-1 flex-wrap items-center">
-                      {pkg.includesBuggy && (
-                        <Badge variant="outline" className="text-xs">
-                          <Car className="h-3 w-3 mr-1" />
-                          Buggy
-                        </Badge>
-                      )}
-                      {pkg.includesBuggy && pkg.includesLunch && (
-                        <span className="text-xs text-muted-foreground">+</span>
-                      )}
-                      {pkg.includesLunch && (
-                        <Badge variant="outline" className="text-xs">
-                          <Utensils className="h-3 w-3 mr-1" />
-                          Lunch
-                        </Badge>
-                      )}
-                    </div>
-                    {pkg.timeRestriction && (
-                      <span className="text-xs text-muted-foreground block">
-                        {pkg.timeRestriction}
-                      </span>
-                    )}
-                    {pkg.minPlayersForDiscount && (
-                      <span className="text-xs text-green-600 flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {pkg.freePlayersPerGroup || 1} free per {pkg.minPlayersForDiscount} players
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-primary text-sm sm:text-base">
-                      €{pkg.rackRate}
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Total */}
+          <div className="p-4 bg-primary/10 rounded-md">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Total</span>
+              <span className="text-xl font-bold text-primary">€{calculateTotal().toFixed(0)}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Includes green fee for {players} player{players > 1 ? 's' : ''}{selectedAddOns.size > 0 ? ` + ${selectedAddOns.size} add-on${selectedAddOns.size > 1 ? 's' : ''}` : ''}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <DialogFooter className="pt-2 sm:pt-4 flex-col sm:flex-row gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleBackToSlots}
-          data-testid="button-back-to-slots"
-          className="w-full sm:w-auto min-h-[44px]"
-        >
-          {t('common.back')}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => onOpenChange(false)}
-          data-testid="button-cancel-booking"
-          className="w-full sm:w-auto min-h-[44px]"
-        >
-          {t('common.cancel')}
-        </Button>
-      </DialogFooter>
-    </>
-  );
+        <DialogFooter className="pt-2 sm:pt-4 flex-col sm:flex-row gap-2">
+          {!preSelectedSlot && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleBackToSlots}
+              data-testid="button-back-to-slots"
+              className="w-full sm:w-auto min-h-[44px]"
+            >
+              {t('common.back')}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            data-testid="button-cancel-booking"
+            className="w-full sm:w-auto min-h-[44px]"
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleContinueToDetails}
+            data-testid="button-continue-booking"
+            className="w-full sm:w-auto min-h-[44px]"
+          >
+            Continue - €{calculateTotal().toFixed(0)}
+          </Button>
+        </DialogFooter>
+      </>
+    );
+  };
 
   const renderDetailsForm = () => (
     <>
@@ -596,29 +786,35 @@ export function BookingModal({
               </span>
               {selectedSlot && (
                 <span className="text-xs sm:text-sm text-primary mt-1 block">
-                  {format(new Date(selectedSlot.teeTime), "PPp")} • €{selectedPackage?.rackRate || selectedSlot.greenFee}
+                  {format(new Date(selectedSlot.teeTime), "PPp")} • {players} player{players > 1 ? 's' : ''} • €{calculateTotal().toFixed(0)}
                 </span>
               )}
-              {selectedPackage && (
-                <div className="flex gap-1 mt-2 flex-wrap items-center">
+              <span className="flex gap-1 mt-2 flex-wrap items-center">
+                {selectedPackage && (
                   <Badge variant="secondary" className="text-xs">
                     {formatPackageType(selectedPackage.packageType)}
                   </Badge>
-                  {selectedPackage.includesBuggy && (
-                    <Badge variant="outline" className="text-xs">
-                      <Car className="h-3 w-3 mr-1" />Buggy
-                    </Badge>
-                  )}
-                  {selectedPackage.includesBuggy && selectedPackage.includesLunch && (
-                    <span className="text-xs text-muted-foreground">+</span>
-                  )}
-                  {selectedPackage.includesLunch && (
-                    <Badge variant="outline" className="text-xs">
-                      <Utensils className="h-3 w-3 mr-1" />Lunch
-                    </Badge>
-                  )}
-                </div>
-              )}
+                )}
+                {(selectedPackage?.includesBuggy || selectedAddOns.size > 0) && (
+                  <>
+                    {selectedPackage?.includesBuggy && (
+                      <Badge variant="outline" className="text-xs">
+                        <Car className="h-3 w-3 mr-1" />Buggy
+                      </Badge>
+                    )}
+                    {selectedPackage?.includesLunch && (
+                      <Badge variant="outline" className="text-xs">
+                        <Utensils className="h-3 w-3 mr-1" />Lunch
+                      </Badge>
+                    )}
+                    {selectedAddOns.size > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{selectedAddOns.size} add-on{selectedAddOns.size > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </span>
             </>
           )}
         </DialogDescription>
@@ -666,18 +862,16 @@ export function BookingModal({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2 pt-2 sm:pt-4">
-          {!preSelectedSlot && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={availablePackages.length > 0 ? handleBackToPackages : handleBackToSlots}
-              disabled={isPending}
-              data-testid="button-back"
-              className="w-full sm:w-auto min-h-[44px]"
-            >
-              {t('common.back')}
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleBackToCustomize}
+            disabled={isPending}
+            data-testid="button-back"
+            className="w-full sm:w-auto min-h-[44px]"
+          >
+            {t('common.back')}
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -705,8 +899,8 @@ export function BookingModal({
     switch (step) {
       case 'select-time':
         return renderTimeSelection();
-      case 'select-package':
-        return renderPackageSelection();
+      case 'customize-booking':
+        return renderCustomizeBooking();
       case 'fill-details':
         return renderDetailsForm();
       default:

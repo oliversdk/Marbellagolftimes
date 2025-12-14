@@ -205,19 +205,20 @@ export class ZestGolfService {
   }
 
   /**
-   * Get available tee times for a facility (v5 API)
+   * Get available tee times for a facility
+   * Uses v5 API if courseId is provided, otherwise falls back to v3 API
    * @param facilityId - ID of the facility
-   * @param courseId - ID of the course within the facility
    * @param bookingDate - Date for the booking
    * @param players - Number of players (1-4)
    * @param holes - Number of holes (9 or 18)
+   * @param courseId - Optional ID of the course (uses v5 if provided)
    */
   async getTeeTimes(
     facilityId: number,
-    courseId: number,
     bookingDate: Date,
     players: number,
-    holes: 9 | 18 = 18
+    holes: 9 | 18 = 18,
+    courseId?: number
   ): Promise<ZestTeeTimeResponse> {
     // Format date as DD-MM-YYYY
     const day = String(bookingDate.getDate()).padStart(2, "0");
@@ -225,8 +226,12 @@ export class ZestGolfService {
     const year = bookingDate.getFullYear();
     const formattedDate = `${day}-${month}-${year}`;
 
-    // v5 API endpoint with facility and course IDs
-    const response = await this.client.get(`/api/v5/teetimes/${facilityId}/${courseId}`, {
+    // Use v5 API if courseId provided, otherwise v3
+    const endpoint = courseId 
+      ? `/api/v5/teetimes/${facilityId}/${courseId}`
+      : `/api/v3/teetimes/${facilityId}/`;
+    
+    const response = await this.client.get(endpoint, {
       params: {
         bookingDate: formattedDate,
         players,
@@ -236,7 +241,7 @@ export class ZestGolfService {
     
     if (response.data.success) {
       return {
-        teeTimeV3: response.data.data.teeTimeV3 || [],
+        teeTimeV3: response.data.data.teeTimeV3 || response.data.data.teeTimeV2 || [],
         facilityCancellationPolicyRange: response.data.data.facilityCancellationPolicyRange || [],
       };
     }
