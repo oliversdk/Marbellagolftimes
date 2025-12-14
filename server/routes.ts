@@ -2999,7 +2999,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               courseCity: course.city,
               customerName: booking.customerName,
               teeTime: new Date(booking.teeTime),
-              players: booking.players
+              players: booking.players,
+              courseLat: course.lat ? String(course.lat) : null,
+              courseLng: course.lng ? String(course.lng) : null,
+              totalAmountCents: booking.totalAmountCents,
             };
             
             const emailContent = bookingConfirmationEmail(bookingDetails);
@@ -3292,9 +3295,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               console.log(`✓ Booking created via webhook: ${booking.id}`);
               
-              // Send notification email to golf course (non-blocking)
+              // Get course for emails
               const course = await storage.getCourseById(metadata.courseId);
               if (course) {
+                // Send confirmation email to customer (non-blocking, graceful failure)
+                const emailConfig = getEmailConfig();
+                if (emailConfig && booking.customerEmail) {
+                  try {
+                    const bookingDetails: BookingDetails = {
+                      id: booking.id,
+                      courseName: course.name,
+                      courseCity: course.city,
+                      customerName: booking.customerName,
+                      teeTime: new Date(booking.teeTime),
+                      players: booking.players,
+                      courseLat: course.lat ? String(course.lat) : null,
+                      courseLng: course.lng ? String(course.lng) : null,
+                      totalAmountCents: booking.totalAmountCents,
+                    };
+                    
+                    const emailContent = bookingConfirmationEmail(bookingDetails);
+                    
+                    const transporter = nodemailer.createTransport({
+                      host: emailConfig.host,
+                      port: emailConfig.port,
+                      secure: emailConfig.port === 465,
+                      auth: {
+                        user: emailConfig.user,
+                        pass: emailConfig.pass,
+                      },
+                    });
+                    
+                    transporter.sendMail({
+                      from: emailConfig.from,
+                      to: booking.customerEmail,
+                      subject: emailContent.subject,
+                      html: emailContent.html,
+                      text: emailContent.text,
+                    }).then(() => {
+                      console.log(`✓ Customer confirmation email sent to ${booking.customerEmail}`);
+                    }).catch((emailErr) => {
+                      console.warn(`⚠ Failed to send customer confirmation email:`, emailErr instanceof Error ? emailErr.message : emailErr);
+                    });
+                  } catch (emailError) {
+                    console.warn('⚠ Email sending setup failed:', emailError instanceof Error ? emailError.message : emailError);
+                  }
+                }
+                
+                // Send notification email to golf course (non-blocking)
                 sendCourseBookingNotification(booking, course).catch(() => {});
               }
             } catch (err) {
@@ -3409,6 +3457,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`✓ Simulated payment booking created: ${booking.id} for ${course.name}`);
       
+      // Send confirmation email to customer (non-blocking, graceful failure)
+      const emailConfig = getEmailConfig();
+      if (emailConfig && booking.customerEmail && booking.customerEmail !== "test@example.com") {
+        try {
+          const bookingDetails: BookingDetails = {
+            id: booking.id,
+            courseName: course.name,
+            courseCity: course.city,
+            customerName: booking.customerName,
+            teeTime: new Date(booking.teeTime),
+            players: booking.players,
+            courseLat: course.lat ? String(course.lat) : null,
+            courseLng: course.lng ? String(course.lng) : null,
+            totalAmountCents: booking.totalAmountCents,
+          };
+          
+          const emailContent = bookingConfirmationEmail(bookingDetails);
+          
+          const transporter = nodemailer.createTransport({
+            host: emailConfig.host,
+            port: emailConfig.port,
+            secure: emailConfig.port === 465,
+            auth: {
+              user: emailConfig.user,
+              pass: emailConfig.pass,
+            },
+          });
+          
+          transporter.sendMail({
+            from: emailConfig.from,
+            to: booking.customerEmail,
+            subject: emailContent.subject,
+            html: emailContent.html,
+            text: emailContent.text,
+          }).then(() => {
+            console.log(`✓ Customer confirmation email sent to ${booking.customerEmail}`);
+          }).catch((err) => {
+            console.warn(`⚠ Failed to send customer confirmation email:`, err instanceof Error ? err.message : err);
+          });
+        } catch (emailError) {
+          console.warn('⚠ Email sending setup failed:', emailError instanceof Error ? emailError.message : emailError);
+        }
+      }
+      
       // Send notification email to golf course (non-blocking)
       sendCourseBookingNotification(booking, course).catch(() => {});
 
@@ -3479,9 +3571,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`✓ Booking confirmed via success page: ${booking.id}`);
       
-      // Send notification email to golf course (non-blocking)
+      // Get course for emails
       const course = await storage.getCourseById(metadata.courseId);
       if (course) {
+        // Send confirmation email to customer (non-blocking, graceful failure)
+        const emailConfig = getEmailConfig();
+        if (emailConfig && booking.customerEmail) {
+          try {
+            const bookingDetails: BookingDetails = {
+              id: booking.id,
+              courseName: course.name,
+              courseCity: course.city,
+              customerName: booking.customerName,
+              teeTime: new Date(booking.teeTime),
+              players: booking.players,
+              courseLat: course.lat ? String(course.lat) : null,
+              courseLng: course.lng ? String(course.lng) : null,
+              totalAmountCents: booking.totalAmountCents,
+            };
+            
+            const emailContent = bookingConfirmationEmail(bookingDetails);
+            
+            const transporter = nodemailer.createTransport({
+              host: emailConfig.host,
+              port: emailConfig.port,
+              secure: emailConfig.port === 465,
+              auth: {
+                user: emailConfig.user,
+                pass: emailConfig.pass,
+              },
+            });
+            
+            transporter.sendMail({
+              from: emailConfig.from,
+              to: booking.customerEmail,
+              subject: emailContent.subject,
+              html: emailContent.html,
+              text: emailContent.text,
+            }).then(() => {
+              console.log(`✓ Customer confirmation email sent to ${booking.customerEmail}`);
+            }).catch((emailErr) => {
+              console.warn(`⚠ Failed to send customer confirmation email:`, emailErr instanceof Error ? emailErr.message : emailErr);
+            });
+          } catch (emailError) {
+            console.warn('⚠ Email sending setup failed:', emailError instanceof Error ? emailError.message : emailError);
+          }
+        }
+        
+        // Send notification email to golf course (non-blocking)
         sendCourseBookingNotification(booking, course).catch(() => {});
       }
       
