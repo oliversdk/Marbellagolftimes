@@ -524,6 +524,45 @@ export default function Home() {
     },
   });
 
+  // Fetch user bookings for upcoming booking reminder
+  interface BookingWithCourse {
+    id: string;
+    teeTime: string;
+    courseName?: string;
+    status: string;
+  }
+
+  const { data: userBookings } = useQuery<BookingWithCourse[]>({
+    queryKey: ['/api/bookings'],
+    enabled: isAuthenticated,
+  });
+
+  // Filter for bookings in the next 24-48 hours
+  const upcomingBooking = useMemo(() => {
+    if (!userBookings || userBookings.length === 0) return null;
+    
+    const now = new Date();
+    const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    
+    const upcoming = userBookings
+      .filter(booking => {
+        const teeTime = new Date(booking.teeTime);
+        return teeTime > now && teeTime <= in48Hours && booking.status !== 'CANCELLED';
+      })
+      .sort((a, b) => new Date(a.teeTime).getTime() - new Date(b.teeTime).getTime());
+    
+    return upcoming.length > 0 ? upcoming[0] : null;
+  }, [userBookings]);
+
+  // Check if booking is tomorrow
+  const isTomorrow = useMemo(() => {
+    if (!upcomingBooking) return false;
+    const teeTime = new Date(upcomingBooking.teeTime);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return teeTime.toDateString() === tomorrow.toDateString();
+  }, [upcomingBooking]);
+
   const handleLocationSelected = (lat: number, lng: number) => {
     setUserLocation({ lat, lng });
   };
@@ -664,6 +703,33 @@ export default function Home() {
                 </Button>
               </Link>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Booking Reminder Banner */}
+      {isAuthenticated && upcomingBooking && (
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <Link href="/profile" data-testid="link-upcoming-booking">
+              <Card className="bg-primary/10 border-primary/20 hover-elevate cursor-pointer" data-testid="banner-upcoming-booking">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="bg-primary/20 p-3 rounded-full flex-shrink-0">
+                    <Calendar className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground">
+                      {t(isTomorrow ? 'home.upcomingBookingReminder' : 'home.upcomingBookingSoon', {
+                        courseName: upcomingBooking.courseName || 'Golf Club'
+                      })}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('home.viewYourBookings')}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
         </div>
       )}

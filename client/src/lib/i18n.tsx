@@ -400,6 +400,9 @@ const translations: Record<Language, Translations> = {
       showingCourses: 'Showing {visible} of {total} courses',
       allCoursesShown: 'All courses shown',
       viewDetails: 'View Details',
+      upcomingBookingReminder: 'You have a booking tomorrow at {courseName}',
+      upcomingBookingSoon: 'You have a booking soon at {courseName}',
+      viewYourBookings: 'Click here to see your bookings',
     },
     placeholders: {
       name: 'John Doe',
@@ -811,6 +814,9 @@ const translations: Record<Language, Translations> = {
       showingCourses: 'Mostrando {visible} de {total} campos',
       allCoursesShown: 'Todos los campos mostrados',
       viewDetails: 'Ver Detalles',
+      upcomingBookingReminder: 'Tienes una reserva mañana en {courseName}',
+      upcomingBookingSoon: 'Tienes una reserva pronto en {courseName}',
+      viewYourBookings: 'Haz clic aquí para ver tus reservas',
     },
     placeholders: {
       name: 'Juan García',
@@ -1222,6 +1228,9 @@ const translations: Record<Language, Translations> = {
       showingCourses: 'Viser {visible} af {total} baner',
       allCoursesShown: 'Alle baner vist',
       viewDetails: 'Se Detaljer',
+      upcomingBookingReminder: 'Du har en booking i morgen hos {courseName}',
+      upcomingBookingSoon: 'Du har en booking snart hos {courseName}',
+      viewYourBookings: 'Klik her for at se dine bookinger',
     },
     placeholders: {
       name: 'Lars Jensen',
@@ -1633,6 +1642,9 @@ const translations: Record<Language, Translations> = {
       showingCourses: 'Visar {visible} av {total} banor',
       allCoursesShown: 'Alla banor visas',
       viewDetails: 'Visa Detaljer',
+      upcomingBookingReminder: 'Du har en bokning imorgon på {courseName}',
+      upcomingBookingSoon: 'Du har en bokning snart på {courseName}',
+      viewYourBookings: 'Klicka här för att se dina bokningar',
     },
     placeholders: {
       name: 'Erik Andersson',
@@ -2044,6 +2056,9 @@ const translations: Record<Language, Translations> = {
       showingCourses: 'Показано {visible} из {total} полей',
       allCoursesShown: 'Все поля показаны',
       viewDetails: 'Показать Детали',
+      upcomingBookingReminder: 'У вас завтра бронирование в {courseName}',
+      upcomingBookingSoon: 'У вас скоро бронирование в {courseName}',
+      viewYourBookings: 'Нажмите здесь, чтобы посмотреть ваши бронирования',
     },
     placeholders: {
       name: 'Иван Петров',
