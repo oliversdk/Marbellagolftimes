@@ -866,7 +866,7 @@ export function BookingModal({
 
       <form onSubmit={handleSubmit} className="space-y-4 flex-1 py-2 sm:py-4">
         <div className="space-y-2">
-          <Label htmlFor="customer-name" className="text-sm">{t('booking.name')}</Label>
+          <Label htmlFor="customer-name" className="text-sm">{t('booking.name')} *</Label>
           <Input
             id="customer-name"
             value={customerName}
@@ -879,7 +879,7 @@ export function BookingModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="customer-email" className="text-sm">{t('booking.email')}</Label>
+          <Label htmlFor="customer-email" className="text-sm">{t('booking.email')} *</Label>
           <Input
             id="customer-email"
             type="email"
@@ -893,13 +893,14 @@ export function BookingModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="customer-phone" className="text-sm">{t('booking.phone')}</Label>
+          <Label htmlFor="customer-phone" className="text-sm">{t('booking.phone')} *</Label>
           <Input
             id="customer-phone"
             type="tel"
             value={customerPhone}
             onChange={(e) => setCustomerPhone(e.target.value)}
             placeholder={t('placeholders.phone')}
+            required
             data-testid="input-customer-phone"
             className="min-h-[44px] text-base sm:text-sm"
           />
