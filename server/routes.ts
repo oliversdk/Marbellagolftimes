@@ -14,7 +14,9 @@ import { db } from "./db";
 import { eq, and, ilike } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
 import { courseBookingNotificationEmail, type CourseBookingNotificationDetails } from "./templates/course-booking-notification";
+import { reviewRequestEmail, type ReviewRequestDetails } from "./templates/review-request";
 import { generateICalendar, generateGoogleCalendarUrl, type CalendarEventDetails } from "./utils/calendar";
+import { sendEmail } from "./email";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import multer from "multer";
@@ -908,6 +910,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
       res.status(500).json({ error: "Failed to mark notifications as read" });
+    }
+  });
+
+  // POST /api/admin/send-review-requests - Send review request emails for completed bookings
+  app.post("/api/admin/send-review-requests", isAdmin, async (req, res) => {
+    try {
+      const now = new Date();
+      const allBookings = await storage.getAllBookings();
+      const courses = await storage.getAllCourses();
+      const courseMap = new Map(courses.map(c => [c.id, c]));
+
+      // Find eligible bookings: CONFIRMED, tee time in the past, reviewRequestSent = false
+      const eligibleBookings = allBookings.filter(booking => {
+        if (booking.status !== "CONFIRMED") return false;
+        if (booking.reviewRequestSent === "true") return false;
+        const teeTime = new Date(booking.teeTime);
+        return teeTime < now;
+      });
+
+      if (eligibleBookings.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "No eligible bookings found for review requests",
+          sent: 0 
+        });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      let sentCount = 0;
+      const errors: string[] = [];
+
+      for (const booking of eligibleBookings) {
+        if (!booking.customerEmail) {
+          errors.push(`No email for booking ${booking.id}`);
+          continue;
+        }
+
+        const course = courseMap.get(booking.courseId);
+        if (!course) {
+          errors.push(`Course not found for booking ${booking.id}`);
+          continue;
+        }
+
+        const reviewDetails: ReviewRequestDetails = {
+          bookingId: booking.id,
+          customerName: booking.customerName,
+          courseName: course.name,
+          courseCity: course.city,
+          teeTime: new Date(booking.teeTime),
+          players: booking.players,
+        };
+
+        const emailContent = reviewRequestEmail(reviewDetails, baseUrl);
+        const result = await sendEmail({
+          to: booking.customerEmail,
+          subject: emailContent.subject,
+          text: emailContent.text,
+          html: emailContent.html,
+        });
+
+        if (result.success) {
+          await storage.updateBookingReviewRequestSent(booking.id);
+          sentCount++;
+          console.log(`✓ Review request sent for booking ${booking.id} to ${booking.customerEmail}`);
+        } else {
+          errors.push(`Failed to send to ${booking.customerEmail}: ${result.error}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Sent ${sentCount} review request emails`,
+        sent: sentCount,
+        eligible: eligibleBookings.length,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error) {
+      console.error("Error sending review requests:", error);
+      res.status(500).json({ error: "Failed to send review requests" });
     }
   });
 
@@ -4069,6 +4150,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertCourseReviewSchema.parse(reviewData);
       const newReview = await storage.createReview(validatedData);
 
+      res.json(newReview);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid review data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create review" });
+    }
+  });
+
+  // GET /api/reviews/booking/:bookingId - Get booking info for review page (Public)
+  app.get("/api/reviews/booking/:bookingId", async (req, res) => {
+    try {
+      const { bookingId } = req.params;
+      
+      const booking = await storage.getBookingById(bookingId);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+      
+      const course = await storage.getCourseById(booking.courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+      
+      res.json({
+        booking: {
+          id: booking.id,
+          customerName: booking.customerName,
+          teeTime: booking.teeTime,
+          players: booking.players,
+          userId: booking.userId,
+        },
+        course: {
+          id: course.id,
+          name: course.name,
+          city: course.city,
+          imageUrl: course.imageUrl,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching booking for review:", error);
+      res.status(500).json({ error: "Failed to fetch booking" });
+    }
+  });
+
+  // POST /api/reviews - Create a review from public link (Public - uses booking's userId)
+  app.post("/api/reviews", async (req, res) => {
+    try {
+      const { bookingId, courseId, rating, title, review } = req.body;
+      
+      if (!bookingId || !courseId || !rating) {
+        return res.status(400).json({ error: "Missing required fields: bookingId, courseId, rating" });
+      }
+      
+      // Validate rating
+      if (rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+      
+      // Fetch the booking to get userId
+      const booking = await storage.getBookingById(bookingId);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+      
+      // Check if course exists
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+      
+      // Verify booking matches the course
+      if (booking.courseId !== courseId) {
+        return res.status(400).json({ error: "Booking does not match the specified course" });
+      }
+      
+      // Use booking's userId if available, otherwise we need to handle it
+      if (!booking.userId) {
+        return res.status(400).json({ 
+          error: "This booking was made as a guest. Please log in to submit a review.",
+          requiresLogin: true 
+        });
+      }
+      
+      const reviewData = {
+        courseId,
+        userId: booking.userId,
+        rating: Math.round(rating),
+        title: title || null,
+        review: review || null,
+        photoUrls: [],
+      };
+      
+      const validatedData = insertCourseReviewSchema.parse(reviewData);
+      const newReview = await storage.createReview(validatedData);
+      
       res.json(newReview);
     } catch (error) {
       console.error("Error creating review:", error);

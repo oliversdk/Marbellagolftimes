@@ -99,6 +99,7 @@ export interface IStorage {
   cancelBooking(id: string, reason?: string): Promise<BookingRequest | undefined>;
   updateBookingStatus(id: string, status: string): Promise<BookingRequest | undefined>;
   updateBookingSyncStatus(id: string, syncStatus: string, syncError?: string | null, providerBookingId?: string | null): Promise<BookingRequest | undefined>;
+  updateBookingReviewRequestSent(id: string): Promise<BookingRequest | undefined>;
 
   // Affiliate Emails
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
@@ -1363,6 +1364,19 @@ export class MemStorage implements IStorage {
     return updatedBooking;
   }
 
+  async updateBookingReviewRequestSent(id: string): Promise<BookingRequest | undefined> {
+    const booking = this.bookings.get(id);
+    if (!booking) return undefined;
+    
+    const updatedBooking = {
+      ...booking,
+      reviewRequestSent: "true",
+      reviewRequestSentAt: new Date(),
+    };
+    this.bookings.set(id, updatedBooking);
+    return updatedBooking;
+  }
+
   // Affiliate Emails
   async getAllAffiliateEmails(): Promise<AffiliateEmail[]> {
     return Array.from(this.affiliateEmails.values());
@@ -2202,6 +2216,18 @@ export class DatabaseStorage implements IStorage {
         providerSyncStatus: syncStatus,
         providerSyncError: syncError || null,
         providerBookingId: providerBookingId || null,
+      })
+      .where(eq(bookingRequests.id, id))
+      .returning();
+    return booking;
+  }
+
+  async updateBookingReviewRequestSent(id: string): Promise<BookingRequest | undefined> {
+    const [booking] = await db
+      .update(bookingRequests)
+      .set({
+        reviewRequestSent: "true",
+        reviewRequestSentAt: new Date(),
       })
       .where(eq(bookingRequests.id, id))
       .returning();

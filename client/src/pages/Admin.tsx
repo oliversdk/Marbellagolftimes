@@ -43,7 +43,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
-import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip, Globe, Loader2, RefreshCw } from "lucide-react";
+import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip, Globe, Loader2, RefreshCw, Star } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
 import {
   Select,
@@ -1166,6 +1166,27 @@ export default function Admin() {
       toast({
         title: "Batch Enrichment Failed",
         description: "Failed to start batch enrichment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send review requests mutation - Send review request emails to customers
+  const sendReviewRequestsMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("/api/admin/send-review-requests", "POST");
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/bookings"] });
+      toast({
+        title: "Review Requests Sent",
+        description: data.message || `Sent ${data.sent || 0} review request emails`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to Send Review Requests",
+        description: "An error occurred while sending review request emails",
         variant: "destructive",
       });
     },
@@ -3396,6 +3417,37 @@ export default function Admin() {
                   </CardContent>
                 </Card>
               </MobileCardGrid>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Star className="h-5 w-5" />
+                      Review Requests
+                    </CardTitle>
+                    <CardDescription>
+                      Send review request emails to customers after their completed rounds
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => sendReviewRequestsMutation.mutate()}
+                    disabled={sendReviewRequestsMutation.isPending}
+                    data-testid="button-send-review-requests"
+                  >
+                    {sendReviewRequestsMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Send Review Requests
+                      </>
+                    )}
+                  </Button>
+                </CardHeader>
+              </Card>
 
               <Card>
                 <CardHeader>
