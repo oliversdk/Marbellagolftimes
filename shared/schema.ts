@@ -167,6 +167,9 @@ export const bookingRequests = pgTable("booking_requests", {
   providerSyncStatus: text("provider_sync_status"), // null, pending, success, failed
   providerSyncError: text("provider_sync_error"), // Error message if sync failed
   providerBookingId: text("provider_booking_id"), // External booking ID from Zest/TeeOne
+  // Review request tracking
+  reviewRequestSent: text("review_request_sent").default("false"), // Whether review request email was sent
+  reviewRequestSentAt: timestamp("review_request_sent_at"), // When the review request was sent
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
