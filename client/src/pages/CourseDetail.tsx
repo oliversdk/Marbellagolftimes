@@ -390,6 +390,58 @@ export default function CourseDetail() {
     }
   };
 
+  // Simulate payment for test courses (bypasses Stripe)
+  const handleSimulatePayment = async () => {
+    if (!selectedSlot || !course) return;
+    
+    setIsProcessingPayment(true);
+    trackEvent('simulate_payment', 'booking', course?.name);
+
+    try {
+      const selectedAddOnIds = Array.from(selectedAddOns);
+
+      const response = await fetch('/api/simulate-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId: course.id,
+          teeTime: selectedSlot.teeTime,
+          players,
+          selectedAddOnIds,
+          customerName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Test User',
+          customerEmail: user?.email || 'test@example.com',
+          customerPhone: user?.phoneNumber || '',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.booking) {
+        setIsProcessingPayment(false);
+        setSuccessBookingId(data.booking.id);
+        setSuccessDialogOpen(true);
+        queryClient.invalidateQueries({ queryKey: ['/api/booking-requests'] });
+        toast({
+          title: 'Payment Simulated',
+          description: 'Your test booking has been created successfully!',
+        });
+      } else {
+        throw new Error(data.error || 'Failed to simulate payment');
+      }
+    } catch (error) {
+      console.error('Simulate payment error:', error);
+      toast({
+        title: 'Simulation Error',
+        description: error instanceof Error ? error.message : 'Failed to simulate payment',
+        variant: 'destructive',
+      });
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Check if this is a test course (for payment simulation)
+  const isTestCourse = course?.name?.toLowerCase().includes('test') ?? false;
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -860,6 +912,27 @@ export default function CourseDetail() {
                           <>Pay Now - €{calculateTotal().toFixed(0)}</>
                         )}
                       </Button>
+
+                      {/* Simulate Payment Button - Only for Test Courses */}
+                      {isTestCourse && (
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="w-full min-h-[48px] border-amber-500 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                          onClick={handleSimulatePayment}
+                          disabled={isProcessingPayment}
+                          data-testid="button-simulate-payment"
+                        >
+                          {isProcessingPayment ? (
+                            <>
+                              <span className="animate-spin mr-2">⏳</span>
+                              Processing...
+                            </>
+                          ) : (
+                            <>Simulate Payment (Test Mode)</>
+                          )}
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 )}

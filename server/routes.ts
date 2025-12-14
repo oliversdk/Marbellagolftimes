@@ -3319,6 +3319,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/simulate-payment - Simulate payment for test courses (development testing)
+  // Only works for courses with "Test" in the name - bypasses Stripe for testing
+  app.post("/api/simulate-payment", async (req: any, res) => {
+    try {
+      const { 
+        courseId, 
+        teeTime, 
+        players, 
+        selectedAddOnIds,
+        customerName,
+        customerEmail,
+        customerPhone
+      } = req.body;
+
+      if (!courseId || !teeTime || !players) {
+        return res.status(400).json({ error: "Missing required booking details" });
+      }
+
+      // Get course and verify it's a test course
+      const course = await storage.getCourseById(courseId);
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // SECURITY: Only allow simulation for test courses
+      if (!course.name.toLowerCase().includes('test')) {
+        return res.status(403).json({ 
+          error: "Payment simulation only available for test courses",
+          code: "NOT_TEST_COURSE"
+        });
+      }
+
+      const numPlayers = parseInt(players, 10);
+      if (isNaN(numPlayers) || numPlayers < 1 || numPlayers > 4) {
+        return res.status(400).json({ error: "Invalid number of players" });
+      }
+
+      // Get cached price or use mock price for test course
+      const cacheKey = `${courseId}:${teeTime}`;
+      const cachedPrice = teeTimePriceCache.get(cacheKey);
+      const greenFeeCents = cachedPrice?.priceCents || 5000; // Default €50 for test
+
+      // Get add-ons from database
+      const courseAddOns = await storage.getAddOnsByCourseId(courseId);
+      let totalCents = greenFeeCents * numPlayers;
+      const addOnsJsonData: any[] = [];
+
+      if (selectedAddOnIds && Array.isArray(selectedAddOnIds)) {
+        for (const addOnId of selectedAddOnIds) {
+          const addon = courseAddOns.find((a: { id: string }) => a.id === addOnId);
+          if (!addon) continue;
+
+          let quantity = 1;
+          if (addon.type === 'buggy_shared') {
+            quantity = Math.ceil(numPlayers / 2);
+          } else if (addon.perPlayer === 'true') {
+            quantity = numPlayers;
+          }
+
+          totalCents += addon.priceCents * quantity;
+          addOnsJsonData.push({
+            id: addon.id,
+            name: addon.name,
+            type: addon.type,
+            priceCents: addon.priceCents,
+            quantity,
+          });
+        }
+      }
+
+      // Create simulated booking directly in database
+      const simulatedPaymentId = `sim_${randomUUID().replace(/-/g, '').substring(0, 24)}`;
+      
+      const booking = await storage.createBooking({
+        courseId,
+        teeTime,
+        players: numPlayers,
+        customerName: customerName || "Test User",
+        customerEmail: customerEmail || "test@example.com",
+        customerPhone: customerPhone || "",
+        userId: req.session?.userId || null,
+        status: "CONFIRMED",
+        paymentStatus: "paid",
+        paymentIntentId: simulatedPaymentId,
+        totalAmountCents: totalCents,
+        addOnsJson: addOnsJsonData.length > 0 ? JSON.stringify(addOnsJsonData) : null,
+      });
+
+      console.log(`✓ Simulated payment booking created: ${booking.id} for ${course.name}`);
+      
+      // Send notification email to golf course (non-blocking)
+      sendCourseBookingNotification(booking, course).catch(() => {});
+
+      res.json({ 
+        booking,
+        simulated: true,
+        message: "Payment simulated successfully for test course"
+      });
+    } catch (error) {
+      console.error("Simulate payment error:", error);
+      res.status(500).json({ error: "Failed to simulate payment" });
+    }
+  });
+
   // POST /api/confirm-payment - Confirm payment and create booking (fallback for webhook)
   // Called from success page when webhook may not be configured
   app.post("/api/confirm-payment", async (req: any, res) => {
