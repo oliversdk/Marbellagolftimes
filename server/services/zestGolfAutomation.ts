@@ -1,4 +1,9 @@
-import puppeteer, { Browser, Page } from "puppeteer";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { Browser, Page } from "puppeteer";
+
+// Add stealth plugin to avoid bot detection
+puppeteer.use(StealthPlugin());
 
 const ZEST_CM_URL = "https://cm.zest.golf";
 const ZEST_WWW_URL = "https://www.zest.golf";
@@ -64,6 +69,10 @@ export class ZestGolfAutomation {
           "--disable-setuid-sandbox",
           "--disable-dev-shm-usage",
           "--disable-gpu",
+          "--disable-blink-features=AutomationControlled",
+          "--disable-accelerated-2d-canvas",
+          "--no-first-run",
+          "--no-zygote",
         ],
       });
       this.page = await this.browser.newPage();
