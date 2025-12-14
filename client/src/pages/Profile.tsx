@@ -35,9 +35,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Shield, ShieldOff, Pencil, Trash2, X, RotateCcw, AlertTriangle, User as UserIcon } from "lucide-react";
+import { Calendar, X, RotateCcw, AlertTriangle } from "lucide-react";
 import { format, isPast, differenceInHours } from "date-fns";
 import type { BookingRequest, User } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -49,15 +48,6 @@ import { z } from "zod";
 interface BookingWithCourse extends BookingRequest {
   courseName: string;
 }
-
-const editUserSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  phoneNumber: z.string().optional(),
-});
-
-type EditUserFormData = z.infer<typeof editUserSchema>;
 
 const cancelBookingSchema = z.object({
   reason: z.string().min(3, "Please provide a reason (minimum 3 characters)"),
@@ -147,95 +137,6 @@ function BookingCard({
   );
 }
 
-function AdminUserCard({
-  adminUser,
-  currentUserId,
-  onEdit,
-  onToggleAdmin,
-  onDelete,
-  togglePending,
-  deletePending,
-}: {
-  adminUser: User;
-  currentUserId: string;
-  onEdit: () => void;
-  onToggleAdmin: () => void;
-  onDelete: () => void;
-  togglePending: boolean;
-  deletePending: boolean;
-}) {
-  const isCurrentUser = adminUser.id === currentUserId;
-  
-  return (
-    <Card className="w-full" data-testid={`card-user-${adminUser.id}`}>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="font-medium text-base truncate">
-              {adminUser.firstName} {adminUser.lastName}
-            </h3>
-            <p className="text-sm text-muted-foreground truncate">{adminUser.email}</p>
-            {adminUser.phoneNumber && (
-              <p className="text-sm text-muted-foreground">{adminUser.phoneNumber}</p>
-            )}
-          </div>
-          {adminUser.isAdmin === 'true' ? (
-            <Badge variant="default" className="gap-1 flex-shrink-0">
-              <Shield className="h-3 w-3" />
-              Admin
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="flex-shrink-0">
-              User
-            </Badge>
-          )}
-        </div>
-        
-        <div className="flex gap-2 pt-2">
-          <Button
-            className="flex-1 min-h-[44px]"
-            variant="outline"
-            onClick={onEdit}
-            data-testid={`button-edit-${adminUser.id}`}
-          >
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button
-            className="flex-1 min-h-[44px]"
-            variant="outline"
-            onClick={onToggleAdmin}
-            disabled={togglePending || isCurrentUser}
-            data-testid={`button-toggle-admin-${adminUser.id}`}
-          >
-            {adminUser.isAdmin === 'true' ? (
-              <>
-                <ShieldOff className="h-4 w-4 mr-2" />
-                Remove
-              </>
-            ) : (
-              <>
-                <Shield className="h-4 w-4 mr-2" />
-                Admin
-              </>
-            )}
-          </Button>
-          <Button
-            className="min-h-[44px]"
-            size="icon"
-            variant="destructive"
-            onClick={onDelete}
-            disabled={deletePending || isCurrentUser}
-            data-testid={`button-delete-${adminUser.id}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function Profile() {
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
@@ -243,21 +144,8 @@ export default function Profile() {
   const { isMobile } = useBreakpoint();
   const typedUser = user as User | undefined;
 
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingWithCourse | null>(null);
-
-  const editForm = useForm<EditUserFormData>({
-    resolver: zodResolver(editUserSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phoneNumber: "",
-    },
-  });
 
   const cancelForm = useForm<CancelBookingFormData>({
     resolver: zodResolver(cancelBookingSchema),
@@ -277,77 +165,7 @@ export default function Profile() {
     enabled: isAuthenticated,
   });
 
-  const { data: allUsers, isLoading: usersLoading } = useQuery<User[]>({
-    queryKey: ['/api/admin/users'],
-    enabled: isAuthenticated && typedUser?.isAdmin === 'true',
-  });
-
   const { toast } = useToast();
-
-  const toggleAdminMutation = useMutation({
-    mutationFn: async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
-      await apiRequest(`/api/admin/users/${userId}/admin`, 'PATCH', { isAdmin });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      toast({
-        title: t('common.success'),
-        description: 'Admin status updated successfully',
-      });
-    },
-    onError: () => {
-      toast({
-        variant: 'destructive',
-        title: t('common.error'),
-        description: 'Failed to update admin status',
-      });
-    },
-  });
-
-  const updateUserMutation = useMutation({
-    mutationFn: async (data: EditUserFormData & { userId: string }) => {
-      const { userId, ...updateData } = data;
-      await apiRequest(`/api/admin/users/${userId}`, 'PATCH', updateData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      setEditDialogOpen(false);
-      editForm.reset();
-      toast({
-        title: t('common.success'),
-        description: 'User updated successfully',
-      });
-    },
-    onError: () => {
-      toast({
-        variant: 'destructive',
-        title: t('common.error'),
-        description: 'Failed to update user',
-      });
-    },
-  });
-
-  const deleteUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      await apiRequest(`/api/admin/users/${userId}`, 'DELETE');
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      setDeleteDialogOpen(false);
-      setSelectedUser(null);
-      toast({
-        title: t('common.success'),
-        description: 'User deleted successfully',
-      });
-    },
-    onError: () => {
-      toast({
-        variant: 'destructive',
-        title: t('common.error'),
-        description: 'Failed to delete user',
-      });
-    },
-  });
 
   const cancelBookingMutation = useMutation({
     mutationFn: async ({ bookingId, reason }: { bookingId: string; reason: string }) => {
@@ -391,28 +209,6 @@ export default function Profile() {
       });
     },
   });
-
-  const handleEditUser = (adminUser: User) => {
-    setSelectedUser(adminUser);
-    editForm.reset({
-      firstName: adminUser.firstName,
-      lastName: adminUser.lastName,
-      email: adminUser.email,
-      phoneNumber: adminUser.phoneNumber || "",
-    });
-    setEditDialogOpen(true);
-  };
-
-  const handleDeleteUser = (adminUser: User) => {
-    setSelectedUser(adminUser);
-    setDeleteDialogOpen(true);
-  };
-
-  const onEditSubmit = (data: EditUserFormData) => {
-    if (selectedUser) {
-      updateUserMutation.mutate({ ...data, userId: selectedUser.id });
-    }
-  };
 
   const handleCancelBooking = (booking: BookingWithCourse) => {
     setSelectedBooking(booking);
@@ -706,243 +502,6 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
-
-        {/* Admin User Management (only visible to admins) */}
-        {typedUser.isAdmin === 'true' && (
-          <Card className="mt-4 md:mt-6">
-            <CardHeader className="p-4 md:p-6">
-              <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-                <Shield className="h-5 w-5" />
-                Admin User Management
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Manage admin privileges for all users
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
-              {usersLoading ? (
-                <div className="py-8">
-                  <GolfLoader size="md" text={t('common.loading')} />
-                </div>
-              ) : allUsers && allUsers.length > 0 ? (
-                isMobile ? (
-                  <div className="space-y-3" data-testid="cards-admin-users">
-                    {allUsers.map((adminUser) => (
-                      <AdminUserCard
-                        key={adminUser.id}
-                        adminUser={adminUser}
-                        currentUserId={typedUser.id}
-                        onEdit={() => handleEditUser(adminUser)}
-                        onToggleAdmin={() => toggleAdminMutation.mutate({
-                          userId: adminUser.id,
-                          isAdmin: adminUser.isAdmin !== 'true',
-                        })}
-                        onDelete={() => handleDeleteUser(adminUser)}
-                        togglePending={toggleAdminMutation.isPending}
-                        deletePending={deleteUserMutation.isPending}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <Table data-testid="table-admin-users">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Admin Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allUsers.map((adminUser) => (
-                        <TableRow key={adminUser.id} data-testid={`row-user-${adminUser.id}`}>
-                          <TableCell className="font-medium">
-                            {adminUser.firstName} {adminUser.lastName}
-                          </TableCell>
-                          <TableCell>{adminUser.email}</TableCell>
-                          <TableCell>{adminUser.phoneNumber || '-'}</TableCell>
-                          <TableCell>
-                            {adminUser.isAdmin === 'true' ? (
-                              <Badge variant="default" className="gap-1">
-                                <Shield className="h-3 w-3" />
-                                Admin
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">
-                                User
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditUser(adminUser)}
-                                data-testid={`button-edit-${adminUser.id}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => toggleAdminMutation.mutate({
-                                  userId: adminUser.id,
-                                  isAdmin: adminUser.isAdmin !== 'true',
-                                })}
-                                disabled={toggleAdminMutation.isPending || adminUser.id === typedUser.id}
-                                data-testid={`button-toggle-admin-${adminUser.id}`}
-                              >
-                                {adminUser.isAdmin === 'true' ? (
-                                  <ShieldOff className="h-4 w-4" />
-                                ) : (
-                                  <Shield className="h-4 w-4" />
-                                )}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDeleteUser(adminUser)}
-                                disabled={deleteUserMutation.isPending || adminUser.id === typedUser.id}
-                                data-testid={`button-delete-${adminUser.id}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )
-              ) : (
-                <div className="text-center py-8 px-4">
-                  <UserIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No users found</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Edit User Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="sm:max-w-md" data-testid="dialog-edit-user">
-            <DialogHeader>
-              <DialogTitle>Edit User</DialogTitle>
-              <DialogDescription>
-                Update user information for {selectedUser?.firstName} {selectedUser?.lastName}
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-                <FormField
-                  control={editForm.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input className="min-h-[44px]" {...field} data-testid="input-edit-first-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input className="min-h-[44px]" {...field} data-testid="input-edit-last-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input className="min-h-[44px]" {...field} type="email" data-testid="input-edit-email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number (optional)</FormLabel>
-                      <FormControl>
-                        <Input className="min-h-[44px]" {...field} data-testid="input-edit-phone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter className="flex-col sm:flex-row gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto min-h-[44px]"
-                    onClick={() => setEditDialogOpen(false)}
-                    data-testid="button-cancel-edit"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="w-full sm:w-auto min-h-[44px]"
-                    disabled={updateUserMutation.isPending}
-                    data-testid="button-submit-edit"
-                  >
-                    {updateUserMutation.isPending ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent className="sm:max-w-md" data-testid="dialog-delete-user">
-            <DialogHeader>
-              <DialogTitle>Delete User</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete {selectedUser?.firstName} {selectedUser?.lastName}? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto min-h-[44px]"
-                onClick={() => setDeleteDialogOpen(false)}
-                data-testid="button-cancel-delete"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                className="w-full sm:w-auto min-h-[44px]"
-                onClick={() => selectedUser && deleteUserMutation.mutate(selectedUser.id)}
-                disabled={deleteUserMutation.isPending}
-                data-testid="button-confirm-delete"
-              >
-                {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Cancel Booking Dialog */}
         <Dialog open={cancelDialogOpen} onOpenChange={(open) => {
