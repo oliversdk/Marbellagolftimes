@@ -26,6 +26,8 @@ import { CalendarIcon, Clock, ChevronRight, Car, Utensils, Sun, Sunset, Users, S
 import { format, addDays } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import { AvailabilityDots } from "@/components/AvailabilityDots";
 import type { GolfCourse, CourseWithSlots, TeeTimeSlot, User, CourseRatePeriod, CourseAddOn } from "@shared/schema";
 
@@ -71,6 +73,7 @@ export function BookingModal({
   isPending,
 }: BookingModalProps) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState<'select-time' | 'customize-booking' | 'fill-details'>('select-time');
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
@@ -81,6 +84,7 @@ export function BookingModal({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Fetch rate periods/packages for this course
   const { data: ratePeriods } = useQuery<CourseRatePeriod[]>({
@@ -359,42 +363,82 @@ export function BookingModal({
     setStep('customize-booking');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!course || !selectedSlot) return;
 
-    // Build add-ons data for submission
-    const addOnsData = courseAddOns
-      .filter(addon => selectedAddOns.has(addon.id))
-      .map(addon => ({
-        id: addon.id,
-        name: addon.name,
-        type: addon.type,
-        priceCents: addon.priceCents,
-      }));
+    setIsProcessingPayment(true);
 
-    onSubmit({
-      courseId: course.id,
-      teeTime: selectedSlot.teeTime,
-      players,
-      customerName,
-      customerEmail,
-      customerPhone,
-      packageType: selectedPackage?.packageType,
-      estimatedPrice: calculateTotal(),
-      addOns: addOnsData,
-    });
+    try {
+      // Check if this is a test course (name contains "Test")
+      const isTestCourse = course.name.toLowerCase().includes('test');
 
-    // Reset form
-    setStep('select-time');
-    setSelectedSlot(null);
-    setSelectedPackage(null);
-    setSelectedAddOns(new Set());
-    setSearchDate(new Date());
-    setPlayers(2);
-    setCustomerName("");
-    setCustomerEmail("");
-    setCustomerPhone("");
+      if (isTestCourse) {
+        // Use simulate payment for test courses
+        const response = await fetch('/api/simulate-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            courseId: course.id,
+            teeTime: selectedSlot.teeTime,
+            players,
+            selectedAddOnIds: Array.from(selectedAddOns),
+            customerName,
+            customerEmail,
+            customerPhone,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Payment simulation failed');
+        }
+
+        if (data.booking) {
+          // Invalidate booking requests cache (matches CourseDetail implementation)
+          queryClient.invalidateQueries({ queryKey: ['/api/booking-requests'] });
+          // Close modal and redirect to success page
+          onOpenChange(false);
+          window.location.href = `/booking-success?bookingId=${data.booking.id}`;
+        }
+      } else {
+        // Use Stripe checkout for real courses
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            courseId: course.id,
+            teeTime: selectedSlot.teeTime,
+            players,
+            selectedAddOnIds: Array.from(selectedAddOns),
+            customerName,
+            customerEmail,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to create checkout session');
+        }
+
+        if (data.url) {
+          // Close modal before redirecting to Stripe
+          onOpenChange(false);
+          window.location.href = data.url;
+        }
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast({
+        title: 'Payment Error',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   // Format package type for display
@@ -866,7 +910,7 @@ export function BookingModal({
             type="button"
             variant="outline"
             onClick={handleBackToCustomize}
-            disabled={isPending}
+            disabled={isProcessingPayment}
             data-testid="button-back"
             className="w-full sm:w-auto min-h-[44px]"
           >
@@ -876,7 +920,7 @@ export function BookingModal({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isPending}
+            disabled={isProcessingPayment}
             data-testid="button-cancel-booking"
             className="w-full sm:w-auto min-h-[44px]"
           >
@@ -884,11 +928,11 @@ export function BookingModal({
           </Button>
           <Button
             type="submit"
-            disabled={isPending}
+            disabled={isProcessingPayment}
             data-testid="button-submit-booking"
             className="w-full sm:w-auto min-h-[44px]"
           >
-            {isPending ? t('common.loading') : t('booking.submitBooking')}
+            {isProcessingPayment ? t('common.loading') : `Pay Now - €${calculateTotal().toFixed(0)}`}
           </Button>
         </DialogFooter>
       </form>
