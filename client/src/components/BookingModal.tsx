@@ -315,7 +315,7 @@ export function BookingModal({
       if (course?.lat) params.append("lat", course.lat);
       if (course?.lng) params.append("lng", course.lng);
       params.append("date", searchDate.toISOString());
-      params.append("players", players);
+      params.append("players", String(players));
       params.append("fromTime", "07:00");
       params.append("toTime", "20:00");
       params.append("holes", "18");
