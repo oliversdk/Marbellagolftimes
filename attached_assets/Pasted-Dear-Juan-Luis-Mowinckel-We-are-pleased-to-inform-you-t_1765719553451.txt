@@ -1,0 +1,56 @@
+Dear Juan Luis Mowinckel,
+
+We are pleased to inform you that we have successfully received the form authorizing the use of Golfmanager's API to Hostkeeping.com AG.
+
+We would like to notify you that the connection will be available within 24 to 48 hours, at which time we will send you a confirmation email to notify you that the process has been completed successfully. A prerequisite for completing the connection is that either a client must be created (in the case of an API Consumer) or an administrator user must be created (in the case of an API Admin).
+
+Please note that we kindly ask all parties involved to wait the full 48 hours before reaching out to confirm whether the connection has been activated, as this is a reasonable timeframe for completing the setup process.
+
+The submitted form data is included below for your reference.
+We appreciate your trust in our services and remain at your disposal for any additional inquiries.
+
+Best regards,
+
+Golfmanager Support
+
+
+
+Your Company:
+Details of the venue:
+Golf Course Name: ALHAURIN GOLF
+Email: reservas@alhauringolf.com
+Telephone: 951550000
+Address: Severiano ballesteros, s/n
+Your contact details:
+Full Name: Juan Luis Mowinckel
+Title: Director Comercial
+Phone Number: 951550000
+Email Address: direccioncomercial@alhauringolf.com
+Company Name: GOLF PLAYER, S.L.
+Tax ID: B80024565
+Date: 2025-12-14
+Integrating Company:
+Contact details of the company integrating with you:
+Company Name: Hostkeeping.com AG
+Brand Name: MARBELLAGOLFTIMES.COM
+Contact Name: Morten Wagner
+Phone Number: 616271043
+Email: wagner@freeway.dk
+IP Address: .
+Mark with an X:
+Consumer API:
+Partial API:
+API Functions:
+Full API: FULL ADMIN API: We authorize the following company to have access to all api functions.
+Space:
+T&C: on
+Space:
+
+---
+
+Fecha: 14 de diciembre de 2025
+Hora: 12:11
+URL de la página: https://golfmanager.com/multicourse-api-authorization/
+Agente de usuario: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36
+IP remota: 79.144.195.6
+Funciona con: Elementor
