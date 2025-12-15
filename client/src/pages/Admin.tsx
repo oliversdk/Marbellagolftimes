@@ -4496,7 +4496,7 @@ export default function Admin() {
                         <div className="py-4 text-center text-muted-foreground">Loading...</div>
                       ) : (
                         <>
-                          {followUps.slice(0, 5).map((item) => (
+                          {followUps.map((item) => (
                             <div 
                               key={item.courseId} 
                               className="flex flex-wrap items-center justify-between gap-2 p-3 border rounded-md"
@@ -4554,18 +4554,6 @@ export default function Admin() {
                               </div>
                             </div>
                           ))}
-                          {followUps.length > 5 && (
-                            <div className="text-center pt-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setStageFilter("OUTREACH_SENT")}
-                              >
-                                View all {followUps.length} follow-ups
-                                <ArrowRight className="h-3 w-3 ml-1" />
-                              </Button>
-                            </div>
-                          )}
                         </>
                       )}
                     </CardContent>
