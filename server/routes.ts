@@ -97,183 +97,8 @@ export function cacheApiPrice(courseId: string, teeTime: string, priceCents: num
   teeTimePriceCache.set(cacheKey, { priceCents, source, expiresAt });
 }
 
-// ============================================================
-// Tee Time Slots Cache - cache API results to speed up page loads
-// ============================================================
-interface CachedSlots {
-  slots: any[];
-  expiresAt: Date;
-}
-const teeSlotsCache = new Map<string, CachedSlots>();
-const SLOTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-// Cleanup expired slots cache every 2 minutes
-setInterval(() => {
-  const now = new Date();
-  teeSlotsCache.forEach((value, key) => {
-    if (value.expiresAt < now) {
-      teeSlotsCache.delete(key);
-    }
-  });
-}, 2 * 60 * 1000);
-
-function getCachedSlots(cacheKey: string): any[] | null {
-  const cached = teeSlotsCache.get(cacheKey);
-  if (cached && cached.expiresAt > new Date()) {
-    return cached.slots;
-  }
-  return null;
-}
-
-function setCachedSlots(cacheKey: string, slots: any[]): void {
-  teeSlotsCache.set(cacheKey, {
-    slots,
-    expiresAt: new Date(Date.now() + SLOTS_CACHE_TTL)
-  });
-}
-
-// Flag to track if preload is running
-let isPreloading = false;
-
-// Background preload function - fetches tee times for all API-connected courses
-async function preloadTeeTimes() {
-  if (isPreloading) {
-    console.log("[Preload] Already running, skipping...");
-    return;
-  }
-  
-  isPreloading = true;
-  console.log("[Preload] Starting background tee time preload...");
-  
-  try {
-    const { storage } = await import("./storage");
-    const { createGolfmanagerProvider, getGolfmanagerConfig } = await import("./providers/golfmanager");
-    const { getZestGolfService } = await import("./services/zestGolf");
-    
-    const courses = await storage.getAllCourses();
-    const now = new Date();
-    // If it's after 5 PM, preload tomorrow's tee times instead
-    const preloadDate = now.getHours() >= 17 ? new Date(now.getTime() + 24 * 60 * 60 * 1000) : now;
-    const dateStr = preloadDate.toISOString().split("T")[0];
-    const numPlayers = 2;
-    const numHoles = 18;
-    
-    console.log(`[Preload] Preloading tee times for ${dateStr}`);
-    
-    let preloadedCount = 0;
-    
-    for (const course of courses) {
-      const providerLinks = await storage.getLinksByCourseId(course.id);
-      
-      // Check for Zest Golf
-      const zestLink = providerLinks.find((link) => 
-        link.providerCourseCode?.startsWith("zest:")
-      );
-      
-      if (zestLink) {
-        const cacheKey = `zest:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
-        if (!getCachedSlots(cacheKey)) {
-          try {
-            const facilityId = parseInt(zestLink.providerCourseCode!.split(":")[1]);
-            const zestService = getZestGolfService();
-            const response = await zestService.getTeeTimes(facilityId, preloadDate, numPlayers, numHoles as 9 | 18);
-            
-            const slots = (response.teeTimeV2 || response.teeTimeV3 || [])
-              .map((tt: any) => {
-                const playerPricing = tt.pricing?.find((p: any) => Number(p.players) === numPlayers);
-                const priceAmount = playerPricing?.publicRate?.amount || playerPricing?.price?.amount || 0;
-                const perPlayerPrice = Math.round(priceAmount / numPlayers);
-                return {
-                  teeTime: tt.time,
-                  greenFee: perPlayerPrice,
-                  currency: "EUR",
-                  players: numPlayers,
-                  holes: tt.holes || numHoles,
-                  source: "zest-golf",
-                  teeName: tt.course || "TEE 1",
-                  slotsAvailable: tt.players || 4,
-                };
-              })
-              .filter((s: any) => s.greenFee > 0);
-            
-            setCachedSlots(cacheKey, slots);
-            preloadedCount++;
-            console.log(`[Preload] Cached ${slots.length} Zest slots for ${course.name}`);
-          } catch (e) {
-            // Silently skip failed courses
-          }
-        }
-        continue;
-      }
-      
-      // Check for Golfmanager
-      const golfmanagerLink = providerLinks.find((link) => 
-        link.providerCourseCode?.startsWith("golfmanager:") ||
-        link.providerCourseCode?.startsWith("golfmanagerv3:")
-      );
-      
-      if (golfmanagerLink) {
-        const providerCode = (golfmanagerLink.providerCourseCode || "").toLowerCase().trim();
-        const isV3 = providerCode.startsWith("golfmanagerv3:");
-        const version: "v1" | "v3" = isV3 ? "v3" : "v1";
-        const tenant = providerCode.split(":")[1]?.trim();
-        
-        if (!tenant) continue;
-        
-        // Only preload if course has valid API credentials
-        const hasV1Credentials = version === "v1" && course.golfmanagerV1User && course.golfmanagerV1Password;
-        const hasV3Credentials = version === "v3" && course.golfmanagerUser && course.golfmanagerPassword;
-        
-        if (!hasV1Credentials && !hasV3Credentials) continue;
-        
-        const cacheKey = `gm:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
-        if (!getCachedSlots(cacheKey)) {
-          try {
-            const dbCredentials = hasV1Credentials 
-              ? { user: course.golfmanagerV1User, password: course.golfmanagerV1Password }
-              : { user: course.golfmanagerUser, password: course.golfmanagerPassword };
-            
-            const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
-            const startTime = `${dateStr}T07:00:00`;
-            const endTime = `${dateStr}T20:00:00`;
-            
-            const gmSlots = await provider.searchAvailability(startTime, endTime, undefined, numPlayers);
-            const rawSlots = provider.convertSlotsToTeeTime(gmSlots, numPlayers, numHoles);
-            
-            const slots = rawSlots
-              .filter(slot => slot.greenFee > 0)
-              .map(slot => ({
-                ...slot,
-                greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
-              }));
-            
-            setCachedSlots(cacheKey, slots);
-            preloadedCount++;
-            console.log(`[Preload] Cached ${slots.length} Golfmanager slots for ${course.name}`);
-          } catch (e) {
-            // Silently skip failed courses
-          }
-        }
-      }
-    }
-    
-    console.log(`[Preload] Completed - preloaded ${preloadedCount} courses`);
-  } catch (error) {
-    console.error("[Preload] Error:", error);
-  } finally {
-    isPreloading = false;
-  }
-}
-
-// Run preload on server start (after 5 seconds delay)
-setTimeout(() => {
-  preloadTeeTimes();
-}, 5000);
-
-// Keep cache warm - refresh every 4 minutes (before 5-min expiry)
-setInterval(() => {
-  preloadTeeTimes();
-}, 4 * 60 * 1000);
+// Slots caching and preloading removed for simplicity (only 2 API-connected courses)
+// Tee times are fetched fresh on each request for maximum accuracy
 
 // Convert TTOO (Tour Operator) price to customer price using kickback percentage
 // Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
@@ -3191,28 +3016,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const facilityId = parseInt(zestLink.providerCourseCode!.split(":")[1]);
               const searchDate = date ? new Date(date as string) : new Date();
-              const dateStr = searchDate.toISOString().split("T")[0];
               const numPlayers = players ? parseInt(players as string) : 2;
               const numHoles = holes ? parseInt(holes as string) : 18;
-              
-              // Check cache first
-              const cacheKey = `zest:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
-              const cachedSlots = getCachedSlots(cacheKey);
-              
-              if (cachedSlots) {
-                console.log(`[Zest Golf] Using cached slots for ${course.name} (${cachedSlots.length} slots)`);
-                return {
-                  courseId: course.id,
-                  courseName: course.name,
-                  distanceKm: Math.round(distance * 10) / 10,
-                  bookingUrl: zestLink.bookingUrl || course.bookingUrl || course.websiteUrl,
-                  slots: cachedSlots,
-                  note: cachedSlots.length > 0 ? undefined : "No availability for selected date/time",
-                  providerType: "API",
-                  providerName: "zest",
-                  course,
-                };
-              }
               
               const zestService = getZestGolfService();
               const zestResponse = await zestService.getTeeTimes(
@@ -3223,7 +3028,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
               
               // Convert Zest tee times to our TeeTimeSlot format
-              // Note: Zest API returns teeTimeV2 format (not V3)
               const slots: TeeTimeSlot[] = (zestResponse.teeTimeV2 || zestResponse.teeTimeV3 || [])
                 .filter((tt: any) => {
                   // Filter by time range if specified
@@ -3236,13 +3040,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return teeTimeMinutes >= fromMinutes && teeTimeMinutes <= toMinutes;
                 })
                 .map((tt: any) => {
-                  // Find price for the requested number of players (players can be number or string)
                   const playerPricing = tt.pricing?.find((p: any) => Number(p.players) === numPlayers);
-                  // Use publicRate (customer-facing price) instead of price (channel manager price)
-                  // Fallback to price if publicRate not available
                   const priceAmount = playerPricing?.publicRate?.amount || playerPricing?.price?.amount || 
                                      tt.pricing?.[0]?.publicRate?.amount || tt.pricing?.[0]?.price?.amount || 0;
-                  // Price from Zest is total for all players, so divide by number of players
                   const perPlayerPrice = Math.round(priceAmount / numPlayers);
                   
                   return {
@@ -3259,10 +3059,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   };
                 });
               
-              // Filter out €0 slots and cache results
+              // Filter out €0 slots
               const validSlots = slots.filter(s => s.greenFee > 0);
-              setCachedSlots(cacheKey, validSlots);
-              console.log(`[Zest Golf] Retrieved and cached ${validSlots.length} slots for ${course.name}`);
+              console.log(`[Zest Golf] Retrieved ${validSlots.length} slots for ${course.name}`);
               
               // SECURITY: Cache prices server-side for secure checkout
               validSlots.forEach(slot => {
@@ -3383,29 +3182,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const facilityId = parseInt(zestLink.providerCourseCode!.split(":")[1]);
               const searchDate = date ? new Date(date as string) : new Date();
-              const dateStr = searchDate.toISOString().split("T")[0];
               const numPlayers = players ? parseInt(players as string) : 2;
               const numHoles = holes ? parseInt(holes as string) : 18;
-              
-              // Check cache first
-              const cacheKey = `zest:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
-              const cachedSlots = getCachedSlots(cacheKey);
-              
-              if (cachedSlots) {
-                console.log(`[Zest Golf] Using cached slots for ${course.name} (${cachedSlots.length} slots)`);
-                results.push({
-                  courseId: course.id,
-                  courseName: course.name,
-                  distanceKm: Math.round(distance * 10) / 10,
-                  bookingUrl: zestLink.bookingUrl || course.bookingUrl || course.websiteUrl,
-                  slots: cachedSlots,
-                  note: cachedSlots.length > 0 ? undefined : "No availability for selected date/time",
-                  providerType: "API",
-                  providerName: "zest",
-                  course,
-                });
-                continue;
-              }
               
               const zestService = getZestGolfService();
               const zestResponse = await zestService.getTeeTimes(
@@ -3428,7 +3206,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return teeTimeMinutes >= fromMinutes && teeTimeMinutes <= toMinutes;
                 })
                 .map((tt: any) => {
-                  // Find price for the requested number of players
                   const playerPricing = tt.pricing?.find((p: any) => Number(p.players) === numPlayers);
                   const priceAmount = playerPricing?.publicRate?.amount || playerPricing?.price?.amount || 
                                      tt.pricing?.[0]?.publicRate?.amount || tt.pricing?.[0]?.price?.amount || 0;
@@ -3448,10 +3225,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   };
                 });
               
-              // Filter out €0 slots and cache results
+              // Filter out €0 slots
               const validSlots = slots.filter(s => s.greenFee > 0);
-              setCachedSlots(cacheKey, validSlots);
-              console.log(`[Zest Golf] Retrieved and cached ${validSlots.length} slots for ${course.name}`);
+              console.log(`[Zest Golf] Retrieved ${validSlots.length} slots for ${course.name}`);
               
               // SECURITY: Cache prices server-side for secure checkout
               validSlots.forEach(slot => {
@@ -3543,33 +3319,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               continue;
             }
             
-            // Build date range for search (outside try block so cacheKey is accessible in catch)
+            // Build date range for search
             const searchDate = date ? new Date(date as string) : new Date();
             const dateStr = searchDate.toISOString().split("T")[0];
             const numPlayers = players ? parseInt(players as string) : 2;
             const numHoles = holes ? parseInt(holes as string) : 18;
-            const cacheKey = `gm:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
             
             try {
-              // Check cache first
-              const cachedSlots = getCachedSlots(cacheKey);
-              
-              if (cachedSlots) {
-                console.log(`[Golfmanager] Using cached slots for ${course.name} (${cachedSlots.length} slots)`);
-                results.push({
-                  courseId: course.id,
-                  courseName: course.name,
-                  distanceKm: Math.round(distance * 10) / 10,
-                  bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
-                  slots: cachedSlots,
-                  note: cachedSlots.length > 0 ? undefined : "No availability for selected date/time",
-                  providerType: "API",
-                  providerName: "golfmanager",
-                  course,
-                });
-                continue;
-              }
-              
               // Create tenant-specific provider instance with database credentials
               const dbCredentials = hasV1Credentials 
                 ? { user: course.golfmanagerV1User, password: course.golfmanagerV1Password }
@@ -3599,15 +3355,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               // Convert TTOO prices to customer prices and filter out €0 slots (invalid data)
               const slots = rawSlots
-                .filter(slot => slot.greenFee > 0) // Remove invalid €0 slots
+                .filter(slot => slot.greenFee > 0)
                 .map(slot => ({
                   ...slot,
                   greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
                 }));
 
-              // Cache the results
-              setCachedSlots(cacheKey, slots);
-              console.log(`[Golfmanager] Retrieved and cached ${slots.length} slots for ${course.name}`);
+              console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name}`);
 
               results.push({
                 courseId: course.id,
@@ -3621,9 +3375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 course,
               });
             } catch (error) {
-              // Cache empty result for failed courses to avoid retrying
-              setCachedSlots(cacheKey, []);
-              console.error(`[Golfmanager] Error for ${course.name} - cached empty result`);
+              console.error(`[Golfmanager] Error for ${course.name}:`, error);
               // Show course without tee times
               results.push({
                 courseId: course.id,
