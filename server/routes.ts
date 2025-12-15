@@ -1634,10 +1634,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stage: updates.stage || "NOT_CONTACTED",
           ...updates 
         });
+        
+        // Sync agreedCommission to golf_courses.kickback_percent
+        if (updates.agreedCommission !== undefined) {
+          await storage.updateCourse(courseId, { kickbackPercent: updates.agreedCommission });
+        }
+        
         return res.json(created);
       }
       
       const result = await storage.updateOnboarding(courseId, updates);
+      
+      // Sync agreedCommission to golf_courses.kickback_percent
+      if (updates.agreedCommission !== undefined) {
+        await storage.updateCourse(courseId, { kickbackPercent: updates.agreedCommission });
+      }
+      
       res.json(result);
     } catch (error) {
       console.error("Failed to update onboarding:", error);
