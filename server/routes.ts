@@ -9,7 +9,7 @@ import { teeoneClient } from "./providers/teeone";
 import { getZestGolfService } from "./services/zestGolf";
 import { syncBookingToProvider } from "./services/bookingSyncService";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
-import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts } from "@shared/schema";
+import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts, zestPricingData } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, ilike } from "drizzle-orm";
 import { bookingConfirmationEmail, type BookingDetails } from "./templates/booking-confirmation";
@@ -2237,41 +2237,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NOTE: The actual inbound email webhook is defined below with multer middleware
   // to handle SendGrid's multipart form data
 
-  // GET /api/courses/zest-facilities - Get courses with real-time availability for multi-search
+  // GET /api/courses/zest-facilities - Get courses with Zest facility IDs for multi-search
   // IMPORTANT: This route must be defined BEFORE /api/courses/:id to avoid being caught by the param route
   app.get("/api/courses/zest-facilities", async (req, res) => {
     try {
+      // Get Zest facility mappings from zest_pricing_data table
+      const zestMappings = await db.select({
+        courseId: zestPricingData.courseId,
+        zestFacilityId: zestPricingData.zestFacilityId,
+      }).from(zestPricingData);
+      
+      const zestFacilityMap = new Map(zestMappings.map(m => [m.courseId, m.zestFacilityId]));
+      
       const allCourses = await storage.getAllCourses();
       
-      // Filter courses that have real-time booking URLs (TeeOne, iMaster, Zest, Golfmanager)
-      const realTimeCourses = allCourses
-        .filter(c => {
-          if (!c.bookingUrl) return false;
-          const url = c.bookingUrl.toLowerCase();
-          return url.includes('teeone.golf') || 
-                 url.includes('imaster.golf') || 
-                 url.includes('zest.golf') ||
-                 url.includes('golfmanager');
-        })
-        .map(c => {
-          // Extract facility ID from Zest URLs if present
-          const zestMatch = c.bookingUrl?.match(/facilityId=(\d+)/);
-          return {
-            id: c.id,
-            name: c.name,
-            zestFacilityId: zestMatch ? parseInt(zestMatch[1]) : null,
-            bookingUrl: c.bookingUrl,
-            imageUrl: c.imageUrl,
-            city: c.city,
-            providerType: c.bookingUrl?.includes('teeone.golf') ? 'teeone' : 
-                          c.bookingUrl?.includes('imaster.golf') ? 'imaster' :
-                          c.bookingUrl?.includes('zest.golf') ? 'zest' : 'golfmanager',
-          };
-        });
+      // Only return courses that have Zest facility IDs
+      const zestCourses = allCourses
+        .filter(c => zestFacilityMap.has(c.id))
+        .map(c => ({
+          id: c.id,
+          name: c.name,
+          zestFacilityId: zestFacilityMap.get(c.id) || null,
+          bookingUrl: c.bookingUrl,
+          imageUrl: c.imageUrl,
+          city: c.city,
+          providerType: 'zest' as const,
+        }));
       
-      res.json({ success: true, courses: realTimeCourses });
+      res.json({ success: true, courses: zestCourses });
     } catch (error: any) {
-      console.error("Failed to get real-time courses:", error);
+      console.error("Failed to get Zest courses:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
