@@ -65,12 +65,27 @@ import { z } from "zod";
 import type { GolfCourse, CourseRatePeriod, CourseReview, CourseWithReviews, CourseAddOn } from "@shared/schema";
 import { Checkbox } from "@/components/ui/checkbox";
 
+// Type for API package from Golfmanager/TeeOne
+interface ApiPackage {
+  id: number;
+  name: string;
+  price: number;
+  description?: string;
+  includesBuggy: boolean;
+  includesLunch: boolean;
+  isEarlyBird: boolean;
+  isTwilight: boolean;
+  maxPlayers?: number;
+  minPlayers?: number;
+}
+
 // Type for available slot from search API
 interface AvailableSlot {
   id?: string;
   teeTime: string;
   greenFee?: number;
   slotsAvailable?: number;
+  packages?: ApiPackage[];
 }
 
 // Type for selected package 
@@ -106,6 +121,7 @@ export default function CourseDetail() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<SelectedPackageInfo | null>(null);
+  const [selectedApiPackage, setSelectedApiPackage] = useState<ApiPackage | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
   const [players, setPlayers] = useState<number>(2);
 
@@ -166,13 +182,21 @@ export default function CourseDetail() {
     enabled: !!id,
   });
 
-  // Calculate total price
+  // Calculate total price - use API package price if selected
   const calculateTotal = () => {
-    const greenFee = selectedSlot?.greenFee || 0;
+    // Priority: API package price > slot greenFee
+    const basePrice = selectedApiPackage?.price || selectedSlot?.greenFee || 0;
     let addOnsTotal = 0;
+    
+    // Only add add-ons if package doesn't include buggy (avoid double-charging)
+    const packageIncludesBuggy = selectedApiPackage?.includesBuggy;
     
     courseAddOns.forEach(addon => {
       if (selectedAddOns.has(addon.id)) {
+        // Skip buggy add-on if API package already includes buggy
+        if (packageIncludesBuggy && (addon.type === 'buggy_shared' || addon.type === 'buggy_individual')) {
+          return;
+        }
         const price = addon.priceCents / 100;
         // Shared buggy is per pair (divide by 2 if more than 1 player)
         if (addon.type === 'buggy_shared') {
@@ -185,7 +209,7 @@ export default function CourseDetail() {
       }
     });
     
-    return (greenFee * players) + addOnsTotal;
+    return (basePrice * players) + addOnsTotal;
   };
 
   const toggleAddOn = (addOnId: string) => {
@@ -368,6 +392,7 @@ export default function CourseDetail() {
           selectedAddOnIds, // Only IDs - server validates pricing from cache
           customerName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : undefined,
           customerEmail: user?.email,
+          apiPackage: selectedApiPackage, // Include selected API package from Golfmanager/TeeOne
         }),
       });
 
@@ -410,6 +435,7 @@ export default function CourseDetail() {
           selectedAddOnIds,
           customerName: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Test User',
           customerEmail: user?.email || 'test@example.com',
+          apiPackage: selectedApiPackage, // Include selected API package
           customerPhone: user?.phoneNumber || '',
         }),
       });
@@ -725,6 +751,7 @@ export default function CourseDetail() {
                                 onClick={() => {
                                   setSelectedSlot(slot);
                                   setSelectedPackage(null);
+                                  setSelectedApiPackage(null); // Reset API package selection
                                   // Adjust player count if it exceeds available slots
                                   const maxSlots = slot.slotsAvailable || 4;
                                   if (players > maxSlots) {
@@ -799,13 +826,107 @@ export default function CourseDetail() {
                         )}
                       </div>
 
-                      {/* Green Fee Summary */}
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Green Fee ({players}x €{selectedSlot.greenFee || 0})</span>
-                          <span className="font-medium">€{(selectedSlot.greenFee || 0) * players}</span>
+                      {/* API Packages from Golfmanager/TeeOne (if available) */}
+                      {selectedSlot.packages && selectedSlot.packages.length > 0 ? (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Select Package</label>
+                          <div className="space-y-2" data-testid="list-api-packages">
+                            {selectedSlot.packages.map((pkg, index) => {
+                              const isSelected = selectedApiPackage?.id === pkg.id;
+                              const totalForPlayers = pkg.price * players;
+                              return (
+                                <div
+                                  key={pkg.id}
+                                  className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
+                                    isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                                  }`}
+                                  onClick={() => {
+                                    const newPkg = isSelected ? null : pkg;
+                                    setSelectedApiPackage(newPkg);
+                                    // Auto-deselect buggy add-ons if package includes buggy
+                                    if (newPkg?.includesBuggy) {
+                                      setSelectedAddOns(prev => {
+                                        const next = new Set(prev);
+                                        courseAddOns.forEach(addon => {
+                                          if (addon.type === 'buggy_shared' || addon.type === 'buggy_individual') {
+                                            next.delete(addon.id);
+                                          }
+                                        });
+                                        return next;
+                                      });
+                                    }
+                                  }}
+                                  data-testid={`api-package-${index}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => {
+                                        const newPkg = isSelected ? null : pkg;
+                                        setSelectedApiPackage(newPkg);
+                                        if (newPkg?.includesBuggy) {
+                                          setSelectedAddOns(prev => {
+                                            const next = new Set(prev);
+                                            courseAddOns.forEach(addon => {
+                                              if (addon.type === 'buggy_shared' || addon.type === 'buggy_individual') {
+                                                next.delete(addon.id);
+                                              }
+                                            });
+                                            return next;
+                                          });
+                                        }
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <div className="space-y-1">
+                                      <span className="font-medium text-sm">{pkg.name}</span>
+                                      {pkg.description && (
+                                        <p className="text-xs text-muted-foreground">{pkg.description}</p>
+                                      )}
+                                      <div className="flex gap-1 flex-wrap items-center">
+                                        {pkg.includesBuggy && (
+                                          <Badge variant="outline" className="text-xs">
+                                            <Car className="h-3 w-3 mr-1" />Buggy
+                                          </Badge>
+                                        )}
+                                        {pkg.includesLunch && (
+                                          <Badge variant="outline" className="text-xs">
+                                            <Utensils className="h-3 w-3 mr-1" />Lunch
+                                          </Badge>
+                                        )}
+                                        {pkg.isEarlyBird && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            <Sun className="h-3 w-3 mr-1" />
+                                            Early Bird
+                                          </Badge>
+                                        )}
+                                        {pkg.isTwilight && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            <Sunset className="h-3 w-3 mr-1" />
+                                            Twilight
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="font-medium text-sm text-primary">€{totalForPlayers.toFixed(2)}</span>
+                                    <p className="text-xs text-muted-foreground">€{pkg.price}/player</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        /* Green Fee Summary - fallback when no API packages */
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Green Fee ({players}x €{selectedSlot.greenFee || 0})</span>
+                            <span className="font-medium">€{(selectedSlot.greenFee || 0) * players}</span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Add-ons */}
                       {courseAddOns.length > 0 && (
