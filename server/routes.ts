@@ -205,6 +205,18 @@ async function sendCourseBookingNotification(
     });
     
     console.log(`✓ Course notification email sent to ${recipient} (original: ${courseEmail}) for booking ${booking.id}`);
+    
+    storage.createEmailLog({
+      bookingId: booking.id,
+      courseId: course.id,
+      emailType: "COURSE_NOTIFICATION",
+      recipientEmail: recipient,
+      recipientName: course.name,
+      subject: emailContent.subject,
+      bodyText: emailContent.text,
+      bodyHtml: emailContent.html,
+      status: "SENT",
+    }).catch(e => console.warn("Failed to log course notification email:", e));
   } catch (error) {
     console.warn(`⚠ Failed to send course notification email:`, error instanceof Error ? error.message : error);
   }
@@ -996,6 +1008,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
       res.status(500).json({ error: "Failed to mark notifications as read" });
+    }
+  });
+
+  // GET /api/admin/email-logs - Retrieve email logs with optional filters
+  app.get("/api/admin/email-logs", isAdmin, async (req, res) => {
+    try {
+      const { emailType, courseId, bookingId, limit, offset } = req.query;
+      const result = await storage.getEmailLogs({
+        emailType: emailType as string | undefined,
+        courseId: courseId as string | undefined,
+        bookingId: bookingId as string | undefined,
+        limit: limit ? parseInt(limit as string, 10) : 50,
+        offset: offset ? parseInt(offset as string, 10) : 0,
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching email logs:", error);
+      res.status(500).json({ error: "Failed to fetch email logs" });
     }
   });
 
@@ -3266,6 +3296,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             console.log(`✓ Booking confirmation email sent to ${booking.customerEmail}`);
+            
+            storage.createEmailLog({
+              bookingId: booking.id,
+              courseId: course.id,
+              emailType: "CUSTOMER_CONFIRMATION",
+              recipientEmail: booking.customerEmail,
+              recipientName: booking.customerName,
+              subject: emailContent.subject,
+              bodyText: emailContent.text,
+              bodyHtml: emailContent.html,
+              status: "SENT",
+            }).catch(e => console.warn("Failed to log customer confirmation email:", e));
           } else {
             console.warn('⚠ SMTP not configured - skipping confirmation email. Set SMTP environment variables to enable email notifications.');
           }
@@ -3574,6 +3616,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       text: emailContent.text,
                     }).then(() => {
                       console.log(`✓ Customer confirmation email sent to ${booking.customerEmail}`);
+                      storage.createEmailLog({
+                        bookingId: booking.id,
+                        courseId: course.id,
+                        emailType: "CUSTOMER_CONFIRMATION",
+                        recipientEmail: booking.customerEmail,
+                        recipientName: booking.customerName,
+                        subject: emailContent.subject,
+                        bodyText: emailContent.text,
+                        bodyHtml: emailContent.html,
+                        status: "SENT",
+                      }).catch(e => console.warn("Failed to log customer confirmation email:", e));
                     }).catch((emailErr) => {
                       console.warn(`⚠ Failed to send customer confirmation email:`, emailErr instanceof Error ? emailErr.message : emailErr);
                     });
@@ -3733,6 +3786,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             text: emailContent.text,
           }).then(() => {
             console.log(`✓ Customer confirmation email sent to ${booking.customerEmail}`);
+            storage.createEmailLog({
+              bookingId: booking.id,
+              courseId: course.id,
+              emailType: "CUSTOMER_CONFIRMATION",
+              recipientEmail: booking.customerEmail,
+              recipientName: booking.customerName,
+              subject: emailContent.subject,
+              bodyText: emailContent.text,
+              bodyHtml: emailContent.html,
+              status: "SENT",
+            }).catch(e => console.warn("Failed to log customer confirmation email:", e));
           }).catch((err) => {
             console.warn(`⚠ Failed to send customer confirmation email:`, err instanceof Error ? err.message : err);
           });
@@ -3850,6 +3914,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               text: emailContent.text,
             }).then(() => {
               console.log(`✓ Customer confirmation email sent to ${booking.customerEmail}`);
+              storage.createEmailLog({
+                bookingId: booking.id,
+                courseId: course.id,
+                emailType: "CUSTOMER_CONFIRMATION",
+                recipientEmail: booking.customerEmail,
+                recipientName: booking.customerName,
+                subject: emailContent.subject,
+                bodyText: emailContent.text,
+                bodyHtml: emailContent.html,
+                status: "SENT",
+              }).catch(e => console.warn("Failed to log customer confirmation email:", e));
             }).catch((emailErr) => {
               console.warn(`⚠ Failed to send customer confirmation email:`, emailErr instanceof Error ? emailErr.message : emailErr);
             });

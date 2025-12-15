@@ -66,8 +66,8 @@ import { getPersonalFeedback } from "@/lib/personalFeedback";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { CommissionDashboard } from "@/components/CommissionDashboard";
 import { AdCampaigns } from "@/components/AdCampaigns";
-import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog, CourseImage, CourseDocument, CourseRatePeriod, CourseContact, PartnershipForm } from "@shared/schema";
-import { CONTACT_LOG_TYPES } from "@shared/schema";
+import type { GolfCourse, BookingRequest, CourseContactLog, InsertCourseContactLog, CourseImage, CourseDocument, CourseRatePeriod, CourseContact, PartnershipForm, EmailLog } from "@shared/schema";
+import { CONTACT_LOG_TYPES, EMAIL_LOG_TYPES } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -589,6 +589,195 @@ interface ZestPricingEntry {
   };
 }
 
+function EmailLogTab({ 
+  courses, 
+  emailLogFilter, 
+  setEmailLogFilter, 
+  emailLogPage, 
+  setEmailLogPage,
+  emailLogLimit 
+}: { 
+  courses: GolfCourse[];
+  emailLogFilter: string;
+  setEmailLogFilter: (filter: string) => void;
+  emailLogPage: number;
+  setEmailLogPage: (page: number) => void;
+  emailLogLimit: number;
+}) {
+  const emailLogsQuery = useQuery<{ logs: EmailLog[]; total: number }>({
+    queryKey: ["/api/admin/email-logs", emailLogFilter, emailLogPage, emailLogLimit],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (emailLogFilter !== "all") {
+        params.set("emailType", emailLogFilter);
+      }
+      params.set("limit", String(emailLogLimit));
+      params.set("offset", String(emailLogPage * emailLogLimit));
+      const response = await fetch(`/api/admin/email-logs?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch email logs");
+      return response.json();
+    },
+  });
+
+  const emailLogs = emailLogsQuery.data?.logs || [];
+  const totalEmailLogs = emailLogsQuery.data?.total || 0;
+  const totalPages = Math.ceil(totalEmailLogs / emailLogLimit);
+
+  const getCourseName = (courseId: string | null) => {
+    if (!courseId) return "-";
+    const course = courses.find(c => c.id === courseId);
+    return course?.name || courseId;
+  };
+
+  const getEmailTypeBadge = (type: string) => {
+    switch (type) {
+      case "CUSTOMER_CONFIRMATION":
+        return <Badge variant="default" className="text-xs">Customer</Badge>;
+      case "COURSE_NOTIFICATION":
+        return <Badge variant="secondary" className="text-xs">Course</Badge>;
+      case "REVIEW_REQUEST":
+        return <Badge variant="outline" className="text-xs">Review</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{type}</Badge>;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "SENT":
+        return <Badge className="bg-green-100 text-green-700 text-xs">Sent</Badge>;
+      case "FAILED":
+        return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{status}</Badge>;
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Email Log
+          </CardTitle>
+          <CardDescription>
+            Track all booking-related emails sent to customers and courses
+          </CardDescription>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={emailLogFilter} onValueChange={(value) => { setEmailLogFilter(value); setEmailLogPage(0); }}>
+            <SelectTrigger className="w-[180px]" data-testid="select-email-log-filter">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="CUSTOMER_CONFIRMATION">Customer Confirmation</SelectItem>
+              <SelectItem value="COURSE_NOTIFICATION">Course Notification</SelectItem>
+              <SelectItem value="REVIEW_REQUEST">Review Request</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => emailLogsQuery.refetch()}
+            disabled={emailLogsQuery.isFetching}
+            data-testid="button-refresh-email-logs"
+          >
+            <RefreshCw className={`h-4 w-4 ${emailLogsQuery.isFetching ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {emailLogsQuery.isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : emailLogs.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium">No email logs found</p>
+            <p className="text-sm mt-1">Sent emails will appear here</p>
+          </div>
+        ) : (
+          <>
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date/Time</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {emailLogs.map((log) => (
+                    <TableRow key={log.id} data-testid={`email-log-row-${log.id}`}>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {log.sentAt ? format(new Date(log.sentAt), "MMM d, yyyy h:mm a") : "-"}
+                      </TableCell>
+                      <TableCell>{getEmailTypeBadge(log.emailType)}</TableCell>
+                      <TableCell className="max-w-[200px] truncate" title={log.recipientEmail}>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium truncate">{log.recipientName || "-"}</span>
+                          <span className="text-xs text-muted-foreground truncate">{log.recipientEmail}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[250px] truncate text-sm" title={log.subject || ""}>
+                        {log.subject || "-"}
+                      </TableCell>
+                      <TableCell className="max-w-[150px] truncate text-sm">
+                        {getCourseName(log.courseId)}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(log.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {emailLogPage * emailLogLimit + 1} - {Math.min((emailLogPage + 1) * emailLogLimit, totalEmailLogs)} of {totalEmailLogs}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEmailLogPage(emailLogPage - 1)}
+                    disabled={emailLogPage === 0}
+                    data-testid="button-email-log-prev"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {emailLogPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEmailLogPage(emailLogPage + 1)}
+                    disabled={emailLogPage >= totalPages - 1}
+                    data-testid="button-email-log-next"
+                  >
+                    Next
+                    <ArrowRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ZestAutomationCard() {
   const { toast } = useToast();
   const [pendingFacilities, setPendingFacilities] = useState<ZestPendingFacility[]>([]);
@@ -948,6 +1137,11 @@ export default function Admin() {
   const [replyText, setReplyText] = useState("");
   const [pendingMembersOnlyUpdates, setPendingMembersOnlyUpdates] = useState<Set<string>>(new Set());
   const [showAlertSettings, setShowAlertSettings] = useState(false);
+  
+  // Email log state
+  const [emailLogFilter, setEmailLogFilter] = useState<string>("all");
+  const [emailLogPage, setEmailLogPage] = useState(0);
+  const emailLogLimit = 25;
   
   // Bookings tab state
   const [bookingSearchQuery, setBookingSearchQuery] = useState("");
@@ -3461,6 +3655,12 @@ export default function Admin() {
                 </Badge>
               )}
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="email-logs" data-testid="tab-email-logs">
+                <Mail className="h-4 w-4 mr-2" />
+                Email Log
+              </TabsTrigger>
+            )}
             {isAdmin && (
               <TabsTrigger value="api-keys" data-testid="tab-api-keys">
                 <Key className="h-4 w-4 mr-2" />
@@ -6561,6 +6761,18 @@ export default function Admin() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Email Log Tab - Track all sent booking emails */}
+          <TabsContent value="email-logs">
+            <EmailLogTab 
+              courses={courses || []}
+              emailLogFilter={emailLogFilter}
+              setEmailLogFilter={setEmailLogFilter}
+              emailLogPage={emailLogPage}
+              setEmailLogPage={setEmailLogPage}
+              emailLogLimit={emailLogLimit}
+            />
           </TabsContent>
 
           {/* Inbox Tab - Course Email Conversations */}
