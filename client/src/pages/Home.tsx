@@ -142,41 +142,64 @@ function groupCoursesByDistance(courses: CourseWithSlots[]): Record<DistanceCate
     groups[category].push(course);
   });
   
-  // Sort each group by distance
+  // Sort each group: courses with tee times first, then by distance
   Object.keys(groups).forEach(key => {
-    groups[key as DistanceCategory].sort((a, b) => 
-      (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
-    );
+    groups[key as DistanceCategory].sort((a, b) => {
+      const aHasTimes = a.slots && a.slots.length > 0;
+      const bHasTimes = b.slots && b.slots.length > 0;
+      if (aHasTimes !== bHasTimes) return aHasTimes ? -1 : 1;
+      return (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity);
+    });
   });
   
   return groups;
 }
 
 // Utility: Sort courses by selected mode
+// ALWAYS prioritizes courses with real tee times first
 function sortCourses(courses: CourseWithSlots[], mode: SortMode): CourseWithSlots[] {
   const sorted = [...courses];
+  
+  // Helper to check if course has real tee times
+  const hasRealTimes = (c: CourseWithSlots) => c.slots && c.slots.length > 0;
   
   switch (mode) {
     case "distance-asc":
       return sorted.sort((a, b) => {
+        // Courses with tee times come first
+        if (hasRealTimes(a) !== hasRealTimes(b)) {
+          return hasRealTimes(a) ? -1 : 1;
+        }
         const distA = a.distanceKm ?? Infinity;
         const distB = b.distanceKm ?? Infinity;
         return distA - distB;
       });
     case "distance-desc":
       return sorted.sort((a, b) => {
+        // Courses with tee times come first
+        if (hasRealTimes(a) !== hasRealTimes(b)) {
+          return hasRealTimes(a) ? -1 : 1;
+        }
         const distA = a.distanceKm ?? -Infinity;
         const distB = b.distanceKm ?? -Infinity;
         return distB - distA;
       });
     case "price-asc":
       return sorted.sort((a, b) => {
+        // Courses with tee times come first
+        if (hasRealTimes(a) !== hasRealTimes(b)) {
+          return hasRealTimes(a) ? -1 : 1;
+        }
         const priceA = getMinPrice(a.slots) ?? Infinity;
         const priceB = getMinPrice(b.slots) ?? Infinity;
         return priceA - priceB;
       });
     case "price-desc":
       return sorted.sort((a, b) => {
+        // Courses with tee times come first
+        if (hasRealTimes(a) !== hasRealTimes(b)) {
+          return hasRealTimes(a) ? -1 : 1;
+        }
         const priceA = getMinPrice(a.slots) ?? -Infinity;
         const priceB = getMinPrice(b.slots) ?? -Infinity;
         return priceB - priceA;
