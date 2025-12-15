@@ -2486,6 +2486,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const updateCourseSchema = z.object({
         kickbackPercent: z.number().min(0).max(100).optional(),
+        golfmanagerV1User: z.string().optional(),
+        golfmanagerV1Password: z.string().optional(),
         golfmanagerUser: z.string().optional(),
         golfmanagerPassword: z.string().optional(),
         teeoneIdEmpresa: z.number().optional(),
@@ -2507,6 +2509,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result.data.kickbackPercent !== undefined) {
         updates.kickbackPercent = result.data.kickbackPercent;
       }
+      // Golfmanager V1 credentials
+      if (result.data.golfmanagerV1User !== undefined) {
+        updates.golfmanagerV1User = result.data.golfmanagerV1User || null;
+      }
+      if (result.data.golfmanagerV1Password !== undefined) {
+        updates.golfmanagerV1Password = result.data.golfmanagerV1Password || null;
+      }
+      // Golfmanager V3 credentials
       if (result.data.golfmanagerUser !== undefined) {
         updates.golfmanagerUser = result.data.golfmanagerUser || null;
       }

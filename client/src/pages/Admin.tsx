@@ -331,6 +331,8 @@ const editUserSchema = z.object({
 
 const editCourseSchema = z.object({
   kickbackPercent: z.number().min(0, "Must be at least 0").max(100, "Must be at most 100"),
+  golfmanagerV1User: z.string().optional(),
+  golfmanagerV1Password: z.string().optional(),
   golfmanagerUser: z.string().optional(),
   golfmanagerPassword: z.string().optional(),
   teeoneIdEmpresa: z.string().optional(),
@@ -373,6 +375,8 @@ interface SortableImageItem {
 }
 
 interface CredentialsFormData {
+  golfmanagerV1User?: string;
+  golfmanagerV1Password?: string;
   golfmanagerUser?: string;
   golfmanagerPassword?: string;
   teeoneIdEmpresa?: number;
@@ -391,8 +395,10 @@ function CredentialsEditor({
   isSaving: boolean;
 }) {
   const { toast } = useToast();
-  const [gmUser, setGmUser] = useState(course?.golfmanagerUser || "");
-  const [gmPassword, setGmPassword] = useState(course?.golfmanagerPassword || "");
+  const [gmV1User, setGmV1User] = useState(course?.golfmanagerV1User || "");
+  const [gmV1Password, setGmV1Password] = useState(course?.golfmanagerV1Password || "");
+  const [gmV3User, setGmV3User] = useState(course?.golfmanagerUser || "");
+  const [gmV3Password, setGmV3Password] = useState(course?.golfmanagerPassword || "");
   const [teeoneEmpresa, setTeeoneEmpresa] = useState(course?.teeoneIdEmpresa?.toString() || "");
   const [teeoneTeeSheet, setTeeoneTeeSheet] = useState(course?.teeoneIdTeeSheet?.toString() || "");
   const [teeoneUser, setTeeoneUser] = useState(course?.teeoneApiUser || "");
@@ -400,8 +406,10 @@ function CredentialsEditor({
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    setGmUser(course?.golfmanagerUser || "");
-    setGmPassword(course?.golfmanagerPassword || "");
+    setGmV1User(course?.golfmanagerV1User || "");
+    setGmV1Password(course?.golfmanagerV1Password || "");
+    setGmV3User(course?.golfmanagerUser || "");
+    setGmV3Password(course?.golfmanagerPassword || "");
     setTeeoneEmpresa(course?.teeoneIdEmpresa?.toString() || "");
     setTeeoneTeeSheet(course?.teeoneIdTeeSheet?.toString() || "");
     setTeeoneUser(course?.teeoneApiUser || "");
@@ -412,8 +420,10 @@ function CredentialsEditor({
   const handleSave = async () => {
     try {
       await onSave({
-        golfmanagerUser: gmUser || undefined,
-        golfmanagerPassword: gmPassword || undefined,
+        golfmanagerV1User: gmV1User || undefined,
+        golfmanagerV1Password: gmV1Password || undefined,
+        golfmanagerUser: gmV3User || undefined,
+        golfmanagerPassword: gmV3Password || undefined,
         teeoneIdEmpresa: teeoneEmpresa ? parseInt(teeoneEmpresa, 10) : undefined,
         teeoneIdTeeSheet: teeoneTeeSheet ? parseInt(teeoneTeeSheet, 10) : undefined,
         teeoneApiUser: teeoneUser || undefined,
@@ -437,31 +447,66 @@ function CredentialsEditor({
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Lock className="h-4 w-4" />
-            Golfmanager API Credentials
+            Golfmanager V1 (Legacy)
           </CardTitle>
           <CardDescription>
-            Login credentials for Golfmanager V1 or V3 API
+            Old Golfmanager API credentials (short username format)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Username</Label>
+              <Label>V1 Username</Label>
               <Input 
-                value={gmUser}
-                onChange={handleChange(setGmUser)}
-                placeholder="API username"
-                data-testid="input-profile-gm-user"
+                value={gmV1User}
+                onChange={handleChange(setGmV1User)}
+                placeholder="e.g. SZc5XNpGd0"
+                data-testid="input-profile-gm-v1-user"
               />
             </div>
             <div className="space-y-2">
-              <Label>Password</Label>
+              <Label>V1 Password</Label>
               <Input 
                 type="password"
-                value={gmPassword}
-                onChange={handleChange(setGmPassword)}
-                placeholder="API password"
-                data-testid="input-profile-gm-password"
+                value={gmV1Password}
+                onChange={handleChange(setGmV1Password)}
+                placeholder="V1 API password"
+                data-testid="input-profile-gm-v1-password"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            Golfmanager V3 (Current)
+          </CardTitle>
+          <CardDescription>
+            Current Golfmanager API credentials (email login format)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>V3 Email/Username</Label>
+              <Input 
+                value={gmV3User}
+                onChange={handleChange(setGmV3User)}
+                placeholder="e.g. user@example.com"
+                data-testid="input-profile-gm-v3-user"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>V3 Password</Label>
+              <Input 
+                type="password"
+                value={gmV3Password}
+                onChange={handleChange(setGmV3Password)}
+                placeholder="V3 API password"
+                data-testid="input-profile-gm-v3-password"
               />
             </div>
           </div>
@@ -2613,6 +2658,8 @@ export default function Admin() {
     resolver: zodResolver(editCourseSchema),
     defaultValues: {
       kickbackPercent: 0,
+      golfmanagerV1User: "",
+      golfmanagerV1Password: "",
       golfmanagerUser: "",
       golfmanagerPassword: "",
       teeoneIdEmpresa: "",
@@ -2653,9 +2700,11 @@ export default function Admin() {
 
   // Update course (kickback + credentials) mutation
   const updateCourseMutation = useMutation({
-    mutationFn: async ({ courseId, kickbackPercent, golfmanagerUser, golfmanagerPassword, teeoneIdEmpresa, teeoneIdTeeSheet, teeoneApiUser, teeoneApiPassword }: { 
+    mutationFn: async ({ courseId, kickbackPercent, golfmanagerV1User, golfmanagerV1Password, golfmanagerUser, golfmanagerPassword, teeoneIdEmpresa, teeoneIdTeeSheet, teeoneApiUser, teeoneApiPassword }: { 
       courseId: string; 
       kickbackPercent: number;
+      golfmanagerV1User?: string;
+      golfmanagerV1Password?: string;
       golfmanagerUser?: string;
       golfmanagerPassword?: string;
       teeoneIdEmpresa?: number;
@@ -2665,6 +2714,8 @@ export default function Admin() {
     }) => {
       const response = await apiRequest(`/api/admin/courses/${courseId}`, "PATCH", { 
         kickbackPercent,
+        golfmanagerV1User,
+        golfmanagerV1Password,
         golfmanagerUser,
         golfmanagerPassword,
         teeoneIdEmpresa,
@@ -2706,6 +2757,8 @@ export default function Admin() {
     setEditCourseImageUrl(course.imageUrl || "");
     courseForm.reset({
       kickbackPercent: course.kickbackPercent || 0,
+      golfmanagerV1User: course.golfmanagerV1User || "",
+      golfmanagerV1Password: course.golfmanagerV1Password || "",
       golfmanagerUser: course.golfmanagerUser || "",
       golfmanagerPassword: course.golfmanagerPassword || "",
       teeoneIdEmpresa: course.teeoneIdEmpresa?.toString() || "",
@@ -2721,6 +2774,8 @@ export default function Admin() {
       updateCourseMutation.mutate({ 
         courseId: editingCourse.id, 
         kickbackPercent: data.kickbackPercent,
+        golfmanagerV1User: data.golfmanagerV1User,
+        golfmanagerV1Password: data.golfmanagerV1Password,
         golfmanagerUser: data.golfmanagerUser,
         golfmanagerPassword: data.golfmanagerPassword,
         teeoneIdEmpresa: data.teeoneIdEmpresa ? parseInt(data.teeoneIdEmpresa, 10) : undefined,
@@ -2895,6 +2950,8 @@ export default function Admin() {
     // Initialize credentials/kickback form
     courseForm.reset({
       kickbackPercent: course.kickbackPercent || 0,
+      golfmanagerV1User: course.golfmanagerV1User || "",
+      golfmanagerV1Password: course.golfmanagerV1Password || "",
       golfmanagerUser: course.golfmanagerUser || "",
       golfmanagerPassword: course.golfmanagerPassword || "",
       teeoneIdEmpresa: course.teeoneIdEmpresa?.toString() || "",

@@ -70,8 +70,12 @@ export const golfCourses = pgTable("golf_courses", {
   imageUrl: text("image_url"),
   facilities: text("facilities").array(),
   kickbackPercent: real("kickback_percent").default(0), // Commission % (0-100)
-  golfmanagerUser: text("golfmanager_user"), // Golfmanager API username
-  golfmanagerPassword: text("golfmanager_password"), // Golfmanager API password
+  // Golfmanager V1 API credentials (legacy)
+  golfmanagerV1User: text("golfmanager_v1_user"),
+  golfmanagerV1Password: text("golfmanager_v1_password"),
+  // Golfmanager V3 API credentials (current)
+  golfmanagerUser: text("golfmanager_user"), // V3 username (email)
+  golfmanagerPassword: text("golfmanager_password"), // V3 password
   // TeeOne API credentials
   teeoneIdEmpresa: integer("teeone_id_empresa"), // TeeOne company/club ID
   teeoneIdTeeSheet: integer("teeone_id_teesheet"), // TeeOne tee sheet ID
