@@ -632,7 +632,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         handicap: user.handicap,
         homeClub: user.homeClub,
         preferredTeeTime: user.preferredTeeTime,
-        gender: user.gender
+        gender: user.gender,
+        savedPlayers: user.savedPlayersJson ? JSON.parse(user.savedPlayersJson) : []
       });
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -3944,6 +3945,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log(`✓ Simulated payment booking created: ${booking.id} for ${course.name}`);
+      
+      // Save player names to user profile for future bookings (non-blocking)
+      if (req.session?.userId && playerNames && playerNames.length > 0) {
+        try {
+          const user = await storage.getUser(req.session.userId);
+          if (user) {
+            const existingSavedPlayers: string[] = user.savedPlayersJson ? JSON.parse(user.savedPlayersJson) : [];
+            // Add new player names that aren't already saved (case-insensitive comparison)
+            const newPlayers = playerNames.filter((name: string) => 
+              name.trim() && !existingSavedPlayers.some(existing => 
+                existing.toLowerCase() === name.trim().toLowerCase()
+              )
+            );
+            if (newPlayers.length > 0) {
+              const updatedPlayers = [...existingSavedPlayers, ...newPlayers.map((n: string) => n.trim())];
+              await storage.updateUser(req.session.userId, { 
+                savedPlayersJson: JSON.stringify(updatedPlayers) 
+              });
+              console.log(`✓ Saved ${newPlayers.length} new player names to user profile`);
+            }
+          }
+        } catch (saveError) {
+          console.warn('Failed to save player names to profile:', saveError);
+        }
+      }
       
       // Send confirmation email to customer (non-blocking, graceful failure)
       const emailConfig = getEmailConfig();

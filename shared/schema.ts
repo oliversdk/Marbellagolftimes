@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   homeClub: varchar("home_club"), // User's home golf club
   preferredTeeTime: varchar("preferred_tee_time"), // morning, afternoon, evening
   gender: varchar("gender"), // male, female, other
+  savedPlayersJson: text("saved_players_json"), // JSON array of saved player names for quick booking
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -1081,22 +1081,58 @@ export function BookingModal({
         {/* Player names - required by golf courses */}
         <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
           <Label className="text-sm font-medium">Player Names *</Label>
-          <p className="text-xs text-muted-foreground">Golf courses require names for all players</p>
+          <p className="text-xs text-muted-foreground">
+            {isAuthenticated && (user as any)?.savedPlayers?.length > 0 
+              ? "Select from saved players or enter new names" 
+              : "Golf courses require names for all players"}
+          </p>
           <div className="grid gap-2">
-            {playerNames.map((name, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-16 shrink-0">Player {index + 1}:</span>
-                <Input
-                  value={name}
-                  onChange={(e) => updatePlayerName(index, e.target.value)}
-                  placeholder={index === 0 ? customerName || `Player ${index + 1} name` : `Player ${index + 1} name`}
-                  required
-                  data-testid={`input-player-name-${index + 1}`}
-                  className="min-h-[40px] text-base sm:text-sm"
-                />
-              </div>
-            ))}
+            {playerNames.map((name, index) => {
+              const savedPlayers: string[] = isAuthenticated && (user as any)?.savedPlayers || [];
+              const hasSavedPlayers = savedPlayers.length > 0;
+              
+              return (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-16 shrink-0">Player {index + 1}:</span>
+                  <div className="flex-1 flex gap-1">
+                    {hasSavedPlayers && (
+                      <Select 
+                        value={savedPlayers.includes(name) ? name : ""} 
+                        onValueChange={(val) => updatePlayerName(index, val)}
+                      >
+                        <SelectTrigger 
+                          className="w-[140px] min-h-[40px] text-sm shrink-0"
+                          data-testid={`select-saved-player-${index + 1}`}
+                        >
+                          <SelectValue placeholder="Saved..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedPlayers.map((savedName: string) => (
+                            <SelectItem key={savedName} value={savedName}>
+                              {savedName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Input
+                      value={name}
+                      onChange={(e) => updatePlayerName(index, e.target.value)}
+                      placeholder={index === 0 && customerName ? customerName : `Player ${index + 1} name`}
+                      required
+                      data-testid={`input-player-name-${index + 1}`}
+                      className="min-h-[40px] text-base sm:text-sm flex-1"
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
+          {isAuthenticated && (
+            <p className="text-xs text-muted-foreground italic">
+              New player names will be saved to your profile for future bookings
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
