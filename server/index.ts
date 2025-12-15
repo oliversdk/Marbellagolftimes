@@ -11,6 +11,13 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+// Health check endpoint - responds immediately for Cloud Run
+// Must be registered BEFORE any middleware that might delay response
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
@@ -49,9 +56,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Seed the database on startup
-  await seedDatabase();
-  
+  // Register routes first (without waiting for seeding)
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -85,6 +90,11 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Seed database AFTER server starts listening (non-blocking)
+    seedDatabase()
+      .then(() => log("Database seeding completed"))
+      .catch((err) => console.error("Database seeding failed:", err));
     
     // Alert scheduler disabled - too many emails being sent
     // startAlertScheduler();
