@@ -3841,6 +3841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         courseId, 
         teeTime, 
         players, 
+        playerNames, // Array of player names for all players
         selectedAddOnIds,
         customerName,
         customerEmail,
@@ -3933,6 +3934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerName: customerName || "Test User",
         customerEmail: customerEmail || "test@example.com",
         customerPhone: customerPhone || "",
+        playerNamesJson: playerNames && playerNames.length > 0 ? JSON.stringify(playerNames) : null,
         userId: req.session?.userId || null,
         status: "CONFIRMED",
         paymentStatus: "paid",

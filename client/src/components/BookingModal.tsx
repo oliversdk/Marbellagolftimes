@@ -85,7 +85,28 @@ export function BookingModal({
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [playerNames, setPlayerNames] = useState<string[]>(["", ""]);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  
+  // Update player names array when player count changes
+  const updatePlayerCount = (newCount: number) => {
+    setPlayers(newCount);
+    setPlayerNames(prev => {
+      const newNames = [...prev];
+      while (newNames.length < newCount) {
+        newNames.push("");
+      }
+      return newNames.slice(0, newCount);
+    });
+  };
+  
+  const updatePlayerName = (index: number, name: string) => {
+    setPlayerNames(prev => {
+      const newNames = [...prev];
+      newNames[index] = name;
+      return newNames;
+    });
+  };
 
   // Fetch rate periods/packages for this course
   const { data: ratePeriods } = useQuery<CourseRatePeriod[]>({
@@ -279,7 +300,7 @@ export function BookingModal({
     if (preSelectedSlot) {
       setSelectedSlot(preSelectedSlot);
       // Don't set step here - wait for data to load
-      setPlayers(preSelectedSlot.players || 2);
+      updatePlayerCount(preSelectedSlot.players || 2);
     } else {
       setStep('select-time');
       setSelectedSlot(null);
@@ -315,7 +336,8 @@ export function BookingModal({
       setSelectedApiPackage(null);
       setSelectedAddOns(new Set());
       setSearchDate(new Date());
-      setPlayers(2);
+      updatePlayerCount(2);
+      setPlayerNames(["", ""]);
       setCustomerName("");
       setCustomerEmail("");
       setCustomerPhone("");
@@ -361,7 +383,7 @@ export function BookingModal({
     // Adjust player count if it exceeds available slots
     const maxSlots = slot.slotsAvailable || 4;
     if (players > maxSlots) {
-      setPlayers(maxSlots);
+      updatePlayerCount(maxSlots);
     }
   };
 
@@ -387,6 +409,17 @@ export function BookingModal({
 
   const handleSimulatePayment = async () => {
     if (!course || !selectedSlot) return;
+    // Check if all player names are filled
+    const emptyPlayerNames = playerNames.filter(name => !name.trim());
+    if (emptyPlayerNames.length > 0) {
+      toast({
+        title: 'Missing Player Names',
+        description: `Please enter names for all ${players} players`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     if (!customerName || !customerEmail || !customerPhone) {
       toast({
         title: 'Missing Information',
@@ -406,6 +439,7 @@ export function BookingModal({
           courseId: course.id,
           teeTime: selectedSlot.teeTime,
           players,
+          playerNames: playerNames.map(n => n.trim()),
           selectedAddOnIds: Array.from(selectedAddOns),
           customerName,
           customerEmail,
@@ -424,7 +458,7 @@ export function BookingModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Payment simulation failed');
+        throw new Error(data.error || data.message || 'Payment simulation failed');
       }
 
       if (data.booking) {
@@ -463,6 +497,7 @@ export function BookingModal({
             courseId: course.id,
             teeTime: selectedSlot.teeTime,
             players,
+            playerNames: playerNames.map(n => n.trim()),
             selectedAddOnIds: Array.from(selectedAddOns),
             customerName,
             customerEmail,
@@ -481,7 +516,7 @@ export function BookingModal({
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.message || 'Payment simulation failed');
+          throw new Error(data.error || data.message || 'Payment simulation failed');
         }
 
         if (data.booking) {
@@ -500,6 +535,7 @@ export function BookingModal({
             courseId: course.id,
             teeTime: selectedSlot.teeTime,
             players,
+            playerNames: playerNames.map(n => n.trim()),
             selectedAddOnIds: Array.from(selectedAddOns),
             customerName,
             customerEmail,
@@ -517,7 +553,7 @@ export function BookingModal({
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.message || 'Failed to create checkout session');
+          throw new Error(data.error || data.message || 'Failed to create checkout session');
         }
 
         if (data.url) {
@@ -591,7 +627,7 @@ export function BookingModal({
           <Label className="text-sm">{t('booking.numberOfPlayers')}</Label>
           <Select value={String(players)} onValueChange={(val) => {
             const n = parseInt(val, 10);
-            if (!isNaN(n)) setPlayers(n);
+            if (!isNaN(n)) updatePlayerCount(n);
           }}>
             <SelectTrigger data-testid="select-players-search" className="min-h-[44px] text-base sm:text-sm">
               <SelectValue />
@@ -716,7 +752,7 @@ export function BookingModal({
                     key={num}
                     variant={players === num ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setPlayers(num)}
+                    onClick={() => updatePlayerCount(num)}
                     disabled={isDisabled}
                     data-testid={`button-players-${num}`}
                     title={isDisabled ? `Only ${maxSlots} ${maxSlots === 1 ? 'spot' : 'spots'} available` : undefined}
@@ -1040,6 +1076,27 @@ export function BookingModal({
             data-testid="input-customer-name"
             className="min-h-[44px] text-base sm:text-sm"
           />
+        </div>
+
+        {/* Player names - required by golf courses */}
+        <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+          <Label className="text-sm font-medium">Player Names *</Label>
+          <p className="text-xs text-muted-foreground">Golf courses require names for all players</p>
+          <div className="grid gap-2">
+            {playerNames.map((name, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-16 shrink-0">Player {index + 1}:</span>
+                <Input
+                  value={name}
+                  onChange={(e) => updatePlayerName(index, e.target.value)}
+                  placeholder={index === 0 ? customerName || `Player ${index + 1} name` : `Player ${index + 1} name`}
+                  required
+                  data-testid={`input-player-name-${index + 1}`}
+                  className="min-h-[40px] text-base sm:text-sm"
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-2">
