@@ -46,6 +46,7 @@ import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
 import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip, Globe, Loader2, RefreshCw, Star } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
+import { EmailConfirmDialog } from "@/components/EmailConfirmDialog";
 import {
   Select,
   SelectContent,
@@ -955,6 +956,8 @@ export default function Admin() {
   const [cityFilter, setCityFilter] = useState<string>("ALL");
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [showResendConfirmDialog, setShowResendConfirmDialog] = useState(false);
+  const [showEmailConfirmDialog, setShowEmailConfirmDialog] = useState(false);
+  const [pendingEmailRecipients, setPendingEmailRecipients] = useState<{email: string; name?: string}[]>([]);
   
   // Update active tab when URL changes
   useEffect(() => {
@@ -3228,6 +3231,19 @@ export default function Admin() {
       return;
     }
 
+    // Build list of recipients for confirmation
+    const recipients = selectedCourseIds
+      .map(id => affiliateEmailCourses?.find(c => c.id === id))
+      .filter(c => c?.email)
+      .map(c => ({ email: c!.email!, name: c!.name }));
+    
+    setPendingEmailRecipients(recipients);
+    setShowEmailConfirmDialog(true);
+  };
+
+  const confirmSendEmails = () => {
+    setShowEmailConfirmDialog(false);
+    
     if (recentlyContactedSelected.length > 0) {
       setShowResendConfirmDialog(true);
       return;
@@ -3243,6 +3259,7 @@ export default function Admin() {
 
   const confirmResendEmails = () => {
     setShowResendConfirmDialog(false);
+    setShowEmailConfirmDialog(false);
     sendEmailsMutation.mutate({
       courseIds: selectedCourseIds,
       subject: emailSubject,
@@ -6272,6 +6289,17 @@ export default function Admin() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+
+              {/* Email Confirmation Dialog */}
+              <EmailConfirmDialog
+                open={showEmailConfirmDialog}
+                onOpenChange={setShowEmailConfirmDialog}
+                onConfirm={confirmSendEmails}
+                recipients={pendingEmailRecipients}
+                subject={emailSubject.replace(/\[COURSE_NAME\]/g, "...")}
+                emailType="affiliate"
+                isLoading={sendEmailsMutation.isPending}
+              />
 
               {/* Re-send Confirmation Dialog */}
               <Dialog open={showResendConfirmDialog} onOpenChange={setShowResendConfirmDialog}>
