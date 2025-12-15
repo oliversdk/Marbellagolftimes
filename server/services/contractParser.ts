@@ -250,10 +250,28 @@ export class ContractParserService {
         }
 
         const avgKickback = parsedData.ratePeriods.reduce((sum, p) => sum + (p.kickbackPercent || 0), 0) / parsedData.ratePeriods.length;
+        const roundedKickback = Math.round(avgKickback * 10) / 10;
+        
+        // Update golf_courses.kickback_percent
         await db.update(golfCourses)
-          .set({ kickbackPercent: Math.round(avgKickback * 10) / 10 })
+          .set({ kickbackPercent: roundedKickback })
           .where(eq(golfCourses.id, document.courseId));
-        console.log(`Updated course kickback to ${avgKickback.toFixed(1)}%`);
+        
+        // Sync to course_onboarding.agreed_commission
+        const existingOnboarding = await db.select().from(courseOnboarding).where(eq(courseOnboarding.courseId, document.courseId));
+        if (existingOnboarding.length > 0) {
+          await db.update(courseOnboarding)
+            .set({ agreedCommission: roundedKickback, updatedAt: new Date() })
+            .where(eq(courseOnboarding.courseId, document.courseId));
+        } else {
+          await db.insert(courseOnboarding).values({
+            courseId: document.courseId,
+            stage: "CREDENTIALS_RECEIVED",
+            agreedCommission: roundedKickback,
+          });
+        }
+        
+        console.log(`Updated course kickback and agreed commission to ${avgKickback.toFixed(1)}%`);
       }
 
       if (parsedData.contacts && parsedData.contacts.length > 0) {
