@@ -3241,13 +3241,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 holes ? parseInt(holes as string) : 18
               );
 
-              // Convert TTOO prices to customer prices using course kickback percentage
-              const slots = rawSlots.map(slot => ({
-                ...slot,
-                greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
-              }));
+              // Convert TTOO prices to customer prices and filter out €0 slots (invalid data)
+              const slots = rawSlots
+                .filter(slot => slot.greenFee > 0) // Remove invalid €0 slots
+                .map(slot => ({
+                  ...slot,
+                  greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
+                }));
 
-              console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name} (tenant: ${tenant}, version: ${version}, kickback: ${course.kickbackPercent || 0}%)`);
+              console.log(`[Golfmanager] Retrieved ${slots.length} valid slots for ${course.name} (filtered ${rawSlots.length - slots.length} invalid €0 slots)`);
 
               results.push({
                 courseId: course.id,
@@ -3288,11 +3290,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     holes ? parseInt(holes as string) : 18
                   );
 
-                  // Convert TTOO prices to customer prices
-                  const slots = rawSlots.map(slot => ({
-                    ...slot,
-                    greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
-                  }));
+                  // Convert TTOO prices to customer prices and filter out €0 slots
+                  const slots = rawSlots
+                    .filter(slot => slot.greenFee > 0)
+                    .map(slot => ({
+                      ...slot,
+                      greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
+                    }));
 
                   console.log(`[Golfmanager] Retrieved ${slots.length} demo slots for ${course.name}`);
 
