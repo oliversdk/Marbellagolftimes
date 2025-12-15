@@ -2277,6 +2277,21 @@ export default function Admin() {
     },
   });
 
+  // Sync course details form when selectedCourseProfile changes
+  useEffect(() => {
+    if (selectedCourseProfile) {
+      courseDetailsForm.reset({
+        name: selectedCourseProfile.name || "",
+        city: selectedCourseProfile.city || "",
+        province: selectedCourseProfile.province || "",
+        email: selectedCourseProfile.email || "",
+        phone: selectedCourseProfile.phone || "",
+        websiteUrl: selectedCourseProfile.websiteUrl || "",
+        notes: selectedCourseProfile.notes || "",
+      });
+    }
+  }, [selectedCourseProfile, courseDetailsForm]);
+
   // Update course (kickback + credentials) mutation
   const updateCourseMutation = useMutation({
     mutationFn: async ({ courseId, kickbackPercent, golfmanagerUser, golfmanagerPassword, teeoneIdEmpresa, teeoneIdTeeSheet, teeoneApiUser, teeoneApiPassword }: { 
