@@ -112,25 +112,40 @@ setInterval(() => {
 // Priority: "Zest Primary" > "Zest Reservations" > course.email
 async function getCourseNotificationEmail(courseId: string, fallbackEmail?: string | null): Promise<string | null> {
   try {
+    console.log(`[Email Debug] Getting notification email for courseId: ${courseId}, fallback: ${fallbackEmail}`);
     const contacts = await db.select().from(courseContacts).where(eq(courseContacts.courseId, courseId));
+    console.log(`[Email Debug] Found ${contacts.length} contacts for course ${courseId}:`, contacts.map(c => ({ role: c.role, email: c.email, isPrimary: c.isPrimary })));
     
     // Priority 1: Look for "Zest Primary" role
     const zestPrimary = contacts.find(c => c.role === "Zest Primary" && c.email);
-    if (zestPrimary?.email) return zestPrimary.email;
+    if (zestPrimary?.email) {
+      console.log(`[Email Debug] Using Zest Primary email: ${zestPrimary.email}`);
+      return zestPrimary.email;
+    }
     
     // Priority 2: Look for "Zest Reservations" role
     const zestReservations = contacts.find(c => c.role === "Zest Reservations" && c.email);
-    if (zestReservations?.email) return zestReservations.email;
+    if (zestReservations?.email) {
+      console.log(`[Email Debug] Using Zest Reservations email: ${zestReservations.email}`);
+      return zestReservations.email;
+    }
     
     // Priority 3: Any primary contact with email
     const primaryContact = contacts.find(c => c.isPrimary === "true" && c.email);
-    if (primaryContact?.email) return primaryContact.email;
+    if (primaryContact?.email) {
+      console.log(`[Email Debug] Using primary contact email: ${primaryContact.email}`);
+      return primaryContact.email;
+    }
     
     // Priority 4: Any contact with email
     const anyContact = contacts.find(c => c.email);
-    if (anyContact?.email) return anyContact.email;
+    if (anyContact?.email) {
+      console.log(`[Email Debug] Using any contact email: ${anyContact.email}`);
+      return anyContact.email;
+    }
     
     // Fallback to course.email
+    console.log(`[Email Debug] Using fallback email: ${fallbackEmail}`);
     return fallbackEmail || null;
   } catch (error) {
     console.warn("[Email] Error fetching course contacts:", error);
