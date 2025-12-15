@@ -82,6 +82,41 @@ function cleanPackageName(name: string): string {
 }
 
 /**
+ * Get package slug for price target lookup
+ * Maps cleaned package names to slugs: "standard", "earlybird", "twilight", "lunch", "2player"
+ */
+function getPackageSlug(name: string): string {
+  const lower = name.toLowerCase();
+  
+  if (lower.includes("earlybird") || lower.includes("early bird")) {
+    return "earlybird";
+  }
+  if (lower.includes("twilight") || lower.includes("tarde")) {
+    return "twilight";
+  }
+  if (lower.includes("lunch") || lower.includes("almuerzo")) {
+    return "lunch";
+  }
+  if (lower.includes("2 greenfee") || lower.includes("2greenfee") || lower.includes("2 green fee")) {
+    return "2player";
+  }
+  
+  return "standard";
+}
+
+/**
+ * Price targets interface for package-specific customer prices
+ */
+interface PriceTargets {
+  standard?: number;
+  earlybird?: number;
+  twilight?: number;
+  lunch?: number;
+  "2player"?: number;
+  [key: string]: number | undefined;
+}
+
+/**
  * Golfmanager API Client for Costa del Sol golf courses
  * Supports both V1 and V3 APIs with full booking flow
  */
@@ -264,12 +299,40 @@ export class GolfmanagerProvider {
    * 
    * Nested format: [{ date: "...", slots: 2, types: [{ name, price, start, ... }] }]
    * Flat format: [{ start: "...", price: ..., slots: ... }]
+   * 
+   * @param priceTargetsJson - JSON string with package-specific target prices (e.g., {"standard": 71.25, "earlybird": 61.75})
+   * @param kickbackPercent - Fallback markup percentage if no target price is defined
    */
   convertSlotsToTeeTime(
     golfmanagerSlots: any[],
     players: number,
-    holes: number = 18
+    holes: number = 18,
+    priceTargetsJson?: string | null,
+    kickbackPercent: number = 20
   ): TeeTimeSlot[] {
+    // Parse price targets
+    let priceTargets: PriceTargets = {};
+    if (priceTargetsJson) {
+      try {
+        priceTargets = JSON.parse(priceTargetsJson);
+      } catch (e) {
+        console.error("[Golfmanager] Failed to parse priceTargetsJson:", e);
+      }
+    }
+    
+    // Helper to get customer price from TTOO price
+    const getCustomerPrice = (ttooPrice: number, packageName: string): number => {
+      const slug = getPackageSlug(packageName);
+      const targetPrice = priceTargets[slug];
+      
+      if (targetPrice !== undefined) {
+        // Use exact target price
+        return targetPrice;
+      }
+      
+      // Fallback: apply kickback markup
+      return Math.round(ttooPrice * (1 + kickbackPercent / 100) * 100) / 100;
+    };
     const results: TeeTimeSlot[] = [];
     
     for (const slot of golfmanagerSlots) {
@@ -284,18 +347,15 @@ export class GolfmanagerProvider {
         );
         
         if (validTypes.length > 0) {
-          // Sort by price (lowest first)
-          validTypes.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
-          const lowestPriceType = validTypes[0];
-          
-          // Convert all valid types to packages (clean TTOO codes from names)
+          // Convert all valid types to packages with customer prices
           const packages: TeeTimePackage[] = validTypes.map((t: any) => {
             const cleanedName = cleanPackageName(t.name);
             const nameLower = cleanedName.toLowerCase();
+            const customerPrice = getCustomerPrice(t.price || 0, cleanedName);
             return {
               id: t.id || t.idType || 0,
               name: cleanedName,
-              price: t.price || 0,
+              price: customerPrice, // Use customer price, not TTOO price
               description: t.description || undefined,
               includesBuggy: nameLower.includes("buggy"),
               includesLunch: nameLower.includes("lunch") || nameLower.includes("almuerzo"),
@@ -306,16 +366,23 @@ export class GolfmanagerProvider {
             };
           });
           
+          // Sort by customer price (lowest first)
+          packages.sort((a, b) => a.price - b.price);
+          const lowestPricePackage = packages[0];
+          const lowestPriceType = validTypes.find((t: any) => 
+            cleanPackageName(t.name) === lowestPricePackage.name
+          ) || validTypes[0];
+          
           results.push({
             teeTime: slot.date || lowestPriceType.start,
-            greenFee: lowestPriceType.price || 0, // Show lowest price as main price
+            greenFee: lowestPricePackage.price, // Show lowest customer price as main price
             currency: "EUR",
             players: slot.slots || players,
             holes: holes,
             source: `Golfmanager ${this.config.version.toUpperCase()}`,
             slotsAvailable: lowestPriceType.max ? Math.min(lowestPriceType.max, 4) : (slot.slots || 4),
-            packageName: cleanPackageName(lowestPriceType.name),
-            packages: packages, // Include ALL packages for selection
+            packageName: lowestPricePackage.name,
+            packages: packages, // Include ALL packages with customer prices
             teeName: slot.resourceName || slot.resource || lowestPriceType.resourceName || "TEE 1",
           });
         }
@@ -323,9 +390,11 @@ export class GolfmanagerProvider {
       // Handle flat format: { start, price, slots, ... }
       else if (slot.start) {
         if (slot.available !== false) {
+          const ttooPrice = slot.pricePerSlot || slot.price || 0;
+          const customerPrice = getCustomerPrice(ttooPrice, "standard");
           results.push({
             teeTime: slot.start,
-            greenFee: slot.pricePerSlot || slot.price || 0,
+            greenFee: customerPrice, // Use customer price
             currency: "EUR",
             players: slot.slots || players,
             holes: holes,

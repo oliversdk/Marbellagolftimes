@@ -83,6 +83,8 @@ export const golfCourses = pgTable("golf_courses", {
   teeoneApiUser: text("teeone_api_user"), // TeeOne API username
   teeoneApiPassword: text("teeone_api_password"), // TeeOne API password
   membersOnly: text("members_only").notNull().default("false"), // Members-only courses hidden from public
+  // Pricing targets for package-specific customer prices (JSON: { "standard": 71.25, "earlybird": 61.75, "twilight": 61.75, "lunch": 80.75 })
+  priceTargetsJson: text("price_targets_json"),
   // AI Enrichment fields
   facilitiesJson: text("facilities_json"), // JSON string with structured facilities data
   bookingRulesJson: text("booking_rules_json"), // JSON string with booking rules

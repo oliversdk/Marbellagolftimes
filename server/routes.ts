@@ -3349,24 +3349,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 holes ? [`${holes}holes`] : undefined // tags filter
               );
 
-              const rawSlots = provider.convertSlotsToTeeTime(
+              // Convert slots with price targets (exact Alhaurin prices) or kickback fallback
+              const slots = provider.convertSlotsToTeeTime(
                 gmSlots,
                 numPlayers,
-                numHoles
-              );
-
-              // Convert TTOO prices to customer prices and filter out €0 slots (invalid data)
-              const slots = rawSlots
-                .filter(slot => slot.greenFee > 0)
-                .map(slot => ({
-                  ...slot,
-                  greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent),
-                  // Also convert package prices from TTOO to customer prices
-                  packages: slot.packages?.map(pkg => ({
-                    ...pkg,
-                    price: convertToCustomerPrice(pkg.price, course.kickbackPercent)
-                  }))
-                }));
+                numHoles,
+                course.priceTargetsJson, // Package-specific target prices
+                course.kickbackPercent || 20 // Fallback markup percentage
+              ).filter(slot => slot.greenFee > 0); // Filter out €0 slots (invalid data)
 
               console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name}`);
 
