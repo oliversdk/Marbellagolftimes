@@ -943,6 +943,7 @@ export default function Admin() {
   
   // Inbox state
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedSentEmail, setSelectedSentEmail] = useState<SentAffiliateEmail | null>(null);
   const [inboxFilter, setInboxFilter] = useState<"all" | "unanswered" | "open" | "replied" | "closed" | "archived" | "deleted" | "sent">("unanswered");
   const [replyText, setReplyText] = useState("");
   const [pendingMembersOnlyUpdates, setPendingMembersOnlyUpdates] = useState<Set<string>>(new Set());
@@ -6544,7 +6545,10 @@ export default function Admin() {
                               .map((email) => (
                               <div
                                 key={email.id}
-                                className="p-3 lg:p-3 hover-elevate"
+                                className={`p-3 lg:p-3 cursor-pointer hover-elevate ${
+                                  selectedSentEmail?.id === email.id ? "bg-accent" : ""
+                                }`}
+                                onClick={() => setSelectedSentEmail(email)}
                                 data-testid={`row-sent-email-${email.id}`}
                               >
                                 <div className="flex items-start justify-between gap-2">
@@ -6666,9 +6670,63 @@ export default function Admin() {
               </div>
 
               {/* Message View & Reply - Full screen on mobile when viewing a thread */}
-              <div className={`lg:col-span-2 ${selectedThreadId ? 'block' : 'hidden lg:block'}`}>
+              <div className={`lg:col-span-2 ${selectedThreadId || selectedSentEmail ? 'block' : 'hidden lg:block'}`}>
                 <Card className="h-[calc(100vh-200px)] lg:h-[calc(100vh-300px)]">
-                  {!selectedThreadId ? (
+                  {/* Sent Email Detail View */}
+                  {inboxFilter === "sent" && selectedSentEmail ? (
+                    <div className="flex flex-col h-full">
+                      <CardHeader className="pb-2 lg:pb-3 border-b px-3 lg:px-6">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="lg:hidden flex-shrink-0"
+                            onClick={() => setSelectedSentEmail(null)}
+                            data-testid="button-back-to-sent-list"
+                          >
+                            <ArrowLeft className="h-5 w-5" />
+                          </Button>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base lg:text-lg truncate">
+                              {selectedSentEmail.subject?.replace(/\[COURSE_NAME\]/g, selectedSentEmail.courseName || "")}
+                            </CardTitle>
+                            <CardDescription className="flex flex-col gap-1 mt-1">
+                              <span className="text-sm">
+                                <strong>Til:</strong> {selectedSentEmail.courseEmail || "Ukendt"}
+                              </span>
+                              <span className="text-sm">
+                                <strong>Bane:</strong> {selectedSentEmail.courseName || "Ukendt"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Sendt: {selectedSentEmail.sentAt ? format(new Date(selectedSentEmail.sentAt), "PPpp") : "—"}
+                              </span>
+                            </CardDescription>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {selectedSentEmail.openCount > 0 ? (
+                              <Badge variant="default" className="bg-emerald-600">
+                                Åbnet {selectedSentEmail.openCount}x
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Ikke åbnet</Badge>
+                            )}
+                            {selectedSentEmail.openedAt && (
+                              <span className="text-xs text-muted-foreground">
+                                Første gang: {format(new Date(selectedSentEmail.openedAt), "PP")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <ScrollArea className="flex-1 px-3 lg:px-6 py-4">
+                        <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                          {selectedSentEmail.body
+                            ?.replace(/\[COURSE_NAME\]/g, selectedSentEmail.courseName || "")
+                            .replace(/\[SENDER_NAME\]/g, user?.firstName || "Morten")}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  ) : !selectedThreadId ? (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
                       <div className="text-center">
                         <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
