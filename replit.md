@@ -63,7 +63,7 @@ Client-side geolocation uses the Browser Geolocation API for proximity-based cou
 
 ### API Integration Points
 
--   **Golfmanager Integration**: Supports Golfmanager API V1/V3 for 14 courses (e.g., Finca Cortesín, La Cala Resort). Features per-tenant authentication and operates in MOCK mode, with production readiness awaiting credentials.
+-   **Golfmanager Integration**: Supports Golfmanager API V1/V3 for 14 courses (e.g., Finca Cortesín, La Cala Resort). Features per-tenant authentication with **course-specific credentials stored in the database** (`golfmanagerV1User`, `golfmanagerV1Password` for V1, `golfmanagerUser`, `golfmanagerPassword` for V3). Admin can manage credentials via Courses → Credentials tab with copy-to-clipboard buttons. Alhaurin Golf is LIVE with real tee times and packages.
 -   **TeeOne Golf System**: Integrates with TeeOne API for 12 courses (e.g., El Paraíso, Marbella Golf & CC). Features per-tenant authentication and operates in MOCK mode, with production readiness awaiting credentials.
 -   **Tee Time Provider Integration**: Flexible system supporting REST APIs, direct booking links, and web scraping.
 -   **Open-Meteo API**: Provides real-time weather data for course detail pages.

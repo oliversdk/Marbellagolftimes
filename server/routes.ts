@@ -3194,9 +3194,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             try {
               // Create tenant-specific provider instance with database credentials (if available)
-              const dbCredentials = course.golfmanagerUser && course.golfmanagerPassword 
-                ? { user: course.golfmanagerUser, password: course.golfmanagerPassword }
-                : undefined;
+              // Use V1 or V3 credentials based on the API version
+              let dbCredentials: { user: string | null; password: string | null } | undefined;
+              if (version === "v1" && course.golfmanagerV1User && course.golfmanagerV1Password) {
+                dbCredentials = { user: course.golfmanagerV1User, password: course.golfmanagerV1Password };
+                console.log(`[Golfmanager] Using V1 credentials from course profile for ${course.name}`);
+              } else if (version === "v3" && course.golfmanagerUser && course.golfmanagerPassword) {
+                dbCredentials = { user: course.golfmanagerUser, password: course.golfmanagerPassword };
+                console.log(`[Golfmanager] Using V3 credentials from course profile for ${course.name}`);
+              }
               
               const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
               
