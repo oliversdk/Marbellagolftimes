@@ -157,14 +157,25 @@ export function BookingModal({
     // Priority: API package > DB package > slot greenFee
     let baseRate = selectedSlot?.greenFee || 0;
     if (selectedApiPackage) {
-      // API packages have TTOO prices - convert to customer price
-      baseRate = calculateCustomerPrice(selectedApiPackage.price);
+      // Check if price is already rack rate (from contract data)
+      if ((selectedApiPackage as any).isRackRate) {
+        baseRate = selectedApiPackage.price; // Already customer price, use directly
+      } else {
+        // Legacy: API packages have TTOO prices - convert to customer price
+        baseRate = calculateCustomerPrice(selectedApiPackage.price);
+      }
     } else if (selectedPackage) {
       // DB packages already have rack rate (customer price)
       baseRate = selectedPackage.rackRate;
     } else if (selectedSlot?.greenFee) {
-      // greenFee from API is also TTOO price
-      baseRate = calculateCustomerPrice(selectedSlot.greenFee);
+      // greenFee from API is already rack rate (if packages have isRackRate)
+      const hasRackRatePackages = selectedSlot.packages?.some((p: any) => p.isRackRate);
+      if (hasRackRatePackages) {
+        baseRate = selectedSlot.greenFee; // Already customer price
+      } else {
+        // Legacy: greenFee from API is TTOO price
+        baseRate = calculateCustomerPrice(selectedSlot.greenFee);
+      }
     }
     
     let addOnsTotal = 0;
@@ -742,9 +753,12 @@ export function BookingModal({
 
   const renderCustomizeBooking = () => {
     const maxSlots = selectedSlot?.slotsAvailable || 4;
-    // Use rackRate (already customer price) or convert greenFee from TTOO to customer price
+    // Use rackRate (already customer price) or greenFee (already rack rate if packages have isRackRate)
+    const hasRackRatePackages = selectedSlot?.packages?.some((p: any) => p.isRackRate);
     const basePrice = selectedPackage?.rackRate || 
-      (selectedSlot?.greenFee ? calculateCustomerPrice(selectedSlot.greenFee) : 0);
+      (selectedSlot?.greenFee 
+        ? (hasRackRatePackages ? selectedSlot.greenFee : calculateCustomerPrice(selectedSlot.greenFee)) 
+        : 0);
 
     return (
       <>
@@ -805,8 +819,10 @@ export function BookingModal({
               <div className="space-y-2" data-testid="list-api-packages">
                 {apiPackages.map((pkg, index) => {
                   const isSelected = selectedApiPackage?.id === pkg.id;
-                  // Convert TTOO price to customer price
-                  const customerPricePerPlayer = calculateCustomerPrice(pkg.price);
+                  // Use price directly if already rack rate, otherwise convert from TTOO
+                  const customerPricePerPlayer = (pkg as any).isRackRate 
+                    ? pkg.price 
+                    : calculateCustomerPrice(pkg.price);
                   const totalForPlayers = customerPricePerPlayer * players;
                   return (
                     <div

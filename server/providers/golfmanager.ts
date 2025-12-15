@@ -405,6 +405,7 @@ export class GolfmanagerProvider {
               isTwilight: nameLower.includes("twilight") || nameLower.includes("tarde"),
               maxPlayers: t.max || 4,
               minPlayers: t.min || 1,
+              isRackRate: true, // Price is already rack rate from contract, no markup needed
             };
           });
           
