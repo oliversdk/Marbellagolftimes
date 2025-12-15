@@ -555,10 +555,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, phoneNumber: user.phoneNumber, profileImageUrl: user.profileImageUrl, isAdmin: user.isAdmin });
+      res.json({ 
+        id: user.id, 
+        email: user.email, 
+        firstName: user.firstName, 
+        lastName: user.lastName, 
+        phoneNumber: user.phoneNumber, 
+        profileImageUrl: user.profileImageUrl, 
+        isAdmin: user.isAdmin,
+        country: user.country,
+        handicap: user.handicap,
+        homeClub: user.homeClub,
+        preferredTeeTime: user.preferredTeeTime,
+        gender: user.gender
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // PATCH /api/profile - Update current user's profile
+  app.patch("/api/profile", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { firstName, lastName, phoneNumber, country, handicap, homeClub, preferredTeeTime, gender } = req.body;
+      
+      const updates: any = {};
+      if (firstName !== undefined) updates.firstName = firstName;
+      if (lastName !== undefined) updates.lastName = lastName;
+      if (phoneNumber !== undefined) updates.phoneNumber = phoneNumber;
+      if (country !== undefined) updates.country = country;
+      if (handicap !== undefined) updates.handicap = handicap !== '' ? parseFloat(handicap) : null;
+      if (homeClub !== undefined) updates.homeClub = homeClub;
+      if (preferredTeeTime !== undefined) updates.preferredTeeTime = preferredTeeTime;
+      if (gender !== undefined) updates.gender = gender;
+
+      const updated = await storage.updateUser(userId, updates);
+      if (!updated) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ 
+        id: updated.id, 
+        email: updated.email, 
+        firstName: updated.firstName, 
+        lastName: updated.lastName, 
+        phoneNumber: updated.phoneNumber,
+        country: updated.country,
+        handicap: updated.handicap,
+        homeClub: updated.homeClub,
+        preferredTeeTime: updated.preferredTeeTime,
+        gender: updated.gender,
+        profileImageUrl: updated.profileImageUrl, 
+        isAdmin: updated.isAdmin 
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
     }
   });
 

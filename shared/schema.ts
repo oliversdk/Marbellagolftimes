@@ -27,6 +27,12 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   stripeCustomerId: varchar("stripe_customer_id"), // For future Stripe integration
   isAdmin: text("is_admin").notNull().default("false"), // Admin role flag
+  // Golf-specific profile fields
+  country: varchar("country"),
+  handicap: real("handicap"), // Golf handicap (e.g., 18.5)
+  homeClub: varchar("home_club"), // User's home golf club
+  preferredTeeTime: varchar("preferred_tee_time"), // morning, afternoon, evening
+  gender: varchar("gender"), // male, female, other
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
