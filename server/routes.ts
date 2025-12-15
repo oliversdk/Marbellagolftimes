@@ -3977,17 +3977,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
 
-        // Create affiliate email record
+        // Generate tracking token for email open tracking
+        const trackingToken = randomUUID();
+
+        // Create affiliate email record with tracking token
         const affiliateEmail = await storage.createAffiliateEmail({
           courseId,
           subject,
           body,
           status: "DRAFT",
           errorMessage: null,
+          trackingToken,
         });
 
-        // Send email
-        const result = await sendAffiliateEmail(course, subject, body, senderName, emailConfig);
+        // Send email with tracking pixel
+        const result = await sendAffiliateEmail(course, subject, body, senderName, emailConfig, trackingToken);
 
         if (result.success) {
           // Update record as sent
@@ -4062,6 +4066,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to fetch affiliate email courses:", error);
       res.status(500).json({ error: "Failed to fetch affiliate email courses" });
+    }
+  });
+
+  // GET /api/email/track/:token - Public tracking pixel endpoint (no auth required)
+  app.get("/api/email/track/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      await storage.recordEmailOpen(token);
+      const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+      res.set('Content-Type', 'image/gif');
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.send(pixel);
+    } catch (error) {
+      const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+      res.set('Content-Type', 'image/gif');
+      res.send(pixel);
     }
   });
 

@@ -218,6 +218,8 @@ type AffiliateEmailCourse = {
   lastAffiliateSentAt: string | null;
   emailCount: number;
   onboardingStage: string | null;
+  totalOpens: number;
+  lastOpenedAt: string | null;
 };
 
 const MAX_EMAIL_BATCH = 10;
@@ -3964,32 +3966,36 @@ export default function Admin() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                               {item.daysOverdue > 0 ? (
-                                <Badge variant="destructive">{item.daysOverdue}d overdue</Badge>
+                                <Badge variant="destructive" className="self-start sm:self-auto">{item.daysOverdue}d overdue</Badge>
                               ) : (
-                                <Badge variant="outline">Due today</Badge>
+                                <Badge variant="outline" className="self-start sm:self-auto">Due today</Badge>
                               )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => snoozeMutation.mutate({ courseId: item.courseId, days: 7 })}
-                                disabled={snoozeMutation.isPending}
-                                data-testid={`button-snooze-${item.courseId}`}
-                              >
-                                <Clock className="h-3 w-3 mr-1" />
-                                Snooze 7d
-                              </Button>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => completeMutation.mutate(item.courseId)}
-                                disabled={completeMutation.isPending}
-                                data-testid={`button-complete-${item.courseId}`}
-                              >
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Done
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => snoozeMutation.mutate({ courseId: item.courseId, days: 7 })}
+                                  disabled={snoozeMutation.isPending}
+                                  data-testid={`button-snooze-${item.courseId}`}
+                                  className="flex-1 sm:flex-initial"
+                                >
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  <span className="hidden xs:inline">Snooze</span> 7d
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => completeMutation.mutate(item.courseId)}
+                                  disabled={completeMutation.isPending}
+                                  data-testid={`button-complete-${item.courseId}`}
+                                  className="flex-1 sm:flex-initial"
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Done
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -6077,6 +6083,19 @@ export default function Admin() {
                                     {course.emailCount} email{course.emailCount !== 1 ? 's' : ''} sent
                                   </Badge>
                                 )}
+                                {course.totalOpens > 0 && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200" data-testid={`badge-email-opened-${course.id}`}>
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Opened{course.totalOpens > 1 ? ` (${course.totalOpens}x)` : ''}
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {course.lastOpenedAt ? `Last opened: ${new Date(course.lastOpenedAt).toLocaleDateString()}` : 'Email was opened'}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
                               </div>
                               <div className="text-muted-foreground text-xs">
                                 {course.email || "No email"}
@@ -6213,7 +6232,7 @@ export default function Admin() {
 
               {/* Email Preview Dialog */}
               <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogContent className="w-full max-w-[95vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Email Preview</DialogTitle>
                     <DialogDescription>
@@ -8226,7 +8245,7 @@ export default function Admin() {
 
         {/* Edit Onboarding Dialog */}
         <Dialog open={!!editingOnboarding} onOpenChange={(open) => !open && setEditingOnboarding(null)}>
-          <DialogContent className="max-w-lg" data-testid="dialog-edit-onboarding">
+          <DialogContent className="w-full max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-onboarding">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Edit className="h-5 w-5" />
@@ -8374,7 +8393,7 @@ export default function Admin() {
 
         {/* Contact Logs Dialog */}
         <Dialog open={!!contactLogsCourse} onOpenChange={(open) => !open && setContactLogsCourse(null)}>
-          <DialogContent className="max-w-2xl max-h-[85vh]" data-testid="dialog-contact-logs">
+          <DialogContent className="w-full max-w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="dialog-contact-logs">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <History className="h-5 w-5" />

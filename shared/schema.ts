@@ -198,6 +198,9 @@ export const affiliateEmails = pgTable("affiliate_emails", {
   sentAt: timestamp("sent_at"),
   status: text("status").notNull().default("DRAFT"), // DRAFT, SENT, ERROR
   errorMessage: text("error_message"),
+  trackingToken: text("tracking_token"), // Unique token for tracking opens
+  openedAt: timestamp("opened_at"), // When email was first opened
+  openCount: integer("open_count").default(0), // Number of times email was opened
 });
 
 export const insertAffiliateEmailSchema = createInsertSchema(affiliateEmails).omit({ 

@@ -86,7 +86,8 @@ export async function sendAffiliateEmail(
   subject: string,
   body: string,
   senderName: string,
-  config: EmailConfig
+  config: EmailConfig,
+  trackingToken?: string
 ): Promise<{ success: boolean; error?: string }> {
   if (!course.email) {
     return { success: false, error: "Course has no email address" };
@@ -111,15 +112,22 @@ export async function sendAffiliateEmail(
 
     const replyTo = getReplyToEmail();
 
+    // Build HTML body with tracking pixel if token provided
+    const trackingPixel = trackingToken 
+      ? `<img src="https://${process.env.REPLIT_SLUG || 'marbellagolftimes'}.repl.co/api/email/track/${trackingToken}" width="1" height="1" style="display:block" alt="" />`
+      : '';
+    const htmlBody = `<pre style="font-family: inherit; white-space: pre-wrap;">${personalizedBody}</pre>${trackingPixel}`;
+
     await transporter.sendMail({
       from: config.from,
       replyTo: replyTo,
       to: course.email,
       subject: personalizedSubject,
       text: personalizedBody,
+      html: htmlBody,
     });
 
-    console.log("[Email] Sent affiliate email to:", course.email, "Reply-To:", replyTo);
+    console.log("[Email] Sent affiliate email to:", course.email, "Reply-To:", replyTo, trackingToken ? `Tracking: ${trackingToken}` : '');
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

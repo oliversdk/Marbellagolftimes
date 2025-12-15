@@ -108,7 +108,9 @@ export interface IStorage {
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
   createAffiliateEmail(email: InsertAffiliateEmail): Promise<AffiliateEmail>;
   updateAffiliateEmail(id: string, updates: Partial<AffiliateEmail>): Promise<AffiliateEmail | undefined>;
-  getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null }>>;
+  getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null }>>;
+  getAffiliateEmailByToken(token: string): Promise<AffiliateEmail | undefined>;
+  recordEmailOpen(token: string): Promise<void>;
 
   // Users
   getUser(id: string): Promise<User | undefined>;
@@ -1490,12 +1492,14 @@ export class MemStorage implements IStorage {
     return updatedEmail;
   }
 
-  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null }>> {
+  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null }>> {
     return Array.from(this.courses.values()).map(course => ({
       ...course,
       lastAffiliateSentAt: null,
       emailCount: 0,
       onboardingStage: null,
+      totalOpens: 0,
+      lastOpenedAt: null,
     }));
   }
 
@@ -2357,13 +2361,15 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
 
-  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null }>> {
+  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null }>> {
     const results = await db
       .select({
         course: golfCourses,
         lastAffiliateSentAt: sql<Date | null>`MAX(${affiliateEmails.sentAt})`,
         emailCount: sql<number>`COUNT(${affiliateEmails.id})::int`,
         onboardingStage: courseOnboarding.stage,
+        totalOpens: sql<number>`COALESCE(SUM(${affiliateEmails.openCount}), 0)::int`,
+        lastOpenedAt: sql<Date | null>`MAX(${affiliateEmails.openedAt})`,
       })
       .from(golfCourses)
       .leftJoin(affiliateEmails, eq(golfCourses.id, affiliateEmails.courseId))
@@ -2375,7 +2381,32 @@ export class DatabaseStorage implements IStorage {
       lastAffiliateSentAt: r.lastAffiliateSentAt,
       emailCount: r.emailCount || 0,
       onboardingStage: r.onboardingStage || null,
+      totalOpens: r.totalOpens || 0,
+      lastOpenedAt: r.lastOpenedAt,
     }));
+  }
+
+  async getAffiliateEmailByToken(token: string): Promise<AffiliateEmail | undefined> {
+    const [email] = await db.select().from(affiliateEmails).where(eq(affiliateEmails.trackingToken, token));
+    return email;
+  }
+
+  async recordEmailOpen(token: string): Promise<void> {
+    const email = await this.getAffiliateEmailByToken(token);
+    if (!email) return;
+
+    const updates: Partial<AffiliateEmail> = {
+      openCount: (email.openCount || 0) + 1,
+    };
+    
+    if (!email.openedAt) {
+      updates.openedAt = new Date();
+    }
+    
+    await db
+      .update(affiliateEmails)
+      .set(updates)
+      .where(eq(affiliateEmails.trackingToken, token));
   }
 
   // User operations
