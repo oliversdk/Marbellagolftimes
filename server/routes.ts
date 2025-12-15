@@ -148,13 +148,17 @@ async function preloadTeeTimes() {
   try {
     const { storage } = await import("./storage");
     const { createGolfmanagerProvider, getGolfmanagerConfig } = await import("./providers/golfmanager");
-    const { getZestGolfService } = await import("./providers/zestgolf");
+    const { getZestGolfService } = await import("./services/zestGolf");
     
     const courses = await storage.getAllCourses();
-    const today = new Date();
-    const dateStr = today.toISOString().split("T")[0];
+    const now = new Date();
+    // If it's after 5 PM, preload tomorrow's tee times instead
+    const preloadDate = now.getHours() >= 17 ? new Date(now.getTime() + 24 * 60 * 60 * 1000) : now;
+    const dateStr = preloadDate.toISOString().split("T")[0];
     const numPlayers = 2;
     const numHoles = 18;
+    
+    console.log(`[Preload] Preloading tee times for ${dateStr}`);
     
     let preloadedCount = 0;
     
@@ -172,7 +176,7 @@ async function preloadTeeTimes() {
           try {
             const facilityId = parseInt(zestLink.providerCourseCode!.split(":")[1]);
             const zestService = getZestGolfService();
-            const response = await zestService.getTeeTimes(facilityId, today, numPlayers, numHoles as 9 | 18);
+            const response = await zestService.getTeeTimes(facilityId, preloadDate, numPlayers, numHoles as 9 | 18);
             
             const slots = (response.teeTimeV2 || response.teeTimeV3 || [])
               .map((tt: any) => {
@@ -3363,11 +3367,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json(mockSlots);
       } else if (golfmanagerConfig.mode === "demo" || golfmanagerConfig.mode === "production") {
-        // Demo/Production mode: Fetch real tee times from Golfmanager for linked courses  
+        // Demo/Production mode: Fetch real tee times from API-connected courses  
         const results: CourseWithSlots[] = [];
 
         for (const { course, distance } of coursesWithDistance) {
           const providerLinks = await storage.getLinksByCourseId(course.id);
+          
+          // Check for Zest Golf booking link (format: "zest:facilityId")
+          const zestLink = providerLinks.find((link) => 
+            link.providerCourseCode && link.providerCourseCode.startsWith("zest:")
+          );
+          
+          // PRIORITY 1: Zest Golf - fetch real tee times
+          if (zestLink) {
+            try {
+              const facilityId = parseInt(zestLink.providerCourseCode!.split(":")[1]);
+              const searchDate = date ? new Date(date as string) : new Date();
+              const dateStr = searchDate.toISOString().split("T")[0];
+              const numPlayers = players ? parseInt(players as string) : 2;
+              const numHoles = holes ? parseInt(holes as string) : 18;
+              
+              // Check cache first
+              const cacheKey = `zest:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
+              const cachedSlots = getCachedSlots(cacheKey);
+              
+              if (cachedSlots) {
+                console.log(`[Zest Golf] Using cached slots for ${course.name} (${cachedSlots.length} slots)`);
+                results.push({
+                  courseId: course.id,
+                  courseName: course.name,
+                  distanceKm: Math.round(distance * 10) / 10,
+                  bookingUrl: zestLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                  slots: cachedSlots,
+                  note: cachedSlots.length > 0 ? undefined : "No availability for selected date/time",
+                  providerType: "API",
+                  providerName: "zest",
+                  course,
+                });
+                continue;
+              }
+              
+              const zestService = getZestGolfService();
+              const zestResponse = await zestService.getTeeTimes(
+                facilityId,
+                searchDate,
+                numPlayers,
+                numHoles as 9 | 18
+              );
+              
+              // Convert Zest tee times to our TeeTimeSlot format
+              const slots: TeeTimeSlot[] = (zestResponse.teeTimeV2 || zestResponse.teeTimeV3 || [])
+                .filter((tt: any) => {
+                  // Filter by time range if specified
+                  if (!fromTime && !toTime) return true;
+                  const teeHour = new Date(tt.time).getHours();
+                  const teeMinute = new Date(tt.time).getMinutes();
+                  const teeTimeMinutes = teeHour * 60 + teeMinute;
+                  const fromMinutes = fromTime ? parseInt((fromTime as string).split(":")[0]) * 60 + parseInt((fromTime as string).split(":")[1] || "0") : 0;
+                  const toMinutes = toTime ? parseInt((toTime as string).split(":")[0]) * 60 + parseInt((toTime as string).split(":")[1] || "0") : 24 * 60;
+                  return teeTimeMinutes >= fromMinutes && teeTimeMinutes <= toMinutes;
+                })
+                .map((tt: any) => {
+                  // Find price for the requested number of players
+                  const playerPricing = tt.pricing?.find((p: any) => Number(p.players) === numPlayers);
+                  const priceAmount = playerPricing?.publicRate?.amount || playerPricing?.price?.amount || 
+                                     tt.pricing?.[0]?.publicRate?.amount || tt.pricing?.[0]?.price?.amount || 0;
+                  const perPlayerPrice = Math.round(priceAmount / numPlayers);
+                  
+                  return {
+                    teeTime: tt.time,
+                    greenFee: perPlayerPrice,
+                    currency: playerPricing?.price?.currency || "EUR",
+                    players: numPlayers,
+                    holes: tt.holes || numHoles,
+                    source: "zest-golf",
+                    teeName: tt.course || "TEE 1",
+                    slotsAvailable: tt.players || 4,
+                    zestTeeId: tt.id,
+                    extraProducts: tt.extraProducts,
+                  };
+                });
+              
+              // Filter out €0 slots and cache results
+              const validSlots = slots.filter(s => s.greenFee > 0);
+              setCachedSlots(cacheKey, validSlots);
+              console.log(`[Zest Golf] Retrieved and cached ${validSlots.length} slots for ${course.name}`);
+              
+              // SECURITY: Cache prices server-side for secure checkout
+              validSlots.forEach(slot => {
+                if (slot.greenFee && slot.greenFee > 0) {
+                  cacheApiPrice(course.id, slot.teeTime, Math.round(slot.greenFee * 100), "zest");
+                }
+              });
+              
+              results.push({
+                courseId: course.id,
+                courseName: course.name,
+                distanceKm: Math.round(distance * 10) / 10,
+                bookingUrl: zestLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                slots: validSlots,
+                note: validSlots.length > 0 ? undefined : "No availability for selected date/time",
+                providerType: "API",
+                providerName: "zest",
+                course,
+              });
+              continue;
+            } catch (error) {
+              console.error(`[Zest Golf] Error fetching tee times for ${course.name}:`, error);
+              // Fall through to show course without tee times
+              results.push({
+                courseId: course.id,
+                courseName: course.name,
+                distanceKm: Math.round(distance * 10) / 10,
+                bookingUrl: zestLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                slots: [],
+                note: undefined,
+                providerType: "API",
+                providerName: "zest",
+                course,
+              });
+              continue;
+            }
+          }
           
           // Check for Golfmanager/TeeOne Golf booking link (supports both V1 and V3)
           // Format: "golfmanager:tenant" for V1, "golfmanagerv3:tenant" for V3
