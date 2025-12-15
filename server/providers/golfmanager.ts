@@ -59,15 +59,18 @@ export interface GolfmanagerReservationResponse {
 /**
  * Clean package names by removing TTOO (Tour Operator) codes
  * These are internal wholesale codes that shouldn't be shown to customers
+ * Examples: "Greenfee + Buggy TTOO 25" → "Greenfee + Buggy"
+ *           "GREENFEE + BUGGY TWILIGHT 25" → "GREENFEE + BUGGY TWILIGHT"
  */
 function cleanPackageName(name: string): string {
   if (!name) return "Green Fee";
   
   // Remove TTOO codes and variations (case insensitive)
   let cleaned = name
-    .replace(/\s*TTOO\s*\d*\s*/gi, " ")  // "TTOO 25", "TTOO", etc.
-    .replace(/\s*TO\s+\d+\s*/gi, " ")     // "TO 25" at end
-    .replace(/\s+/g, " ")                  // Normalize spaces
+    .replace(/\s*TTOO\s*\d*\s*/gi, " ")   // "TTOO 25", "TTOO", etc.
+    .replace(/\s*TO\s+\d+\s*/gi, " ")      // "TO 25" pattern
+    .replace(/\s+\d{1,2}\s*$/g, "")        // Trailing " 25", " 30" at end
+    .replace(/\s+/g, " ")                   // Normalize spaces
     .trim();
   
   // If name becomes empty or just numbers, use default

@@ -102,14 +102,20 @@ export function cacheApiPrice(courseId: string, teeTime: string, priceCents: num
 
 // Convert TTOO (Tour Operator) price to customer price using kickback percentage
 // Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
-// Example: 20% kickback means €60 TTOO → €75 customer price
+// Example: 20% kickback means €57 TTOO → €71 → rounded to €70 customer price
 export function convertToCustomerPrice(ttooPrice: number, kickbackPercent: number | null): number {
   const kickback = kickbackPercent || 0;
+  let customerPrice: number;
+  
   if (kickback <= 0 || kickback >= 100) {
     // If no kickback defined, add a reasonable markup (15%)
-    return Math.round(ttooPrice * 1.15);
+    customerPrice = ttooPrice * 1.15;
+  } else {
+    customerPrice = ttooPrice / (1 - kickback / 100);
   }
-  return Math.round(ttooPrice / (1 - kickback / 100));
+  
+  // Round to nearest whole euro for cleaner display (matches course websites)
+  return Math.round(customerPrice);
 }
 
 // Cleanup expired holds every 5 minutes
