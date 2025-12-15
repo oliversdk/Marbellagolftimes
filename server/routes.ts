@@ -3676,6 +3676,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        // Sort results: courses with real tee times first, then by distance
+        results.sort((a, b) => {
+          const aHasSlots = a.slots && a.slots.length > 0 ? 1 : 0;
+          const bHasSlots = b.slots && b.slots.length > 0 ? 1 : 0;
+          // Courses with slots come first
+          if (bHasSlots !== aHasSlots) return bHasSlots - aHasSlots;
+          // Then sort by distance
+          return a.distanceKm - b.distanceKm;
+        });
+        
         res.json(results);
       }
     } catch (error) {
