@@ -3358,7 +3358,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .filter(slot => slot.greenFee > 0)
                 .map(slot => ({
                   ...slot,
-                  greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
+                  greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent),
+                  // Also convert package prices from TTOO to customer prices
+                  packages: slot.packages?.map(pkg => ({
+                    ...pkg,
+                    price: convertToCustomerPrice(pkg.price, course.kickbackPercent)
+                  }))
                 }));
 
               console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name}`);

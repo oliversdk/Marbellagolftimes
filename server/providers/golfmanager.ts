@@ -57,6 +57,28 @@ export interface GolfmanagerReservationResponse {
 }
 
 /**
+ * Clean package names by removing TTOO (Tour Operator) codes
+ * These are internal wholesale codes that shouldn't be shown to customers
+ */
+function cleanPackageName(name: string): string {
+  if (!name) return "Green Fee";
+  
+  // Remove TTOO codes and variations (case insensitive)
+  let cleaned = name
+    .replace(/\s*TTOO\s*\d*\s*/gi, " ")  // "TTOO 25", "TTOO", etc.
+    .replace(/\s*TO\s+\d+\s*/gi, " ")     // "TO 25" at end
+    .replace(/\s+/g, " ")                  // Normalize spaces
+    .trim();
+  
+  // If name becomes empty or just numbers, use default
+  if (!cleaned || /^\d+$/.test(cleaned)) {
+    return "Green Fee";
+  }
+  
+  return cleaned;
+}
+
+/**
  * Golfmanager API Client for Costa del Sol golf courses
  * Supports both V1 and V3 APIs with full booking flow
  */
@@ -263,12 +285,13 @@ export class GolfmanagerProvider {
           validTypes.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
           const lowestPriceType = validTypes[0];
           
-          // Convert all valid types to packages
+          // Convert all valid types to packages (clean TTOO codes from names)
           const packages: TeeTimePackage[] = validTypes.map((t: any) => {
-            const nameLower = (t.name || "").toLowerCase();
+            const cleanedName = cleanPackageName(t.name);
+            const nameLower = cleanedName.toLowerCase();
             return {
               id: t.id || t.idType || 0,
-              name: t.name || "Green Fee",
+              name: cleanedName,
               price: t.price || 0,
               description: t.description || undefined,
               includesBuggy: nameLower.includes("buggy"),
@@ -288,7 +311,7 @@ export class GolfmanagerProvider {
             holes: holes,
             source: `Golfmanager ${this.config.version.toUpperCase()}`,
             slotsAvailable: lowestPriceType.max ? Math.min(lowestPriceType.max, 4) : (slot.slots || 4),
-            packageName: lowestPriceType.name,
+            packageName: cleanPackageName(lowestPriceType.name),
             packages: packages, // Include ALL packages for selection
             teeName: slot.resourceName || slot.resource || lowestPriceType.resourceName || "TEE 1",
           });
