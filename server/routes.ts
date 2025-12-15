@@ -97,6 +97,18 @@ export function cacheApiPrice(courseId: string, teeTime: string, priceCents: num
   teeTimePriceCache.set(cacheKey, { priceCents, source, expiresAt });
 }
 
+// Convert TTOO (Tour Operator) price to customer price using kickback percentage
+// Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
+// Example: 20% kickback means €60 TTOO → €75 customer price
+export function convertToCustomerPrice(ttooPrice: number, kickbackPercent: number | null): number {
+  const kickback = kickbackPercent || 0;
+  if (kickback <= 0 || kickback >= 100) {
+    // If no kickback defined, add a reasonable markup (15%)
+    return Math.round(ttooPrice * 1.15);
+  }
+  return Math.round(ttooPrice / (1 - kickback / 100));
+}
+
 // Cleanup expired holds every 5 minutes
 setInterval(() => {
   const now = new Date();
@@ -3223,13 +3235,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 holes ? [`${holes}holes`] : undefined // tags filter
               );
 
-              const slots = provider.convertSlotsToTeeTime(
+              const rawSlots = provider.convertSlotsToTeeTime(
                 gmSlots,
                 players ? parseInt(players as string) : 2,
                 holes ? parseInt(holes as string) : 18
               );
 
-              console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name} (tenant: ${tenant}, version: ${version})`);
+              // Convert TTOO prices to customer prices using course kickback percentage
+              const slots = rawSlots.map(slot => ({
+                ...slot,
+                greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
+              }));
+
+              console.log(`[Golfmanager] Retrieved ${slots.length} slots for ${course.name} (tenant: ${tenant}, version: ${version}, kickback: ${course.kickbackPercent || 0}%)`);
 
               results.push({
                 courseId: course.id,
@@ -3264,11 +3282,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     holes ? [`${holes}holes`] : undefined
                   );
 
-                  const slots = demoProvider.convertSlotsToTeeTime(
+                  const rawSlots = demoProvider.convertSlotsToTeeTime(
                     gmSlots,
                     players ? parseInt(players as string) : 2,
                     holes ? parseInt(holes as string) : 18
                   );
+
+                  // Convert TTOO prices to customer prices
+                  const slots = rawSlots.map(slot => ({
+                    ...slot,
+                    greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
+                  }));
 
                   console.log(`[Golfmanager] Retrieved ${slots.length} demo slots for ${course.name}`);
 
