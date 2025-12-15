@@ -102,11 +102,16 @@ function getAveragePrice(slots: TeeTimeSlot[]): number {
   return slots.reduce((sum, s) => sum + s.greenFee, 0) / slots.length;
 }
 
-// Check if slot is significantly cheaper than average (20%+ discount)
-function isHotDeal(slot: TeeTimeSlot, averagePrice: number): boolean {
-  if (averagePrice === 0) return false;
+// Check if slot is significantly cheaper than average (15%+ discount)
+// Only show as hot deal if there's actual price variation
+function isHotDeal(slot: TeeTimeSlot, averagePrice: number, minPrice: number, maxPrice: number): boolean {
+  // No hot deals if average is 0 or slot has no price
+  if (averagePrice === 0 || slot.greenFee === 0) return false;
+  // No hot deals if all prices are the same (no variation)
+  if (minPrice === maxPrice) return false;
+  // Must be at least 15% cheaper than average
   const discountPercent = ((averagePrice - slot.greenFee) / averagePrice) * 100;
-  return discountPercent >= 15; // 15%+ cheaper = hot deal
+  return discountPercent >= 15;
 }
 
 // Calculate discount percentage
@@ -1160,7 +1165,10 @@ export default function Home() {
                                     : courseSlot.slots;
                                   
                                   const avgPrice = getAveragePrice(filteredSlots);
-                                  const hotDeals = filteredSlots.filter(s => isHotDeal(s, avgPrice));
+                                  const pricesWithValue = filteredSlots.filter(s => s.greenFee > 0).map(s => s.greenFee);
+                                  const minPriceVal = pricesWithValue.length > 0 ? Math.min(...pricesWithValue) : 0;
+                                  const maxPriceVal = pricesWithValue.length > 0 ? Math.max(...pricesWithValue) : 0;
+                                  const hotDeals = filteredSlots.filter(s => isHotDeal(s, avgPrice, minPriceVal, maxPriceVal));
                                   const groupedSlots = groupSlotsByPeriod(filteredSlots);
                                   
                                   const periodConfig: { key: TimePeriod; label: string; icon: typeof Sun }[] = [
@@ -1285,7 +1293,7 @@ export default function Home() {
                                                   const formattedTime = slotTime.toLocaleTimeString("en-US", { 
                                                     hour: "2-digit", minute: "2-digit", hour12: false 
                                                   });
-                                                  const slotIsHotDeal = isHotDeal(slot, avgPrice);
+                                                  const slotIsHotDeal = isHotDeal(slot, avgPrice, minPriceVal, maxPriceVal);
                                                   
                                                   return (
                                                     <Button
