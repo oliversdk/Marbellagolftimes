@@ -100,23 +100,23 @@ export function cacheApiPrice(courseId: string, teeTime: string, priceCents: num
 // Slots caching and preloading removed for simplicity (only 2 API-connected courses)
 // Tee times are fetched fresh on each request for maximum accuracy
 
-// Convert API price to our customer price by adding markup percentage
-// The API returns the course's customer price - we add our commission/markup on top
-// Formula: ourPrice = apiPrice × (1 + markupPercent/100)
-// Example: 20% markup means €70 API price → €84 our price
-export function convertToCustomerPrice(apiPrice: number, markupPercent: number | null): number {
-  const markup = markupPercent || 0;
-  let ourPrice: number;
+// Convert TTOO (Tour Operator) wholesale price to customer-facing price
+// API returns TTOO prices (what we pay), we convert to customer prices (what they pay)
+// Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
+// Example: 22% kickback means €56 TTOO → €56/0.78 = €71.79 → €72 customer price
+export function convertToCustomerPrice(ttooPrice: number, kickbackPercent: number | null): number {
+  const kickback = kickbackPercent || 0;
+  let customerPrice: number;
   
-  if (markup <= 0 || markup >= 100) {
-    // If no markup defined, add a reasonable default (15%)
-    ourPrice = apiPrice * 1.15;
+  if (kickback <= 0 || kickback >= 100) {
+    // If no kickback defined, add a reasonable default markup (20%)
+    customerPrice = ttooPrice / 0.80;
   } else {
-    ourPrice = apiPrice * (1 + markup / 100);
+    customerPrice = ttooPrice / (1 - kickback / 100);
   }
   
   // Round to nearest whole euro for cleaner display
-  return Math.round(ourPrice);
+  return Math.round(customerPrice);
 }
 
 // Cleanup expired holds every 5 minutes
