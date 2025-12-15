@@ -113,7 +113,7 @@ export interface IStorage {
   createUser(user: { email: string; firstName: string; lastName: string; phoneNumber?: string; passwordHash: string }): Promise<User>;
   getAllUsers(): Promise<User[]>;
   setUserAdmin(id: string, isAdmin: boolean): Promise<User | undefined>;
-  updateUser(id: string, updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string; isAdmin?: string }): Promise<User | undefined>;
+  updateUser(id: string, updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string; isAdmin?: string; country?: string; handicap?: number | null; homeClub?: string; preferredTeeTime?: string; gender?: string }): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
 
   // Course Reviews
@@ -1456,7 +1456,7 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
 
-  async updateUser(id: string, updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string; isAdmin?: string }): Promise<User | undefined> {
+  async updateUser(id: string, updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string; isAdmin?: string; country?: string; handicap?: number | null; homeClub?: string; preferredTeeTime?: string; gender?: string }): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
     
@@ -2303,7 +2303,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(id: string, updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string; isAdmin?: string }): Promise<User | undefined> {
+  async updateUser(id: string, updates: { firstName?: string; lastName?: string; email?: string; phoneNumber?: string; isAdmin?: string; country?: string; handicap?: number | null; homeClub?: string; preferredTeeTime?: string; gender?: string }): Promise<User | undefined> {
     const [user] = await db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })

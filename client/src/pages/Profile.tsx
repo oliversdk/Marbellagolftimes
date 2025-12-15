@@ -11,6 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -36,7 +44,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, X, RotateCcw, AlertTriangle } from "lucide-react";
+import { Calendar, X, RotateCcw, AlertTriangle, Pencil, Flag, Trophy, MapPin, Clock, User as UserIcon } from "lucide-react";
 import { format, isPast, differenceInHours } from "date-fns";
 import type { BookingRequest, User } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -54,6 +62,19 @@ const cancelBookingSchema = z.object({
 });
 
 type CancelBookingFormData = z.infer<typeof cancelBookingSchema>;
+
+const editProfileSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: z.string().optional(),
+  country: z.string().optional(),
+  handicap: z.string().optional(),
+  homeClub: z.string().optional(),
+  preferredTeeTime: z.string().optional(),
+  gender: z.string().optional(),
+});
+
+type EditProfileFormData = z.infer<typeof editProfileSchema>;
 
 function BookingCard({ 
   booking, 
@@ -146,6 +167,7 @@ export default function Profile() {
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingWithCourse | null>(null);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   const cancelForm = useForm<CancelBookingFormData>({
     resolver: zodResolver(cancelBookingSchema),
@@ -153,6 +175,36 @@ export default function Profile() {
       reason: "",
     },
   });
+
+  const editProfileForm = useForm<EditProfileFormData>({
+    resolver: zodResolver(editProfileSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      phoneNumber: "",
+      country: "",
+      handicap: "",
+      homeClub: "",
+      preferredTeeTime: "",
+      gender: "",
+    },
+  });
+
+  // Populate edit form when user data is available
+  useEffect(() => {
+    if (typedUser && editProfileOpen) {
+      editProfileForm.reset({
+        firstName: typedUser.firstName || "",
+        lastName: typedUser.lastName || "",
+        phoneNumber: typedUser.phoneNumber || "",
+        country: typedUser.country || "",
+        handicap: typedUser.handicap?.toString() || "",
+        homeClub: typedUser.homeClub || "",
+        preferredTeeTime: typedUser.preferredTeeTime || "",
+        gender: typedUser.gender || "",
+      });
+    }
+  }, [typedUser, editProfileOpen, editProfileForm]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -209,6 +261,31 @@ export default function Profile() {
       });
     },
   });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: EditProfileFormData) => {
+      return await apiRequest('/api/profile', 'PATCH', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      setEditProfileOpen(false);
+      toast({
+        title: t('common.success'),
+        description: 'Profile updated successfully',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: error.message || 'Failed to update profile',
+      });
+    },
+  });
+
+  const onEditProfileSubmit = (data: EditProfileFormData) => {
+    updateProfileMutation.mutate(data);
+  };
 
   const handleCancelBooking = (booking: BookingWithCourse) => {
     setSelectedBooking(booking);
@@ -269,16 +346,27 @@ export default function Profile() {
         {/* User Info Card - Mobile Responsive */}
         <Card className="mb-4 md:mb-6">
           <CardHeader className="p-4 md:p-6">
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <Avatar className="h-16 w-16 md:h-20 md:w-20 mx-auto md:mx-0">
+            <div className="flex flex-col md:flex-row md:items-start gap-4">
+              <Avatar className="h-16 w-16 md:h-20 md:w-20 mx-auto md:mx-0 flex-shrink-0">
                 <AvatarFallback className="text-lg md:text-xl bg-primary text-primary-foreground">
                   {getInitials(typedUser.firstName, typedUser.lastName)}
                 </AvatarFallback>
               </Avatar>
               <div className="text-center md:text-left flex-1 min-w-0">
-                <CardTitle className="text-xl md:text-2xl">
-                  {typedUser.firstName} {typedUser.lastName}
-                </CardTitle>
+                <div className="flex items-center justify-center md:justify-between gap-2 flex-wrap">
+                  <CardTitle className="text-xl md:text-2xl">
+                    {typedUser.firstName} {typedUser.lastName}
+                  </CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setEditProfileOpen(true)}
+                    data-testid="button-edit-profile"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                </div>
                 <CardDescription className="mt-1 text-sm md:text-base">
                   <span className="block md:inline">{typedUser.email}</span>
                   {typedUser.phoneNumber && (
@@ -288,6 +376,41 @@ export default function Profile() {
                     </>
                   )}
                 </CardDescription>
+                
+                {/* Golf Profile Info */}
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  {typedUser.handicap !== null && typedUser.handicap !== undefined && (
+                    <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-handicap">
+                      <Trophy className="h-4 w-4 flex-shrink-0" />
+                      <span>HCP: {typedUser.handicap}</span>
+                    </div>
+                  )}
+                  {typedUser.homeClub && (
+                    <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-home-club">
+                      <MapPin className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{typedUser.homeClub}</span>
+                    </div>
+                  )}
+                  {typedUser.country && (
+                    <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-country">
+                      <Flag className="h-4 w-4 flex-shrink-0" />
+                      <span>{typedUser.country}</span>
+                    </div>
+                  )}
+                  {typedUser.preferredTeeTime && (
+                    <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-preferred-time">
+                      <Clock className="h-4 w-4 flex-shrink-0" />
+                      <span className="capitalize">{typedUser.preferredTeeTime}</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Prompt to complete profile if empty */}
+                {!typedUser.handicap && !typedUser.homeClub && !typedUser.country && (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    Complete your golf profile to get personalized recommendations!
+                  </p>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -558,6 +681,202 @@ export default function Profile() {
                     data-testid="button-confirm-cancel"
                   >
                     {cancelBookingMutation.isPending ? 'Cancelling...' : 'Cancel Booking'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Profile Dialog */}
+        <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-profile">
+            <DialogHeader>
+              <DialogTitle>Edit Profile</DialogTitle>
+              <DialogDescription>
+                Update your personal information and golf profile.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...editProfileForm}>
+              <form onSubmit={editProfileForm.handleSubmit(onEditProfileSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={editProfileForm.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-first-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editProfileForm.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-last-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editProfileForm.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="+45 12345678" data-testid="input-phone" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editProfileForm.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-country">
+                            <SelectValue placeholder="Select your country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Denmark">Denmark</SelectItem>
+                          <SelectItem value="Sweden">Sweden</SelectItem>
+                          <SelectItem value="Norway">Norway</SelectItem>
+                          <SelectItem value="Finland">Finland</SelectItem>
+                          <SelectItem value="Germany">Germany</SelectItem>
+                          <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                          <SelectItem value="Netherlands">Netherlands</SelectItem>
+                          <SelectItem value="Belgium">Belgium</SelectItem>
+                          <SelectItem value="France">France</SelectItem>
+                          <SelectItem value="Spain">Spain</SelectItem>
+                          <SelectItem value="Portugal">Portugal</SelectItem>
+                          <SelectItem value="Ireland">Ireland</SelectItem>
+                          <SelectItem value="USA">USA</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={editProfileForm.control}
+                    name="handicap"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Golf Handicap</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number" 
+                            step="0.1" 
+                            min="-10" 
+                            max="54" 
+                            placeholder="e.g., 18.5" 
+                            data-testid="input-handicap" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editProfileForm.control}
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-gender">
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editProfileForm.control}
+                  name="homeClub"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Home Golf Club</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Royal Copenhagen Golf Club" data-testid="input-home-club" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editProfileForm.control}
+                  name="preferredTeeTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preferred Tee Time</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-preferred-time">
+                            <SelectValue placeholder="Select preferred time" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="morning">Morning (before 10:00)</SelectItem>
+                          <SelectItem value="midday">Midday (10:00 - 14:00)</SelectItem>
+                          <SelectItem value="afternoon">Afternoon (14:00 - 17:00)</SelectItem>
+                          <SelectItem value="twilight">Twilight (after 17:00)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <DialogFooter className="flex-col sm:flex-row gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto min-h-[44px]"
+                    onClick={() => setEditProfileOpen(false)}
+                    data-testid="button-cancel-edit"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto min-h-[44px]"
+                    disabled={updateProfileMutation.isPending}
+                    data-testid="button-save-profile"
+                  >
+                    {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </DialogFooter>
               </form>
