@@ -3264,7 +3264,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             } catch (error) {
               console.error(`[Golfmanager] Error fetching availability for ${course.name} (tenant: ${tenant}, version: ${version}):`, error);
-              // Don't show course if we can't get real tee times - no fallback data
+              // Show course without tee times - no fake data
+              results.push({
+                courseId: course.id,
+                courseName: course.name,
+                distanceKm: Math.round(distance * 10) / 10,
+                bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                slots: [],
+                note: undefined,
+                providerType: "API",
+                providerName: "golfmanager",
+                course,
+              });
             }
           } else {
             // Check for TeeOne Golf booking link
