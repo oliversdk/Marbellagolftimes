@@ -43,6 +43,8 @@ import {
   type InsertBookingNotification,
   type OnboardingStageHistory,
   type InsertOnboardingStageHistory,
+  type EmailLog,
+  type InsertEmailLog,
   golfCourses,
   courseDocuments,
   teeTimeProviders,
@@ -67,6 +69,7 @@ import {
   partnershipForms,
   bookingNotifications,
   onboardingStageHistory,
+  emailLogs,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -256,6 +259,16 @@ export interface IStorage {
   createBookingNotification(notification: InsertBookingNotification): Promise<BookingNotification>;
   markNotificationAsRead(id: string): Promise<BookingNotification | undefined>;
   markAllNotificationsAsRead(): Promise<void>;
+
+  // Email Logs
+  createEmailLog(log: InsertEmailLog): Promise<EmailLog>;
+  getEmailLogs(filters?: { 
+    emailType?: string; 
+    courseId?: string; 
+    bookingId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ logs: (EmailLog & { courseName?: string; bookingRef?: string })[]; total: number }>;
 }
 
 export class MemStorage implements IStorage {
@@ -3609,6 +3622,64 @@ export class DatabaseStorage implements IStorage {
       .update(bookingNotifications)
       .set({ status: "READ" })
       .where(eq(bookingNotifications.status, "UNREAD"));
+  }
+
+  async createEmailLog(log: InsertEmailLog): Promise<EmailLog> {
+    const results = await db.insert(emailLogs).values(log).returning();
+    return results[0];
+  }
+
+  async getEmailLogs(filters?: { 
+    emailType?: string; 
+    courseId?: string; 
+    bookingId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ logs: (EmailLog & { courseName?: string; bookingRef?: string })[]; total: number }> {
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+
+    const conditions = [];
+    if (filters?.emailType) {
+      conditions.push(eq(emailLogs.emailType, filters.emailType));
+    }
+    if (filters?.courseId) {
+      conditions.push(eq(emailLogs.courseId, filters.courseId));
+    }
+    if (filters?.bookingId) {
+      conditions.push(eq(emailLogs.bookingId, filters.bookingId));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [logs, countResult] = await Promise.all([
+      db
+        .select({
+          log: emailLogs,
+          courseName: golfCourses.name,
+          bookingRef: bookingRequests.id,
+        })
+        .from(emailLogs)
+        .leftJoin(golfCourses, eq(emailLogs.courseId, golfCourses.id))
+        .leftJoin(bookingRequests, eq(emailLogs.bookingId, bookingRequests.id))
+        .where(whereClause)
+        .orderBy(desc(emailLogs.sentAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: count() })
+        .from(emailLogs)
+        .where(whereClause),
+    ]);
+
+    return {
+      logs: logs.map(r => ({
+        ...r.log,
+        courseName: r.courseName || undefined,
+        bookingRef: r.bookingRef || undefined,
+      })),
+      total: countResult[0]?.count || 0,
+    };
   }
 }
 
