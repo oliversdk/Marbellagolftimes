@@ -1538,6 +1538,9 @@ export default function Admin() {
     queryKey: ["/api/admin/follow-ups"],
     enabled: isAuthenticated && isAdmin,
   });
+  
+  // Follow-ups expanded state (collapsed by default)
+  const [followUpsExpanded, setFollowUpsExpanded] = useState(false);
 
   // Snooze follow-up mutation
   const snoozeMutation = useMutation({
@@ -4464,106 +4467,109 @@ export default function Admin() {
                 })}
               </div>
 
-              {/* Follow-up Reminders */}
+              {/* Follow-up Reminders - Collapsible */}
               {(followUps && followUps.length > 0) && (
                 <Card data-testid="card-follow-up-reminders">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="h-5 w-5" />
-                      Follow-up Reminders
-                      {followUps.filter(f => f.daysOverdue > 0).length > 0 && (
-                        <Badge variant="destructive" className="ml-2">
-                          {followUps.filter(f => f.daysOverdue > 0).length} overdue
-                        </Badge>
-                      )}
-                    </CardTitle>
-                    <CardDescription>
-                      Courses awaiting follow-up after outreach
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {followUpsLoading ? (
-                      <div className="py-4 text-center text-muted-foreground">Loading...</div>
-                    ) : (
-                      <>
-                        {followUps.slice(0, 5).map((item) => (
-                          <div 
-                            key={item.courseId} 
-                            className="flex flex-wrap items-center justify-between gap-2 p-3 border rounded-md"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <Link 
-                                href={`/admin?tab=courses`}
-                                onClick={() => {
-                                  const course = courses?.find(c => c.id === item.courseId);
-                                  if (course) setSelectedCourseProfile(course);
-                                }}
-                                className="font-medium hover:underline truncate block"
-                              >
-                                {item.courseName}
-                              </Link>
-                              <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-2">
-                                {item.contactPerson && <span>{item.contactPerson}</span>}
-                                {item.contactEmail && (
-                                  <a href={`mailto:${item.contactEmail}`} className="hover:underline">
-                                    {item.contactEmail}
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                              {item.daysOverdue > 0 ? (
-                                <Badge variant="destructive" className="self-start sm:self-auto">{item.daysOverdue}d overdue</Badge>
-                              ) : (
-                                <Badge variant="outline" className="self-start sm:self-auto">Due today</Badge>
-                              )}
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => snoozeMutation.mutate({ courseId: item.courseId, days: 7 })}
-                                  disabled={snoozeMutation.isPending}
-                                  data-testid={`button-snooze-${item.courseId}`}
-                                  className="flex-1 sm:flex-initial"
-                                >
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  <span className="hidden xs:inline">Snooze</span> 7d
-                                </Button>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => completeMutation.mutate(item.courseId)}
-                                  disabled={completeMutation.isPending}
-                                  data-testid={`button-complete-${item.courseId}`}
-                                  className="flex-1 sm:flex-initial"
-                                >
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Done
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        {followUps.length > 5 && (
-                          <div className="text-center pt-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setStageFilter("OUTREACH_SENT")}
-                            >
-                              View all {followUps.length} follow-ups
-                              <ArrowRight className="h-3 w-3 ml-1" />
-                            </Button>
-                          </div>
+                  <CardHeader 
+                    className="pb-3 cursor-pointer hover-elevate"
+                    onClick={() => setFollowUpsExpanded(!followUpsExpanded)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Bell className="h-5 w-5" />
+                        Follow-up Reminders
+                        <Badge variant="secondary">{followUps.length}</Badge>
+                        {followUps.filter(f => f.daysOverdue > 0).length > 0 && (
+                          <Badge variant="destructive">
+                            {followUps.filter(f => f.daysOverdue > 0).length} overdue
+                          </Badge>
                         )}
-                      </>
-                    )}
-                    {!followUpsLoading && followUps.length === 0 && (
-                      <div className="py-4 text-center text-muted-foreground">
-                        No follow-ups needed
-                      </div>
-                    )}
-                  </CardContent>
+                      </CardTitle>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        {followUpsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  {followUpsExpanded && (
+                    <CardContent className="space-y-2 pt-0">
+                      {followUpsLoading ? (
+                        <div className="py-4 text-center text-muted-foreground">Loading...</div>
+                      ) : (
+                        <>
+                          {followUps.slice(0, 5).map((item) => (
+                            <div 
+                              key={item.courseId} 
+                              className="flex flex-wrap items-center justify-between gap-2 p-3 border rounded-md"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <Link 
+                                  href={`/admin?tab=courses`}
+                                  onClick={() => {
+                                    const course = courses?.find(c => c.id === item.courseId);
+                                    if (course) setSelectedCourseProfile(course);
+                                  }}
+                                  className="font-medium hover:underline truncate block"
+                                >
+                                  {item.courseName}
+                                </Link>
+                                <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-2">
+                                  {item.contactPerson && <span>{item.contactPerson}</span>}
+                                  {item.contactEmail && (
+                                    <a href={`mailto:${item.contactEmail}`} className="hover:underline">
+                                      {item.contactEmail}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                                {item.daysOverdue > 0 ? (
+                                  <Badge variant="destructive" className="self-start sm:self-auto">{item.daysOverdue}d overdue</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="self-start sm:self-auto">Due today</Badge>
+                                )}
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); snoozeMutation.mutate({ courseId: item.courseId, days: 7 }); }}
+                                    disabled={snoozeMutation.isPending}
+                                    data-testid={`button-snooze-${item.courseId}`}
+                                    className="flex-1 sm:flex-initial"
+                                  >
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    <span className="hidden xs:inline">Snooze</span> 7d
+                                  </Button>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); completeMutation.mutate(item.courseId); }}
+                                    disabled={completeMutation.isPending}
+                                    data-testid={`button-complete-${item.courseId}`}
+                                    className="flex-1 sm:flex-initial"
+                                  >
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Done
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {followUps.length > 5 && (
+                            <div className="text-center pt-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setStageFilter("OUTREACH_SENT")}
+                              >
+                                View all {followUps.length} follow-ups
+                                <ArrowRight className="h-3 w-3 ml-1" />
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </CardContent>
+                  )}
                 </Card>
               )}
 
