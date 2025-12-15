@@ -289,7 +289,7 @@ export default function TeeTimeSearch() {
                       </div>
                     ) : courses?.courses && courses.courses.length > 0 ? (
                       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                        {courses.courses.map(course => (
+                        {courses.courses.filter(c => c.zestFacilityId !== null).map(course => (
                           <label
                             key={course.id}
                             className="flex items-start gap-3 p-2 rounded-md hover-elevate cursor-pointer"
