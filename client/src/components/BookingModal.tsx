@@ -130,6 +130,15 @@ export function BookingModal({
     },
   });
 
+  // Clean package names by removing internal TTOO/TO codes (not relevant for customers)
+  const cleanPackageName = (name: string): string => {
+    return name
+      .replace(/\s*TTOO\s*/gi, ' ')
+      .replace(/\s+TO\s+/gi, ' + ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   // Convert TTOO (Tour Operator) price to customer price using kickbackPercent
   // Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
   // This ensures we sell at the proper retail price, not our wholesale cost
@@ -815,7 +824,7 @@ export function BookingModal({
                           onClick={(e) => e.stopPropagation()}
                         />
                         <div className="space-y-1">
-                          <span className="font-medium text-sm">{pkg.name}</span>
+                          <span className="font-medium text-sm">{cleanPackageName(pkg.name)}</span>
                           {pkg.description && (
                             <p className="text-xs text-muted-foreground">{pkg.description}</p>
                           )}
