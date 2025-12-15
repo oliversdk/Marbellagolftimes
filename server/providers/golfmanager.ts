@@ -250,11 +250,12 @@ export class GolfmanagerProvider {
     for (const slot of golfmanagerSlots) {
       // Handle nested format: { date, slots, types: [...] }
       if (slot.types && Array.isArray(slot.types)) {
-        // Filter valid types (non-members only, 18 holes OR no tags)
+        // Filter valid types based on requested holes (9 or 18)
+        const holesTag = holes === 9 ? "9holes" : "18holes";
         const validTypes = slot.types.filter((t: any) => 
           t.price !== undefined && 
           !t.onlyMembers &&
-          (!t.tags || t.tags.length === 0 || t.tags?.includes("18holes"))
+          (!t.tags || t.tags.length === 0 || t.tags?.includes(holesTag))
         );
         
         if (validTypes.length > 0) {
@@ -289,6 +290,7 @@ export class GolfmanagerProvider {
             slotsAvailable: lowestPriceType.max ? Math.min(lowestPriceType.max, 4) : (slot.slots || 4),
             packageName: lowestPriceType.name,
             packages: packages, // Include ALL packages for selection
+            teeName: slot.resourceName || slot.resource || lowestPriceType.resourceName || "TEE 1",
           });
         }
       } 
@@ -303,6 +305,7 @@ export class GolfmanagerProvider {
             holes: holes,
             source: `Golfmanager ${this.config.version.toUpperCase()}`,
             slotsAvailable: slot.max ? Math.min(slot.max, 4) : (slot.slots || 4),
+            teeName: slot.resourceName || slot.resource || "TEE 1",
           });
         }
       }
