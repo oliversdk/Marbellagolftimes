@@ -602,9 +602,12 @@ export class ZestGolfAutomation {
 
   async testConnection(): Promise<ZestAutomationResult> {
     try {
+      console.log("[Zest Automation] Starting connection test...");
       await this.initialize();
+      console.log("[Zest Automation] Browser initialized successfully");
       
       const loginSuccess = await this.login();
+      console.log("[Zest Automation] Login result:", loginSuccess);
       if (!loginSuccess) {
         await this.close();
         return {
@@ -623,12 +626,13 @@ export class ZestGolfAutomation {
         facilitiesProcessed: facilities.length,
         facilities,
       };
-    } catch (error) {
+    } catch (error: any) {
+      console.error("[Zest Automation] Connection test error:", error?.message || error);
       await this.close();
       return {
         success: false,
         message: "Connection test failed",
-        error: String(error),
+        error: error?.message || String(error),
       };
     }
   }
