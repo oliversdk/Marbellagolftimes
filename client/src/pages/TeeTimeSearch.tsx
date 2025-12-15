@@ -290,15 +290,20 @@ export default function TeeTimeSearch() {
                     ) : courses?.courses && courses.courses.length > 0 ? (
                       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                         {courses.courses.map(course => (
-                          <div
+                          <label
                             key={course.id}
                             className="flex items-start gap-3 p-2 rounded-md hover-elevate cursor-pointer"
-                            onClick={() => handleCourseToggle(course.id)}
                             data-testid={`checkbox-course-${course.id}`}
                           >
                             <Checkbox
                               checked={selectedCourses.includes(course.id)}
-                              onCheckedChange={() => handleCourseToggle(course.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedCourses(prev => [...prev, course.id]);
+                                } else {
+                                  setSelectedCourses(prev => prev.filter(id => id !== course.id));
+                                }
+                              }}
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
@@ -314,7 +319,7 @@ export default function TeeTimeSearch() {
                                 {course.city}
                               </p>
                             </div>
-                          </div>
+                          </label>
                         ))}
                       </div>
                     ) : (
