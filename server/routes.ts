@@ -3399,15 +3399,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               continue;
             }
             
+            // Build date range for search (outside try block so cacheKey is accessible in catch)
+            const searchDate = date ? new Date(date as string) : new Date();
+            const dateStr = searchDate.toISOString().split("T")[0];
+            const numPlayers = players ? parseInt(players as string) : 2;
+            const numHoles = holes ? parseInt(holes as string) : 18;
+            const cacheKey = `gm:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
+            
             try {
-              // Build date range for search
-              const searchDate = date ? new Date(date as string) : new Date();
-              const dateStr = searchDate.toISOString().split("T")[0];
-              const numPlayers = players ? parseInt(players as string) : 2;
-              const numHoles = holes ? parseInt(holes as string) : 18;
-              
               // Check cache first
-              const cacheKey = `gm:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
               const cachedSlots = getCachedSlots(cacheKey);
               
               if (cachedSlots) {
@@ -3481,8 +3481,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 course,
               });
             } catch (error) {
-              console.error(`[Golfmanager] Error fetching availability for ${course.name} (tenant: ${tenant}, version: ${version}):`, error);
-              // Show course without tee times - no fake data
+              // Cache empty result for failed courses to avoid retrying
+              setCachedSlots(cacheKey, []);
+              console.error(`[Golfmanager] Error for ${course.name} - cached empty result`);
+              // Show course without tee times
               results.push({
                 courseId: course.id,
                 courseName: course.name,
