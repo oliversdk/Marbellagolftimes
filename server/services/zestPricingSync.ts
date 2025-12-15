@@ -22,9 +22,12 @@ interface PricingSyncSummary {
   results: SyncResult[];
 }
 
-function calculateCommissionPercent(netRate: number, publicRate: number): number {
-  if (publicRate <= 0) return 0;
-  return ((publicRate - netRate) / publicRate) * 100;
+// Calculate commission percent based on selling price (price) and net rate
+// Commission = (price - netRate) / price * 100
+// This matches what Zest Portal shows as "Sales Commission"
+function calculateCommissionPercent(netRate: number, sellingPrice: number): number {
+  if (sellingPrice <= 0) return 0;
+  return ((sellingPrice - netRate) / sellingPrice) * 100;
 }
 
 export async function syncZestPricingForCourse(
@@ -62,14 +65,14 @@ export async function syncZestPricingForCourse(
       for (const pricing of sampleTeeTime.pricing) {
         const players = parseInt(pricing.players) || 1;
         const netRate = pricing.netRate?.amount || 0;
-        const publicRate = pricing.publicRate?.amount || pricing.price?.amount || 0;
+        const sellingPrice = pricing.price?.amount || 0; // This is what we sell at (Selling Rate)
         
         greenFeePricing.push({
           players,
           price: pricing.price,
           netRate: pricing.netRate || { amount: 0, currency: "EUR" },
           publicRate: pricing.publicRate || pricing.price,
-          commissionPercent: calculateCommissionPercent(netRate, publicRate),
+          commissionPercent: calculateCommissionPercent(netRate, sellingPrice),
         });
       }
     }
@@ -84,7 +87,7 @@ export async function syncZestPricingForCourse(
             seenMids.add(product.mid);
             
             const netRate = product.netRate?.amount || 0;
-            const publicRate = product.publicRate?.amount || product.price?.amount || 0;
+            const sellingPrice = product.price?.amount || 0; // This is what we sell at (Selling Rate)
             
             extraProducts.push({
               mid: product.mid,
@@ -94,7 +97,7 @@ export async function syncZestPricingForCourse(
               price: product.price || { amount: 0, currency: "EUR" },
               netRate: product.netRate || { amount: 0, currency: "EUR" },
               publicRate: product.publicRate || product.price || { amount: 0, currency: "EUR" },
-              commissionPercent: calculateCommissionPercent(netRate, publicRate),
+              commissionPercent: calculateCommissionPercent(netRate, sellingPrice),
             });
           }
         }
