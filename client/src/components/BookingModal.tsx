@@ -130,14 +130,32 @@ export function BookingModal({
     },
   });
 
+  // Convert TTOO (Tour Operator) price to customer price using kickbackPercent
+  // Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
+  // This ensures we sell at the proper retail price, not our wholesale cost
+  const calculateCustomerPrice = (ttooPrice: number): number => {
+    const kickback = course?.kickbackPercent || 0;
+    if (kickback <= 0 || kickback >= 100) {
+      // If no kickback defined, add a reasonable markup (15%)
+      return ttooPrice * 1.15;
+    }
+    // Convert TTOO price back to rack rate (customer price)
+    return ttooPrice / (1 - kickback / 100);
+  };
+
   // Calculate total price including add-ons
   const calculateTotal = () => {
     // Priority: API package > DB package > slot greenFee
     let baseRate = selectedSlot?.greenFee || 0;
     if (selectedApiPackage) {
-      baseRate = selectedApiPackage.price;
+      // API packages have TTOO prices - convert to customer price
+      baseRate = calculateCustomerPrice(selectedApiPackage.price);
     } else if (selectedPackage) {
+      // DB packages already have rack rate (customer price)
       baseRate = selectedPackage.rackRate;
+    } else if (selectedSlot?.greenFee) {
+      // greenFee from API is also TTOO price
+      baseRate = calculateCustomerPrice(selectedSlot.greenFee);
     }
     
     let addOnsTotal = 0;
@@ -715,7 +733,9 @@ export function BookingModal({
 
   const renderCustomizeBooking = () => {
     const maxSlots = selectedSlot?.slotsAvailable || 4;
-    const basePrice = selectedPackage?.rackRate || selectedSlot?.greenFee || 0;
+    // Use rackRate (already customer price) or convert greenFee from TTOO to customer price
+    const basePrice = selectedPackage?.rackRate || 
+      (selectedSlot?.greenFee ? calculateCustomerPrice(selectedSlot.greenFee) : 0);
 
     return (
       <>
@@ -776,7 +796,9 @@ export function BookingModal({
               <div className="space-y-2" data-testid="list-api-packages">
                 {apiPackages.map((pkg, index) => {
                   const isSelected = selectedApiPackage?.id === pkg.id;
-                  const totalForPlayers = pkg.price * players;
+                  // Convert TTOO price to customer price
+                  const customerPricePerPlayer = calculateCustomerPrice(pkg.price);
+                  const totalForPlayers = customerPricePerPlayer * players;
                   return (
                     <div
                       key={pkg.id}
@@ -825,7 +847,7 @@ export function BookingModal({
                       </div>
                       <div className="text-right">
                         <span className="font-medium text-sm text-primary">€{totalForPlayers.toFixed(2)}</span>
-                        <p className="text-xs text-muted-foreground">€{pkg.price}/player</p>
+                        <p className="text-xs text-muted-foreground">€{customerPricePerPlayer.toFixed(2)}/player</p>
                       </div>
                     </div>
                   );
