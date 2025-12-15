@@ -3852,19 +3852,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required booking details" });
       }
 
-      // Get course and verify it's a test course
+      // Get course
       const course = await storage.getCourseById(courseId);
       if (!course) {
         return res.status(404).json({ error: "Course not found" });
       }
 
-      // SECURITY: Only allow simulation for test courses
-      if (!course.name.toLowerCase().includes('test')) {
+      // Check if user is admin (allows simulation for any course)
+      let isUserAdmin = false;
+      if (req.session?.userId) {
+        const user = await storage.getUser(req.session.userId);
+        isUserAdmin = user?.isAdmin === 'true';
+      }
+      const isTestCourse = course.name.toLowerCase().includes('test');
+      
+      // SECURITY: Only allow simulation for test courses OR admin users
+      if (!isTestCourse && !isUserAdmin) {
         return res.status(403).json({ 
           error: "Payment simulation only available for test courses",
           code: "NOT_TEST_COURSE"
         });
       }
+      
+      console.log(`[Simulate] Processing payment for ${course.name} (isAdmin: ${isUserAdmin}, isTestCourse: ${isTestCourse})`);
 
       const numPlayers = parseInt(players, 10);
       if (isNaN(numPlayers) || numPlayers < 1 || numPlayers > 4) {
