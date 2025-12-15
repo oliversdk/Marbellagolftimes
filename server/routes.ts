@@ -101,19 +101,14 @@ export function cacheApiPrice(courseId: string, teeTime: string, priceCents: num
 // Tee times are fetched fresh on each request for maximum accuracy
 
 // Convert TTOO (Tour Operator) wholesale price to customer-facing price
-// API returns TTOO prices (what we pay), we convert to customer prices (what they pay)
-// Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
-// Example: 22% kickback means €56 TTOO → €56/0.78 = €71.79 → €72 customer price
-export function convertToCustomerPrice(ttooPrice: number, kickbackPercent: number | null): number {
-  const kickback = kickbackPercent || 0;
-  let customerPrice: number;
+// API returns TTOO prices (what we pay), we add our markup percentage on top
+// Formula: customerPrice = ttooPrice × (1 + markupPercent/100)
+// Example: 20% markup means €56 TTOO → €56 × 1.20 = €67 customer price
+export function convertToCustomerPrice(ttooPrice: number, markupPercent: number | null): number {
+  const markup = markupPercent || 20; // Default 20% markup
   
-  if (kickback <= 0 || kickback >= 100) {
-    // If no kickback defined, add a reasonable default markup (20%)
-    customerPrice = ttooPrice / 0.80;
-  } else {
-    customerPrice = ttooPrice / (1 - kickback / 100);
-  }
+  // Simple markup: TTOO price + markup percentage
+  const customerPrice = ttooPrice * (1 + markup / 100);
   
   // Round to nearest whole euro for cleaner display
   return Math.round(customerPrice);
