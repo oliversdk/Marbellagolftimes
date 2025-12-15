@@ -19,6 +19,7 @@ const Login = lazy(() => import("@/pages/Login"));
 const Signup = lazy(() => import("@/pages/Signup"));
 const BookingSuccess = lazy(() => import("@/pages/BookingSuccess"));
 const Review = lazy(() => import("@/pages/Review"));
+const TeeTimeSearch = lazy(() => import("@/pages/TeeTimeSearch"));
 
 function LoadingFallback() {
   return (
@@ -70,6 +71,11 @@ function Router() {
       <Route path="/review/:bookingId">
         <Suspense fallback={<LoadingFallback />}>
           <Review />
+        </Suspense>
+      </Route>
+      <Route path="/search">
+        <Suspense fallback={<LoadingFallback />}>
+          <TeeTimeSearch />
         </Suspense>
       </Route>
       <Route component={NotFound} />

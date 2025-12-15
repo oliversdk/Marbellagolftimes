@@ -2237,6 +2237,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NOTE: The actual inbound email webhook is defined below with multer middleware
   // to handle SendGrid's multipart form data
 
+  // GET /api/courses/zest-facilities - Get courses with real-time availability for multi-search
+  // IMPORTANT: This route must be defined BEFORE /api/courses/:id to avoid being caught by the param route
+  app.get("/api/courses/zest-facilities", async (req, res) => {
+    try {
+      const allCourses = await storage.getAllCourses();
+      
+      // Filter courses that have real-time booking URLs (TeeOne, iMaster, Zest, Golfmanager)
+      const realTimeCourses = allCourses
+        .filter(c => {
+          if (!c.bookingUrl) return false;
+          const url = c.bookingUrl.toLowerCase();
+          return url.includes('teeone.golf') || 
+                 url.includes('imaster.golf') || 
+                 url.includes('zest.golf') ||
+                 url.includes('golfmanager');
+        })
+        .map(c => {
+          // Extract facility ID from Zest URLs if present
+          const zestMatch = c.bookingUrl?.match(/facilityId=(\d+)/);
+          return {
+            id: c.id,
+            name: c.name,
+            zestFacilityId: zestMatch ? parseInt(zestMatch[1]) : null,
+            bookingUrl: c.bookingUrl,
+            imageUrl: c.imageUrl,
+            city: c.city,
+            providerType: c.bookingUrl?.includes('teeone.golf') ? 'teeone' : 
+                          c.bookingUrl?.includes('imaster.golf') ? 'imaster' :
+                          c.bookingUrl?.includes('zest.golf') ? 'zest' : 'golfmanager',
+          };
+        });
+      
+      res.json({ success: true, courses: realTimeCourses });
+    } catch (error: any) {
+      console.error("Failed to get real-time courses:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
     try {
@@ -4702,20 +4741,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Cannot cancel past bookings" });
       }
 
-      // Check 24-hour deadline
+      // Check 24-hour deadline (default cancellation policy)
       const now = new Date();
       const teeTime = new Date(booking.teeTime);
       const hoursUntilTeeTime = (teeTime.getTime() - now.getTime()) / (1000 * 60 * 60);
       
-      if (hoursUntilTeeTime < 24) {
+      // Default cancellation deadline is 24 hours
+      const cancellationDeadlineHours = 24;
+      
+      if (hoursUntilTeeTime < cancellationDeadlineHours) {
         return res.status(400).json({ 
-          error: "Cancellations must be made at least 24 hours before tee time" 
+          error: `Cancellations must be made at least ${cancellationDeadlineHours} hours before tee time`,
+          hoursRemaining: Math.floor(hoursUntilTeeTime),
+          deadlineHours: cancellationDeadlineHours
         });
       }
 
-      // Cancel the booking
+      // If booking was synced to Zest, cancel it there first
+      let providerCancellation = null;
+      if (booking.providerBookingId && booking.providerSyncStatus === "success") {
+        try {
+          const { getZestGolfService } = await import("./services/zestGolf");
+          const zest = getZestGolfService();
+          providerCancellation = await zest.cancelBooking(booking.providerBookingId);
+          
+          if (!providerCancellation.success) {
+            console.warn(`Zest cancellation warning: ${providerCancellation.error}`);
+            // Continue with local cancellation even if Zest fails
+          }
+        } catch (zestError: any) {
+          console.error("Zest cancellation error:", zestError);
+          // Continue with local cancellation
+        }
+      }
+
+      // Cancel the booking locally
       const updatedBooking = await storage.cancelBooking(id, cancellationReason);
-      res.json(updatedBooking);
+      
+      res.json({
+        ...updatedBooking,
+        providerCancellation: providerCancellation ? {
+          success: providerCancellation.success,
+          error: providerCancellation.error
+        } : null
+      });
     } catch (error) {
       console.error("Error cancelling booking:", error);
       res.status(500).json({ error: "Failed to cancel booking" });
@@ -6763,10 +6832,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { getZestGolfService } = await import("./services/zestGolf");
       const zest = getZestGolfService();
-      const success = await zest.cancelBooking(req.params.bookingId);
-      res.json({ success });
+      const result = await zest.cancelBooking(req.params.bookingId);
+      res.json(result);
     } catch (error: any) {
       console.error("Failed to cancel Zest booking:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // POST /api/zest/bookings/bulk - Create multiple bookings at once
+  app.post("/api/zest/bookings/bulk", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      
+      const { bookings, paymentIntent } = req.body;
+      
+      if (!bookings || !Array.isArray(bookings) || bookings.length === 0) {
+        return res.status(400).json({ success: false, error: "At least one booking is required" });
+      }
+      
+      // Validate each booking
+      for (const booking of bookings) {
+        if (!booking.facilityId || !booking.teetime || !booking.course || !booking.players || !booking.teeId) {
+          return res.status(400).json({ 
+            success: false, 
+            error: "Each booking must have facilityId, teetime, course, players, and teeId" 
+          });
+        }
+      }
+      
+      let result;
+      if (paymentIntent) {
+        result = await zest.createBulkBookingWithPayment(bookings, paymentIntent);
+      } else {
+        result = await zest.createBulkBooking(bookings);
+      }
+      
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error("Failed to create bulk Zest booking:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // POST /api/zest/teetimes/search - Search tee times across multiple dates and facilities
+  app.post("/api/zest/teetimes/search", async (req, res) => {
+    try {
+      const { getZestGolfService } = await import("./services/zestGolf");
+      const zest = getZestGolfService();
+      
+      const { facilityIds, fromDate, toDate, players = 4, holes = 18 } = req.body;
+      
+      if (!facilityIds || !Array.isArray(facilityIds) || facilityIds.length === 0) {
+        return res.status(400).json({ success: false, error: "At least one facilityId is required" });
+      }
+      
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ success: false, error: "fromDate and toDate are required" });
+      }
+      
+      const from = new Date(fromDate);
+      const to = new Date(toDate);
+      
+      // Limit date range to 7 days
+      const daysDiff = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 7) {
+        return res.status(400).json({ success: false, error: "Date range cannot exceed 7 days" });
+      }
+      
+      // Fetch tee times for each facility and date combination
+      const results: Array<{
+        facilityId: number;
+        date: string;
+        teeTimes: any[];
+        cancellationPolicy: any[];
+      }> = [];
+      
+      // Generate date array
+      const dates: Date[] = [];
+      let currentDate = new Date(from);
+      while (currentDate <= to) {
+        dates.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Fetch all combinations in parallel (with rate limiting)
+      const fetchPromises = [];
+      for (const facilityId of facilityIds) {
+        for (const date of dates) {
+          fetchPromises.push(
+            (async () => {
+              try {
+                const response = await zest.getTeeTimes(facilityId, date, players, holes as 9 | 18);
+                return {
+                  facilityId,
+                  date: date.toISOString().split('T')[0],
+                  teeTimes: response.teeTimeV3 || [],
+                  cancellationPolicy: response.facilityCancellationPolicyRange || [],
+                };
+              } catch (error: any) {
+                console.error(`Failed to fetch tee times for facility ${facilityId} on ${date}:`, error.message);
+                return {
+                  facilityId,
+                  date: date.toISOString().split('T')[0],
+                  teeTimes: [],
+                  cancellationPolicy: [],
+                  error: error.message,
+                };
+              }
+            })()
+          );
+        }
+      }
+      
+      const allResults = await Promise.all(fetchPromises);
+      
+      // Group by facility
+      const groupedByFacility = facilityIds.map(facilityId => {
+        const facilityResults = allResults.filter(r => r.facilityId === facilityId);
+        return {
+          facilityId,
+          dates: facilityResults.map(r => ({
+            date: r.date,
+            teeTimes: r.teeTimes,
+            cancellationPolicy: r.cancellationPolicy,
+            error: (r as any).error,
+          })),
+        };
+      });
+      
+      res.json({ 
+        success: true, 
+        facilities: groupedByFacility,
+        summary: {
+          totalFacilities: facilityIds.length,
+          totalDates: dates.length,
+          totalTeeTimes: allResults.reduce((sum, r) => sum + r.teeTimes.length, 0),
+        }
+      });
+    } catch (error: any) {
+      console.error("Failed to search Zest tee times:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   });

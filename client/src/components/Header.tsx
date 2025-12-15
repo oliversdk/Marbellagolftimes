@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin, User, LogOut, UserCircle, Shield, Menu, Mail } from "lucide-react";
+import { MapPin, User, LogOut, UserCircle, Shield, Menu, Mail, Search } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
@@ -79,7 +79,18 @@ export function Header() {
                 }`}
                 data-testid="link-find-courses"
               >
-                {t('search.searchButton')}
+                Courses
+              </span>
+            </Link>
+            <Link href="/search">
+              <span
+                className={`text-sm font-medium transition-colors hover:text-primary cursor-pointer flex items-center gap-1.5 ${
+                  location === "/search" ? "text-foreground" : "text-muted-foreground"
+                }`}
+                data-testid="link-multi-search"
+              >
+                <Search className="h-4 w-4" />
+                Multi-Search
               </span>
             </Link>
             {isAdmin && (

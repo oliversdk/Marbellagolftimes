@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend
 
-The frontend uses React 18, TypeScript, Vite, Wouter for routing, and `shadcn/ui` (Radix UI + Tailwind CSS) for a responsive UI. State management uses TanStack Query and local React state. Key features include a Golfee-inspired course listing with inline tee times, list/map view toggle (Leaflet), advanced sorting and filtering, and comprehensive CourseDetail pages. User authentication includes Login/Signup with i18n support. The Profile page offers advanced booking management (Upcoming/Past bookings, cancellation, "Book Again").
+The frontend uses React 18, TypeScript, Vite, Wouter for routing, and `shadcn/ui` (Radix UI + Tailwind CSS) for a responsive UI. State management uses TanStack Query and local React state. Key features include a Golfee-inspired course listing with inline tee times, list/map view toggle (Leaflet), advanced sorting and filtering, and comprehensive CourseDetail pages. User authentication includes Login/Signup with i18n support. The Profile page offers advanced booking management (Upcoming/Past bookings, cancellation with Zest API integration, "Book Again"). A **Multi-Search** feature at `/search` allows users to select multiple courses and date ranges (up to 7 days), searching all combinations in parallel with results grouped by facility.
 
 An Admin dashboard provides tools for managing bookings, courses, images, affiliate emails, and an **Inbox** for course email conversations with thread management, status filters, and reply functionality. It also includes a comprehensive reviews and social proof system, an Analytics Dashboard (revenue, booking trends, popular courses) visualized with Recharts, and a User Management system with full CRUD and role-based access control. A Commission & ROI Tracking System monitors affiliate earnings and campaign performance.
 
@@ -65,6 +65,7 @@ Client-side geolocation uses the Browser Geolocation API for proximity-based cou
 
 -   **Golfmanager Integration**: Supports Golfmanager API V1/V3 for 14 courses (e.g., Finca Cortesín, La Cala Resort). Features per-tenant authentication with **course-specific credentials stored in the database** (`golfmanagerV1User`, `golfmanagerV1Password` for V1, `golfmanagerUser`, `golfmanagerPassword` for V3). Admin can manage credentials via Courses → Credentials tab with copy-to-clipboard buttons. Alhaurin Golf is LIVE with real tee times and packages.
 -   **TeeOne Golf System**: Integrates with TeeOne API for 12 courses (e.g., El Paraíso, Marbella Golf & CC). Features per-tenant authentication and operates in MOCK mode, with production readiness awaiting credentials.
+-   **Zest Golf Integration**: Supports Zest Golf API for real-time tee times, bulk booking (multiple tee times in one request), and cancellation with policy enforcement. Features `POST /api/zest/bookings/bulk` for multi-booking requests returning groupId.
 -   **Tee Time Provider Integration**: Flexible system supporting REST APIs, direct booking links, and web scraping.
 -   **Open-Meteo API**: Provides real-time weather data for course detail pages.
 -   **Browser Geolocation API**: Used for client-side location services.

@@ -221,16 +221,20 @@ export default function Profile() {
 
   const cancelBookingMutation = useMutation({
     mutationFn: async ({ bookingId, reason }: { bookingId: string; reason: string }) => {
-      await apiRequest(`/api/booking-requests/${bookingId}/cancel`, 'POST', { reason });
+      return await apiRequest(`/api/booking-requests/${bookingId}/cancel`, 'PATCH', { cancellationReason: reason });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
       setCancelDialogOpen(false);
       setSelectedBooking(null);
       cancelForm.reset();
+      
+      const providerSuccess = data?.providerCancellation?.success;
       toast({
         title: t('common.success'),
-        description: 'Booking cancelled successfully',
+        description: providerSuccess 
+          ? 'Booking cancelled successfully with the course' 
+          : 'Booking cancelled locally',
       });
     },
     onError: (error: any) => {
@@ -633,11 +637,30 @@ export default function Profile() {
         }}>
           <DialogContent className="sm:max-w-md" data-testid="dialog-cancel-booking">
             <DialogHeader>
-              <DialogTitle>Cancel Booking</DialogTitle>
-              <DialogDescription>
-                You are about to cancel your booking at {selectedBooking?.courseName} on{' '}
-                {selectedBooking && format(new Date(selectedBooking.teeTime), 'PPP p')}.
-                Please provide a reason for cancellation.
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Cancel Booking
+              </DialogTitle>
+              <DialogDescription className="space-y-3">
+                <span className="block">
+                  You are about to cancel your booking at <strong>{selectedBooking?.courseName}</strong> on{' '}
+                  {selectedBooking && format(new Date(selectedBooking.teeTime), 'PPP p')}.
+                </span>
+                
+                {selectedBooking && (
+                  <div className="bg-muted p-3 rounded-md text-sm space-y-1">
+                    <div className="font-medium text-foreground">Cancellation Policy</div>
+                    <div className="text-muted-foreground">
+                      Free cancellation up to 24 hours before tee time.
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Clock className="h-4 w-4" />
+                      <span className="font-medium text-foreground">
+                        {Math.floor(differenceInHours(new Date(selectedBooking.teeTime), new Date()))} hours remaining
+                      </span>
+                    </div>
+                  </div>
+                )}
               </DialogDescription>
             </DialogHeader>
             <Form {...cancelForm}>

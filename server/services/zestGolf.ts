@@ -135,6 +135,21 @@ export interface ZestBookingResponse {
   bookingId: string;
 }
 
+export interface ZestBulkBookingResponse {
+  groupId: number;
+  bookingIds: Array<{
+    bookingId: string;
+    teetime: string;
+    courseId: number;
+  }>;
+}
+
+export interface ZestCancellationResult {
+  success: boolean;
+  bookingId: string;
+  error?: string;
+}
+
 export class ZestGolfService {
   private client: AxiosInstance;
   private isProduction: boolean;
@@ -297,13 +312,88 @@ export class ZestGolfService {
   /**
    * Cancel a booking
    */
-  async cancelBooking(bookingId: string): Promise<boolean> {
+  async cancelBooking(bookingId: string): Promise<ZestCancellationResult> {
     try {
       const response = await this.client.delete(`/api/v3/bookings/${bookingId}`);
-      return response.data.success === true;
-    } catch (error) {
+      return {
+        success: response.data.success === true,
+        bookingId,
+      };
+    } catch (error: any) {
       console.error("Failed to cancel booking:", error);
-      return false;
+      return {
+        success: false,
+        bookingId,
+        error: error.response?.data?.message || error.message || "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Create bulk booking (multiple tee times at once)
+   * @param bookings - Array of booking requests
+   * @returns Bulk booking response with groupId and individual bookingIds
+   */
+  async createBulkBooking(bookings: ZestBookingRequest[]): Promise<ZestBulkBookingResponse> {
+    if (bookings.length === 0) {
+      throw new Error("At least one booking is required");
+    }
+
+    if (bookings.length === 1) {
+      // Single booking - use regular endpoint
+      const result = await this.createBooking(bookings[0]);
+      return {
+        groupId: 0,
+        bookingIds: [{
+          bookingId: result.bookingId,
+          teetime: bookings[0].teetime,
+          courseId: bookings[0].facilityId,
+        }],
+      };
+    }
+
+    // Multiple bookings - use bulk endpoint
+    const response = await this.client.post("/api/v3/bookings", bookings);
+    
+    if (response.data.success) {
+      return response.data.data;
+    }
+    throw new Error(response.data.message || "Failed to create bulk booking");
+  }
+
+  /**
+   * Create bulk booking with payment intent
+   * @param bookings - Array of booking requests
+   * @param paymentIntent - Stripe payment intent ID
+   */
+  async createBulkBookingWithPayment(
+    bookings: ZestBookingRequest[],
+    paymentIntent: string
+  ): Promise<ZestBulkBookingResponse> {
+    const response = await this.client.post("/api/v3/bookings", {
+      details: bookings,
+      paymentIntent,
+    });
+    
+    if (response.data.success) {
+      return response.data.data;
+    }
+    throw new Error(response.data.message || "Failed to create bulk booking with payment");
+  }
+
+  /**
+   * Get booking details by ID
+   */
+  async getBookingDetails(bookingId: string): Promise<any> {
+    try {
+      const response = await this.client.get(`/api/v3/bookings/${bookingId}`);
+      if (response.data.success) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error("Failed to get booking details:", error);
+      return null;
     }
   }
 
