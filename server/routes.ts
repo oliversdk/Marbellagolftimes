@@ -209,22 +209,25 @@ async function preloadTeeTimes() {
       );
       
       if (golfmanagerLink) {
+        const providerCode = (golfmanagerLink.providerCourseCode || "").toLowerCase().trim();
+        const isV3 = providerCode.startsWith("golfmanagerv3:");
+        const version: "v1" | "v3" = isV3 ? "v3" : "v1";
+        const tenant = providerCode.split(":")[1]?.trim();
+        
+        if (!tenant) continue;
+        
+        // Only preload if course has valid API credentials
+        const hasV1Credentials = version === "v1" && course.golfmanagerV1User && course.golfmanagerV1Password;
+        const hasV3Credentials = version === "v3" && course.golfmanagerUser && course.golfmanagerPassword;
+        
+        if (!hasV1Credentials && !hasV3Credentials) continue;
+        
         const cacheKey = `gm:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
         if (!getCachedSlots(cacheKey)) {
           try {
-            const providerCode = (golfmanagerLink.providerCourseCode || "").toLowerCase().trim();
-            const isV3 = providerCode.startsWith("golfmanagerv3:");
-            const version: "v1" | "v3" = isV3 ? "v3" : "v1";
-            const tenant = providerCode.split(":")[1]?.trim();
-            
-            if (!tenant) continue;
-            
-            let dbCredentials: { user: string | null; password: string | null } | undefined;
-            if (version === "v1" && course.golfmanagerV1User && course.golfmanagerV1Password) {
-              dbCredentials = { user: course.golfmanagerV1User, password: course.golfmanagerV1Password };
-            } else if (version === "v3" && course.golfmanagerUser && course.golfmanagerPassword) {
-              dbCredentials = { user: course.golfmanagerUser, password: course.golfmanagerPassword };
-            }
+            const dbCredentials = hasV1Credentials 
+              ? { user: course.golfmanagerV1User, password: course.golfmanagerV1Password }
+              : { user: course.golfmanagerUser, password: course.golfmanagerPassword };
             
             const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
             const startTime = `${dateStr}T07:00:00`;
@@ -3399,6 +3402,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               continue;
             }
             
+            // Check if course has valid API credentials - skip API call if not
+            const hasV1Credentials = version === "v1" && course.golfmanagerV1User && course.golfmanagerV1Password;
+            const hasV3Credentials = version === "v3" && course.golfmanagerUser && course.golfmanagerPassword;
+            
+            if (!hasV1Credentials && !hasV3Credentials) {
+              // No API credentials - show as deep link only
+              results.push({
+                courseId: course.id,
+                courseName: course.name,
+                distanceKm: Math.round(distance * 10) / 10,
+                bookingUrl: golfmanagerLink.bookingUrl || course.bookingUrl || course.websiteUrl,
+                slots: [],
+                note: undefined,
+                providerType: "DEEP_LINK",
+                providerName: "golfmanager",
+                course,
+              });
+              continue;
+            }
+            
             // Build date range for search (outside try block so cacheKey is accessible in catch)
             const searchDate = date ? new Date(date as string) : new Date();
             const dateStr = searchDate.toISOString().split("T")[0];
@@ -3426,14 +3449,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 continue;
               }
               
-              // Create tenant-specific provider instance with database credentials (if available)
-              // Use V1 or V3 credentials based on the API version
-              let dbCredentials: { user: string | null; password: string | null } | undefined;
-              if (version === "v1" && course.golfmanagerV1User && course.golfmanagerV1Password) {
-                dbCredentials = { user: course.golfmanagerV1User, password: course.golfmanagerV1Password };
-              } else if (version === "v3" && course.golfmanagerUser && course.golfmanagerPassword) {
-                dbCredentials = { user: course.golfmanagerUser, password: course.golfmanagerPassword };
-              }
+              // Create tenant-specific provider instance with database credentials
+              const dbCredentials = hasV1Credentials 
+                ? { user: course.golfmanagerV1User, password: course.golfmanagerV1Password }
+                : { user: course.golfmanagerUser, password: course.golfmanagerPassword };
               
               const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
               
