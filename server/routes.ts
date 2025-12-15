@@ -162,12 +162,36 @@ async function sendCourseBookingNotification(
     const emailConfig = getEmailConfig();
     if (!emailConfig) {
       console.warn("[Email] SMTP not configured - skipping course notification");
+      storage.createEmailLog({
+        bookingId: booking.id,
+        courseId: course.id,
+        emailType: "COURSE_NOTIFICATION",
+        recipientEmail: course.email || "unknown",
+        recipientName: course.name,
+        subject: "Course Notification (SMTP not configured)",
+        bodyText: null,
+        bodyHtml: null,
+        status: "FAILED",
+        errorMessage: "SMTP not configured",
+      }).catch(e => console.warn("Failed to log skipped course notification:", e));
       return;
     }
     
     const courseEmail = await getCourseNotificationEmail(course.id, course.email);
     if (!courseEmail) {
       console.warn(`[Email] No contact email found for course ${course.name} - skipping notification`);
+      storage.createEmailLog({
+        bookingId: booking.id,
+        courseId: course.id,
+        emailType: "COURSE_NOTIFICATION",
+        recipientEmail: "no-email-configured",
+        recipientName: course.name,
+        subject: "Course Notification (no email)",
+        bodyText: null,
+        bodyHtml: null,
+        status: "FAILED",
+        errorMessage: "No contact email found for course",
+      }).catch(e => console.warn("Failed to log skipped course notification:", e));
       return;
     }
     
@@ -219,6 +243,18 @@ async function sendCourseBookingNotification(
     }).catch(e => console.warn("Failed to log course notification email:", e));
   } catch (error) {
     console.warn(`⚠ Failed to send course notification email:`, error instanceof Error ? error.message : error);
+    storage.createEmailLog({
+      bookingId: booking.id,
+      courseId: course.id,
+      emailType: "COURSE_NOTIFICATION",
+      recipientEmail: course.email || "unknown",
+      recipientName: course.name,
+      subject: "Course Notification (failed)",
+      bodyText: null,
+      bodyHtml: null,
+      status: "FAILED",
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    }).catch(e => console.warn("Failed to log failed course notification:", e));
   }
 }
 
@@ -3310,11 +3346,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }).catch(e => console.warn("Failed to log customer confirmation email:", e));
           } else {
             console.warn('⚠ SMTP not configured - skipping confirmation email. Set SMTP environment variables to enable email notifications.');
+            storage.createEmailLog({
+              bookingId: booking.id,
+              courseId: course.id,
+              emailType: "CUSTOMER_CONFIRMATION",
+              recipientEmail: booking.customerEmail,
+              recipientName: booking.customerName,
+              subject: "Booking Confirmation (SMTP not configured)",
+              bodyText: null,
+              bodyHtml: null,
+              status: "FAILED",
+              errorMessage: "SMTP not configured",
+            }).catch(e => console.warn("Failed to log skipped email:", e));
           }
         } catch (emailError) {
-          // Log error but don't fail the booking
           console.error('Email sending failed:', emailError instanceof Error ? emailError.message : emailError);
           console.warn('⚠ Booking created successfully but confirmation email could not be sent');
+          storage.createEmailLog({
+            bookingId: booking.id,
+            courseId: course.id,
+            emailType: "CUSTOMER_CONFIRMATION",
+            recipientEmail: booking.customerEmail,
+            recipientName: booking.customerName,
+            subject: "Booking Confirmation (failed)",
+            bodyText: null,
+            bodyHtml: null,
+            status: "FAILED",
+            errorMessage: emailError instanceof Error ? emailError.message : "Unknown error",
+          }).catch(e => console.warn("Failed to log failed email:", e));
         }
         
         // Send notification email to golf course (non-blocking)
