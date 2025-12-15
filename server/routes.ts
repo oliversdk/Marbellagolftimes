@@ -1144,6 +1144,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/test-golfmanager - Test Golfmanager API connection
+  app.get("/api/admin/test-golfmanager", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const tenant = (req.query.tenant as string) || "demo";
+      const version = (req.query.version as string) || "v1";
+      
+      console.log(`[Golfmanager Test] Testing API connection for tenant: ${tenant}, version: ${version}`);
+      
+      // Create provider instance
+      const provider = createGolfmanagerProvider(tenant, version as "v1" | "v3");
+      
+      // Test 1: Get tenant info
+      let tenantInfo = null;
+      let tenantError = null;
+      try {
+        tenantInfo = await provider.getTenant();
+      } catch (e: any) {
+        tenantError = e.message || "Unknown error";
+      }
+      
+      // Test 2: Get resources (tees)
+      let resources = null;
+      let resourcesError = null;
+      try {
+        resources = await provider.getResources();
+      } catch (e: any) {
+        resourcesError = e.message || "Unknown error";
+      }
+      
+      // Test 3: Get availability types
+      let availabilityTypes = null;
+      let typesError = null;
+      try {
+        availabilityTypes = await provider.getAvailabilityTypes();
+      } catch (e: any) {
+        typesError = e.message || "Unknown error";
+      }
+      
+      // Test 4: Search availability for tomorrow
+      let slots = null;
+      let slotsError = null;
+      try {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const startDate = tomorrow.toISOString().split("T")[0] + "T07:00:00";
+        const endDate = tomorrow.toISOString().split("T")[0] + "T18:00:00";
+        slots = await provider.searchAvailability(startDate, endDate);
+      } catch (e: any) {
+        slotsError = e.message || "Unknown error";
+      }
+      
+      const connected = !tenantError && !resourcesError;
+      
+      res.json({
+        success: connected,
+        tenant,
+        version,
+        mode: process.env.GOLFMANAGER_MODE || "unknown",
+        tests: {
+          tenant: { data: tenantInfo, error: tenantError },
+          resources: { data: resources, error: resourcesError, count: resources?.length || 0 },
+          availabilityTypes: { data: availabilityTypes, error: typesError, count: availabilityTypes?.length || 0 },
+          availability: { data: slots?.slice(0, 5), error: slotsError, count: slots?.length || 0 }
+        },
+        message: connected 
+          ? `Successfully connected to Golfmanager ${version.toUpperCase()} for tenant "${tenant}"` 
+          : `Failed to connect: ${tenantError || resourcesError}`
+      });
+    } catch (error: any) {
+      console.error("[Golfmanager Test] Error:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Test failed" 
+      });
+    }
+  });
+
   // GET /api/admin/campaigns - Get all ad campaigns
   app.get("/api/admin/campaigns", isAdmin, async (req, res) => {
     try {

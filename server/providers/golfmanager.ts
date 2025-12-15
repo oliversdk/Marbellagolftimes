@@ -235,26 +235,62 @@ export class GolfmanagerProvider {
 
   /**
    * Convert Golfmanager slots to our TeeTimeSlot format
+   * Handles both flat format (legacy) and nested format (current API response)
+   * 
+   * Nested format: [{ date: "...", slots: 2, types: [{ name, price, start, ... }] }]
+   * Flat format: [{ start: "...", price: ..., slots: ... }]
    */
   convertSlotsToTeeTime(
-    golfmanagerSlots: GolfmanagerSlot[],
+    golfmanagerSlots: any[],
     players: number,
     holes: number = 18
   ): TeeTimeSlot[] {
-    return golfmanagerSlots
-      .filter(slot => slot.available !== false && slot.start) // Only available slots with start time
-      .map((slot) => ({
-        teeTime: slot.start,
-        greenFee: slot.pricePerSlot || slot.price || 0,
-        currency: "EUR",
-        players: slot.slots || players,
-        holes: holes,
-        source: `Golfmanager ${this.config.version.toUpperCase()}`,
-        // Calculate slotsAvailable from API data (max slots - already booked)
-        // If max is available, use it; otherwise default to 4 (standard golf group)
-        slotsAvailable: slot.max ? Math.min(slot.max, 4) : (slot.slots || 4),
-      }))
-      .sort((a, b) => (a.teeTime || "").localeCompare(b.teeTime || ""));
+    const results: TeeTimeSlot[] = [];
+    
+    for (const slot of golfmanagerSlots) {
+      // Handle nested format: { date, slots, types: [...] }
+      if (slot.types && Array.isArray(slot.types)) {
+        // Find the best type (prefer standard greenfee, lowest price)
+        const validTypes = slot.types.filter((t: any) => 
+          t.price !== undefined && 
+          !t.onlyMembers &&
+          t.tags?.includes("18holes")
+        );
+        
+        if (validTypes.length > 0) {
+          // Sort by price and pick the lowest
+          validTypes.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
+          const bestType = validTypes[0];
+          
+          results.push({
+            teeTime: slot.date || bestType.start,
+            greenFee: bestType.price || 0,
+            currency: "EUR",
+            players: slot.slots || players,
+            holes: holes,
+            source: `Golfmanager ${this.config.version.toUpperCase()}`,
+            slotsAvailable: bestType.max ? Math.min(bestType.max, 4) : (slot.slots || 4),
+            packageName: bestType.name,
+          });
+        }
+      } 
+      // Handle flat format: { start, price, slots, ... }
+      else if (slot.start) {
+        if (slot.available !== false) {
+          results.push({
+            teeTime: slot.start,
+            greenFee: slot.pricePerSlot || slot.price || 0,
+            currency: "EUR",
+            players: slot.slots || players,
+            holes: holes,
+            source: `Golfmanager ${this.config.version.toUpperCase()}`,
+            slotsAvailable: slot.max ? Math.min(slot.max, 4) : (slot.slots || 4),
+          });
+        }
+      }
+    }
+    
+    return results.sort((a, b) => (a.teeTime || "").localeCompare(b.teeTime || ""));
   }
 
   /**
