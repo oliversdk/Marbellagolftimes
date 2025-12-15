@@ -416,7 +416,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Prepare dynamic content
       const title = `${course.name} - ${course.city} | Marbella Golf Times`;
       const description = course.notes || `Book your tee time at ${course.name} in ${course.city}, Costa del Sol. Real-time availability and best prices.`;
-      const imageUrl = course.imageUrl || "https://marbellagolftimes.com/og-image.png";
+      // Ensure image URL is absolute (crawlers need full URLs)
+      let imageUrl = course.imageUrl || "https://marbellagolftimes.com/og-image.png";
+      if (imageUrl && !imageUrl.startsWith("http")) {
+        imageUrl = `https://marbellagolftimes.com${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
+      }
       const pageUrl = `https://marbellagolftimes.com/course/${courseId}`;
       
       // Escape HTML entities
