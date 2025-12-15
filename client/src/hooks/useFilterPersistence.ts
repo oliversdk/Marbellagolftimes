@@ -15,7 +15,27 @@ export type ViewMode = "list" | "map";
 
 const STORAGE_KEY = "marbella-golf-filters";
 
+// Get default date: tomorrow if after 5 PM, otherwise today
+function getDefaultDate(): Date {
+  const now = new Date();
+  const hour = now.getHours();
+  
+  // After 5 PM (17:00), default to tomorrow for better availability
+  if (hour >= 17) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    return tomorrow;
+  }
+  
+  // Before 5 PM, use today
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
 const DEFAULT_FILTERS: SearchFilters = {
+  date: getDefaultDate(),
   players: 2,
   fromTime: "07:00",
   toTime: "20:00",
@@ -45,10 +65,15 @@ function loadFromStorage(): {
     if (stored) {
       const parsed: StoredFilters = JSON.parse(stored);
       
-      let dateValue: Date | undefined = undefined;
+      // Use stored date only if it's valid and not in the past
+      let dateValue: Date | undefined = getDefaultDate();
       if (parsed.searchFilters?.date) {
         const loadedDate = new Date(parsed.searchFilters.date);
-        if (!isNaN(loadedDate.getTime())) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Only use stored date if it's today or in the future
+        if (!isNaN(loadedDate.getTime()) && loadedDate >= today) {
           dateValue = loadedDate;
         }
       }
