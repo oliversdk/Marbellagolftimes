@@ -3448,6 +3448,19 @@ export default function Admin() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="notifications" data-testid="tab-notifications" className="relative">
+              <Bell className="h-4 w-4 mr-2" />
+              Notifications
+              {(notifications?.length ?? 0) > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="ml-2 h-5 min-w-5 flex items-center justify-center p-0 text-xs font-bold"
+                  data-testid="badge-notifications-tab-count"
+                >
+                  {(notifications?.length ?? 0) > 99 ? "99+" : notifications?.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="api-keys" data-testid="tab-api-keys">
                 <Key className="h-4 w-4 mr-2" />
@@ -6463,6 +6476,91 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Notifications Tab - Booking Notifications */}
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Booking Notifications
+                  {(notifications?.length ?? 0) > 0 && (
+                    <Badge variant="destructive" data-testid="badge-notifications-count">
+                      {notifications?.length} unread
+                    </Badge>
+                  )}
+                </CardTitle>
+                {(notifications?.length ?? 0) > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => markAllNotificationsReadMutation.mutate()}
+                    disabled={markAllNotificationsReadMutation.isPending}
+                    data-testid="button-mark-all-read"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Mark All Read
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {(notifications?.length ?? 0) === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <BellOff className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No unread notifications</p>
+                    <p className="text-sm mt-1">New booking notifications will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {notifications?.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className="flex items-start gap-4 p-4 border rounded-lg hover-elevate cursor-pointer"
+                        onClick={() => {
+                          markNotificationReadMutation.mutate(notification.id);
+                          setActiveTab("bookings");
+                        }}
+                        data-testid={`notification-card-${notification.id}`}
+                      >
+                        <div className="bg-primary/10 rounded-full p-2">
+                          <Bell className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium">New Booking</p>
+                            <Badge variant="secondary" className="text-xs">
+                              {notification.type}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            <span className="font-medium">{notification.booking?.customerName || "Unknown"}</span>
+                            {" • "}
+                            {notification.courseName || "Unknown course"}
+                            {" • "}
+                            {notification.booking?.players || 0} players
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {format(new Date(notification.createdAt), "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markNotificationReadMutation.mutate(notification.id);
+                          }}
+                          data-testid={`button-mark-read-${notification.id}`}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Inbox Tab - Course Email Conversations */}
