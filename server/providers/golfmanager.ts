@@ -117,6 +117,67 @@ interface PriceTargets {
 }
 
 /**
+ * Rate period from contract data
+ */
+interface RatePeriod {
+  packageType: string;
+  rackRate: number;
+  netRate: number;
+  kickbackPercent: number;
+  seasonLabel: string;
+  isEarlyBird: string;
+  isTwilight: string;
+  includesLunch: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+/**
+ * Get customer price from rate periods (contract data)
+ * Matches package name to rate period and returns rack rate
+ */
+function getCustomerPriceFromRatePeriods(
+  ttooPrice: number,
+  packageName: string,
+  ratePeriods: RatePeriod[],
+  fallbackKickback: number = 20
+): number {
+  if (!ratePeriods || ratePeriods.length === 0) {
+    // No rate periods - use fallback markup
+    return Math.round(ttooPrice * (1 + fallbackKickback / 100) * 100) / 100;
+  }
+  
+  const nameLower = packageName.toLowerCase();
+  
+  // Find matching rate period based on package characteristics
+  let matchedPeriod: RatePeriod | undefined;
+  
+  if (nameLower.includes("earlybird") || nameLower.includes("early bird")) {
+    matchedPeriod = ratePeriods.find(rp => rp.isEarlyBird === "true");
+  } else if (nameLower.includes("twilight") || nameLower.includes("tarde")) {
+    matchedPeriod = ratePeriods.find(rp => rp.isTwilight === "true");
+  } else if (nameLower.includes("lunch") || nameLower.includes("almuerzo")) {
+    matchedPeriod = ratePeriods.find(rp => rp.includesLunch === "true" && rp.isEarlyBird !== "true" && rp.isTwilight !== "true");
+  } else {
+    // Standard greenfee - find one without special flags
+    matchedPeriod = ratePeriods.find(rp => 
+      rp.isEarlyBird !== "true" && 
+      rp.isTwilight !== "true" && 
+      rp.includesLunch !== "true"
+    );
+  }
+  
+  if (matchedPeriod) {
+    // Use rack rate directly from contract
+    console.log(`[Golfmanager] Using rack rate €${matchedPeriod.rackRate} for "${packageName}" (from contract: ${matchedPeriod.seasonLabel})`);
+    return matchedPeriod.rackRate;
+  }
+  
+  // Fallback: use kickback markup
+  return Math.round(ttooPrice * (1 + fallbackKickback / 100) * 100) / 100;
+}
+
+/**
  * Golfmanager API Client for Costa del Sol golf courses
  * Supports both V1 and V3 APIs with full booking flow
  */
@@ -300,38 +361,19 @@ export class GolfmanagerProvider {
    * Nested format: [{ date: "...", slots: 2, types: [{ name, price, start, ... }] }]
    * Flat format: [{ start: "...", price: ..., slots: ... }]
    * 
-   * @param priceTargetsJson - JSON string with package-specific target prices (e.g., {"standard": 71.25, "earlybird": 61.75})
-   * @param kickbackPercent - Fallback markup percentage if no target price is defined
+   * @param ratePeriods - Array of rate periods from contract data with rack rates
+   * @param kickbackPercent - Fallback markup percentage if no rate period matches
    */
   convertSlotsToTeeTime(
     golfmanagerSlots: any[],
     players: number,
     holes: number = 18,
-    priceTargetsJson?: string | null,
+    ratePeriods: RatePeriod[] = [],
     kickbackPercent: number = 20
   ): TeeTimeSlot[] {
-    // Parse price targets
-    let priceTargets: PriceTargets = {};
-    if (priceTargetsJson) {
-      try {
-        priceTargets = JSON.parse(priceTargetsJson);
-      } catch (e) {
-        console.error("[Golfmanager] Failed to parse priceTargetsJson:", e);
-      }
-    }
-    
-    // Helper to get customer price from TTOO price
+    // Helper to get customer price using rate periods (contract rack rates)
     const getCustomerPrice = (ttooPrice: number, packageName: string): number => {
-      const slug = getPackageSlug(packageName);
-      const targetPrice = priceTargets[slug];
-      
-      if (targetPrice !== undefined) {
-        // Use exact target price
-        return targetPrice;
-      }
-      
-      // Fallback: apply kickback markup
-      return Math.round(ttooPrice * (1 + kickbackPercent / 100) * 100) / 100;
+      return getCustomerPriceFromRatePeriods(ttooPrice, packageName, ratePeriods, kickbackPercent);
     };
     const results: TeeTimeSlot[] = [];
     

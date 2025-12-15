@@ -3340,6 +3340,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               console.log(`[Golfmanager] Fetching availability for ${course.name} (tenant: ${tenant}, version: ${version})`);
               
+              // Fetch rate periods (contract rack rates) for this course
+              const ratePeriods = await db.select().from(courseRatePeriods).where(eq(courseRatePeriods.courseId, course.id));
+              
               // Search for availability (no idResource specified = searches all resources/tees)
               const gmSlots = await provider.searchAvailability(
                 startTime,
@@ -3349,12 +3352,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 holes ? [`${holes}holes`] : undefined // tags filter
               );
 
-              // Convert slots with price targets (exact Alhaurin prices) or kickback fallback
+              // Convert slots with contract rack rates or kickback fallback
               const slots = provider.convertSlotsToTeeTime(
                 gmSlots,
                 numPlayers,
                 numHoles,
-                course.priceTargetsJson, // Package-specific target prices
+                ratePeriods, // Contract rack rates from database
                 course.kickbackPercent || 20 // Fallback markup percentage
               ).filter(slot => slot.greenFee > 0); // Filter out €0 slots (invalid data)
 
