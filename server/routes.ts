@@ -4060,6 +4060,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/sent-emails - Get all sent affiliate emails with course info (Admin only)
+  app.get("/api/admin/sent-emails", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const emails = await storage.getAllAffiliateEmails();
+      const courses = await storage.getAllCourses();
+      
+      // Map course info to emails
+      const courseMap = new Map(courses.map(c => [c.id, c]));
+      const sentEmailsWithCourse = emails.map(email => {
+        const course = courseMap.get(email.courseId);
+        return {
+          ...email,
+          courseName: course?.name || null,
+          courseEmail: course?.email || null,
+        };
+      });
+      
+      res.json(sentEmailsWithCourse);
+    } catch (error) {
+      console.error("Failed to fetch sent emails:", error);
+      res.status(500).json({ error: "Failed to fetch sent emails" });
+    }
+  });
+
   // GET /api/admin/affiliate-email-courses - Get all courses with affiliate email stats (Admin only)
   app.get("/api/admin/affiliate-email-courses", isAuthenticated, isAdmin, async (req, res) => {
     try {

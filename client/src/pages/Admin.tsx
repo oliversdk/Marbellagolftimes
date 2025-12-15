@@ -223,6 +223,21 @@ type AffiliateEmailCourse = {
   lastOpenedAt: string | null;
 };
 
+type SentAffiliateEmail = {
+  id: string;
+  courseId: string;
+  subject: string;
+  body: string;
+  sentAt: string | null;
+  status: string;
+  errorMessage: string | null;
+  trackingToken: string | null;
+  openedAt: string | null;
+  openCount: number;
+  courseName?: string;
+  courseEmail?: string;
+};
+
 const MAX_EMAIL_BATCH = 10;
 
 type CourseOnboardingData = {
@@ -928,7 +943,7 @@ export default function Admin() {
   
   // Inbox state
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const [inboxFilter, setInboxFilter] = useState<"all" | "unanswered" | "open" | "replied" | "closed" | "archived" | "deleted">("unanswered");
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unanswered" | "open" | "replied" | "closed" | "archived" | "deleted" | "sent">("unanswered");
   const [replyText, setReplyText] = useState("");
   const [pendingMembersOnlyUpdates, setPendingMembersOnlyUpdates] = useState<Set<string>>(new Set());
   const [showAlertSettings, setShowAlertSettings] = useState(false);
@@ -1768,6 +1783,12 @@ export default function Admin() {
   const { data: alertSettings } = useQuery<AlertSettings>({
     queryKey: ["/api/admin/inbox/settings"],
     enabled: isAuthenticated && isAdmin && showAlertSettings,
+  });
+
+  // Inbox - Fetch sent affiliate emails (for "Sent" filter)
+  const { data: sentEmails = [], isLoading: isLoadingSentEmails } = useQuery<SentAffiliateEmail[]>({
+    queryKey: ["/api/admin/sent-emails"],
+    enabled: isAuthenticated && isAdmin && inboxFilter === "sent",
   });
 
   // Filter threads based on selected filter
@@ -6455,12 +6476,12 @@ export default function Admin() {
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-1 pt-2">
-                      {(["unanswered", "all", "open", "replied", "closed", "archived", "deleted"] as const).map((filter) => (
+                      {(["unanswered", "all", "open", "replied", "closed", "archived", "deleted", "sent"] as const).map((filter) => (
                         <Button
                           key={filter}
                           variant={inboxFilter === filter ? "default" : "outline"}
                           size="sm"
-                          className={`text-xs lg:text-sm px-2 lg:px-3 ${filter === "deleted" ? "text-destructive border-destructive/50" : ""}`}
+                          className={`text-xs lg:text-sm px-2 lg:px-3 ${filter === "deleted" ? "text-destructive border-destructive/50" : ""} ${filter === "sent" ? "border-emerald-500/50" : ""}`}
                           onClick={() => setInboxFilter(filter)}
                           data-testid={`button-filter-${filter}`}
                         >
@@ -6468,6 +6489,11 @@ export default function Admin() {
                             <>
                               <Trash2 className="h-3 w-3 mr-1" />
                               {t('inbox.deleted')}
+                            </>
+                          ) : filter === "sent" ? (
+                            <>
+                              <Send className="h-3 w-3 mr-1" />
+                              Sendt
                             </>
                           ) : (
                             <>
@@ -6485,7 +6511,64 @@ export default function Admin() {
                   </CardHeader>
                   <CardContent className="p-0">
                     <ScrollArea className="h-[calc(100vh-350px)] lg:h-[calc(100vh-450px)]">
-                      {filteredThreads.length === 0 ? (
+                      {/* Sent emails view */}
+                      {inboxFilter === "sent" ? (
+                        isLoadingSentEmails ? (
+                          <div className="flex items-center justify-center p-8">
+                            <GolfLoader size="md" />
+                          </div>
+                        ) : sentEmails.length === 0 ? (
+                          <div className="p-4 text-center text-muted-foreground">
+                            Ingen sendte emails endnu
+                          </div>
+                        ) : (
+                          <div className="divide-y">
+                            {sentEmails
+                              .filter(email => email.status === "SENT")
+                              .sort((a, b) => new Date(b.sentAt || 0).getTime() - new Date(a.sentAt || 0).getTime())
+                              .map((email) => (
+                              <div
+                                key={email.id}
+                                className="p-3 lg:p-3 hover-elevate"
+                                data-testid={`row-sent-email-${email.id}`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <Send className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                      <span className="text-sm font-medium truncate">
+                                        {email.courseName || "Ukendt bane"}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm truncate text-muted-foreground">
+                                      {email.subject}
+                                    </p>
+                                    {email.courseEmail && (
+                                      <p className="text-xs text-muted-foreground truncate">
+                                        Til: {email.courseEmail}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                    <span className="text-xs text-muted-foreground">
+                                      {email.sentAt ? format(new Date(email.sentAt), "MMM d") : "—"}
+                                    </span>
+                                    {email.openCount > 0 ? (
+                                      <Badge variant="default" className="text-xs bg-emerald-600">
+                                        {email.openCount}x åbnet
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs">
+                                        Ikke åbnet
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ) : filteredThreads.length === 0 ? (
                         <div className="p-4 text-center text-muted-foreground">
                           {t('inbox.noEmails')}
                         </div>
