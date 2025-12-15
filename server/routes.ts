@@ -3988,8 +3988,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Send notification email to golf course (non-blocking)
-      sendCourseBookingNotification(booking, course).catch(() => {});
+      // For simulated payments, send notification to admin only (not to the course)
+      // This prevents test bookings from notifying actual golf courses
+      sendCourseBookingNotification(booking, { 
+        ...course, 
+        email: "wagner@freeway.dk" // Override course email for simulation
+      }).catch(() => {});
 
       res.json({ 
         booking,
