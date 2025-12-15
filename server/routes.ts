@@ -132,6 +132,142 @@ function setCachedSlots(cacheKey: string, slots: any[]): void {
   });
 }
 
+// Flag to track if preload is running
+let isPreloading = false;
+
+// Background preload function - fetches tee times for all API-connected courses
+async function preloadTeeTimes() {
+  if (isPreloading) {
+    console.log("[Preload] Already running, skipping...");
+    return;
+  }
+  
+  isPreloading = true;
+  console.log("[Preload] Starting background tee time preload...");
+  
+  try {
+    const { storage } = await import("./storage");
+    const { createGolfmanagerProvider, getGolfmanagerConfig } = await import("./providers/golfmanager");
+    const { getZestGolfService } = await import("./providers/zestgolf");
+    
+    const courses = await storage.getAllCourses();
+    const today = new Date();
+    const dateStr = today.toISOString().split("T")[0];
+    const numPlayers = 2;
+    const numHoles = 18;
+    
+    let preloadedCount = 0;
+    
+    for (const course of courses) {
+      const providerLinks = await storage.getLinksByCourseId(course.id);
+      
+      // Check for Zest Golf
+      const zestLink = providerLinks.find((link) => 
+        link.providerCourseCode?.startsWith("zest:")
+      );
+      
+      if (zestLink) {
+        const cacheKey = `zest:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
+        if (!getCachedSlots(cacheKey)) {
+          try {
+            const facilityId = parseInt(zestLink.providerCourseCode!.split(":")[1]);
+            const zestService = getZestGolfService();
+            const response = await zestService.getTeeTimes(facilityId, today, numPlayers, numHoles as 9 | 18);
+            
+            const slots = (response.teeTimeV2 || response.teeTimeV3 || [])
+              .map((tt: any) => {
+                const playerPricing = tt.pricing?.find((p: any) => Number(p.players) === numPlayers);
+                const priceAmount = playerPricing?.publicRate?.amount || playerPricing?.price?.amount || 0;
+                const perPlayerPrice = Math.round(priceAmount / numPlayers);
+                return {
+                  teeTime: tt.time,
+                  greenFee: perPlayerPrice,
+                  currency: "EUR",
+                  players: numPlayers,
+                  holes: tt.holes || numHoles,
+                  source: "zest-golf",
+                  teeName: tt.course || "TEE 1",
+                  slotsAvailable: tt.players || 4,
+                };
+              })
+              .filter((s: any) => s.greenFee > 0);
+            
+            setCachedSlots(cacheKey, slots);
+            preloadedCount++;
+            console.log(`[Preload] Cached ${slots.length} Zest slots for ${course.name}`);
+          } catch (e) {
+            // Silently skip failed courses
+          }
+        }
+        continue;
+      }
+      
+      // Check for Golfmanager
+      const golfmanagerLink = providerLinks.find((link) => 
+        link.providerCourseCode?.startsWith("golfmanager:") ||
+        link.providerCourseCode?.startsWith("golfmanagerv3:")
+      );
+      
+      if (golfmanagerLink) {
+        const cacheKey = `gm:${course.id}:${dateStr}:${numPlayers}:${numHoles}`;
+        if (!getCachedSlots(cacheKey)) {
+          try {
+            const providerCode = (golfmanagerLink.providerCourseCode || "").toLowerCase().trim();
+            const isV3 = providerCode.startsWith("golfmanagerv3:");
+            const version: "v1" | "v3" = isV3 ? "v3" : "v1";
+            const tenant = providerCode.split(":")[1]?.trim();
+            
+            if (!tenant) continue;
+            
+            let dbCredentials: { user: string | null; password: string | null } | undefined;
+            if (version === "v1" && course.golfmanagerV1User && course.golfmanagerV1Password) {
+              dbCredentials = { user: course.golfmanagerV1User, password: course.golfmanagerV1Password };
+            } else if (version === "v3" && course.golfmanagerUser && course.golfmanagerPassword) {
+              dbCredentials = { user: course.golfmanagerUser, password: course.golfmanagerPassword };
+            }
+            
+            const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
+            const startTime = `${dateStr}T07:00:00`;
+            const endTime = `${dateStr}T20:00:00`;
+            
+            const gmSlots = await provider.searchAvailability(startTime, endTime, undefined, numPlayers);
+            const rawSlots = provider.convertSlotsToTeeTime(gmSlots, numPlayers, numHoles);
+            
+            const slots = rawSlots
+              .filter(slot => slot.greenFee > 0)
+              .map(slot => ({
+                ...slot,
+                greenFee: convertToCustomerPrice(slot.greenFee, course.kickbackPercent)
+              }));
+            
+            setCachedSlots(cacheKey, slots);
+            preloadedCount++;
+            console.log(`[Preload] Cached ${slots.length} Golfmanager slots for ${course.name}`);
+          } catch (e) {
+            // Silently skip failed courses
+          }
+        }
+      }
+    }
+    
+    console.log(`[Preload] Completed - preloaded ${preloadedCount} courses`);
+  } catch (error) {
+    console.error("[Preload] Error:", error);
+  } finally {
+    isPreloading = false;
+  }
+}
+
+// Run preload on server start (after 5 seconds delay)
+setTimeout(() => {
+  preloadTeeTimes();
+}, 5000);
+
+// Keep cache warm - refresh every 4 minutes (before 5-min expiry)
+setInterval(() => {
+  preloadTeeTimes();
+}, 4 * 60 * 1000);
+
 // Convert TTOO (Tour Operator) price to customer price using kickback percentage
 // Formula: customerPrice = ttooPrice / (1 - kickbackPercent/100)
 // Example: 20% kickback means €60 TTOO → €75 customer price
