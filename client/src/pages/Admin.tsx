@@ -372,6 +372,170 @@ interface SortableImageItem {
   caption?: string | null;
 }
 
+interface CredentialsFormData {
+  golfmanagerUser?: string;
+  golfmanagerPassword?: string;
+  teeoneIdEmpresa?: number;
+  teeoneIdTeeSheet?: number;
+  teeoneApiUser?: string;
+  teeoneApiPassword?: string;
+}
+
+function CredentialsEditor({ 
+  course, 
+  onSave,
+  isSaving 
+}: { 
+  course: GolfCourse | null; 
+  onSave: (data: CredentialsFormData) => Promise<void>;
+  isSaving: boolean;
+}) {
+  const { toast } = useToast();
+  const [gmUser, setGmUser] = useState(course?.golfmanagerUser || "");
+  const [gmPassword, setGmPassword] = useState(course?.golfmanagerPassword || "");
+  const [teeoneEmpresa, setTeeoneEmpresa] = useState(course?.teeoneIdEmpresa?.toString() || "");
+  const [teeoneTeeSheet, setTeeoneTeeSheet] = useState(course?.teeoneIdTeeSheet?.toString() || "");
+  const [teeoneUser, setTeeoneUser] = useState(course?.teeoneApiUser || "");
+  const [teeonePassword, setTeeonePassword] = useState(course?.teeoneApiPassword || "");
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    setGmUser(course?.golfmanagerUser || "");
+    setGmPassword(course?.golfmanagerPassword || "");
+    setTeeoneEmpresa(course?.teeoneIdEmpresa?.toString() || "");
+    setTeeoneTeeSheet(course?.teeoneIdTeeSheet?.toString() || "");
+    setTeeoneUser(course?.teeoneApiUser || "");
+    setTeeonePassword(course?.teeoneApiPassword || "");
+    setHasChanges(false);
+  }, [course]);
+
+  const handleSave = async () => {
+    try {
+      await onSave({
+        golfmanagerUser: gmUser || undefined,
+        golfmanagerPassword: gmPassword || undefined,
+        teeoneIdEmpresa: teeoneEmpresa ? parseInt(teeoneEmpresa, 10) : undefined,
+        teeoneIdTeeSheet: teeoneTeeSheet ? parseInt(teeoneTeeSheet, 10) : undefined,
+        teeoneApiUser: teeoneUser || undefined,
+        teeoneApiPassword: teeonePassword || undefined,
+      });
+      setHasChanges(false);
+      toast({ title: "Credentials saved", description: "API credentials have been updated successfully." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save credentials", variant: "destructive" });
+    }
+  };
+
+  const handleChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+    setHasChanges(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            Golfmanager API Credentials
+          </CardTitle>
+          <CardDescription>
+            Login credentials for Golfmanager V1 or V3 API
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Username</Label>
+              <Input 
+                value={gmUser}
+                onChange={handleChange(setGmUser)}
+                placeholder="API username"
+                data-testid="input-profile-gm-user"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input 
+                type="password"
+                value={gmPassword}
+                onChange={handleChange(setGmPassword)}
+                placeholder="API password"
+                data-testid="input-profile-gm-password"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Key className="h-4 w-4" />
+            TeeOne API Credentials
+          </CardTitle>
+          <CardDescription>
+            Credentials for TeeOne booking system (El Paraíso, Marbella Golf, etc.)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>ID Empresa (Company ID)</Label>
+              <Input 
+                value={teeoneEmpresa}
+                onChange={handleChange(setTeeoneEmpresa)}
+                placeholder="e.g. 123"
+                data-testid="input-profile-teeone-empresa"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>ID TeeSheet</Label>
+              <Input 
+                value={teeoneTeeSheet}
+                onChange={handleChange(setTeeoneTeeSheet)}
+                placeholder="e.g. 456"
+                data-testid="input-profile-teeone-teesheet"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>API Username</Label>
+              <Input 
+                value={teeoneUser}
+                onChange={handleChange(setTeeoneUser)}
+                placeholder="TeeOne username"
+                data-testid="input-profile-teeone-user"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>API Password</Label>
+              <Input 
+                type="password"
+                value={teeonePassword}
+                onChange={handleChange(setTeeonePassword)}
+                placeholder="TeeOne password"
+                data-testid="input-profile-teeone-password"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleSave} 
+          disabled={!hasChanges || isSaving}
+          data-testid="button-save-credentials"
+        >
+          {isSaving ? "Saving..." : "Save Credentials"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function SortableImage({ 
   item, 
   onDelete, 
@@ -5319,43 +5483,18 @@ export default function Admin() {
 
                     {/* Credentials Tab */}
                     <TabsContent value="credentials" className="space-y-4 mt-4">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Lock className="h-4 w-4" />
-                            Provider Credentials
-                          </CardTitle>
-                          <CardDescription>
-                            Golfmanager or TeeOne login credentials
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Username</Label>
-                              <Input 
-                                value={selectedCourseProfile?.golfmanagerUser || ""} 
-                                disabled 
-                                placeholder="Not configured"
-                                data-testid="input-profile-gm-user"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Password</Label>
-                              <Input 
-                                type="password" 
-                                value={selectedCourseProfile?.golfmanagerPassword || ""} 
-                                disabled 
-                                placeholder="Not configured"
-                                data-testid="input-profile-gm-password"
-                              />
-                            </div>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Credentials are stored on the course. Use Edit Course dialog to update.
-                          </p>
-                        </CardContent>
-                      </Card>
+                      <CredentialsEditor 
+                        course={selectedCourseProfile} 
+                        onSave={async (credentials) => {
+                          if (!selectedCourseProfile) return;
+                          await updateCourseMutation.mutateAsync({
+                            courseId: selectedCourseProfile.id,
+                            kickbackPercent: selectedCourseProfile.kickbackPercent || 0,
+                            ...credentials
+                          });
+                        }}
+                        isSaving={updateCourseMutation.isPending}
+                      />
                     </TabsContent>
 
                     {/* Images Tab */}
