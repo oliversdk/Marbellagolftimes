@@ -43,6 +43,17 @@ function getReplyToEmail(): string {
   return process.env.REPLY_TO_EMAIL || process.env.FROM_EMAIL || "info@reply.marbellagolftimes.com";
 }
 
+// DEV_EMAIL_OVERRIDE: In development, redirect all emails to a test address
+// Set DEV_EMAIL_OVERRIDE=your@email.com to redirect all outgoing emails
+export function getEmailRecipient(originalRecipient: string): string {
+  const devOverride = process.env.DEV_EMAIL_OVERRIDE;
+  if (devOverride) {
+    console.log(`[Email] DEV MODE: Redirecting email from ${originalRecipient} to ${devOverride}`);
+    return devOverride;
+  }
+  return originalRecipient;
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<{ success: boolean; error?: string }> {
   const config = getEmailConfig();
   if (!config) {
@@ -62,17 +73,18 @@ export async function sendEmail(options: SendEmailOptions): Promise<{ success: b
     });
 
     const replyTo = getReplyToEmail();
+    const recipient = getEmailRecipient(options.to);
     
     await transporter.sendMail({
       from: config.from,
       replyTo: replyTo,
-      to: options.to,
+      to: recipient,
       subject: options.subject,
       text: options.text,
       html: options.html,
     });
 
-    console.log("[Email] Sent email to:", options.to, "Subject:", options.subject, "Reply-To:", replyTo);
+    console.log("[Email] Sent email to:", recipient, "Subject:", options.subject, "Reply-To:", replyTo);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -111,6 +123,7 @@ export async function sendAffiliateEmail(
       .replace(/\[SENDER_NAME\]/g, senderName);
 
     const replyTo = getReplyToEmail();
+    const recipient = getEmailRecipient(course.email);
 
     // Build HTML body with tracking pixel if token provided
     const trackingPixel = trackingToken 
@@ -121,13 +134,13 @@ export async function sendAffiliateEmail(
     await transporter.sendMail({
       from: config.from,
       replyTo: replyTo,
-      to: course.email,
+      to: recipient,
       subject: personalizedSubject,
       text: personalizedBody,
       html: htmlBody,
     });
 
-    console.log("[Email] Sent affiliate email to:", course.email, "Reply-To:", replyTo, trackingToken ? `Tracking: ${trackingToken}` : '');
+    console.log("[Email] Sent affiliate email to:", recipient, "(original:", course.email, ") Reply-To:", replyTo, trackingToken ? `Tracking: ${trackingToken}` : '');
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

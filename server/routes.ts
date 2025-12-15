@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import express from "express";
 import { randomUUID } from "crypto";
 import { storage } from "./storage";
-import { sendAffiliateEmail, getEmailConfig } from "./email";
+import { sendAffiliateEmail, getEmailConfig, getEmailRecipient } from "./email";
 import { createGolfmanagerProvider, getGolfmanagerConfig } from "./providers/golfmanager";
 import { teeoneClient } from "./providers/teeone";
 import { getZestGolfService } from "./services/zestGolf";
@@ -179,15 +179,17 @@ async function sendCourseBookingNotification(
       },
     });
     
+    const recipient = getEmailRecipient(courseEmail);
+    
     await transporter.sendMail({
       from: emailConfig.from,
-      to: courseEmail,
+      to: recipient,
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
     });
     
-    console.log(`✓ Course notification email sent to ${courseEmail} for booking ${booking.id}`);
+    console.log(`✓ Course notification email sent to ${recipient} (original: ${courseEmail}) for booking ${booking.id}`);
   } catch (error) {
     console.warn(`⚠ Failed to send course notification email:`, error instanceof Error ? error.message : error);
   }
