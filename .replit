@@ -58,4 +58,3 @@ FROM_EMAIL = "contact@marbellagolftimes.com"
 REPLY_TO_EMAIL = "info@reply.marbellagolftimes.com"
 
 [userenv.development]
-DEV_EMAIL_OVERRIDE = "wagner@freeway.dk"
