@@ -1,0 +1,25 @@
+Estimados/as,
+Me complace confirmarles que la conexión API ha sido activada exitosamente.
+
+Próximos pasos:
+Club
+Verificación configuración etiqueta: Asegurar que la etiqueta asignada en el perfil de cliente es la correcta y coincide con las configuradas en los tipos de reserva que corresponda.
+Verificación configuración tarifas y tarifas dinámicas: Revisar que la configuración del precio bruto y/o las tarifas dinámicas del producto asociado a los tipos de reserva que corresponda son las correctas.
+Verificación final. Revisar configuración en consumer: Configurar un perfil idéntico de prueba (mismas etiquetas y colectivo) y revisar en consumer que los precios y tarifas que se muestran son los correctos
+TTOO / Empresa integrada
+Verificación configuración etiqueta: Asegurar que las llamadas a los diferentes endpoints (/searchavailability, /makereservation y /confirmreservation) de la Api devuelven datos y estos parecen coherentes.
+Verificación final: Realizar una prueba del flujo completo del proceso de reserva y comprobar junto con el Club que la reserva se ha realizado correctamente.
+Información de soporte:
+Equipo de soporte técnico: support@golfmanager.com
+Articulo de ayuda: Link
+Si experimentan algún inconveniente o tienen preguntas sobre la integración, no duden en contactarnos inmediatamente.
+Agradecemos su confianza y quedamos a su disposición para cualquier consulta adicional.
+
+Atentamente,
+
+Soporte Golfmanager
+﻿​﻿
+
+Rut
+Golfmanager
+This message and its attached files are directed exclusively to its recipient, and may contain confidential information. Its reproduction or distribution is not allowed without the express authorization of GOLFMANAGER, S.L. If you are not the final recipient, please delete it and inform us this way. We inform you that the Data Controller is GOLFMANAGER, S.L., with address for notification purposes at Paseo de la Castellana, No. 153, 28046, Madrid in order to manage the professional relationship. We inform you that you can exercise the rights of access, rectification, opposition, deletion, limitation of treatment, and portability by writing to, GOLFMANAGER, S.L. at the address indicated above, or at this email addressinfo@golfmanager.com. You can consult the complete privacy policy of the Data Controller on its website www.golfmanager.com
