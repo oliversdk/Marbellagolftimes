@@ -940,3 +940,31 @@ export type NotificationStatus = typeof NOTIFICATION_STATUSES[number];
 // Notification types
 export const NOTIFICATION_TYPES = ["NEW_BOOKING"] as const;
 export type NotificationType = typeof NOTIFICATION_TYPES[number];
+
+// Email Logs - Track all sent booking-related emails
+export const emailLogs = pgTable("email_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").references(() => bookingRequests.id, { onDelete: "set null" }),
+  courseId: varchar("course_id").references(() => golfCourses.id, { onDelete: "set null" }),
+  emailType: text("email_type").notNull(), // CUSTOMER_CONFIRMATION, COURSE_NOTIFICATION, REVIEW_REQUEST
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  subject: text("subject").notNull(),
+  bodyText: text("body_text"),
+  bodyHtml: text("body_html"),
+  status: text("status").notNull().default("SENT"), // SENT, FAILED
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+});
+
+export const insertEmailLogSchema = createInsertSchema(emailLogs).omit({ 
+  id: true, 
+  sentAt: true 
+});
+
+export type InsertEmailLog = z.infer<typeof insertEmailLogSchema>;
+export type EmailLog = typeof emailLogs.$inferSelect;
+
+// Email log types
+export const EMAIL_LOG_TYPES = ["CUSTOMER_CONFIRMATION", "COURSE_NOTIFICATION", "REVIEW_REQUEST"] as const;
+export type EmailLogType = typeof EMAIL_LOG_TYPES[number];
