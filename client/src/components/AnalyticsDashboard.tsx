@@ -10,6 +10,8 @@ import {
   Bar,
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,14 +19,25 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { TrendingUp, Euro, Calendar, Trophy } from "lucide-react";
+import { TrendingUp, Euro, Calendar, Trophy, Users } from "lucide-react";
 
 type BookingsAnalytics = Array<{ date: string; count: number }>;
 type RevenueAnalytics = { totalRevenue: number; averageBookingValue: number; confirmedBookings: number };
 type PopularCourse = { courseId: string; courseName: string; bookingCount: number };
+type OnboardingProgress = { date: string; NOT_CONTACTED: number; OUTREACH_SENT: number; INTERESTED: number; NOT_INTERESTED: number; PARTNERSHIP_ACCEPTED: number; CREDENTIALS_RECEIVED: number };
+
+const STAGE_COLORS = {
+  NOT_CONTACTED: '#9CA3AF',
+  OUTREACH_SENT: '#3B82F6',
+  INTERESTED: '#10B981',
+  NOT_INTERESTED: '#EF4444',
+  PARTNERSHIP_ACCEPTED: '#8B5CF6',
+  CREDENTIALS_RECEIVED: '#059669',
+};
 
 export function AnalyticsDashboard() {
   const [bookingsPeriod, setBookingsPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [onboardingPeriod, setOnboardingPeriod] = useState<'day' | 'week' | 'month'>('week');
   const { isMobile } = useBreakpoint();
 
   // Fetch bookings analytics
@@ -53,6 +66,16 @@ export function AnalyticsDashboard() {
     queryFn: async () => {
       const response = await fetch('/api/admin/analytics/popular-courses?limit=10');
       if (!response.ok) throw new Error('Failed to fetch popular courses');
+      return response.json();
+    },
+  });
+
+  // Fetch onboarding progress
+  const { data: onboardingData, isLoading: onboardingLoading, error: onboardingError } = useQuery<OnboardingProgress[]>({
+    queryKey: ['/api/admin/analytics/onboarding-progress', onboardingPeriod],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/analytics/onboarding-progress?period=${onboardingPeriod}`);
+      if (!response.ok) throw new Error('Failed to fetch onboarding progress');
       return response.json();
     },
   });
@@ -260,6 +283,112 @@ export function AnalyticsDashboard() {
         </CardContent>
       </Card>
       </div>
+
+      <Card data-testid="card-onboarding-progress">
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              <div>
+                <CardTitle>Partnership Funnel Progress</CardTitle>
+                <CardDescription>Course stage transitions over time</CardDescription>
+              </div>
+            </div>
+            <Tabs value={onboardingPeriod} onValueChange={(v) => setOnboardingPeriod(v as any)}>
+              <TabsList>
+                <TabsTrigger value="day" data-testid="onboarding-period-day">Daily</TabsTrigger>
+                <TabsTrigger value="week" data-testid="onboarding-period-week">Weekly</TabsTrigger>
+                <TabsTrigger value="month" data-testid="onboarding-period-month">Monthly</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {onboardingLoading ? (
+            <div className="flex items-center justify-center h-[350px]" data-testid="loading-onboarding-chart">
+              <div className="space-y-3 w-full">
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+              </div>
+            </div>
+          ) : onboardingError ? (
+            <div className="flex items-center justify-center h-[350px] text-destructive" data-testid="error-onboarding-chart">
+              Failed to load onboarding progress data
+            </div>
+          ) : onboardingData && onboardingData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={350}>
+              <AreaChart data={onboardingData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="CREDENTIALS_RECEIVED" 
+                  stackId="1"
+                  stroke={STAGE_COLORS.CREDENTIALS_RECEIVED}
+                  fill={STAGE_COLORS.CREDENTIALS_RECEIVED}
+                  name="Credentials Received"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="PARTNERSHIP_ACCEPTED" 
+                  stackId="1"
+                  stroke={STAGE_COLORS.PARTNERSHIP_ACCEPTED}
+                  fill={STAGE_COLORS.PARTNERSHIP_ACCEPTED}
+                  name="Partnership Accepted"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="INTERESTED" 
+                  stackId="1"
+                  stroke={STAGE_COLORS.INTERESTED}
+                  fill={STAGE_COLORS.INTERESTED}
+                  name="Interested"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="NOT_INTERESTED" 
+                  stackId="1"
+                  stroke={STAGE_COLORS.NOT_INTERESTED}
+                  fill={STAGE_COLORS.NOT_INTERESTED}
+                  name="Not Interested"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="OUTREACH_SENT" 
+                  stackId="1"
+                  stroke={STAGE_COLORS.OUTREACH_SENT}
+                  fill={STAGE_COLORS.OUTREACH_SENT}
+                  name="Outreach Sent"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="NOT_CONTACTED" 
+                  stackId="1"
+                  stroke={STAGE_COLORS.NOT_CONTACTED}
+                  fill={STAGE_COLORS.NOT_CONTACTED}
+                  name="Not Contacted"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[350px] text-muted-foreground" data-testid="empty-onboarding-chart">
+              No onboarding progress data available for this period
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

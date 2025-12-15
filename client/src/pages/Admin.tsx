@@ -283,6 +283,17 @@ type BookingNotificationWithDetails = {
   courseName?: string;
 };
 
+type FollowUpItem = {
+  courseId: string;
+  courseName: string;
+  stage: string;
+  outreachSentAt: string;
+  nextFollowUpAt: string;
+  daysOverdue: number;
+  contactPerson: string | null;
+  contactEmail: string | null;
+};
+
 const ONBOARDING_STAGES: { value: OnboardingStage; label: string; color: string; icon: typeof CircleDot }[] = [
   { value: "NOT_CONTACTED", label: "Not Contacted", color: "bg-gray-100 text-gray-700", icon: CircleDot },
   { value: "OUTREACH_SENT", label: "Outreach Sent", color: "bg-blue-100 text-blue-700", icon: Mail },
@@ -1039,6 +1050,40 @@ export default function Admin() {
   const { data: notifications } = useQuery<BookingNotificationWithDetails[]>({
     queryKey: ["/api/admin/notifications"],
     enabled: isAuthenticated && isAdmin,
+  });
+
+  // Fetch follow-up reminders
+  const { data: followUps, isLoading: followUpsLoading } = useQuery<FollowUpItem[]>({
+    queryKey: ["/api/admin/follow-ups"],
+    enabled: isAuthenticated && isAdmin,
+  });
+
+  // Snooze follow-up mutation
+  const snoozeMutation = useMutation({
+    mutationFn: async ({ courseId, days }: { courseId: string; days: number }) => {
+      return apiRequest(`/api/admin/follow-ups/${courseId}/snooze`, "PATCH", { days });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/follow-ups"] });
+      toast({ title: "Follow-up snoozed" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to snooze", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Complete follow-up mutation
+  const completeMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      return apiRequest(`/api/admin/follow-ups/${courseId}/complete`, "PATCH");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/follow-ups"] });
+      toast({ title: "Follow-up completed" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to complete", description: error.message, variant: "destructive" });
+    },
   });
 
   // Mark notification as read mutation
@@ -3871,6 +3916,105 @@ export default function Admin() {
                   );
                 })}
               </div>
+
+              {/* Follow-up Reminders */}
+              {(followUps && followUps.length > 0) && (
+                <Card data-testid="card-follow-up-reminders">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2">
+                      <Bell className="h-5 w-5" />
+                      Follow-up Reminders
+                      {followUps.filter(f => f.daysOverdue > 0).length > 0 && (
+                        <Badge variant="destructive" className="ml-2">
+                          {followUps.filter(f => f.daysOverdue > 0).length} overdue
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      Courses awaiting follow-up after outreach
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {followUpsLoading ? (
+                      <div className="py-4 text-center text-muted-foreground">Loading...</div>
+                    ) : (
+                      <>
+                        {followUps.slice(0, 5).map((item) => (
+                          <div 
+                            key={item.courseId} 
+                            className="flex flex-wrap items-center justify-between gap-2 p-3 border rounded-md"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <Link 
+                                href={`/admin?tab=courses`}
+                                onClick={() => {
+                                  const course = courses?.find(c => c.id === item.courseId);
+                                  if (course) setSelectedCourseProfile(course);
+                                }}
+                                className="font-medium hover:underline truncate block"
+                              >
+                                {item.courseName}
+                              </Link>
+                              <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-2">
+                                {item.contactPerson && <span>{item.contactPerson}</span>}
+                                {item.contactEmail && (
+                                  <a href={`mailto:${item.contactEmail}`} className="hover:underline">
+                                    {item.contactEmail}
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {item.daysOverdue > 0 ? (
+                                <Badge variant="destructive">{item.daysOverdue}d overdue</Badge>
+                              ) : (
+                                <Badge variant="outline">Due today</Badge>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => snoozeMutation.mutate({ courseId: item.courseId, days: 7 })}
+                                disabled={snoozeMutation.isPending}
+                                data-testid={`button-snooze-${item.courseId}`}
+                              >
+                                <Clock className="h-3 w-3 mr-1" />
+                                Snooze 7d
+                              </Button>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => completeMutation.mutate(item.courseId)}
+                                disabled={completeMutation.isPending}
+                                data-testid={`button-complete-${item.courseId}`}
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Done
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        {followUps.length > 5 && (
+                          <div className="text-center pt-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setStageFilter("OUTREACH_SENT")}
+                            >
+                              View all {followUps.length} follow-ups
+                              <ArrowRight className="h-3 w-3 ml-1" />
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {!followUpsLoading && followUps.length === 0 && (
+                      <div className="py-4 text-center text-muted-foreground">
+                        No follow-ups needed
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Course List */}
               <Card>

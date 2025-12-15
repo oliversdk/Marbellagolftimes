@@ -41,6 +41,8 @@ import {
   type InsertPartnershipForm,
   type BookingNotification,
   type InsertBookingNotification,
+  type OnboardingStageHistory,
+  type InsertOnboardingStageHistory,
   golfCourses,
   courseDocuments,
   teeTimeProviders,
@@ -64,6 +66,7 @@ import {
   companyProfile,
   partnershipForms,
   bookingNotifications,
+  onboardingStageHistory,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -164,6 +167,11 @@ export interface IStorage {
   updateOnboarding(courseId: string, updates: Partial<CourseOnboarding>): Promise<CourseOnboarding | undefined>;
   updateOnboardingStage(courseId: string, stage: OnboardingStage): Promise<CourseOnboarding | undefined>;
   getOnboardingStats(): Promise<Record<OnboardingStage, number>>;
+  getCoursesNeedingFollowUp(): Promise<CourseOnboarding[]>;
+  snoozeFollowUp(courseId: string, snoozeDays: number): Promise<CourseOnboarding | undefined>;
+  completeFollowUp(courseId: string): Promise<CourseOnboarding | undefined>;
+  recordStageChange(courseId: string, fromStage: string | null, toStage: string, userId?: string): Promise<void>;
+  getOnboardingProgressOverTime(period: 'day' | 'week' | 'month'): Promise<{ date: string; [stage: string]: string | number }[]>;
 
   // Course Contact Logs
   getContactLogsByCourseId(courseId: string): Promise<CourseContactLog[]>;
@@ -1899,6 +1907,26 @@ export class MemStorage implements IStorage {
     };
   }
 
+  async getCoursesNeedingFollowUp(): Promise<CourseOnboarding[]> {
+    return [];
+  }
+
+  async snoozeFollowUp(courseId: string, snoozeDays: number): Promise<CourseOnboarding | undefined> {
+    return undefined;
+  }
+
+  async completeFollowUp(courseId: string): Promise<CourseOnboarding | undefined> {
+    return undefined;
+  }
+
+  async recordStageChange(courseId: string, fromStage: string | null, toStage: string, userId?: string): Promise<void> {
+    // No-op for MemStorage
+  }
+
+  async getOnboardingProgressOverTime(period: 'day' | 'week' | 'month'): Promise<{ date: string; [stage: string]: string | number }[]> {
+    return [];
+  }
+
   // Course Contact Logs (stub implementation for MemStorage)
   async getContactLogsByCourseId(courseId: string): Promise<CourseContactLog[]> {
     return [];
@@ -2785,20 +2813,40 @@ export class DatabaseStorage implements IStorage {
     
     if (!existing) {
       // Create new onboarding record if it doesn't exist
-      return await this.createOnboarding({ courseId, stage });
+      const newOnboarding: InsertCourseOnboarding = { courseId, stage };
+      if (stage === "OUTREACH_SENT") {
+        const intervalDays = 7;
+        newOnboarding.outreachSentAt = new Date();
+        newOnboarding.followUpIntervalDays = intervalDays;
+        newOnboarding.nextFollowUpAt = new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000);
+      }
+      const created = await this.createOnboarding(newOnboarding);
+      // Record initial stage in history
+      await this.recordStageChange(courseId, null, stage);
+      return created;
     }
 
     // Update stage and set relevant timestamps
     const updates: Partial<CourseOnboarding> = { stage };
     
-    if (stage === "OUTREACH_SENT" && !existing.outreachSentAt) {
-      updates.outreachSentAt = new Date();
+    if (stage === "OUTREACH_SENT") {
+      if (!existing.outreachSentAt) {
+        updates.outreachSentAt = new Date();
+      }
+      const intervalDays = existing.followUpIntervalDays || 7;
+      updates.nextFollowUpAt = new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000);
     } else if ((stage === "INTERESTED" || stage === "NOT_INTERESTED") && !existing.responseReceivedAt) {
       updates.responseReceivedAt = new Date();
     } else if (stage === "PARTNERSHIP_ACCEPTED" && !existing.partnershipAcceptedAt) {
       updates.partnershipAcceptedAt = new Date();
     } else if (stage === "CREDENTIALS_RECEIVED" && !existing.credentialsReceivedAt) {
       updates.credentialsReceivedAt = new Date();
+    }
+
+    // Record the stage change in history if it changed
+    const fromStage = existing.stage;
+    if (fromStage !== stage) {
+      await this.recordStageChange(courseId, fromStage, stage);
     }
 
     return await this.updateOnboarding(courseId, updates);
@@ -2829,6 +2877,117 @@ export class DatabaseStorage implements IStorage {
     }
 
     return stats;
+  }
+
+  async getCoursesNeedingFollowUp(): Promise<CourseOnboarding[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(courseOnboarding)
+      .where(
+        and(
+          eq(courseOnboarding.stage, "OUTREACH_SENT"),
+          isNull(courseOnboarding.responseReceivedAt),
+          or(
+            isNull(courseOnboarding.nextFollowUpAt),
+            lt(courseOnboarding.nextFollowUpAt, now)
+          ),
+          or(
+            isNull(courseOnboarding.followUpSnoozedUntil),
+            lt(courseOnboarding.followUpSnoozedUntil, now)
+          )
+        )
+      );
+  }
+
+  async snoozeFollowUp(courseId: string, snoozeDays: number): Promise<CourseOnboarding | undefined> {
+    const snoozeUntil = new Date(Date.now() + snoozeDays * 24 * 60 * 60 * 1000);
+    const result = await db
+      .update(courseOnboarding)
+      .set({ 
+        followUpSnoozedUntil: snoozeUntil,
+        updatedAt: new Date()
+      })
+      .where(eq(courseOnboarding.courseId, courseId))
+      .returning();
+    return result[0];
+  }
+
+  async completeFollowUp(courseId: string): Promise<CourseOnboarding | undefined> {
+    const existing = await this.getOnboardingByCourseId(courseId);
+    if (!existing) return undefined;
+    
+    const now = new Date();
+    const intervalDays = existing.followUpIntervalDays || 7;
+    const nextFollowUp = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+    
+    const result = await db
+      .update(courseOnboarding)
+      .set({ 
+        lastFollowUpAt: now,
+        nextFollowUpAt: nextFollowUp,
+        followUpSnoozedUntil: null,
+        updatedAt: now
+      })
+      .where(eq(courseOnboarding.courseId, courseId))
+      .returning();
+    return result[0];
+  }
+
+  async recordStageChange(courseId: string, fromStage: string | null, toStage: string, userId?: string): Promise<void> {
+    await db.insert(onboardingStageHistory).values({
+      courseId,
+      fromStage,
+      toStage,
+      changedByUserId: userId || null,
+    });
+  }
+
+  async getOnboardingProgressOverTime(period: 'day' | 'week' | 'month'): Promise<{ date: string; [stage: string]: string | number }[]> {
+    const intervalStr = period === 'day' ? '30 days' : period === 'week' ? '12 weeks' : '12 months';
+    const truncPeriod = period === 'day' ? 'day' : period === 'week' ? 'week' : 'month';
+    
+    const results = await db.execute(sql`
+      WITH date_series AS (
+        SELECT date_trunc(${truncPeriod}, d)::date as period_date
+        FROM generate_series(
+          CURRENT_DATE - (${intervalStr})::interval,
+          CURRENT_DATE,
+          ('1 ' || ${truncPeriod})::interval
+        ) AS d
+      ),
+      stage_counts AS (
+        SELECT 
+          date_trunc(${truncPeriod}, changed_at)::date as period_date,
+          to_stage as stage,
+          COUNT(*) as stage_count
+        FROM onboarding_stage_history
+        WHERE changed_at >= CURRENT_DATE - (${intervalStr})::interval
+        GROUP BY date_trunc(${truncPeriod}, changed_at), to_stage
+      )
+      SELECT 
+        ds.period_date as date,
+        COALESCE(SUM(CASE WHEN sc.stage = 'NOT_CONTACTED' THEN sc.stage_count ELSE 0 END), 0) as "NOT_CONTACTED",
+        COALESCE(SUM(CASE WHEN sc.stage = 'OUTREACH_SENT' THEN sc.stage_count ELSE 0 END), 0) as "OUTREACH_SENT",
+        COALESCE(SUM(CASE WHEN sc.stage = 'INTERESTED' THEN sc.stage_count ELSE 0 END), 0) as "INTERESTED",
+        COALESCE(SUM(CASE WHEN sc.stage = 'NOT_INTERESTED' THEN sc.stage_count ELSE 0 END), 0) as "NOT_INTERESTED",
+        COALESCE(SUM(CASE WHEN sc.stage = 'PARTNERSHIP_ACCEPTED' THEN sc.stage_count ELSE 0 END), 0) as "PARTNERSHIP_ACCEPTED",
+        COALESCE(SUM(CASE WHEN sc.stage = 'CREDENTIALS_RECEIVED' THEN sc.stage_count ELSE 0 END), 0) as "CREDENTIALS_RECEIVED"
+      FROM date_series ds
+      LEFT JOIN stage_counts sc ON ds.period_date = sc.period_date
+      GROUP BY ds.period_date
+      ORDER BY ds.period_date
+    `);
+    
+    return (results.rows as any[]).map((row) => ({
+      date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
+      NOT_CONTACTED: Number(row.NOT_CONTACTED),
+      OUTREACH_SENT: Number(row.OUTREACH_SENT),
+      INTERESTED: Number(row.INTERESTED),
+      NOT_INTERESTED: Number(row.NOT_INTERESTED),
+      PARTNERSHIP_ACCEPTED: Number(row.PARTNERSHIP_ACCEPTED),
+      CREDENTIALS_RECEIVED: Number(row.CREDENTIALS_RECEIVED),
+    }));
   }
 
   // Course Contact Logs

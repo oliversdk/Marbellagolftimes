@@ -824,6 +824,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/analytics/onboarding-progress - Get partnership funnel progress over time
+  app.get("/api/admin/analytics/onboarding-progress", isAdmin, async (req, res) => {
+    try {
+      const period = (req.query.period as 'day' | 'week' | 'month') || 'week';
+      if (!['day', 'week', 'month'].includes(period)) {
+        return res.status(400).json({ message: "Invalid period. Use 'day', 'week', or 'month'" });
+      }
+      const data = await storage.getOnboardingProgressOverTime(period);
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching onboarding progress:", error);
+      res.status(500).json({ message: "Failed to fetch onboarding progress" });
+    }
+  });
+
   // GET /api/admin/activity-feed - Get recent activity for team feed
   app.get("/api/admin/activity-feed", isAdmin, async (req, res) => {
     try {
@@ -1380,6 +1395,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to update onboarding:", error);
       res.status(500).json({ error: "Failed to update onboarding" });
+    }
+  });
+
+  // GET /api/admin/follow-ups - Get courses needing follow-up with course info (Admin only)
+  app.get("/api/admin/follow-ups", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const coursesNeedingFollowUp = await storage.getCoursesNeedingFollowUp();
+      const allCourses = await storage.getAllCourses();
+      const courseMap = new Map(allCourses.map(c => [c.id, c]));
+      
+      const now = new Date();
+      const result = coursesNeedingFollowUp.map(onboarding => {
+        const course = courseMap.get(onboarding.courseId);
+        const nextFollowUp = onboarding.nextFollowUpAt ? new Date(onboarding.nextFollowUpAt) : null;
+        const daysOverdue = nextFollowUp 
+          ? Math.floor((now.getTime() - nextFollowUp.getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+        
+        return {
+          courseId: onboarding.courseId,
+          courseName: course?.name || "Unknown Course",
+          stage: onboarding.stage,
+          outreachSentAt: onboarding.outreachSentAt,
+          nextFollowUpAt: onboarding.nextFollowUpAt,
+          daysOverdue: daysOverdue !== null && daysOverdue > 0 ? daysOverdue : 0,
+          contactPerson: onboarding.contactPerson,
+          contactEmail: onboarding.contactEmail,
+          lastFollowUpAt: onboarding.lastFollowUpAt,
+          followUpIntervalDays: onboarding.followUpIntervalDays,
+        };
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to fetch follow-ups:", error);
+      res.status(500).json({ error: "Failed to fetch follow-ups" });
+    }
+  });
+
+  // PATCH /api/admin/follow-ups/:courseId/snooze - Snooze follow-up (Admin only)
+  app.patch("/api/admin/follow-ups/:courseId/snooze", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { days } = req.body;
+      
+      if (typeof days !== 'number' || days < 1 || days > 365) {
+        return res.status(400).json({ error: "Days must be a number between 1 and 365" });
+      }
+      
+      const result = await storage.snoozeFollowUp(courseId, days);
+      if (!result) {
+        return res.status(404).json({ error: "Course onboarding not found" });
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to snooze follow-up:", error);
+      res.status(500).json({ error: "Failed to snooze follow-up" });
+    }
+  });
+
+  // PATCH /api/admin/follow-ups/:courseId/complete - Mark follow-up as done (Admin only)
+  app.patch("/api/admin/follow-ups/:courseId/complete", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      
+      const result = await storage.completeFollowUp(courseId);
+      if (!result) {
+        return res.status(404).json({ error: "Course onboarding not found" });
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Failed to complete follow-up:", error);
+      res.status(500).json({ error: "Failed to complete follow-up" });
     }
   });
 

@@ -230,6 +230,11 @@ export const courseOnboarding = pgTable("course_onboarding", {
   contactPerson: text("contact_person"),
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
+  // Follow-up reminders
+  nextFollowUpAt: timestamp("next_follow_up_at"),
+  followUpIntervalDays: integer("follow_up_interval_days").default(7),
+  lastFollowUpAt: timestamp("last_follow_up_at"),
+  followUpSnoozedUntil: timestamp("follow_up_snoozed_until"),
   // General
   notes: text("notes"),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -256,6 +261,24 @@ export const ONBOARDING_STAGES = [
 ] as const;
 
 export type OnboardingStage = typeof ONBOARDING_STAGES[number];
+
+// Onboarding Stage History (for tracking stage transitions over time)
+export const onboardingStageHistory = pgTable("onboarding_stage_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+  fromStage: text("from_stage"),
+  toStage: text("to_stage").notNull(),
+  changedAt: timestamp("changed_at").notNull().defaultNow(),
+  changedByUserId: varchar("changed_by_user_id").references(() => users.id),
+});
+
+export const insertOnboardingStageHistorySchema = createInsertSchema(onboardingStageHistory).omit({ 
+  id: true, 
+  changedAt: true 
+});
+
+export type InsertOnboardingStageHistory = z.infer<typeof insertOnboardingStageHistorySchema>;
+export type OnboardingStageHistory = typeof onboardingStageHistory.$inferSelect;
 
 // Course Contact Logs (for tracking all communications)
 export const courseContactLogs = pgTable("course_contact_logs", {
