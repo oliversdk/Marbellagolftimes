@@ -441,6 +441,19 @@ function CredentialsEditor({
     setHasChanges(true);
   };
 
+  const copyToClipboard = async (text: string, label: string) => {
+    if (!text) {
+      toast({ title: "Nothing to copy", description: `${label} is empty`, variant: "destructive" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied!", description: `${label} copied to clipboard` });
+    } catch {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -457,22 +470,44 @@ function CredentialsEditor({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>V1 Username</Label>
-              <Input 
-                value={gmV1User}
-                onChange={handleChange(setGmV1User)}
-                placeholder="e.g. SZc5XNpGd0"
-                data-testid="input-profile-gm-v1-user"
-              />
+              <div className="flex gap-2">
+                <Input 
+                  value={gmV1User}
+                  onChange={handleChange(setGmV1User)}
+                  placeholder="e.g. SZc5XNpGd0"
+                  data-testid="input-profile-gm-v1-user"
+                />
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="outline"
+                  onClick={() => copyToClipboard(gmV1User, "V1 Username")}
+                  data-testid="button-copy-gm-v1-user"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>V1 Password</Label>
-              <Input 
-                type="password"
-                value={gmV1Password}
-                onChange={handleChange(setGmV1Password)}
-                placeholder="V1 API password"
-                data-testid="input-profile-gm-v1-password"
-              />
+              <div className="flex gap-2">
+                <Input 
+                  type="password"
+                  value={gmV1Password}
+                  onChange={handleChange(setGmV1Password)}
+                  placeholder="V1 API password"
+                  data-testid="input-profile-gm-v1-password"
+                />
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="outline"
+                  onClick={() => copyToClipboard(gmV1Password, "V1 Password")}
+                  data-testid="button-copy-gm-v1-password"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -492,22 +527,44 @@ function CredentialsEditor({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>V3 Email/Username</Label>
-              <Input 
-                value={gmV3User}
-                onChange={handleChange(setGmV3User)}
-                placeholder="e.g. user@example.com"
-                data-testid="input-profile-gm-v3-user"
-              />
+              <div className="flex gap-2">
+                <Input 
+                  value={gmV3User}
+                  onChange={handleChange(setGmV3User)}
+                  placeholder="e.g. user@example.com"
+                  data-testid="input-profile-gm-v3-user"
+                />
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="outline"
+                  onClick={() => copyToClipboard(gmV3User, "V3 Username")}
+                  data-testid="button-copy-gm-v3-user"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>V3 Password</Label>
-              <Input 
-                type="password"
-                value={gmV3Password}
-                onChange={handleChange(setGmV3Password)}
-                placeholder="V3 API password"
-                data-testid="input-profile-gm-v3-password"
-              />
+              <div className="flex gap-2">
+                <Input 
+                  type="password"
+                  value={gmV3Password}
+                  onChange={handleChange(setGmV3Password)}
+                  placeholder="V3 API password"
+                  data-testid="input-profile-gm-v3-password"
+                />
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  variant="outline"
+                  onClick={() => copyToClipboard(gmV3Password, "V3 Password")}
+                  data-testid="button-copy-gm-v3-password"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
