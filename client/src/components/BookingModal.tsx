@@ -363,6 +363,57 @@ export function BookingModal({
     setStep('customize-booking');
   };
 
+  const handleSimulatePayment = async () => {
+    if (!course || !selectedSlot) return;
+    if (!customerName || !customerEmail || !customerPhone) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      const response = await fetch('/api/simulate-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId: course.id,
+          teeTime: selectedSlot.teeTime,
+          players,
+          selectedAddOnIds: Array.from(selectedAddOns),
+          customerName,
+          customerEmail,
+          customerPhone,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Payment simulation failed');
+      }
+
+      if (data.booking) {
+        queryClient.invalidateQueries({ queryKey: ['/api/booking-requests'] });
+        onOpenChange(false);
+        window.location.href = `/booking-success?bookingId=${data.booking.id}`;
+      }
+    } catch (error) {
+      console.error('Simulate payment error:', error);
+      toast({
+        title: 'Payment Simulation Error',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!course || !selectedSlot) return;
@@ -926,6 +977,16 @@ export function BookingModal({
             className="w-full sm:w-auto min-h-[44px]"
           >
             {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleSimulatePayment}
+            disabled={isProcessingPayment}
+            data-testid="button-simulate-payment"
+            className="w-full sm:w-auto min-h-[44px]"
+          >
+            {isProcessingPayment ? t('common.loading') : `Simulate - €${calculateTotal().toFixed(0)}`}
           </Button>
           <Button
             type="submit"
