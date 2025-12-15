@@ -121,7 +121,7 @@ function getDiscountPercent(slotPrice: number, averagePrice: number): number {
 }
 
 // Distance category classification
-type DistanceCategory = 'nearby' | 'shortDrive' | 'furtherAway';
+type DistanceCategory = 'realAvailability' | 'nearby' | 'shortDrive' | 'furtherAway';
 
 function getDistanceCategory(distanceKm: number | null | undefined): DistanceCategory {
   if (distanceKm === null || distanceKm === undefined) return 'furtherAway';
@@ -132,24 +132,32 @@ function getDistanceCategory(distanceKm: number | null | undefined): DistanceCat
 
 function groupCoursesByDistance(courses: CourseWithSlots[]): Record<DistanceCategory, CourseWithSlots[]> {
   const groups: Record<DistanceCategory, CourseWithSlots[]> = {
+    realAvailability: [],
     nearby: [],
     shortDrive: [],
     furtherAway: []
   };
   
   courses.forEach(course => {
-    const category = getDistanceCategory(course.distanceKm);
-    groups[category].push(course);
+    // Courses with real tee times go to top category
+    if (course.slots && course.slots.length > 0) {
+      groups.realAvailability.push(course);
+    } else {
+      const category = getDistanceCategory(course.distanceKm);
+      groups[category].push(course);
+    }
   });
   
-  // Sort each group: courses with tee times first, then by distance
-  Object.keys(groups).forEach(key => {
-    groups[key as DistanceCategory].sort((a, b) => {
-      const aHasTimes = a.slots && a.slots.length > 0;
-      const bHasTimes = b.slots && b.slots.length > 0;
-      if (aHasTimes !== bHasTimes) return aHasTimes ? -1 : 1;
-      return (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity);
-    });
+  // Sort realAvailability by distance
+  groups.realAvailability.sort((a, b) => 
+    (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
+  );
+  
+  // Sort other groups by distance
+  (['nearby', 'shortDrive', 'furtherAway'] as DistanceCategory[]).forEach(key => {
+    groups[key].sort((a, b) => 
+      (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
+    );
   });
   
   return groups;
@@ -1040,6 +1048,7 @@ export default function Home() {
                 
                 // Distance category configuration
                 const distanceCategoryConfig: { key: DistanceCategory; label: string; range: string; icon: typeof MapPin }[] = [
+                  { key: 'realAvailability', label: t('home.realAvailability') || 'Real-Time Availability', range: t('home.realAvailabilityRange') || 'Book instantly', icon: Clock },
                   { key: 'nearby', label: t('home.distanceNearby'), range: t('home.distanceNearbyRange'), icon: MapPin },
                   { key: 'shortDrive', label: t('home.distanceShortDrive'), range: t('home.distanceShortDriveRange'), icon: Car },
                   { key: 'furtherAway', label: t('home.distanceFurtherAway'), range: t('home.distanceFurtherAwayRange'), icon: Navigation },
@@ -1071,11 +1080,13 @@ export default function Home() {
                             {/* Distance Category Header */}
                             <div className="flex items-center gap-3 pb-2 border-b">
                               <div className={`p-2 rounded-lg ${
+                                key === 'realAvailability' ? 'bg-primary/10 dark:bg-primary/20' :
                                 key === 'nearby' ? 'bg-green-100 dark:bg-green-900/30' : 
                                 key === 'shortDrive' ? 'bg-blue-100 dark:bg-blue-900/30' : 
                                 'bg-orange-100 dark:bg-orange-900/30'
                               }`}>
                                 <Icon className={`h-5 w-5 ${
+                                  key === 'realAvailability' ? 'text-primary' :
                                   key === 'nearby' ? 'text-green-600 dark:text-green-400' : 
                                   key === 'shortDrive' ? 'text-blue-600 dark:text-blue-400' : 
                                   'text-orange-600 dark:text-orange-400'
