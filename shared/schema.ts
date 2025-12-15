@@ -729,6 +729,20 @@ export interface ParsedContractData {
   rawTerms?: string[];
 }
 
+// Package option from API (e.g., "Greenfee + Buggy", "Greenfee + Buggy + Lunch")
+export interface TeeTimePackage {
+  id: number | string;
+  name: string;
+  price: number; // Price per player
+  description?: string;
+  includesBuggy?: boolean;
+  includesLunch?: boolean;
+  isEarlyBird?: boolean;
+  isTwilight?: boolean;
+  maxPlayers?: number;
+  minPlayers?: number;
+}
+
 // API Response Types
 export interface TeeTimeSlot {
   teeTime: string;
@@ -739,6 +753,8 @@ export interface TeeTimeSlot {
   source: string;
   teeName?: string; // e.g., "TEE 1", "TEE 10", "Los Lagos", "Campo America"
   slotsAvailable?: number; // 1-4: Number of remaining player slots available (ontee.com style dots indicator)
+  packages?: TeeTimePackage[]; // Available packages for this time slot (from Golfmanager/TeeOne APIs)
+  packageName?: string; // Legacy: single package name
 }
 
 export interface CourseWithSlots {

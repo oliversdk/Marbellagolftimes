@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { TeeTimeSlot } from "@shared/schema";
+import type { TeeTimeSlot, TeeTimePackage } from "@shared/schema";
 
 export type GolfmanagerMode = "production" | "demo" | "mock";
 export type GolfmanagerVersion = "v1" | "v3";
@@ -250,7 +250,7 @@ export class GolfmanagerProvider {
     for (const slot of golfmanagerSlots) {
       // Handle nested format: { date, slots, types: [...] }
       if (slot.types && Array.isArray(slot.types)) {
-        // Find the best type (prefer standard greenfee, lowest price)
+        // Filter valid types (non-members only, 18 holes)
         const validTypes = slot.types.filter((t: any) => 
           t.price !== undefined && 
           !t.onlyMembers &&
@@ -258,19 +258,37 @@ export class GolfmanagerProvider {
         );
         
         if (validTypes.length > 0) {
-          // Sort by price and pick the lowest
+          // Sort by price (lowest first)
           validTypes.sort((a: any, b: any) => (a.price || 0) - (b.price || 0));
-          const bestType = validTypes[0];
+          const lowestPriceType = validTypes[0];
+          
+          // Convert all valid types to packages
+          const packages: TeeTimePackage[] = validTypes.map((t: any) => {
+            const nameLower = (t.name || "").toLowerCase();
+            return {
+              id: t.id || t.idType || 0,
+              name: t.name || "Green Fee",
+              price: t.price || 0,
+              description: t.description || undefined,
+              includesBuggy: nameLower.includes("buggy"),
+              includesLunch: nameLower.includes("lunch") || nameLower.includes("almuerzo"),
+              isEarlyBird: nameLower.includes("earlybird") || nameLower.includes("early bird"),
+              isTwilight: nameLower.includes("twilight") || nameLower.includes("tarde"),
+              maxPlayers: t.max || 4,
+              minPlayers: t.min || 1,
+            };
+          });
           
           results.push({
-            teeTime: slot.date || bestType.start,
-            greenFee: bestType.price || 0,
+            teeTime: slot.date || lowestPriceType.start,
+            greenFee: lowestPriceType.price || 0, // Show lowest price as main price
             currency: "EUR",
             players: slot.slots || players,
             holes: holes,
             source: `Golfmanager ${this.config.version.toUpperCase()}`,
-            slotsAvailable: bestType.max ? Math.min(bestType.max, 4) : (slot.slots || 4),
-            packageName: bestType.name,
+            slotsAvailable: lowestPriceType.max ? Math.min(lowestPriceType.max, 4) : (slot.slots || 4),
+            packageName: lowestPriceType.name,
+            packages: packages, // Include ALL packages for selection
           });
         }
       } 

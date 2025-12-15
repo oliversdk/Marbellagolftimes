@@ -3503,7 +3503,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedAddOnIds, // Array of add-on IDs
         customerName,
         customerEmail,
-        customerPhone
+        customerPhone,
+        apiPackage // Selected package from Golfmanager/TeeOne API
       } = req.body;
 
       if (!courseId || !teeTime || !players) {
@@ -3543,30 +3544,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const greenFeeCents = cachedPrice.priceCents;
-      console.log(`[Stripe] Using cached green fee: €${greenFeeCents/100} for ${teeTime}`);
+      // Use API package price if selected, otherwise use cached price
+      let greenFeeCents = cachedPrice.priceCents;
+      let packageName = "Green Fee";
+      
+      if (apiPackage && apiPackage.price) {
+        greenFeeCents = Math.round(apiPackage.price * 100); // Convert to cents
+        packageName = apiPackage.name || "Green Fee";
+        console.log(`[Stripe] Using API package: ${packageName} at €${apiPackage.price} for ${teeTime}`);
+      } else {
+        console.log(`[Stripe] Using cached green fee: €${greenFeeCents/100} for ${teeTime}`);
+      }
 
       // Build line items with SERVER-SIDE pricing only
       const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
       let totalCents = 0;
       const addOnsJsonData: any[] = [];
 
-      // Green fee line item - priced from server
+      // Green fee / package line item - priced from server
       const greenFeeTotal = greenFeeCents * numPlayers;
       totalCents += greenFeeTotal;
+      
+      // Build description with package details
+      let lineItemDescription = `${numPlayers} player${numPlayers > 1 ? 's' : ''} at ${new Date(teeTime).toLocaleString('en-GB', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`;
+      
+      if (apiPackage) {
+        if (apiPackage.includesBuggy) lineItemDescription += ' - Includes Buggy';
+        if (apiPackage.includesLunch) lineItemDescription += ' - Includes Lunch';
+      }
+      
       lineItems.push({
         price_data: {
           currency: "eur",
           product_data: {
-            name: `Green Fee - ${course.name}`,
-            description: `${numPlayers} player${numPlayers > 1 ? 's' : ''} at ${new Date(teeTime).toLocaleString('en-GB', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}`,
+            name: `${packageName} - ${course.name}`,
+            description: lineItemDescription,
           },
           unit_amount: greenFeeCents,
         },
@@ -3632,6 +3651,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalAmountCents: String(totalCents),
           addOnsJson: JSON.stringify(addOnsJsonData),
           greenFeeCents: String(greenFeeCents),
+          packageName: packageName,
+          apiPackageJson: apiPackage ? JSON.stringify(apiPackage) : "",
         },
       });
 
@@ -3807,7 +3828,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         selectedAddOnIds,
         customerName,
         customerEmail,
-        customerPhone
+        customerPhone,
+        apiPackage // Selected package from Golfmanager/TeeOne API
       } = req.body;
 
       if (!courseId || !teeTime || !players) {
@@ -3836,7 +3858,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get cached price or use mock price for test course
       const cacheKey = `${courseId}:${teeTime}`;
       const cachedPrice = teeTimePriceCache.get(cacheKey);
-      const greenFeeCents = cachedPrice?.priceCents || 5000; // Default €50 for test
+      
+      // Use API package price if selected, otherwise use cached or default price
+      let greenFeeCents = cachedPrice?.priceCents || 5000; // Default €50 for test
+      let packageName = "Green Fee";
+      
+      if (apiPackage && apiPackage.price) {
+        greenFeeCents = Math.round(apiPackage.price * 100); // Convert to cents
+        packageName = apiPackage.name || "Green Fee";
+        console.log(`[Simulate] Using API package: ${packageName} at €${apiPackage.price}`);
+      }
 
       // Get add-ons from database
       const courseAddOns = await storage.getAddOnsByCourseId(courseId);

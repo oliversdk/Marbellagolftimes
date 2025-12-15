@@ -29,7 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { AvailabilityDots } from "@/components/AvailabilityDots";
-import type { GolfCourse, CourseWithSlots, TeeTimeSlot, User, CourseRatePeriod, CourseAddOn } from "@shared/schema";
+import type { GolfCourse, CourseWithSlots, TeeTimeSlot, TeeTimePackage, User, CourseRatePeriod, CourseAddOn } from "@shared/schema";
 
 interface SelectedPackage {
   id: string;
@@ -78,6 +78,7 @@ export function BookingModal({
   const [step, setStep] = useState<'select-time' | 'customize-booking' | 'fill-details'>('select-time');
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<SelectedPackage | null>(null);
+  const [selectedApiPackage, setSelectedApiPackage] = useState<TeeTimePackage | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
   const [searchDate, setSearchDate] = useState<Date>(new Date());
   const [players, setPlayers] = useState<number>(2);
@@ -110,12 +111,25 @@ export function BookingModal({
 
   // Calculate total price including add-ons
   const calculateTotal = () => {
-    // If package selected, use package rate; otherwise use slot greenFee
-    const baseRate = selectedPackage ? selectedPackage.rackRate : (selectedSlot?.greenFee || 0);
+    // Priority: API package > DB package > slot greenFee
+    let baseRate = selectedSlot?.greenFee || 0;
+    if (selectedApiPackage) {
+      baseRate = selectedApiPackage.price;
+    } else if (selectedPackage) {
+      baseRate = selectedPackage.rackRate;
+    }
+    
     let addOnsTotal = 0;
+    
+    // Only add add-ons if package doesn't include buggy (avoid double-charging)
+    const packageIncludesBuggy = selectedApiPackage?.includesBuggy || selectedPackage?.includesBuggy;
     
     courseAddOns.forEach(addon => {
       if (selectedAddOns.has(addon.id)) {
+        // Skip buggy add-on if package already includes buggy
+        if (packageIncludesBuggy && (addon.type === 'buggy_shared' || addon.type === 'buggy_individual')) {
+          return;
+        }
         const price = addon.priceCents / 100;
         if (addon.type === 'buggy_shared') {
           addOnsTotal += price * Math.ceil(players / 2);
@@ -129,6 +143,9 @@ export function BookingModal({
     
     return (baseRate * players) + addOnsTotal;
   };
+  
+  // Get API packages from selected slot (if available from Golfmanager/TeeOne)
+  const apiPackages = selectedSlot?.packages || [];
 
   // Toggle add-on selection
   const toggleAddOn = (addOnId: string) => {
@@ -295,6 +312,7 @@ export function BookingModal({
       setStep('select-time');
       setSelectedSlot(null);
       setSelectedPackage(null);
+      setSelectedApiPackage(null);
       setSelectedAddOns(new Set());
       setSearchDate(new Date());
       setPlayers(2);
@@ -335,6 +353,9 @@ export function BookingModal({
 
   const handleSlotSelect = (slot: TeeTimeSlot) => {
     setSelectedSlot(slot);
+    // Reset package selections when changing slot
+    setSelectedPackage(null);
+    setSelectedApiPackage(null);
     // Always go to customize-booking step to allow players/add-ons selection
     setStep('customize-booking');
     // Adjust player count if it exceeds available slots
@@ -352,6 +373,7 @@ export function BookingModal({
     setStep('select-time');
     setSelectedSlot(null);
     setSelectedPackage(null);
+    setSelectedApiPackage(null);
     setSelectedAddOns(new Set());
   };
 
@@ -388,6 +410,14 @@ export function BookingModal({
           customerName,
           customerEmail,
           customerPhone,
+          // Include API package info if selected
+          apiPackage: selectedApiPackage ? {
+            id: selectedApiPackage.id,
+            name: selectedApiPackage.name,
+            price: selectedApiPackage.price,
+            includesBuggy: selectedApiPackage.includesBuggy,
+            includesLunch: selectedApiPackage.includesLunch,
+          } : undefined,
         }),
       });
 
@@ -437,6 +467,14 @@ export function BookingModal({
             customerName,
             customerEmail,
             customerPhone,
+            // Include API package info if selected
+            apiPackage: selectedApiPackage ? {
+              id: selectedApiPackage.id,
+              name: selectedApiPackage.name,
+              price: selectedApiPackage.price,
+              includesBuggy: selectedApiPackage.includesBuggy,
+              includesLunch: selectedApiPackage.includesLunch,
+            } : undefined,
           }),
         });
 
@@ -465,6 +503,14 @@ export function BookingModal({
             selectedAddOnIds: Array.from(selectedAddOns),
             customerName,
             customerEmail,
+            // Include API package info if selected
+            apiPackage: selectedApiPackage ? {
+              id: selectedApiPackage.id,
+              name: selectedApiPackage.name,
+              price: selectedApiPackage.price,
+              includesBuggy: selectedApiPackage.includesBuggy,
+              includesLunch: selectedApiPackage.includesLunch,
+            } : undefined,
           }),
         });
 
@@ -687,41 +733,45 @@ export function BookingModal({
             )}
           </div>
 
-          {/* Green Fee Summary */}
-          <div className="p-3 bg-muted/50 rounded-md">
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Green Fee ({players}x €{basePrice})</span>
-              <span className="font-medium">€{basePrice * players}</span>
-            </div>
-          </div>
-
-          {/* Rate Period Packages (if available) */}
-          {availablePackages.length > 0 && (
+          {/* API Packages from Golfmanager/TeeOne (if available) */}
+          {apiPackages.length > 0 ? (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Special Packages (Optional)</Label>
-              <div className="space-y-2" data-testid="list-packages">
-                {availablePackages.map((pkg, index) => {
-                  const isSelected = selectedPackage?.id === pkg.id;
+              <Label className="text-sm font-medium">Select Package</Label>
+              <div className="space-y-2" data-testid="list-api-packages">
+                {apiPackages.map((pkg, index) => {
+                  const isSelected = selectedApiPackage?.id === pkg.id;
+                  const totalForPlayers = pkg.price * players;
                   return (
                     <div
                       key={pkg.id}
                       className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
                         isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                       }`}
-                      onClick={() => setSelectedPackage(isSelected ? null : pkg)}
-                      data-testid={`package-option-${index}`}
+                      onClick={() => setSelectedApiPackage(isSelected ? null : pkg)}
+                      data-testid={`api-package-${index}`}
                     >
                       <div className="flex items-center gap-3">
                         <Checkbox
                           checked={isSelected}
-                          onCheckedChange={() => setSelectedPackage(isSelected ? null : pkg)}
+                          onCheckedChange={() => setSelectedApiPackage(isSelected ? null : pkg)}
                           onClick={(e) => e.stopPropagation()}
                         />
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm">
-                              {formatPackageType(pkg.packageType)}
-                            </span>
+                          <span className="font-medium text-sm">{pkg.name}</span>
+                          {pkg.description && (
+                            <p className="text-xs text-muted-foreground">{pkg.description}</p>
+                          )}
+                          <div className="flex gap-1 flex-wrap items-center">
+                            {pkg.includesBuggy && (
+                              <Badge variant="outline" className="text-xs">
+                                <Car className="h-3 w-3 mr-1" />Buggy
+                              </Badge>
+                            )}
+                            {pkg.includesLunch && (
+                              <Badge variant="outline" className="text-xs">
+                                <Utensils className="h-3 w-3 mr-1" />Lunch
+                              </Badge>
+                            )}
                             {pkg.isEarlyBird && (
                               <Badge variant="secondary" className="text-xs">
                                 <Sun className="h-3 w-3 mr-1" />
@@ -735,31 +785,94 @@ export function BookingModal({
                               </Badge>
                             )}
                           </div>
-                          <div className="flex gap-1 flex-wrap items-center">
-                            {pkg.includesBuggy && (
-                              <Badge variant="outline" className="text-xs">
-                                <Car className="h-3 w-3 mr-1" />Buggy
-                              </Badge>
-                            )}
-                            {pkg.includesLunch && (
-                              <Badge variant="outline" className="text-xs">
-                                <Utensils className="h-3 w-3 mr-1" />Lunch
-                              </Badge>
-                            )}
-                          </div>
-                          {pkg.minPlayersForDiscount && (
-                            <span className="text-xs text-green-600 flex items-center gap-1">
-                              {pkg.freePlayersPerGroup || 1} free per {pkg.minPlayersForDiscount} players
-                            </span>
-                          )}
                         </div>
                       </div>
-                      <span className="font-medium text-sm text-primary">€{pkg.rackRate}</span>
+                      <div className="text-right">
+                        <span className="font-medium text-sm text-primary">€{totalForPlayers.toFixed(2)}</span>
+                        <p className="text-xs text-muted-foreground">€{pkg.price}/player</p>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
+          ) : (
+            <>
+              {/* Green Fee Summary (fallback when no API packages) */}
+              <div className="p-3 bg-muted/50 rounded-md">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Green Fee ({players}x €{basePrice})</span>
+                  <span className="font-medium">€{basePrice * players}</span>
+                </div>
+              </div>
+
+              {/* Rate Period Packages (if available) */}
+              {availablePackages.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Special Packages (Optional)</Label>
+                  <div className="space-y-2" data-testid="list-packages">
+                    {availablePackages.map((pkg, index) => {
+                      const isSelected = selectedPackage?.id === pkg.id;
+                      return (
+                        <div
+                          key={pkg.id}
+                          className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
+                            isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                          }`}
+                          onClick={() => setSelectedPackage(isSelected ? null : pkg)}
+                          data-testid={`package-option-${index}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => setSelectedPackage(isSelected ? null : pkg)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm">
+                                  {formatPackageType(pkg.packageType)}
+                                </span>
+                                {pkg.isEarlyBird && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Sun className="h-3 w-3 mr-1" />
+                                    Early Bird
+                                  </Badge>
+                                )}
+                                {pkg.isTwilight && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Sunset className="h-3 w-3 mr-1" />
+                                    Twilight
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex gap-1 flex-wrap items-center">
+                                {pkg.includesBuggy && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Car className="h-3 w-3 mr-1" />Buggy
+                                  </Badge>
+                                )}
+                                {pkg.includesLunch && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Utensils className="h-3 w-3 mr-1" />Lunch
+                                  </Badge>
+                                )}
+                              </div>
+                              {pkg.minPlayersForDiscount && (
+                                <span className="text-xs text-green-600 flex items-center gap-1">
+                                  {pkg.freePlayersPerGroup || 1} free per {pkg.minPlayersForDiscount} players
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="font-medium text-sm text-primary">€{pkg.rackRate}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Add-ons */}
