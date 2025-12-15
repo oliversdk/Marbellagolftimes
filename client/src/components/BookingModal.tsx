@@ -135,12 +135,6 @@ export function BookingModal({
   // This ensures we sell at the proper retail price, not our wholesale cost
   const calculateCustomerPrice = (ttooPrice: number): number => {
     const kickback = course?.kickbackPercent || 0;
-    console.log('[BookingModal] calculateCustomerPrice:', { 
-      courseName: course?.name, 
-      kickbackPercent: course?.kickbackPercent, 
-      kickback, 
-      ttooPrice 
-    });
     if (kickback <= 0 || kickback >= 100) {
       // If no kickback defined, add a reasonable markup (15%)
       return ttooPrice * 1.15;

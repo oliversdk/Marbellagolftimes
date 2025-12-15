@@ -250,13 +250,6 @@ export class GolfmanagerProvider {
     for (const slot of golfmanagerSlots) {
       // Handle nested format: { date, slots, types: [...] }
       if (slot.types && Array.isArray(slot.types)) {
-        // Log raw types for debugging
-        if (slot.types.length > 0) {
-          console.log(`[Golfmanager] Slot ${slot.date} has ${slot.types.length} types:`, 
-            slot.types.map((t: any) => ({ name: t.name, price: t.price, tags: t.tags, onlyMembers: t.onlyMembers }))
-          );
-        }
-        
         // Filter valid types (non-members only, 18 holes OR no tags)
         const validTypes = slot.types.filter((t: any) => 
           t.price !== undefined && 
