@@ -388,6 +388,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.set("trust proxy", 1);
   app.use(getSession());
 
+  // ============================================================
+  // Dynamic Open Graph meta tags for course pages (for social sharing)
+  // This must run BEFORE Vite middleware to intercept crawler requests
+  // ============================================================
+  app.get("/course/:courseId", async (req, res, next) => {
+    // Only serve dynamic HTML to crawlers/bots, let Vite handle regular requests
+    const userAgent = req.headers["user-agent"] || "";
+    const isCrawler = /bot|crawler|spider|facebook|whatsapp|telegram|twitter|linkedin|slack|discord|pinterest|google|bing|yandex|baidu/i.test(userAgent);
+    
+    if (!isCrawler) {
+      return next(); // Let Vite handle normal browser requests
+    }
+    
+    try {
+      const { courseId } = req.params;
+      const [course] = await db.select().from(golfCourses).where(eq(golfCourses.id, courseId)).limit(1);
+      
+      if (!course) {
+        return next(); // Fall back to Vite for unknown courses
+      }
+      
+      // Read the index.html template
+      const templatePath = path.join(__dirname, "../client/index.html");
+      let html = await fs.readFile(templatePath, "utf-8");
+      
+      // Prepare dynamic content
+      const title = `${course.name} - ${course.city} | Marbella Golf Times`;
+      const description = course.notes || `Book your tee time at ${course.name} in ${course.city}, Costa del Sol. Real-time availability and best prices.`;
+      const imageUrl = course.imageUrl || "https://marbellagolftimes.com/og-image.png";
+      const pageUrl = `https://marbellagolftimes.com/course/${courseId}`;
+      
+      // Escape HTML entities
+      const escapeHtml = (str: string) => str
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      
+      // Replace title
+      html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`);
+      
+      // Replace meta description
+      html = html.replace(
+        /<meta name="description" content="[^"]*"/,
+        `<meta name="description" content="${escapeHtml(description)}"`
+      );
+      
+      // Replace OG tags
+      html = html.replace(/property="og:title" content="[^"]*"/, `property="og:title" content="${escapeHtml(title)}"`);
+      html = html.replace(/property="og:description" content="[^"]*"/, `property="og:description" content="${escapeHtml(description)}"`);
+      html = html.replace(/property="og:image" content="[^"]*"/, `property="og:image" content="${escapeHtml(imageUrl)}"`);
+      html = html.replace(/property="og:url" content="[^"]*"/, `property="og:url" content="${escapeHtml(pageUrl)}"`);
+      
+      // Replace Twitter tags
+      html = html.replace(/name="twitter:title" content="[^"]*"/, `name="twitter:title" content="${escapeHtml(title)}"`);
+      html = html.replace(/name="twitter:description" content="[^"]*"/, `name="twitter:description" content="${escapeHtml(description)}"`);
+      html = html.replace(/name="twitter:image" content="[^"]*"/, `name="twitter:image" content="${escapeHtml(imageUrl)}"`);
+      
+      res.status(200).set({ "Content-Type": "text/html" }).send(html);
+    } catch (error) {
+      console.error("[OG Tags] Error:", error);
+      next(); // Fall back to Vite on error
+    }
+  });
+
   // Object Storage endpoints for persistent image storage
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();
