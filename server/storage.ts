@@ -932,21 +932,6 @@ export class MemStorage implements IStorage {
       },
       // NEW COURSES - Added from Brian Nielsen comparison
       {
-        name: "Alhaurín Golf",
-        city: "Alhaurín el Grande",
-        province: "Málaga",
-        country: "Spain",
-        lat: "36.6175",
-        lng: "-4.7090",
-        websiteUrl: "https://www.alhauringolf.com",
-        bookingUrl: "https://open.teeone.golf/en/alhaurin/disponibilidad",
-        email: "reservas@alhauringolf.com",
-        phone: "+34 951 550 000",
-        notes: "Severiano Ballesteros design - 18 holes par 72, 6,046m with 9-hole par-3 course",
-        imageUrl: "/generated_images/alhaurin_golf_spain_course.png",
-        facilities: ["Clubhouse", "Pro Shop", "Driving Range", "Restaurant", "Bar", "Putting Green", "Cart Rental", "Locker Rooms", "Practice Facilities", "Golf Academy", "Spa", "Tennis Courts", "Pool"],
-      },
-      {
         name: "Añoreta Golf",
         city: "Rincón de la Victoria",
         province: "Málaga",
