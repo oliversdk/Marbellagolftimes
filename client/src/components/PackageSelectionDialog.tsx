@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,10 @@ export function PackageSelectionDialog({
   const [selectedPackageId, setSelectedPackageId] = useState<string>("");
   const { addItem, hasItem } = useBookingCart();
   const { toast } = useToast();
+
+  useEffect(() => {
+    setSelectedPackageId("");
+  }, [teeTime?.id, teeTime?.time]);
 
   if (!teeTime || !course) return null;
 
