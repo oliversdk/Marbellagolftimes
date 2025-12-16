@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { MapPin, User, LogOut, UserCircle, Shield, Menu, Mail, Search } from "lucide-react";
+import { User, LogOut, UserCircle, Shield, Menu, Mail, Search } from "lucide-react";
+import logoImage from "@assets/generated_images/marbella_golf_times_logo.png";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,18 +58,23 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-2">
-          {/* Logo - Simplified on mobile */}
-          <div className="flex items-center gap-2 hover-elevate px-2 sm:px-3 py-2 rounded-md">
-            <Link href="/" data-testid="link-home">
-              <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            </Link>
-            <Link href="/" className="flex flex-col">
-              <span className="font-serif font-semibold text-base sm:text-lg leading-none">
-                {t('header.title')}
-              </span>
-              <span className="hidden sm:inline text-xs text-muted-foreground">{t('header.subtitle')}</span>
-            </Link>
-          </div>
+          {/* Logo - Clickable to home */}
+          <Link href="/" data-testid="link-home-logo">
+            <div className="flex items-center gap-2 hover-elevate px-2 sm:px-3 py-2 rounded-md cursor-pointer">
+              <img 
+                src={logoImage} 
+                alt="Marbella Golf Times" 
+                className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
+                data-testid="img-logo"
+              />
+              <div className="flex flex-col">
+                <span className="font-serif font-semibold text-base sm:text-lg leading-none">
+                  {t('header.title')}
+                </span>
+                <span className="hidden sm:inline text-xs text-muted-foreground">{t('header.subtitle')}</span>
+              </div>
+            </div>
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-6">
