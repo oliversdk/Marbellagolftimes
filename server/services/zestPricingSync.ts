@@ -164,6 +164,18 @@ export async function syncZestPricingForCourse(
       .set({ kickbackPercent: averageCommissionPercent })
       .where(eq(golfCourses.id, courseId));
 
+    // Also sync to course_onboarding.agreedCommission
+    const existingOnboarding = await db.select()
+      .from(courseOnboarding)
+      .where(eq(courseOnboarding.courseId, courseId))
+      .limit(1);
+
+    if (existingOnboarding.length > 0) {
+      await db.update(courseOnboarding)
+        .set({ agreedCommission: averageCommissionPercent, updatedAt: new Date() })
+        .where(eq(courseOnboarding.courseId, courseId));
+    }
+
     return {
       success: true,
       courseName,

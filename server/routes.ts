@@ -368,7 +368,17 @@ const documentUpload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Static asset caching for images
+  // First try client/public/generated_images, then fallback to attached_assets/generated_images
   app.use('/generated_images', express.static(path.join(__dirname, '../client/public/generated_images'), {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }));
+  
+  // Fallback to attached_assets/generated_images for images not in client/public
+  app.use('/generated_images', express.static(path.join(__dirname, '../attached_assets/generated_images'), {
     maxAge: '1y',
     immutable: true,
     setHeaders: (res) => {

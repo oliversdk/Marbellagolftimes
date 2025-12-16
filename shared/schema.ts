@@ -157,35 +157,39 @@ export type InsertCourseProviderLink = z.infer<typeof insertCourseProviderLinkSc
 export type CourseProviderLink = typeof courseProviderLinks.$inferSelect;
 
 // Booking Requests
-export const bookingRequests = pgTable("booking_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id), // Nullable for guest bookings
-  courseId: varchar("course_id").notNull().references(() => golfCourses.id),
-  teeTime: timestamp("tee_time").notNull(),
-  players: integer("players").notNull(),
-  customerName: text("customer_name").notNull(),
-  customerEmail: text("customer_email").notNull(),
-  customerPhone: text("customer_phone"),
-  playerNamesJson: text("player_names_json"), // JSON array of player names ["John", "Jane"]
-  packageType: text("package_type"), // Selected package type (GREEN_FEE_BUGGY, GREEN_FEE_BUGGY_LUNCH, EARLY_BIRD, TWILIGHT)
-  status: text("status").notNull().default("PENDING"), // PENDING, SENT_TO_COURSE, CONFIRMED, CANCELLED
-  estimatedPrice: real("estimated_price"), // Estimated revenue in EUR
-  cancelledAt: timestamp("cancelled_at"),
-  cancellationReason: text("cancellation_reason"),
-  // Payment fields
-  paymentStatus: text("payment_status").default("pending"), // pending, paid, failed, refunded
-  paymentIntentId: text("payment_intent_id"), // Stripe payment intent ID
-  totalAmountCents: integer("total_amount_cents"), // Total paid in cents
-  addOnsJson: text("add_ons_json"), // JSON string of selected add-ons
-  // Provider sync fields (Zest/TeeOne booking forwarding)
-  providerSyncStatus: text("provider_sync_status"), // null, pending, success, failed
-  providerSyncError: text("provider_sync_error"), // Error message if sync failed
-  providerBookingId: text("provider_booking_id"), // External booking ID from Zest/TeeOne
-  // Review request tracking
-  reviewRequestSent: text("review_request_sent").default("false"), // Whether review request email was sent
-  reviewRequestSentAt: timestamp("review_request_sent_at"), // When the review request was sent
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const bookingRequests = pgTable(
+  "booking_requests",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").references(() => users.id), // Nullable for guest bookings
+    courseId: varchar("course_id").notNull().references(() => golfCourses.id),
+    teeTime: timestamp("tee_time").notNull(),
+    players: integer("players").notNull(),
+    customerName: text("customer_name").notNull(),
+    customerEmail: text("customer_email").notNull(),
+    customerPhone: text("customer_phone"),
+    playerNamesJson: text("player_names_json"), // JSON array of player names ["John", "Jane"]
+    packageType: text("package_type"), // Selected package type (GREEN_FEE_BUGGY, GREEN_FEE_BUGGY_LUNCH, EARLY_BIRD, TWILIGHT)
+    status: text("status").notNull().default("PENDING"), // PENDING, SENT_TO_COURSE, CONFIRMED, CANCELLED
+    estimatedPrice: real("estimated_price"), // Estimated revenue in EUR
+    cancelledAt: timestamp("cancelled_at"),
+    cancellationReason: text("cancellation_reason"),
+    // Payment fields
+    paymentStatus: text("payment_status").default("pending"), // pending, paid, failed, refunded
+    paymentIntentId: text("payment_intent_id"), // Stripe payment intent ID
+    totalAmountCents: integer("total_amount_cents"), // Total paid in cents
+    addOnsJson: text("add_ons_json"), // JSON string of selected add-ons
+    // Provider sync fields (Zest/TeeOne booking forwarding)
+    providerSyncStatus: text("provider_sync_status"), // null, pending, success, failed
+    providerSyncError: text("provider_sync_error"), // Error message if sync failed
+    providerBookingId: text("provider_booking_id"), // External booking ID from Zest/TeeOne
+    // Review request tracking
+    reviewRequestSent: text("review_request_sent").default("false"), // Whether review request email was sent
+    reviewRequestSentAt: timestamp("review_request_sent_at"), // When the review request was sent
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("idx_booking_requests_course_teetime").on(table.courseId, table.teeTime)],
+);
 
 export const insertBookingRequestSchema = createInsertSchema(bookingRequests).omit({ 
   id: true, 
@@ -647,34 +651,38 @@ export const INGESTION_STATUSES = ["PENDING", "PROCESSING", "COMPLETED", "FAILED
 export type IngestionStatus = typeof INGESTION_STATUSES[number];
 
 // Course Rate Periods - Store seasonal kickback rates with dates
-export const courseRatePeriods = pgTable("course_rate_periods", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
-  ingestionId: varchar("ingestion_id").references(() => contractIngestions.id), // Link to source contract
-  seasonLabel: text("season_label").notNull(), // e.g., "Low Season", "High Season", "Peak"
-  packageType: text("package_type").notNull().default("GREEN_FEE_BUGGY"), // Package category
-  startDate: text("start_date").notNull(), // Date range start (MM-DD format or month name)
-  endDate: text("end_date").notNull(), // Date range end
-  year: integer("year"), // Specific year if applicable
-  rackRate: real("rack_rate").notNull(), // Public rate in EUR
-  netRate: real("net_rate").notNull(), // Our negotiated rate in EUR
-  kickbackPercent: real("kickback_percent").notNull(), // Calculated: ((rack-net)/rack)*100
-  currency: text("currency").notNull().default("EUR"),
-  // Package inclusions
-  includesBuggy: text("includes_buggy").notNull().default("true"),
-  includesLunch: text("includes_lunch").notNull().default("false"),
-  includesCart: text("includes_cart").notNull().default("false"),
-  // Time-based restrictions
-  isEarlyBird: text("is_early_bird").notNull().default("false"), // Before 9am typically
-  isTwilight: text("is_twilight").notNull().default("false"), // After 3pm typically
-  timeRestriction: text("time_restriction"), // e.g., "8:00-9:00" or "from 15:00"
-  // Group discount rules
-  minPlayersForDiscount: integer("min_players_for_discount"), // e.g., 8 for "1 free per 8"
-  freePlayersPerGroup: integer("free_players_per_group"), // e.g., 1 for "1 free per 8"
-  notes: text("notes"), // Any special conditions
-  isVerified: text("is_verified").notNull().default("false"), // Admin verified
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const courseRatePeriods = pgTable(
+  "course_rate_periods",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
+    ingestionId: varchar("ingestion_id").references(() => contractIngestions.id), // Link to source contract
+    seasonLabel: text("season_label").notNull(), // e.g., "Low Season", "High Season", "Peak"
+    packageType: text("package_type").notNull().default("GREEN_FEE_BUGGY"), // Package category
+    startDate: text("start_date").notNull(), // Date range start (MM-DD format or month name)
+    endDate: text("end_date").notNull(), // Date range end
+    year: integer("year"), // Specific year if applicable
+    rackRate: real("rack_rate").notNull(), // Public rate in EUR
+    netRate: real("net_rate").notNull(), // Our negotiated rate in EUR
+    kickbackPercent: real("kickback_percent").notNull(), // Calculated: ((rack-net)/rack)*100
+    currency: text("currency").notNull().default("EUR"),
+    // Package inclusions
+    includesBuggy: text("includes_buggy").notNull().default("true"),
+    includesLunch: text("includes_lunch").notNull().default("false"),
+    includesCart: text("includes_cart").notNull().default("false"),
+    // Time-based restrictions
+    isEarlyBird: text("is_early_bird").notNull().default("false"), // Before 9am typically
+    isTwilight: text("is_twilight").notNull().default("false"), // After 3pm typically
+    timeRestriction: text("time_restriction"), // e.g., "8:00-9:00" or "from 15:00"
+    // Group discount rules
+    minPlayersForDiscount: integer("min_players_for_discount"), // e.g., 8 for "1 free per 8"
+    freePlayersPerGroup: integer("free_players_per_group"), // e.g., 1 for "1 free per 8"
+    notes: text("notes"), // Any special conditions
+    isVerified: text("is_verified").notNull().default("false"), // Admin verified
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [index("idx_course_rate_periods_course_season").on(table.courseId, table.seasonLabel)],
+);
 
 export const insertCourseRatePeriodSchema = createInsertSchema(courseRatePeriods).omit({ 
   id: true, 
@@ -867,26 +875,30 @@ export const PARTNERSHIP_FORM_STATUSES = ["PENDING", "SENT", "RECEIVED", "PROCES
 export type PartnershipFormStatus = typeof PARTNERSHIP_FORM_STATUSES[number];
 
 // Zest Golf Pricing Data - Comprehensive pricing storage from Zest API
-export const zestPricingData = pgTable("zest_pricing_data", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
-  zestFacilityId: integer("zest_facility_id").notNull(),
-  
-  // Pricing data as JSON (contains full pricing structure from Zest)
-  // Structure: { greenFees: [...], extraProducts: [...] }
-  pricingJson: jsonb("pricing_json").notNull(),
-  
-  // Calculated commission data
-  averageCommissionPercent: real("average_commission_percent"), // Calculated from netRate vs publicRate
-  
-  // Sync metadata
-  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
-  syncStatus: text("sync_status").notNull().default("success"), // success, error
-  syncError: text("sync_error"),
-  
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+export const zestPricingData = pgTable(
+  "zest_pricing_data",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    courseId: varchar("course_id").notNull().references(() => golfCourses.id, { onDelete: "cascade" }),
+    zestFacilityId: integer("zest_facility_id").notNull(),
+    
+    // Pricing data as JSON (contains full pricing structure from Zest)
+    // Structure: { greenFees: [...], extraProducts: [...] }
+    pricingJson: jsonb("pricing_json").notNull(),
+    
+    // Calculated commission data
+    averageCommissionPercent: real("average_commission_percent"), // Calculated from netRate vs publicRate
+    
+    // Sync metadata
+    lastSyncedAt: timestamp("last_synced_at").defaultNow(),
+    syncStatus: text("sync_status").notNull().default("success"), // success, error
+    syncError: text("sync_error"),
+    
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [index("idx_zest_pricing_course_facility").on(table.courseId, table.zestFacilityId)],
+);
 
 export const insertZestPricingDataSchema = createInsertSchema(zestPricingData).omit({ 
   id: true, 
