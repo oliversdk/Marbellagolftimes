@@ -407,7 +407,7 @@ export function PackageSelectionDialog({
                   <AlertTitle>
                     {conflict.type === 'same-course-same-day' 
                       ? 'Second Round at Same Course' 
-                      : 'Scheduling Conflict'}
+                      : 'Time Conflict - Cannot Book'}
                   </AlertTitle>
                   <AlertDescription className="text-sm">
                     {conflict.message}
@@ -415,20 +415,23 @@ export function PackageSelectionDialog({
                 </Alert>
               ))}
               
-              <div className="flex items-start space-x-2 p-3 rounded-lg border border-destructive/50 bg-destructive/5">
-                <Checkbox 
-                  id="acknowledge-conflict"
-                  checked={acknowledgedConflicts}
-                  onCheckedChange={(checked) => setAcknowledgedConflicts(checked === true)}
-                  data-testid="checkbox-acknowledge-conflict"
-                />
-                <Label 
-                  htmlFor="acknowledge-conflict" 
-                  className="text-sm cursor-pointer leading-tight"
-                >
-                  I understand and want to proceed anyway
-                </Label>
-              </div>
+              {/* Only allow acknowledgement for same-course warnings, NOT time overlaps */}
+              {!conflicts.some(c => c.type === 'time-overlap') && (
+                <div className="flex items-start space-x-2 p-3 rounded-lg border border-destructive/50 bg-destructive/5">
+                  <Checkbox 
+                    id="acknowledge-conflict"
+                    checked={acknowledgedConflicts}
+                    onCheckedChange={(checked) => setAcknowledgedConflicts(checked === true)}
+                    data-testid="checkbox-acknowledge-conflict"
+                  />
+                  <Label 
+                    htmlFor="acknowledge-conflict" 
+                    className="text-sm cursor-pointer leading-tight"
+                  >
+                    I understand and want to proceed with a second round
+                  </Label>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -444,12 +447,20 @@ export function PackageSelectionDialog({
           </Button>
           <Button
             onClick={handleAddToCart}
-            disabled={(packages.length > 0 && !selectedPackageId) || (conflicts.length > 0 && !acknowledgedConflicts)}
+            disabled={
+              (packages.length > 0 && !selectedPackageId) || 
+              conflicts.some(c => c.type === 'time-overlap') ||
+              (conflicts.some(c => c.type === 'same-course-same-day') && !acknowledgedConflicts)
+            }
             className="flex-1"
             data-testid="button-add-to-cart"
           >
             <ShoppingCart className="h-4 w-4 mr-2" />
-            {isAlreadyInCart ? 'Update Cart' : 'Add to Cart'}
+            {conflicts.some(c => c.type === 'time-overlap') 
+              ? 'Time Conflict' 
+              : isAlreadyInCart 
+                ? 'Update Cart' 
+                : 'Add to Cart'}
           </Button>
         </DialogFooter>
       </DialogContent>
