@@ -7093,6 +7093,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).from(zestPricingData);
       const zestFacilityMap = new Map(zestMappings.map(m => [m.courseId, m.zestFacilityId]));
       
+      // Get Golfmanager provider links with tenant info
+      const gmLinks = await db.select({
+        courseId: courseProviderLinks.courseId,
+        providerCourseCode: courseProviderLinks.providerCourseCode,
+      }).from(courseProviderLinks);
+      
+      // Build map: courseId -> {tenant, version}
+      const gmTenantMap = new Map<string, { tenant: string; version: 'v1' | 'v3' }>();
+      for (const link of gmLinks) {
+        if (link.providerCourseCode?.startsWith('golfmanagerv3:')) {
+          gmTenantMap.set(link.courseId, { 
+            tenant: link.providerCourseCode.replace('golfmanagerv3:', ''), 
+            version: 'v3' 
+          });
+        } else if (link.providerCourseCode?.startsWith('golfmanager:')) {
+          gmTenantMap.set(link.courseId, { 
+            tenant: link.providerCourseCode.replace('golfmanager:', ''), 
+            version: 'v1' 
+          });
+        }
+      }
+      
       // Get course details
       const selectedCourses = await Promise.all(
         courseIds.map(id => storage.getCourseById(id))
@@ -7171,21 +7193,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error(`Zest error for ${course.name}:`, e.message);
           }
         }
-        // Check if Golfmanager course
-        else if (course.golfmanagerV1User || course.golfmanagerUser) {
+        // Check if Golfmanager course (has tenant info in course_provider_links OR has credentials)
+        else if (gmTenantMap.has(course.id) || course.golfmanagerV1User || course.golfmanagerUser) {
           courseResult.providerType = 'golfmanager';
           
           try {
             const { createGolfmanagerProvider } = await import("./providers/golfmanager");
             
-            // Determine version and credentials
-            const useV1 = !!(course.golfmanagerV1User && course.golfmanagerV1Password);
+            // Get tenant from course_provider_links, or fall back to derived name
+            const tenantInfo = gmTenantMap.get(course.id);
+            const useV1 = tenantInfo 
+              ? tenantInfo.version === 'v1'
+              : !!(course.golfmanagerV1User && course.golfmanagerV1Password);
             const version = useV1 ? 'v1' : 'v3';
-            const tenant = course.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'default';
+            const tenant = tenantInfo?.tenant || course.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'default';
             const dbCredentials = useV1 
               ? { user: course.golfmanagerV1User, password: course.golfmanagerV1Password }
               : { user: course.golfmanagerUser, password: course.golfmanagerPassword };
             
+            console.log(`[Multi-Search] Golfmanager: tenant=${tenant}, version=${version}, fromLinks=${!!tenantInfo}`);
             const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
             
             // Get rate periods for pricing
