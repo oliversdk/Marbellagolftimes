@@ -46,6 +46,7 @@ import { TableCard, type TableCardColumn } from "@/components/ui/table-card";
 import { MobileCardGrid } from "@/components/ui/mobile-card-grid";
 import { Mail, Send, CheckCircle2, XCircle, Clock, Image, Save, Upload, Trash2, Users, Edit, AlertTriangle, BarChart3, Percent, DollarSign, CheckSquare, ArrowRight, Phone, User, Handshake, Key, CircleDot, ChevronDown, ExternalLink, Search, ArrowUpDown, Download, FileSpreadsheet, MessageSquare, Plus, History, FileText, PhoneCall, UserPlus, ChevronUp, Images, ArrowUpRight, ArrowDownLeft, Lock, Inbox, Reply, Archive, Settings, Bell, BellOff, ArrowLeft, CalendarIcon, MoreHorizontal, Copy, ShieldCheck, ShieldOff, GripVertical, Sparkles, FileCheck, Contact, Paperclip, Globe, Loader2, RefreshCw, Star } from "lucide-react";
 import { GolfLoader } from "@/components/GolfLoader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EmailConfirmDialog } from "@/components/EmailConfirmDialog";
 import {
   Select,
@@ -157,6 +158,7 @@ type InboundEmailThread = {
   isRead: string;
   requiresResponse: string;
   isMuted: string;
+  hasAttachments?: boolean;
   lastActivityAt: string;
   respondedAt: string | null;
   respondedByUserId: string | null;
@@ -174,6 +176,7 @@ type InboundEmail = {
   subject: string | null;
   bodyText: string | null;
   bodyHtml: string | null;
+  attachmentsJson?: string | null;
   receivedAt: string;
   sentByUserId: string | null;
 };
@@ -289,6 +292,7 @@ type CourseContactWithCourse = {
   phone: string | null;
   isPrimary: string;
   notes: string | null;
+  extractedFrom?: string | null;
 };
 
 type BookingNotificationWithDetails = {
@@ -1455,7 +1459,7 @@ export default function Admin() {
 
   // Fetch ALL courses including members-only for admin dashboard
   // Wait for auth to fully load before fetching to avoid 401 errors
-  const { data: courses } = useQuery<GolfCourse[]>({
+  const { data: courses, isLoading: isLoadingCourses } = useQuery<GolfCourse[]>({
     queryKey: ["/api/admin/courses"],
     enabled: !isLoading && isAuthenticated && isAdmin,
   });
@@ -1467,13 +1471,13 @@ export default function Admin() {
   });
 
   // Fetch bookings - only if authenticated
-  const { data: bookings } = useQuery<BookingRequest[]>({
+  const { data: bookings, isLoading: isLoadingBookings } = useQuery<BookingRequest[]>({
     queryKey: ["/api/booking-requests"],
     enabled: isAuthenticated,
   });
 
   // Fetch users - only if authenticated and admin
-  const { data: users } = useQuery<User[]>({
+  const { data: users, isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
     enabled: isAuthenticated && isAdmin,
   });
@@ -2062,7 +2066,8 @@ export default function Admin() {
   // Update booking status mutation (Admin)
   const updateBookingStatusMutation = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: string }) => {
-      return await apiRequest(`/api/booking-requests/${bookingId}/status`, "PATCH", { status });
+      const response = await apiRequest(`/api/booking-requests/${bookingId}/status`, "PATCH", { status });
+      return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/booking-requests"] });
@@ -2270,11 +2275,9 @@ export default function Admin() {
         return inboxThreads.filter(t => t.status === "CLOSED");
       case "archived":
         return inboxThreads.filter(t => t.status === "ARCHIVED");
-      case "deleted":
-        return inboxThreads.filter(t => t.status === "DELETED");
       default:
-        // "all" filter - exclude deleted threads
-        return inboxThreads.filter(t => t.status !== "DELETED");
+        // "all" filter - show all threads
+        return inboxThreads;
     }
   }, [inboxThreads, inboxFilter]);
 
@@ -3601,7 +3604,7 @@ export default function Admin() {
   // Get unique cities from affiliate email courses for filter dropdown
   const uniqueCities = useMemo(() => {
     if (!affiliateEmailCourses) return [];
-    const cities = [...new Set(affiliateEmailCourses.map(c => c.city))].sort();
+    const cities = Array.from(new Set(affiliateEmailCourses.map(c => c.city))).sort();
     return cities;
   }, [affiliateEmailCourses]);
 
@@ -4108,50 +4111,58 @@ export default function Admin() {
                     )}
                   </div>
                   
-                  <TableCard
-                    columns={[
-                      {
-                        key: "teeTime",
-                        label: "Date",
-                        render: (value) => value ? format(new Date(value as string), "PP") : "-",
-                      },
-                      {
-                        key: "teeTime",
-                        label: "Time",
-                        hideOnMobile: true,
-                        render: (value) => value ? format(new Date(value as string), "p") : "-",
-                      },
-                      {
-                        key: "courseId",
-                        label: "Course",
-                        render: (value) => getCourseNameById(value as string),
-                      },
-                      {
-                        key: "customerName",
-                        label: "Customer",
-                      },
-                      {
-                        key: "players",
-                        label: "Players",
-                        hideOnMobile: true,
-                      },
-                      {
-                        key: "status",
-                        label: "Status",
-                        render: (value) => getStatusBadge(value as string),
-                      },
-                      {
-                        key: "estimatedPrice",
-                        label: "Price",
-                        hideOnMobile: true,
-                        render: (value) => value ? `€${(value as number).toFixed(0)}` : "-",
-                      },
-                    ] as TableCardColumn<BookingRequest & { courseName?: string }>[]}
-                    data={filteredBookings as (BookingRequest & { courseName?: string })[]}
-                    onRowClick={(booking) => setSelectedBooking(booking as BookingRequest)}
-                    emptyMessage={t('admin.noBookings')}
-                    keyExtractor={(row) => row.id}
-                  />
+                  {isLoadingBookings ? (
+                    <div className="space-y-2" data-testid="skeleton-bookings">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : (
+                    <TableCard
+                      columns={[
+                        {
+                          key: "teeTime",
+                          label: "Date",
+                          render: (value) => value ? format(new Date(value as string), "PP") : "-",
+                        },
+                        {
+                          key: "teeTime",
+                          label: "Time",
+                          hideOnMobile: true,
+                          render: (value) => value ? format(new Date(value as string), "p") : "-",
+                        },
+                        {
+                          key: "courseId",
+                          label: "Course",
+                          render: (value) => getCourseNameById(value as string),
+                        },
+                        {
+                          key: "customerName",
+                          label: "Customer",
+                        },
+                        {
+                          key: "players",
+                          label: "Players",
+                          hideOnMobile: true,
+                        },
+                        {
+                          key: "status",
+                          label: "Status",
+                          render: (value) => getStatusBadge(value as string),
+                        },
+                        {
+                          key: "estimatedPrice",
+                          label: "Price",
+                          hideOnMobile: true,
+                          render: (value) => value ? `€${(value as number).toFixed(0)}` : "-",
+                        },
+                      ] as TableCardColumn<BookingRequest & { courseName?: string }>[]}
+                      data={filteredBookings as (BookingRequest & { courseName?: string })[]}
+                      onRowClick={(booking) => setSelectedBooking(booking as BookingRequest)}
+                      emptyMessage={t('admin.noBookings')}
+                      keyExtractor={(row) => row.id}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -4293,7 +4304,13 @@ export default function Admin() {
                     </Button>
                   )}
                 </div>
-                {filteredUsers && filteredUsers.length > 0 ? (
+                {isLoadingUsers ? (
+                  <div className="space-y-2" data-testid="skeleton-users">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
+                ) : filteredUsers && filteredUsers.length > 0 ? (
                   <div>
                     <p className="text-sm text-muted-foreground mb-3">
                       Showing {filteredUsers.length} of {users?.length || 0} users
@@ -4493,7 +4510,11 @@ export default function Admin() {
                   {followUpsExpanded && (
                     <CardContent className="space-y-2 pt-0">
                       {followUpsLoading ? (
-                        <div className="py-4 text-center text-muted-foreground">Loading...</div>
+                        <div className="space-y-2" data-testid="skeleton-follow-ups">
+                          {[1, 2, 3].map(i => (
+                            <Skeleton key={i} className="h-16 w-full" />
+                          ))}
+                        </div>
                       ) : (
                         <>
                           {followUps.map((item) => (
@@ -4655,9 +4676,11 @@ export default function Admin() {
                     </span>
                   </div>
 
-                  {isLoadingOnboarding ? (
-                    <div className="py-12">
-                      <GolfLoader size="md" text="Loading course data..." />
+                  {isLoadingOnboarding || isLoadingCourses ? (
+                    <div className="space-y-2" data-testid="skeleton-courses">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <Skeleton key={i} className="h-16 w-full" />
+                      ))}
                     </div>
                   ) : filteredCourses.length > 0 ? (
                     <>
@@ -7197,7 +7220,6 @@ export default function Admin() {
                                       thread.status === "OPEN" ? "secondary" :
                                       thread.status === "REPLIED" ? "default" :
                                       thread.status === "CLOSED" ? "outline" :
-                                      thread.status === "DELETED" ? "destructive" :
                                       "outline"
                                     }
                                     className={`text-xs ${
@@ -7205,7 +7227,6 @@ export default function Admin() {
                                       thread.status === "REPLIED" ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600" :
                                       thread.status === "CLOSED" ? "bg-slate-500 hover:bg-slate-600 text-white border-slate-500" :
                                       thread.status === "ARCHIVED" ? "bg-slate-300 hover:bg-slate-400 text-slate-700 border-slate-300 dark:bg-slate-600 dark:text-slate-200 dark:border-slate-600" :
-                                      thread.status === "DELETED" ? "bg-red-500 hover:bg-red-600 text-white border-red-500" :
                                       ""
                                     }`}
                                   >
@@ -7361,104 +7382,70 @@ export default function Admin() {
                               </SelectContent>
                             </Select>
                             
-                            {selectedThread.status === "DELETED" ? (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-shrink-0"
-                                  onClick={() => restoreThreadMutation.mutate(selectedThread.id)}
-                                  disabled={restoreThreadMutation.isPending}
-                                  data-testid="button-restore-thread"
-                                >
-                                  <Archive className="h-4 w-4 lg:mr-1" />
-                                  <span className="hidden lg:inline">{t('inbox.restore')}</span>
-                                </Button>
-                                
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className="flex-shrink-0"
-                                  onClick={() => {
-                                    if (confirm(t('inbox.confirmPermanentDelete'))) {
-                                      permanentlyDeleteThreadMutation.mutate(selectedThread.id);
-                                    }
-                                  }}
-                                  disabled={permanentlyDeleteThreadMutation.isPending}
-                                  data-testid="button-permanent-delete-thread"
-                                >
-                                  <Trash2 className="h-4 w-4 lg:mr-1" />
-                                  <span className="hidden lg:inline">{t('inbox.permanentDelete')}</span>
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-shrink-0"
-                                  onClick={() => updateThreadStatusMutation.mutate({
-                                    threadId: selectedThread.id,
-                                    status: selectedThread.status === "ARCHIVED" ? "OPEN" : "ARCHIVED"
-                                  })}
-                                  data-testid="button-archive-thread"
-                                >
-                                  <Archive className="h-4 w-4 lg:mr-1" />
-                                  <span className="hidden lg:inline">{selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}</span>
-                                </Button>
-                                
-                                <Button
-                                  variant={selectedThread.isMuted === "true" ? "default" : "outline"}
-                                  size="sm"
-                                  className="flex-shrink-0"
-                                  onClick={() => muteThreadMutation.mutate({
-                                    threadId: selectedThread.id,
-                                    muted: selectedThread.isMuted !== "true"
-                                  })}
-                                  data-testid="button-mute-thread"
-                                >
-                                  {selectedThread.isMuted === "true" ? (
-                                    <>
-                                      <Bell className="h-4 w-4 lg:mr-1" />
-                                      <span className="hidden lg:inline">{t('inbox.unmute')}</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <BellOff className="h-4 w-4 lg:mr-1" />
-                                      <span className="hidden lg:inline">{t('inbox.mute')}</span>
-                                    </>
-                                  )}
-                                </Button>
-                                
-                                {selectedThread.status !== "CLOSED" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex-shrink-0"
-                                    onClick={() => updateThreadStatusMutation.mutate({
-                                      threadId: selectedThread.id,
-                                      status: "CLOSED"
-                                    })}
-                                    data-testid="button-close-thread"
-                                  >
-                                    <XCircle className="h-4 w-4 lg:mr-1" />
-                                    <span className="hidden lg:inline">{t('inbox.close')}</span>
-                                  </Button>
-                                )}
-                                
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-shrink-0 text-destructive hover:text-destructive"
-                                  onClick={() => deleteThreadMutation.mutate(selectedThread.id)}
-                                  disabled={deleteThreadMutation.isPending}
-                                  data-testid="button-delete-thread"
-                                >
-                                  <Trash2 className="h-4 w-4 lg:mr-1" />
-                                  <span className="hidden lg:inline">{t('inbox.delete')}</span>
-                                </Button>
-                              </>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-shrink-0"
+                              onClick={() => updateThreadStatusMutation.mutate({
+                                threadId: selectedThread.id,
+                                status: selectedThread.status === "ARCHIVED" ? "OPEN" : "ARCHIVED"
+                              })}
+                              data-testid="button-archive-thread"
+                            >
+                              <Archive className="h-4 w-4 lg:mr-1" />
+                              <span className="hidden lg:inline">{selectedThread.status === "ARCHIVED" ? t('inbox.reopen') : t('inbox.archive')}</span>
+                            </Button>
+                            
+                            <Button
+                              variant={selectedThread.isMuted === "true" ? "default" : "outline"}
+                              size="sm"
+                              className="flex-shrink-0"
+                              onClick={() => muteThreadMutation.mutate({
+                                threadId: selectedThread.id,
+                                muted: selectedThread.isMuted !== "true"
+                              })}
+                              data-testid="button-mute-thread"
+                            >
+                              {selectedThread.isMuted === "true" ? (
+                                <>
+                                  <Bell className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{t('inbox.unmute')}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <BellOff className="h-4 w-4 lg:mr-1" />
+                                  <span className="hidden lg:inline">{t('inbox.mute')}</span>
+                                </>
+                              )}
+                            </Button>
+                            
+                            {selectedThread.status !== "CLOSED" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-shrink-0"
+                                onClick={() => updateThreadStatusMutation.mutate({
+                                  threadId: selectedThread.id,
+                                  status: "CLOSED"
+                                })}
+                                data-testid="button-close-thread"
+                              >
+                                <XCircle className="h-4 w-4 lg:mr-1" />
+                                <span className="hidden lg:inline">{t('inbox.close')}</span>
+                              </Button>
                             )}
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-shrink-0 text-destructive hover:text-destructive"
+                              onClick={() => deleteThreadMutation.mutate(selectedThread.id)}
+                              disabled={deleteThreadMutation.isPending}
+                              data-testid="button-delete-thread"
+                            >
+                              <Trash2 className="h-4 w-4 lg:mr-1" />
+                              <span className="hidden lg:inline">{t('inbox.delete')}</span>
+                            </Button>
                           </div>
                         </div>
                       </CardHeader>
