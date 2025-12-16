@@ -245,8 +245,10 @@ export default function TeeTimeSearch() {
                               setDateRange({ from, to });
                             }
                           }}
-                          disabled={(date) => date < new Date()}
-                          numberOfMonths={1}
+                          disabled={(date) => date < new Date() || date > addDays(new Date(), 90)}
+                          fromDate={new Date()}
+                          toDate={addDays(new Date(), 90)}
+                          numberOfMonths={2}
                         />
                         <div className="p-3 border-t text-xs text-muted-foreground">
                           Max 7 days range
