@@ -16,7 +16,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { CalendarIcon, Search, X, Clock, SlidersHorizontal } from "lucide-react";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
@@ -46,7 +46,7 @@ interface SearchFiltersProps {
 
 export function SearchFilters({ currentFilters, onSearch }: SearchFiltersProps) {
   const { t } = useI18n();
-  const [date, setDate] = useState<Date | undefined>(currentFilters?.date);
+  const [date, setDate] = useState<Date | undefined>(currentFilters?.date || addDays(new Date(), 1));
   const [players, setPlayers] = useState<string>(currentFilters?.players.toString() || "2");
   const [fromTime, setFromTime] = useState<string>(currentFilters?.fromTime || "07:00");
   const [toTime, setToTime] = useState<string>(currentFilters?.toTime || "20:00");
