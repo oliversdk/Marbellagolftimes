@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, decimal, real, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal, real, index, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1013,10 +1013,12 @@ export const bookingHolds = pgTable("booking_holds", {
   teeTime: timestamp("tee_time").notNull(),
   players: integer("players").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
+  orderPayloadJson: text("order_payload_json"), // Store full order details as JSON
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_booking_holds_expires").on(table.expiresAt),
-  index("idx_booking_holds_session").on(table.sessionId)
+  index("idx_booking_holds_session").on(table.sessionId),
+  uniqueIndex("idx_booking_holds_unique").on(table.sessionId, table.courseId, table.teeTime)
 ]);
 
 export const insertBookingHoldSchema = createInsertSchema(bookingHolds).omit({ 

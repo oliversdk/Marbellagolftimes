@@ -9,6 +9,7 @@ import { teeoneClient } from "./providers/teeone";
 import { getZestGolfService } from "./services/zestGolf";
 import { syncBookingToProvider } from "./services/bookingSyncService";
 import * as bookingHoldsService from "./services/bookingHolds";
+import { syncCommissionForCourse } from "./services/commissionSync";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts, zestPricingData } from "@shared/schema";
 import { db } from "./db";
@@ -34,43 +35,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
 });
 
 // ============================================================
-// OnTee-inspired Booking API - Database-backed holds with in-memory order details
+// OnTee-inspired Booking API - Fully Database-backed holds
 // ============================================================
-// Core hold persistence is in the database (survives restarts)
-// Extended order details are kept in memory for the active session
-interface TeeTimeOrderDetails {
-  orderId: string;
-  courseId: string;
-  tenant: string;
-  slotId: string;
-  teeTime: string;
-  date: string;
-  time: string;
-  players: number;
-  holes: number;
-  greenFee: { amount: number; currency: string };
-  extras: { type: string; amount: number; currency: string; description?: string }[];
-  total: { amount: number; currency: string };
-  status: "HELD" | "CONFIRMED" | "EXPIRED";
-  holdExpiresAt: Date;
-  createdAt: Date;
-  customer?: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone?: string;
-    language?: string;
-  };
-  payment?: {
-    method: string;
-    status: string;
-    transactionId?: string;
-  };
-  bookingId?: string;
-}
-
-// In-memory cache for extended order details (indexed by orderId/sessionId)
-const teeTimeOrderDetails = new Map<string, TeeTimeOrderDetails>();
+// Order details are persisted in the database (survives restarts)
+// Uses bookingHoldsService with orderPayloadJson column
 
 // ============================================================
 // Server-Side Tee Time Price Cache (SECURITY: prices from API only)
@@ -118,20 +86,10 @@ export function convertToCustomerPrice(ttooPrice: number, markupPercent: number 
   return Math.round(customerPrice);
 }
 
-// Cleanup expired holds every 5 minutes (database and memory)
+// Cleanup expired holds every 5 minutes (database only now)
 setInterval(async () => {
   try {
-    // Clean up expired holds from database
     await bookingHoldsService.cleanupExpiredHolds();
-    
-    // Also clean up in-memory order details for expired holds
-    const now = new Date();
-    teeTimeOrderDetails.forEach((details, orderId) => {
-      if (details.status === "HELD" && details.holdExpiresAt < now) {
-        details.status = "EXPIRED";
-        console.log(`[OnTee API] Hold expired: ${orderId}`);
-      }
-    });
   } catch (error) {
     console.error("[OnTee API] Error cleaning up expired holds:", error);
   }
@@ -1667,9 +1625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...updates 
         });
         
-        // Sync agreedCommission to golf_courses.kickback_percent
         if (updates.agreedCommission !== undefined) {
-          await storage.updateCourse(courseId, { kickbackPercent: updates.agreedCommission });
+          await syncCommissionForCourse(courseId, updates.agreedCommission);
         }
         
         return res.json(created);
@@ -1677,9 +1634,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const result = await storage.updateOnboarding(courseId, updates);
       
-      // Sync agreedCommission to golf_courses.kickback_percent
       if (updates.agreedCommission !== undefined) {
-        await storage.updateCourse(courseId, { kickbackPercent: updates.agreedCommission });
+        await syncCommissionForCourse(courseId, updates.agreedCommission);
       }
       
       res.json(result);
@@ -2669,11 +2625,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Build updates object with only provided fields
-      const updates: Partial<GolfCourse> = {};
+      // Handle kickbackPercent separately with centralized sync
       if (result.data.kickbackPercent !== undefined) {
-        updates.kickbackPercent = result.data.kickbackPercent;
+        await syncCommissionForCourse(req.params.id, result.data.kickbackPercent);
       }
+      
+      // Build updates object with only provided fields (excluding kickbackPercent which is handled above)
+      const updates: Partial<GolfCourse> = {};
       // Golfmanager V1 credentials
       if (result.data.golfmanagerV1User !== undefined) {
         updates.golfmanagerV1User = result.data.golfmanagerV1User || null;
@@ -5912,57 +5870,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create or update order
       const newOrderId = orderId || randomUUID();
-      let orderDetails = teeTimeOrderDetails.get(newOrderId);
       const teeTimeDate = new Date(teeTime);
+      const date = teeTime.split("T")[0] || new Date().toISOString().split("T")[0];
+      const time = teeTime.split("T")[1]?.substring(0, 5) || "00:00";
+      const holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-      if (!orderDetails) {
-        // Create new hold with 15 minute expiry - persist to database
-        const date = teeTime.split("T")[0] || new Date().toISOString().split("T")[0];
-        const time = teeTime.split("T")[1]?.substring(0, 5) || "00:00";
-        const holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      // Check if hold exists in database
+      const existingHolds = await bookingHoldsService.getHoldBySessionId(newOrderId);
+      
+      // Build order payload for DB storage
+      const orderPayload: bookingHoldsService.OrderPayload = {
+        orderId: newOrderId,
+        courseId,
+        tenant,
+        slotId,
+        teeTime,
+        date,
+        time,
+        players,
+        holes: 18,
+        greenFee: finalGreenFee,
+        extras: extrasArray,
+        total: { amount: totalAmount, currency: finalGreenFee.currency },
+        status: "HELD",
+        holdExpiresAt: holdExpiresAt.toISOString(),
+        createdAt: new Date().toISOString(),
+      };
 
-        // Create persistent hold in database
+      if (existingHolds.length === 0) {
+        // Create new hold with 15 minute expiry - persist to database with order payload
         await bookingHoldsService.createHold({
           sessionId: newOrderId,
           courseId,
           teeTime: teeTimeDate,
           players,
-          ttlMinutes: 15
+          ttlMinutes: 15,
+          orderPayload
         });
-
-        orderDetails = {
-          orderId: newOrderId,
-          courseId,
-          tenant,
-          slotId,
-          teeTime,
-          date,
-          time,
-          players,
-          holes: 18,
-          greenFee: finalGreenFee,
-          extras: extrasArray,
-          total: { amount: totalAmount, currency: finalGreenFee.currency },
-          status: "HELD",
-          holdExpiresAt,
-          createdAt: new Date(),
-        };
-        teeTimeOrderDetails.set(newOrderId, orderDetails);
         console.log(`[OnTee API] Created new hold: ${newOrderId} for ${course.name}`);
       } else {
-        // Update existing order details
-        orderDetails.greenFee = finalGreenFee;
-        orderDetails.extras = extrasArray;
-        orderDetails.total = { amount: totalAmount, currency: finalGreenFee.currency };
-        orderDetails.players = players;
-        
-        // Extend the hold expiry in database
-        await bookingHoldsService.updateHoldExpiry(newOrderId, courseId, teeTimeDate, 15);
+        // Update existing hold with new order payload
+        await bookingHoldsService.updateHoldOrderPayload(newOrderId, courseId, teeTimeDate, orderPayload, 15);
         console.log(`[OnTee API] Updated hold: ${newOrderId}`);
       }
 
       res.json({
-        orderId: orderDetails.orderId,
+        orderId: newOrderId,
         course: {
           id: course.id,
           name: course.name,
@@ -5973,12 +5926,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           slotId,
           teeTime,
           players,
-          greenFee: orderDetails.greenFee,
-          extras: orderDetails.extras
+          greenFee: finalGreenFee,
+          extras: extrasArray
         }],
-        total: orderDetails.total,
-        status: orderDetails.status,
-        holdExpiresAt: orderDetails.holdExpiresAt.toISOString()
+        total: orderPayload.total,
+        status: orderPayload.status,
+        holdExpiresAt: holdExpiresAt.toISOString()
       });
     } catch (error) {
       console.error("[OnTee API] Order items error:", error);
@@ -5997,16 +5950,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Find the order details from in-memory cache
-      const orderDetails = teeTimeOrderDetails.get(orderId);
+      // Find the order details from database
+      const dbHolds = await bookingHoldsService.getHoldBySessionId(orderId);
+      if (dbHolds.length === 0) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      
+      const dbHold = dbHolds[0];
+      const orderDetails = bookingHoldsService.parseOrderPayload(dbHold);
+      
       if (!orderDetails) {
-        // Check if there's a hold in the database (might have been created before server restart)
-        const dbHolds = await bookingHoldsService.getHoldBySessionId(orderId);
-        if (dbHolds.length === 0) {
-          return res.status(404).json({ error: "Order not found" });
-        }
-        // Hold exists in DB but not in memory - session data was lost on restart
-        return res.status(410).json({ error: "Session expired. Please start a new booking." });
+        return res.status(410).json({ error: "Order data incomplete. Please start a new booking." });
       }
 
       if (orderDetails.status === "EXPIRED") {
@@ -6017,11 +5971,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Booking already confirmed", bookingId: orderDetails.bookingId });
       }
 
-      // Check if hold is still valid in database
-      const teeTimeDate = new Date(orderDetails.teeTime);
-      const dbHold = await bookingHoldsService.getHold(orderId, orderDetails.courseId, teeTimeDate);
-      if (!dbHold) {
-        orderDetails.status = "EXPIRED";
+      // Check if hold is still valid (not expired)
+      if (dbHold.expiresAt < new Date()) {
         return res.status(410).json({ error: "Hold has expired. Please select a new tee time." });
       }
 
@@ -6116,45 +6067,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/v1/bookings/orders/:orderId - Get order status
   app.get("/api/v1/bookings/orders/:orderId", async (req, res) => {
     try {
-      const orderDetails = teeTimeOrderDetails.get(req.params.orderId);
-      if (!orderDetails) {
-        // Check if there's a hold in the database
-        const dbHolds = await bookingHoldsService.getHoldBySessionId(req.params.orderId);
-        if (dbHolds.length > 0) {
-          // Hold exists in DB but session data was lost - return minimal info
-          const dbHold = dbHolds[0];
-          const course = await storage.getCourseById(dbHold.courseId);
-          return res.json({
-            orderId: req.params.orderId,
-            status: dbHold.expiresAt < new Date() ? "EXPIRED" : "HELD",
-            course: course ? { id: course.id, name: course.name } : null,
-            teeTime: {
-              date: dbHold.teeTime.toISOString().split("T")[0],
-              time: dbHold.teeTime.toISOString().split("T")[1]?.substring(0, 5) || "00:00",
-              players: dbHold.players,
-              holes: 18
-            },
-            holdExpiresAt: dbHold.expiresAt.toISOString(),
-            message: "Session data expired. Please create a new booking."
-          });
-        }
+      // Get hold from database
+      const dbHolds = await bookingHoldsService.getHoldBySessionId(req.params.orderId);
+      if (dbHolds.length === 0) {
         return res.status(404).json({ error: "Order not found" });
       }
-
-      // Check if expired using database
-      if (orderDetails.status === "HELD") {
-        const teeTimeDate = new Date(orderDetails.teeTime);
-        const dbHold = await bookingHoldsService.getHold(req.params.orderId, orderDetails.courseId, teeTimeDate);
-        if (!dbHold) {
-          orderDetails.status = "EXPIRED";
-        }
+      
+      const dbHold = dbHolds[0];
+      const orderDetails = bookingHoldsService.parseOrderPayload(dbHold);
+      
+      // If no order payload, return minimal info from DB hold
+      if (!orderDetails) {
+        const course = await storage.getCourseById(dbHold.courseId);
+        return res.json({
+          orderId: req.params.orderId,
+          status: dbHold.expiresAt < new Date() ? "EXPIRED" : "HELD",
+          course: course ? { id: course.id, name: course.name } : null,
+          teeTime: {
+            date: dbHold.teeTime.toISOString().split("T")[0],
+            time: dbHold.teeTime.toISOString().split("T")[1]?.substring(0, 5) || "00:00",
+            players: dbHold.players,
+            holes: 18
+          },
+          holdExpiresAt: dbHold.expiresAt.toISOString()
+        });
       }
 
+      // Check if expired
+      const status = dbHold.expiresAt < new Date() ? "EXPIRED" : orderDetails.status;
       const course = await storage.getCourseById(orderDetails.courseId);
 
       res.json({
         orderId: orderDetails.orderId,
-        status: orderDetails.status,
+        status,
         course: course ? { id: course.id, name: course.name } : null,
         teeTime: {
           date: orderDetails.date,
@@ -6165,7 +6110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         greenFee: orderDetails.greenFee,
         extras: orderDetails.extras,
         total: orderDetails.total,
-        holdExpiresAt: orderDetails.holdExpiresAt.toISOString(),
+        holdExpiresAt: dbHold.expiresAt.toISOString(),
         bookingId: orderDetails.bookingId
       });
     } catch (error) {

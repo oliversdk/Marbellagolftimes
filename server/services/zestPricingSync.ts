@@ -3,6 +3,7 @@ import { zestPricingData, golfCourses, courseProviderLinks, teeTimeProviders, co
 import type { ZestPricingJson } from "@shared/schema";
 import { eq, and, ilike } from "drizzle-orm";
 import { getZestGolfService, ZestTeeTimeResponse, ZestProduct, ZestFacilityDetails, ZestContact } from "./zestGolf";
+import { syncCommissionForCourse } from "./commissionSync";
 
 interface SyncResult {
   success: boolean;
@@ -160,21 +161,7 @@ export async function syncZestPricingForCourse(
       });
     }
 
-    await db.update(golfCourses)
-      .set({ kickbackPercent: averageCommissionPercent })
-      .where(eq(golfCourses.id, courseId));
-
-    // Also sync to course_onboarding.agreedCommission
-    const existingOnboarding = await db.select()
-      .from(courseOnboarding)
-      .where(eq(courseOnboarding.courseId, courseId))
-      .limit(1);
-
-    if (existingOnboarding.length > 0) {
-      await db.update(courseOnboarding)
-        .set({ agreedCommission: averageCommissionPercent, updatedAt: new Date() })
-        .where(eq(courseOnboarding.courseId, courseId));
-    }
+    await syncCommissionForCourse(courseId, averageCommissionPercent);
 
     return {
       success: true,
