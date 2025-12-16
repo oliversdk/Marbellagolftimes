@@ -23,36 +23,39 @@ interface RealTimeCourse {
   bookingUrl: string;
   imageUrl: string | null;
   city: string;
-  providerType: 'teeone' | 'imaster' | 'zest' | 'golfmanager';
+  providerType: 'zest' | 'golfmanager';
+  hasGolfmanagerV1?: boolean;
+  hasGolfmanagerV3?: boolean;
 }
 
 interface TeeTime {
-  id: number;
+  id: string | number;
   time: string;
-  course: string;
+  price: number;
+  currency: string;
+  players: number;
   holes: number;
-  players?: number;
-  pricing?: Array<{
-    players: string;
-    price: { amount: number; currency: string };
-  }>;
+  source: string;
+  packageName?: string;
+  packages?: any[];
 }
 
-interface SearchResult {
-  facilityId: number;
+interface CourseSearchResult {
+  courseId: string;
+  courseName: string;
+  providerType: string;
   dates: Array<{
     date: string;
     teeTimes: TeeTime[];
-    cancellationPolicy: any[];
     error?: string;
   }>;
 }
 
-interface SearchResponse {
+interface MultiSearchResponse {
   success: boolean;
-  facilities: SearchResult[];
+  courses: CourseSearchResult[];
   summary: {
-    totalFacilities: number;
+    totalCourses: number;
     totalDates: number;
     totalTeeTimes: number;
   };
@@ -67,43 +70,36 @@ export default function TeeTimeSearch() {
   });
   const [players, setPlayers] = useState<string>("4");
   const [holes, setHoles] = useState<string>("18");
-  const [expandedFacilities, setExpandedFacilities] = useState<Set<number>>(new Set());
+  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
 
+  // Use the new multi-provider endpoint that returns Zest AND Golfmanager courses
   const { data: courses, isLoading: coursesLoading } = useQuery<{ success: boolean; courses: RealTimeCourse[] }>({
-    queryKey: ['/api/courses/zest-facilities'],
+    queryKey: ['/api/courses/realtime-providers'],
   });
 
   const searchMutation = useMutation({
-    mutationFn: async (): Promise<SearchResponse> => {
-      const selectedCoursesData = courses?.courses.filter(c => selectedCourses.includes(c.id)) || [];
-      
-      // Filter to only Zest courses (those with facilityIds)
-      const zestFacilityIds = selectedCoursesData
-        .filter(c => c.zestFacilityId !== null)
-        .map(c => c.zestFacilityId as number);
-
-      if (zestFacilityIds.length === 0) {
-        // No Zest courses selected - return mock empty response for now
-        // TODO: Integrate TeeOne/iMaster APIs for multi-search
+    mutationFn: async (): Promise<MultiSearchResponse> => {
+      if (selectedCourses.length === 0) {
         return {
           success: true,
-          facilities: [],
+          courses: [],
           summary: {
-            totalFacilities: 0,
+            totalCourses: 0,
             totalDates: 0,
             totalTeeTimes: 0,
           },
         };
       }
 
-      const response = await apiRequest('/api/zest/teetimes/search', 'POST', {
-        facilityIds: zestFacilityIds,
+      // Use the new multi-provider search endpoint
+      const response = await apiRequest('/api/teetimes/multi-search', 'POST', {
+        courseIds: selectedCourses,
         fromDate: dateRange.from?.toISOString(),
         toDate: dateRange.to?.toISOString(),
         players: parseInt(players),
         holes: parseInt(holes),
       });
-      return response as unknown as SearchResponse;
+      return response as unknown as MultiSearchResponse;
     },
   });
 
@@ -117,45 +113,51 @@ export default function TeeTimeSearch() {
 
   const handleSearch = () => {
     if (selectedCourses.length === 0 || !dateRange.from || !dateRange.to) return;
-    setExpandedFacilities(new Set()); // Reset expanded state
+    setExpandedCourses(new Set()); // Reset expanded state
     searchMutation.mutate(undefined, {
       onSuccess: (data) => {
-        // Auto-expand first facility with tee times
-        const firstFacilityWithTeeTimes = data.facilities.find(
-          f => f.dates.some(d => d.teeTimes.length > 0)
-        );
-        if (firstFacilityWithTeeTimes) {
-          setExpandedFacilities(new Set([firstFacilityWithTeeTimes.facilityId]));
+        // Auto-expand first course with tee times (with defensive null check)
+        if (data?.courses && Array.isArray(data.courses)) {
+          const firstCourseWithTeeTimes = data.courses.find(
+            c => c.dates?.some(d => d.teeTimes?.length > 0)
+          );
+          if (firstCourseWithTeeTimes) {
+            setExpandedCourses(new Set([firstCourseWithTeeTimes.courseId]));
+          }
         }
       }
     });
   };
 
-  const toggleFacilityExpand = (facilityId: number) => {
-    setExpandedFacilities(prev => {
+  const toggleCourseExpand = (courseId: string) => {
+    setExpandedCourses(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(facilityId)) {
-        newSet.delete(facilityId);
+      if (newSet.has(courseId)) {
+        newSet.delete(courseId);
       } else {
-        newSet.add(facilityId);
+        newSet.add(courseId);
       }
       return newSet;
     });
   };
 
-  const getCourseName = (facilityId: number) => {
-    return courses?.courses.find(c => c.zestFacilityId === facilityId)?.name || `Facility ${facilityId}`;
+  const getCourseInfo = (courseId: string) => {
+    return courses?.courses.find(c => c.id === courseId);
   };
 
-  const getCourseInfo = (facilityId: number) => {
-    return courses?.courses.find(c => c.zestFacilityId === facilityId);
+  const formatPrice = (price: number, currency: string = 'EUR') => {
+    return `€${price.toFixed(0)}`;
   };
 
-  const formatPrice = (pricing: TeeTime['pricing'], playerCount: number) => {
-    if (!pricing) return null;
-    const priceInfo = pricing.find(p => p.players === String(playerCount));
-    if (!priceInfo) return null;
-    return `€${priceInfo.price.amount}`;
+  const getProviderBadge = (providerType: string) => {
+    switch (providerType) {
+      case 'zest':
+        return <Badge variant="secondary" className="text-xs">Zest</Badge>;
+      case 'golfmanager':
+        return <Badge variant="outline" className="text-xs border-green-500 text-green-700">GM</Badge>;
+      default:
+        return null;
+    }
   };
 
   const dateDiff = dateRange.from && dateRange.to
@@ -289,7 +291,7 @@ export default function TeeTimeSearch() {
                       </div>
                     ) : courses?.courses && courses.courses.length > 0 ? (
                       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                        {courses.courses.filter(c => c.zestFacilityId !== null).map(course => (
+                        {courses.courses.map(course => (
                           <label
                             key={course.id}
                             className="flex items-start gap-3 p-2 rounded-md hover-elevate cursor-pointer"
@@ -308,10 +310,15 @@ export default function TeeTimeSearch() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium leading-tight">{course.name}</p>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                  {course.providerType === 'teeone' ? 'TeeOne' :
-                                   course.providerType === 'imaster' ? 'iMaster' :
-                                   course.providerType === 'zest' ? 'Zest' : 'GM'}
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-[10px] px-1.5 py-0 ${
+                                    course.providerType === 'golfmanager' 
+                                      ? 'border-green-500 text-green-700' 
+                                      : ''
+                                  }`}
+                                >
+                                  {course.providerType === 'zest' ? 'Zest' : 'GM'}
                                 </Badge>
                               </div>
                               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -357,16 +364,14 @@ export default function TeeTimeSearch() {
 
             <div className="lg:col-span-2">
               {searchMutation.data ? (
-                searchMutation.data.facilities.length === 0 ? (
+                !searchMutation.data.courses?.length || searchMutation.data.summary?.totalTeeTimes === 0 ? (
                   <Card>
                     <CardContent className="py-12">
                       <div className="text-center">
                         <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <h3 className="text-lg font-medium mb-2">No Tee Times Found</h3>
                         <p className="text-muted-foreground max-w-md mx-auto">
-                          {searchMutation.data.summary.totalFacilities === 0 
-                            ? "Multi-search currently supports Zest Golf courses. Please select courses marked with the Zest badge."
-                            : "No tee times available for the selected courses and dates. Try expanding your date range or selecting different courses."}
+                          No tee times available for the selected courses and dates. Try expanding your date range or selecting different courses.
                         </p>
                       </div>
                     </CardContent>
@@ -377,35 +382,38 @@ export default function TeeTimeSearch() {
                     <CardHeader className="pb-3">
                       <CardTitle>Search Results</CardTitle>
                       <CardDescription>
-                        Found {searchMutation.data.summary.totalTeeTimes} tee times across{' '}
-                        {searchMutation.data.summary.totalFacilities} courses and{' '}
-                        {searchMutation.data.summary.totalDates} dates
+                        Found {searchMutation.data.summary?.totalTeeTimes || 0} tee times across{' '}
+                        {searchMutation.data.summary?.totalCourses || 0} courses and{' '}
+                        {searchMutation.data.summary?.totalDates || 0} dates
                       </CardDescription>
                     </CardHeader>
                   </Card>
 
-                  {searchMutation.data.facilities.map(facility => {
-                    const courseInfo = getCourseInfo(facility.facilityId);
-                    const isExpanded = expandedFacilities.has(facility.facilityId);
-                    const totalTeeTimes = facility.dates.reduce((sum, d) => sum + d.teeTimes.length, 0);
+                  {(searchMutation.data.courses || []).map(course => {
+                    const courseInfo = getCourseInfo(course.courseId);
+                    const isExpanded = expandedCourses.has(course.courseId);
+                    const totalTeeTimes = (course.dates || []).reduce((sum, d) => sum + (d.teeTimes?.length || 0), 0);
 
                     return (
-                      <Card key={facility.facilityId}>
+                      <Card key={course.courseId}>
                         <CardHeader
                           className="cursor-pointer"
-                          onClick={() => toggleFacilityExpand(facility.facilityId)}
+                          onClick={() => toggleCourseExpand(course.courseId)}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               {courseInfo?.imageUrl && (
                                 <img
                                   src={courseInfo.imageUrl}
-                                  alt={courseInfo.name}
+                                  alt={course.courseName}
                                   className="w-12 h-12 rounded-md object-cover"
                                 />
                               )}
                               <div>
-                                <CardTitle className="text-lg">{getCourseName(facility.facilityId)}</CardTitle>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                  {course.courseName}
+                                  {getProviderBadge(course.providerType)}
+                                </CardTitle>
                                 <CardDescription className="flex items-center gap-2">
                                   <Badge variant="secondary">{totalTeeTimes} tee times</Badge>
                                   {courseInfo?.city && (
@@ -425,45 +433,45 @@ export default function TeeTimeSearch() {
 
                         {isExpanded && (
                           <CardContent className="pt-0">
-                            {facility.dates.map(dateData => (
+                            {(course.dates || []).map(dateData => (
                               <div key={dateData.date} className="mb-4 last:mb-0">
                                 <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                                   <CalendarIcon className="h-4 w-4" />
                                   {format(new Date(dateData.date), 'EEEE, MMMM d')}
                                   <Badge variant="outline" className="ml-auto">
-                                    {dateData.teeTimes.length} slots
+                                    {dateData.teeTimes?.length || 0} slots
                                   </Badge>
                                 </h4>
 
                                 {dateData.error ? (
                                   <p className="text-sm text-destructive">{dateData.error}</p>
-                                ) : dateData.teeTimes.length > 0 ? (
+                                ) : (dateData.teeTimes?.length || 0) > 0 ? (
                                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                    {dateData.teeTimes.map((teeTime, idx) => (
+                                    {(dateData.teeTimes || []).map((teeTime, idx) => (
                                       <Button
                                         key={`${teeTime.id}-${idx}`}
                                         variant="outline"
                                         className="flex flex-col items-start p-3 h-auto"
                                         onClick={() => {
-                                          if (courseInfo) {
-                                            navigate(`/course/${courseInfo.id}?date=${dateData.date}`);
-                                          }
+                                          navigate(`/course/${course.courseId}?date=${dateData.date}`);
                                         }}
                                         data-testid={`button-teetime-${teeTime.id}`}
                                       >
                                         <div className="flex items-center gap-1 text-sm font-medium">
                                           <Clock className="h-3 w-3" />
-                                          {format(new Date(teeTime.time), 'HH:mm')}
+                                          {teeTime.time.includes('T') 
+                                            ? format(new Date(teeTime.time), 'HH:mm')
+                                            : teeTime.time.slice(11, 16)}
                                         </div>
                                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                                           <span className="flex items-center gap-0.5">
                                             <Users className="h-3 w-3" />
-                                            {teeTime.players || parseInt(players)}
+                                            {teeTime.players}
                                           </span>
-                                          {formatPrice(teeTime.pricing, parseInt(players)) && (
+                                          {teeTime.price > 0 && (
                                             <span className="flex items-center gap-0.5 text-primary font-medium">
                                               <Euro className="h-3 w-3" />
-                                              {formatPrice(teeTime.pricing, parseInt(players))?.replace('€', '')}
+                                              {teeTime.price}
                                             </span>
                                           )}
                                         </div>

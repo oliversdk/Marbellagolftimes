@@ -2259,6 +2259,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/courses/realtime-providers - Get ALL courses with any live API integration (Zest, Golfmanager, TeeOne, etc.)
+  // IMPORTANT: This route must be defined BEFORE /api/courses/:id to avoid being caught by the param route
+  app.get("/api/courses/realtime-providers", async (req, res) => {
+    try {
+      // Get Zest facility mappings
+      const zestMappings = await db.select({
+        courseId: zestPricingData.courseId,
+        zestFacilityId: zestPricingData.zestFacilityId,
+      }).from(zestPricingData);
+      
+      const zestFacilityMap = new Map(zestMappings.map(m => [m.courseId, m.zestFacilityId]));
+      
+      const allCourses = await storage.getAllCourses();
+      
+      // Find courses with any real-time API integration
+      const realtimeCourses = allCourses
+        .filter(c => {
+          // Has Zest integration
+          const hasZest = zestFacilityMap.has(c.id);
+          // Has Golfmanager V1 credentials
+          const hasGolfmanagerV1 = !!(c.golfmanagerV1User && c.golfmanagerV1Password);
+          // Has Golfmanager V3 credentials
+          const hasGolfmanagerV3 = !!(c.golfmanagerUser && c.golfmanagerPassword);
+          
+          return hasZest || hasGolfmanagerV1 || hasGolfmanagerV3;
+        })
+        .map(c => {
+          // Determine provider type
+          let providerType: 'zest' | 'golfmanager' = 'golfmanager';
+          let zestFacilityId: number | null = null;
+          
+          if (zestFacilityMap.has(c.id)) {
+            providerType = 'zest';
+            zestFacilityId = zestFacilityMap.get(c.id) || null;
+          }
+          
+          const hasGolfmanagerV1 = !!(c.golfmanagerV1User && c.golfmanagerV1Password);
+          const hasGolfmanagerV3 = !!(c.golfmanagerUser && c.golfmanagerPassword);
+          
+          return {
+            id: c.id,
+            name: c.name,
+            zestFacilityId,
+            bookingUrl: c.bookingUrl,
+            imageUrl: c.imageUrl,
+            city: c.city,
+            providerType,
+            hasGolfmanagerV1,
+            hasGolfmanagerV3,
+            golfmanagerClubId: c.golfmanagerClubId,
+          };
+        });
+      
+      res.json({ success: true, courses: realtimeCourses });
+    } catch (error: any) {
+      console.error("Failed to get realtime courses:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // GET /api/courses/:id - Get course by ID
   app.get("/api/courses/:id", async (req, res) => {
     try {
@@ -7000,6 +7060,211 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Failed to search Zest tee times:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // POST /api/teetimes/multi-search - Search tee times across multiple providers (Zest + Golfmanager)
+  app.post("/api/teetimes/multi-search", async (req, res) => {
+    try {
+      const { courseIds, fromDate, toDate, players = 4, holes = 18 } = req.body;
+      
+      if (!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+        return res.status(400).json({ success: false, error: "At least one courseId is required" });
+      }
+      
+      if (!fromDate || !toDate) {
+        return res.status(400).json({ success: false, error: "fromDate and toDate are required" });
+      }
+      
+      const from = new Date(fromDate);
+      const to = new Date(toDate);
+      
+      // Limit date range to 7 days
+      const daysDiff = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 7) {
+        return res.status(400).json({ success: false, error: "Date range cannot exceed 7 days" });
+      }
+      
+      // Get Zest mappings
+      const zestMappings = await db.select({
+        courseId: zestPricingData.courseId,
+        zestFacilityId: zestPricingData.zestFacilityId,
+      }).from(zestPricingData);
+      const zestFacilityMap = new Map(zestMappings.map(m => [m.courseId, m.zestFacilityId]));
+      
+      // Get course details
+      const selectedCourses = await Promise.all(
+        courseIds.map(id => storage.getCourseById(id))
+      );
+      
+      // Generate date array
+      const dates: Date[] = [];
+      let currentDate = new Date(from);
+      while (currentDate <= to) {
+        dates.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      // Results array
+      const results: Array<{
+        courseId: string;
+        courseName: string;
+        providerType: string;
+        dates: Array<{
+          date: string;
+          teeTimes: any[];
+          error?: string;
+        }>;
+      }> = [];
+      
+      // Process each course
+      for (const course of selectedCourses) {
+        if (!course) continue;
+        
+        const courseResult: typeof results[0] = {
+          courseId: course.id,
+          courseName: course.name,
+          providerType: 'unknown',
+          dates: [],
+        };
+        
+        // Check if Zest course
+        if (zestFacilityMap.has(course.id)) {
+          courseResult.providerType = 'zest';
+          const facilityId = zestFacilityMap.get(course.id)!;
+          
+          try {
+            const { getZestGolfService } = await import("./services/zestGolf");
+            const zest = getZestGolfService();
+            
+            for (const date of dates) {
+              try {
+                const response = await zest.getTeeTimes(facilityId, date, players, holes as 9 | 18);
+                courseResult.dates.push({
+                  date: date.toISOString().split('T')[0],
+                  teeTimes: (response.teeTimeV3 || []).map((tt: any) => ({
+                    id: tt.id,
+                    time: tt.time,
+                    price: tt.pricing?.[0]?.price?.amount || 0,
+                    currency: tt.pricing?.[0]?.price?.currency || 'EUR',
+                    players: tt.players || players,
+                    holes: tt.holes || holes,
+                    source: 'Zest',
+                  })),
+                });
+              } catch (e: any) {
+                courseResult.dates.push({
+                  date: date.toISOString().split('T')[0],
+                  teeTimes: [],
+                  error: e.message,
+                });
+              }
+            }
+          } catch (e: any) {
+            console.error(`Zest error for ${course.name}:`, e.message);
+          }
+        }
+        // Check if Golfmanager course
+        else if (course.golfmanagerV1User || course.golfmanagerUser) {
+          courseResult.providerType = 'golfmanager';
+          
+          try {
+            const { createGolfmanagerProvider } = await import("./providers/golfmanager");
+            
+            // Determine version and credentials
+            const useV1 = !!(course.golfmanagerV1User && course.golfmanagerV1Password);
+            const version = useV1 ? 'v1' : 'v3';
+            const tenant = course.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'default';
+            const dbCredentials = useV1 
+              ? { user: course.golfmanagerV1User, password: course.golfmanagerV1Password }
+              : { user: course.golfmanagerUser, password: course.golfmanagerPassword };
+            
+            const provider = createGolfmanagerProvider(tenant, version, dbCredentials);
+            
+            // Get rate periods for pricing
+            const ratePeriods = await db.select().from(courseRatePeriods).where(eq(courseRatePeriods.courseId, course.id));
+            
+            for (const date of dates) {
+              try {
+                const startOfDay = new Date(date);
+                startOfDay.setHours(6, 0, 0, 0);
+                const endOfDay = new Date(date);
+                endOfDay.setHours(21, 0, 0, 0);
+                
+                const slots = await provider.searchAvailability(
+                  startOfDay.toISOString(),
+                  endOfDay.toISOString(),
+                  undefined,
+                  players,
+                  [holes === 9 ? '9holes' : '18holes']
+                );
+                
+                // Convert rate periods to the format expected by convertSlotsToTeeTime
+                const ratePeriodData = ratePeriods.map(rp => ({
+                  seasonLabel: rp.seasonLabel,
+                  packageName: rp.packageType, // Use packageType as packageName
+                  customerRackRate: Number(rp.rackRate),
+                  ttooNetRate: Number(rp.netRate),
+                  validFrom: rp.startDate,
+                  validTo: rp.endDate,
+                }));
+                
+                const teeTimes = provider.convertSlotsToTeeTime(
+                  slots,
+                  players,
+                  holes,
+                  ratePeriodData,
+                  Number(course.kickbackPercent) || 20
+                );
+                
+                courseResult.dates.push({
+                  date: date.toISOString().split('T')[0],
+                  teeTimes: teeTimes.map(tt => ({
+                    id: tt.teeTime,
+                    time: tt.teeTime,
+                    price: tt.greenFee || 0,
+                    currency: tt.currency || 'EUR',
+                    players: tt.players || players,
+                    holes: tt.holes || holes,
+                    source: 'Golfmanager',
+                    packageName: tt.packageName,
+                    packages: tt.packages,
+                  })),
+                });
+              } catch (e: any) {
+                courseResult.dates.push({
+                  date: date.toISOString().split('T')[0],
+                  teeTimes: [],
+                  error: e.message,
+                });
+              }
+            }
+          } catch (e: any) {
+            console.error(`Golfmanager error for ${course.name}:`, e.message);
+          }
+        }
+        
+        results.push(courseResult);
+      }
+      
+      // Calculate totals
+      const totalTeeTimes = results.reduce(
+        (sum, r) => sum + r.dates.reduce((dsum, d) => dsum + d.teeTimes.length, 0),
+        0
+      );
+      
+      res.json({
+        success: true,
+        courses: results,
+        summary: {
+          totalCourses: results.length,
+          totalDates: dates.length,
+          totalTeeTimes,
+        },
+      });
+    } catch (error: any) {
+      console.error("Failed to multi-search tee times:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
