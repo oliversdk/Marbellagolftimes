@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBookingCart } from "@/contexts/BookingCartContext";
 import { useLocation } from "wouter";
-import { ArrowLeft, Clock, Users, Euro, CreditCard, ShoppingCart, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Clock, Users, Euro, CreditCard, ShoppingCart, Calendar, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+
+type PlayerNames = Record<string, string[]>;
 
 export default function Checkout() {
   const { items, getTotalPrice, clearCart } = useBookingCart();
@@ -22,6 +24,23 @@ export default function Checkout() {
     email: "",
     phone: "",
   });
+  
+  const [playerNames, setPlayerNames] = useState<PlayerNames>({});
+
+  useEffect(() => {
+    const initialPlayerNames: PlayerNames = {};
+    items.forEach(item => {
+      initialPlayerNames[item.id] = Array(item.players).fill("");
+    });
+    setPlayerNames(initialPlayerNames);
+  }, [items]);
+
+  const updatePlayerName = (itemId: string, playerIndex: number, name: string) => {
+    setPlayerNames(prev => ({
+      ...prev,
+      [itemId]: prev[itemId]?.map((n, i) => i === playerIndex ? name : n) || []
+    }));
+  };
 
   const createCheckoutMutation = useMutation({
     mutationFn: async () => {
@@ -32,6 +51,7 @@ export default function Checkout() {
           date: item.date,
           time: item.time,
           players: item.players,
+          playerNames: playerNames[item.id] || [],
           packageId: item.package.id,
           packageName: item.package.name,
           addOns: item.addOns || [],
@@ -94,6 +114,18 @@ export default function Checkout() {
     );
   }
 
+  const validatePlayerNames = (): boolean => {
+    for (const item of items) {
+      const names = playerNames[item.id] || [];
+      for (let i = 0; i < item.players; i++) {
+        if (!names[i] || names[i].trim() === "") {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
   const handleCheckout = () => {
     if (!customerInfo.name || !customerInfo.email) {
       toast({
@@ -103,6 +135,16 @@ export default function Checkout() {
       });
       return;
     }
+    
+    if (!validatePlayerNames()) {
+      toast({
+        title: "Player names required",
+        description: "Please enter the name of every player",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createCheckoutMutation.mutate();
   };
 
@@ -125,19 +167,19 @@ export default function Checkout() {
           <div className="md:col-span-2 space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Your Tee Times</CardTitle>
+                <CardTitle className="text-lg">Your Tee Times & Players</CardTitle>
                 <CardDescription>
-                  {items.length} booking{items.length !== 1 ? 's' : ''} selected
+                  Enter the name of each player for every booking
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {items.map((item) => (
                   <div
                     key={item.id}
                     className="border rounded-lg p-4"
                     data-testid={`checkout-item-${item.id}`}
                   >
-                    <div className="flex justify-between items-start mb-3">
+                    <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="font-medium">{item.courseName}</h3>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
@@ -165,13 +207,36 @@ export default function Checkout() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 mb-4">
                       <Badge variant="outline">{item.package.name}</Badge>
                       {item.addOns && item.addOns.map((addOn) => (
                         <Badge key={addOn.id} variant="secondary">
                           {addOn.name}
                         </Badge>
                       ))}
+                    </div>
+
+                    <div className="space-y-3 pt-3 border-t">
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Player Names
+                      </Label>
+                      <div className="grid gap-2">
+                        {Array.from({ length: item.players }, (_, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground w-20">
+                              Player {i + 1}
+                            </span>
+                            <Input
+                              placeholder={`Enter player ${i + 1} name`}
+                              value={playerNames[item.id]?.[i] || ""}
+                              onChange={(e) => updatePlayerName(item.id, i, e.target.value)}
+                              data-testid={`input-player-${item.id}-${i}`}
+                              className="flex-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
