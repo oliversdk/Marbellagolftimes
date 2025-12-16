@@ -86,3 +86,12 @@ The platform integrates with Stripe Checkout for secure payment processing:
 -   **Add-ons System**: Dynamic add-ons (buggy, clubs, trolley) stored in database with per-player or per-buggy pricing
 -   **Payment Confirmation**: BookingSuccess page displays only confirmed database booking data
 -   **Database Fields**: `paymentStatus`, `stripeSessionId`, `totalAmountCents`, `addOnsJson` in bookingRequests table
+
+### Recent Improvements (December 2024)
+
+-   **Commission Sync Service**: Centralized `commissionSync.ts` service ensures kickback percentages stay synchronized across `golf_courses.kickbackPercent`, `course_onboarding.agreedCommission`, and `courseRatePeriods`. Automatically upserts onboarding rows when missing.
+-   **Persistent Booking Holds**: `bookingHolds` table stores tee time holds in database with TTL, including full order payload as JSON. Survives server restarts with unique constraint on (sessionId, courseId, teeTime).
+-   **API Retry Logic**: Both `zestGolf.ts` and `golfmanager.ts` services now include retry logic with exponential backoff for transient network errors (ECONNRESET, ETIMEDOUT, 5xx responses). 30-second timeout configured.
+-   **Database Performance Indexes**: Added composite indexes for `courseRatePeriods(courseId, seasonLabel)`, `zestPricingData(courseId, zestFacilityId)`, and `bookingRequests(courseId, teeTime)`.
+-   **Loading States**: Admin dashboard uses Skeleton components for loading states on bookings, users, follow-ups, and course management sections.
+-   **Image Serving Fallback**: Static route serves `/generated_images` from both `client/public/generated_images` and `attached_assets/generated_images` as fallback
