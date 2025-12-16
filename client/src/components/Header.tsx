@@ -228,6 +228,16 @@ export function Header() {
                         variant="secondary" 
                         size="lg" 
                         className="w-full min-h-12"
+                        data-testid="button-multi-search-mobile"
+                        onClick={() => navigateAndCloseMobile("/search")}
+                      >
+                        <Search className="mr-2 h-4 w-4" />
+                        Multi-Search
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="lg" 
+                        className="w-full min-h-12"
                         data-testid="button-profile-mobile"
                         onClick={() => navigateAndCloseMobile("/profile")}
                       >
@@ -317,6 +327,16 @@ export function Header() {
                         onClick={() => navigateAndCloseMobile("/")}
                       >
                         {t('search.searchButton')}
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="lg" 
+                        className="w-full min-h-12"
+                        data-testid="button-multi-search-mobile-guest"
+                        onClick={() => navigateAndCloseMobile("/search")}
+                      >
+                        <Search className="mr-2 h-4 w-4" />
+                        Multi-Search
                       </Button>
                     </>
                   )}
