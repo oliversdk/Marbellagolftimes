@@ -1004,3 +1004,25 @@ export type EmailLog = typeof emailLogs.$inferSelect;
 // Email log types
 export const EMAIL_LOG_TYPES = ["CUSTOMER_CONFIRMATION", "COURSE_NOTIFICATION", "REVIEW_REQUEST"] as const;
 export type EmailLogType = typeof EMAIL_LOG_TYPES[number];
+
+// Booking Holds - Persistent tee time holds with TTL
+export const bookingHolds = pgTable("booking_holds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull(),
+  courseId: varchar("course_id").notNull(),
+  teeTime: timestamp("tee_time").notNull(),
+  players: integer("players").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_booking_holds_expires").on(table.expiresAt),
+  index("idx_booking_holds_session").on(table.sessionId)
+]);
+
+export const insertBookingHoldSchema = createInsertSchema(bookingHolds).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export type InsertBookingHold = z.infer<typeof insertBookingHoldSchema>;
+export type BookingHold = typeof bookingHolds.$inferSelect;

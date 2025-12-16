@@ -1,6 +1,37 @@
 import axios from "axios";
 import type { TeeTimeSlot, TeeTimePackage } from "@shared/schema";
 
+const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_RETRIES = 3;
+const DEFAULT_RETRY_DELAY = 1000;
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = DEFAULT_RETRIES,
+  delay = DEFAULT_RETRY_DELAY
+): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isRetryable = 
+        error.code === 'ECONNRESET' || 
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ENOTFOUND' ||
+        error.code === 'ECONNABORTED' ||
+        (error.response?.status >= 500 && error.response?.status < 600);
+      
+      if (!isRetryable || i === retries - 1) {
+        throw error;
+      }
+      
+      console.log(`[Golfmanager] Retry ${i + 1}/${retries} after ${delay * (i + 1)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
 export type GolfmanagerMode = "production" | "demo" | "mock";
 export type GolfmanagerVersion = "v1" | "v3";
 
@@ -194,7 +225,7 @@ export class GolfmanagerProvider {
   }
 
   /**
-   * Make authenticated API request
+   * Make authenticated API request with retry logic
    */
   private async apiRequest<T>(
     endpoint: string,
@@ -202,31 +233,33 @@ export class GolfmanagerProvider {
   ): Promise<T> {
     const url = `${this.config.baseUrl}${endpoint}`;
     
-    try {
-      const response = await axios.get<T>(url, {
-        params: {
-          tenant: this.config.tenant,
-          ...params,
-        },
-        auth: {
-          username: this.config.user,
-          password: this.config.password,
-        },
-        timeout: 15000, // 15 second timeout
-      });
+    return withRetry(async () => {
+      try {
+        const response = await axios.get<T>(url, {
+          params: {
+            tenant: this.config.tenant,
+            ...params,
+          },
+          auth: {
+            username: this.config.user,
+            password: this.config.password,
+          },
+          timeout: DEFAULT_TIMEOUT,
+        });
 
-      return response.data;
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        console.error(`[Golfmanager] API error for ${endpoint}:`, error.message);
-        if (error.response) {
-          console.error(`[Golfmanager] Response status:`, error.response.status);
-          console.error(`[Golfmanager] Response data:`, error.response.data);
+        return response.data;
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+          console.error(`[Golfmanager] API error for ${endpoint}:`, error.message);
+          if (error.response) {
+            console.error(`[Golfmanager] Response status:`, error.response.status);
+            console.error(`[Golfmanager] Response data:`, error.response.data);
+          }
+          throw error;
         }
-        throw new Error(`Golfmanager API error: ${error.message}`);
+        throw error;
       }
-      throw error;
-    }
+    });
   }
 
   /**

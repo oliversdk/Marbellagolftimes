@@ -2,6 +2,36 @@ import axios, { AxiosInstance } from "axios";
 
 const ZEST_BASE_URL = "https://cm.zest.golf";
 const ZEST_SANDBOX_URL = "https://sandbox-cm.zest.golf";
+const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_RETRIES = 3;
+const DEFAULT_RETRY_DELAY = 1000;
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = DEFAULT_RETRIES,
+  delay = DEFAULT_RETRY_DELAY
+): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isRetryable = 
+        error.code === 'ECONNRESET' || 
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ENOTFOUND' ||
+        error.code === 'ECONNABORTED' ||
+        (error.response?.status >= 500 && error.response?.status < 600);
+      
+      if (!isRetryable || i === retries - 1) {
+        throw error;
+      }
+      
+      console.log(`[ZestGolf] Retry ${i + 1}/${retries} after ${delay * (i + 1)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
 
 export interface ZestCountry {
   name: string;
@@ -174,6 +204,7 @@ export class ZestGolfService {
       headers: {
         "Content-Type": "application/json",
       },
+      timeout: DEFAULT_TIMEOUT,
     });
   }
 
@@ -235,32 +266,34 @@ export class ZestGolfService {
     holes: 9 | 18 = 18,
     courseId?: number
   ): Promise<ZestTeeTimeResponse> {
-    // Format date as DD-MM-YYYY
-    const day = String(bookingDate.getDate()).padStart(2, "0");
-    const month = String(bookingDate.getMonth() + 1).padStart(2, "0");
-    const year = bookingDate.getFullYear();
-    const formattedDate = `${day}-${month}-${year}`;
+    return withRetry(async () => {
+      // Format date as DD-MM-YYYY
+      const day = String(bookingDate.getDate()).padStart(2, "0");
+      const month = String(bookingDate.getMonth() + 1).padStart(2, "0");
+      const year = bookingDate.getFullYear();
+      const formattedDate = `${day}-${month}-${year}`;
 
-    // Use v5 API if courseId provided, otherwise v3
-    const endpoint = courseId 
-      ? `/api/v5/teetimes/${facilityId}/${courseId}`
-      : `/api/v3/teetimes/${facilityId}/`;
-    
-    const response = await this.client.get(endpoint, {
-      params: {
-        bookingDate: formattedDate,
-        players,
-        holes,
-      },
+      // Use v5 API if courseId provided, otherwise v3
+      const endpoint = courseId 
+        ? `/api/v5/teetimes/${facilityId}/${courseId}`
+        : `/api/v3/teetimes/${facilityId}/`;
+      
+      const response = await this.client.get(endpoint, {
+        params: {
+          bookingDate: formattedDate,
+          players,
+          holes,
+        },
+      });
+      
+      if (response.data.success) {
+        return {
+          teeTimeV3: response.data.data.teeTimeV3 || response.data.data.teeTimeV2 || [],
+          facilityCancellationPolicyRange: response.data.data.facilityCancellationPolicyRange || [],
+        };
+      }
+      throw new Error("Failed to fetch tee times");
     });
-    
-    if (response.data.success) {
-      return {
-        teeTimeV3: response.data.data.teeTimeV3 || response.data.data.teeTimeV2 || [],
-        facilityCancellationPolicyRange: response.data.data.facilityCancellationPolicyRange || [],
-      };
-    }
-    throw new Error("Failed to fetch tee times");
   }
 
   /**
@@ -300,13 +333,15 @@ export class ZestGolfService {
    * Create a booking
    */
   async createBooking(booking: ZestBookingRequest): Promise<ZestBookingResponse> {
-    // Format teetime as yyyy-mm-dd HH:MM:ss
-    const response = await this.client.post("/api/v3/bookings", booking);
-    
-    if (response.data.success) {
-      return response.data.data;
-    }
-    throw new Error("Failed to create booking");
+    return withRetry(async () => {
+      // Format teetime as yyyy-mm-dd HH:MM:ss
+      const response = await this.client.post("/api/v3/bookings", booking);
+      
+      if (response.data.success) {
+        return response.data.data;
+      }
+      throw new Error("Failed to create booking");
+    });
   }
 
   /**
@@ -314,13 +349,15 @@ export class ZestGolfService {
    */
   async cancelBooking(bookingId: string): Promise<ZestCancellationResult> {
     try {
-      const response = await this.client.delete(`/api/v3/bookings/${bookingId}`);
-      return {
-        success: response.data.success === true,
-        bookingId,
-      };
+      return await withRetry(async () => {
+        const response = await this.client.delete(`/api/v3/bookings/${bookingId}`);
+        return {
+          success: response.data.success === true,
+          bookingId,
+        };
+      });
     } catch (error: any) {
-      console.error("Failed to cancel booking:", error);
+      console.error("[ZestGolf] Failed to cancel booking:", error);
       return {
         success: false,
         bookingId,
