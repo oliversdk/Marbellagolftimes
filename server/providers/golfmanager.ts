@@ -198,14 +198,21 @@ function getCustomerPriceFromRatePeriods(
     );
   }
   
-  if (matchedPeriod) {
+  if (matchedPeriod && matchedPeriod.rackRate !== undefined && matchedPeriod.rackRate !== null) {
     // Use rack rate directly from contract
     console.log(`[Golfmanager] Using rack rate €${matchedPeriod.rackRate} for "${packageName}" (from contract: ${matchedPeriod.seasonLabel})`);
     return matchedPeriod.rackRate;
   }
   
-  // Fallback: use kickback markup
-  return Math.round(ttooPrice * (1 + fallbackKickback / 100) * 100) / 100;
+  // Fallback: use kickback markup on TTOO price (if we have one)
+  if (ttooPrice && ttooPrice > 0) {
+    const fallbackPrice = Math.round(ttooPrice * (1 + fallbackKickback / 100) * 100) / 100;
+    console.log(`[Golfmanager] Using fallback price €${fallbackPrice} for "${packageName}" (TTOO: €${ttooPrice} + ${fallbackKickback}%)`);
+    return fallbackPrice;
+  }
+  
+  // No price available - will be filtered out or handled by caller
+  return 0;
 }
 
 /**

@@ -7171,15 +7171,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const response = await zest.getTeeTimes(facilityId, date, players, holes as 9 | 18);
                 courseResult.dates.push({
                   date: date.toISOString().split('T')[0],
-                  teeTimes: (response.teeTimeV3 || []).map((tt: any) => ({
-                    id: tt.id,
-                    time: tt.time,
-                    price: tt.pricing?.[0]?.price?.amount || 0,
-                    currency: tt.pricing?.[0]?.price?.currency || 'EUR',
-                    players: tt.players || players,
-                    holes: tt.holes || holes,
-                    source: 'Zest',
-                  })),
+                  teeTimes: (response.teeTimeV3 || []).map((tt: any) => {
+                    // Zest API returns per-player prices - do NOT divide by players
+                    const perPlayerPrice = tt.pricing?.[0]?.price?.amount || tt.pricing?.[0]?.publicRate?.amount || 0;
+                    
+                    const packages: any[] = [];
+                    
+                    // Map main products (e.g., green fee packages)
+                    if (tt.products && Array.isArray(tt.products)) {
+                      for (const product of tt.products) {
+                        const productPrice = product.publicRate?.amount || product.price?.amount || 
+                                            product.pricing?.[0]?.publicRate?.amount || product.pricing?.[0]?.price?.amount || perPlayerPrice;
+                        packages.push({
+                          id: product.mid,
+                          name: product.name,
+                          price: productPrice, // Already per-player price
+                          includesBuggy: product.name?.toLowerCase().includes('buggy') || product.category?.toLowerCase().includes('buggy'),
+                          includesLunch: product.name?.toLowerCase().includes('lunch') || product.name?.toLowerCase().includes('almuerzo'),
+                          category: product.category,
+                          isMain: true,
+                        });
+                      }
+                    }
+                    
+                    // Map extra products (add-ons like buggy, clubs, lunch)
+                    if (tt.extraProducts && Array.isArray(tt.extraProducts)) {
+                      for (const extra of tt.extraProducts) {
+                        const extraPrice = extra.publicRate?.amount || extra.price?.amount ||
+                                          extra.pricing?.[0]?.publicRate?.amount || extra.pricing?.[0]?.price?.amount || 0;
+                        packages.push({
+                          id: extra.mid,
+                          name: extra.name,
+                          price: extraPrice, // Per-player price for add-ons
+                          includesBuggy: extra.name?.toLowerCase().includes('buggy') || extra.category?.toLowerCase().includes('buggy'),
+                          includesLunch: extra.name?.toLowerCase().includes('lunch') || extra.name?.toLowerCase().includes('almuerzo'),
+                          category: extra.category,
+                          isAddOn: true,
+                        });
+                      }
+                    }
+                    
+                    // Fallback: create standard package if no products available
+                    if (packages.length === 0) {
+                      packages.push({
+                        id: 'standard',
+                        name: 'Green Fee',
+                        price: perPlayerPrice,
+                        includesBuggy: false,
+                        includesLunch: false,
+                      });
+                    }
+                    
+                    return {
+                      id: tt.id,
+                      time: tt.time,
+                      price: perPlayerPrice, // Per-player price from API
+                      currency: tt.pricing?.[0]?.price?.currency || 'EUR',
+                      players: tt.players || players,
+                      holes: tt.holes || holes,
+                      source: 'Zest',
+                      packages,
+                    };
+                  }),
                 });
               } catch (e: any) {
                 courseResult.dates.push({
