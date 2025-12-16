@@ -30,6 +30,12 @@ export interface CartItem {
   providerType: string;
 }
 
+export interface BookingConflict {
+  type: 'same-course-same-day' | 'time-overlap';
+  existingItem: CartItem;
+  message: string;
+}
+
 interface BookingCartContextType {
   items: CartItem[];
   addItem: (item: CartItem) => void;
@@ -39,6 +45,7 @@ interface BookingCartContextType {
   getTotalPrice: () => number;
   getItemCount: () => number;
   hasItem: (courseId: string, time: string) => boolean;
+  checkConflicts: (courseId: string, date: string, time: string) => BookingConflict[];
 }
 
 const BookingCartContext = createContext<BookingCartContextType | undefined>(undefined);
@@ -111,6 +118,39 @@ export function BookingCartProvider({ children }: BookingCartProviderProps) {
     return items.some(item => item.courseId === courseId && item.time === time);
   }, [items]);
 
+  const checkConflicts = useCallback((courseId: string, date: string, time: string): BookingConflict[] => {
+    const conflicts: BookingConflict[] = [];
+    const newTeeTimeDate = new Date(time);
+    
+    for (const item of items) {
+      const itemDate = item.date.split('T')[0];
+      const checkDate = date.split('T')[0];
+      
+      // Check for same course on same day
+      if (item.courseId === courseId && itemDate === checkDate) {
+        conflicts.push({
+          type: 'same-course-same-day',
+          existingItem: item,
+          message: `You already have a booking at ${item.courseName} on this day`,
+        });
+      }
+      
+      // Check for overlapping times (within 4 hours of each other)
+      const existingTime = new Date(item.time);
+      const timeDiffHours = Math.abs(newTeeTimeDate.getTime() - existingTime.getTime()) / (1000 * 60 * 60);
+      
+      if (timeDiffHours < 4 && item.courseId !== courseId && itemDate === checkDate) {
+        conflicts.push({
+          type: 'time-overlap',
+          existingItem: item,
+          message: `This overlaps with your ${existingTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} booking at ${item.courseName}. Allow at least 4 hours between rounds.`,
+        });
+      }
+    }
+    
+    return conflicts;
+  }, [items]);
+
   const value: BookingCartContextType = {
     items,
     addItem,
@@ -120,6 +160,7 @@ export function BookingCartProvider({ children }: BookingCartProviderProps) {
     getTotalPrice,
     getItemCount,
     hasItem,
+    checkConflicts,
   };
 
   return (

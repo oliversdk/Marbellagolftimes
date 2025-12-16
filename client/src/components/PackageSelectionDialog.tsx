@@ -7,9 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus } from "lucide-react";
-import { useBookingCart, CartItem } from "@/contexts/BookingCartContext";
+import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus, AlertTriangle } from "lucide-react";
+import { useBookingCart, CartItem, BookingConflict } from "@/contexts/BookingCartContext";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Package {
   id: number | string;
@@ -72,12 +73,14 @@ export function PackageSelectionDialog({
 }: PackageSelectionDialogProps) {
   const [selectedPackageId, setSelectedPackageId] = useState<string>("");
   const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
-  const { addItem, hasItem } = useBookingCart();
+  const [acknowledgedConflicts, setAcknowledgedConflicts] = useState(false);
+  const { addItem, hasItem, checkConflicts } = useBookingCart();
   const { toast } = useToast();
 
   useEffect(() => {
     setSelectedPackageId("");
     setSelectedAddOns(new Set());
+    setAcknowledgedConflicts(false);
   }, [teeTime?.id, teeTime?.time]);
 
   if (!teeTime || !course) return null;
@@ -86,6 +89,7 @@ export function PackageSelectionDialog({
   const addOns = teeTime.addOns || [];
   const selectedPackage = packages.find(p => p.id?.toString() === selectedPackageId);
   const isAlreadyInCart = hasItem(course.courseId, teeTime.time);
+  const conflicts = checkConflicts(course.courseId, date, teeTime.time);
   
   const getPackagePrice = (pkg: Package): number => {
     return pkg.price ?? teeTime.price ?? 0;
@@ -393,6 +397,40 @@ export function PackageSelectionDialog({
               </div>
             </>
           )}
+
+          {/* Conflict Warnings */}
+          {conflicts.length > 0 && (
+            <div className="space-y-2">
+              {conflicts.map((conflict, idx) => (
+                <Alert key={idx} variant="destructive" data-testid={`alert-conflict-${idx}`}>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>
+                    {conflict.type === 'same-course-same-day' 
+                      ? 'Second Round at Same Course' 
+                      : 'Scheduling Conflict'}
+                  </AlertTitle>
+                  <AlertDescription className="text-sm">
+                    {conflict.message}
+                  </AlertDescription>
+                </Alert>
+              ))}
+              
+              <div className="flex items-start space-x-2 p-3 rounded-lg border border-destructive/50 bg-destructive/5">
+                <Checkbox 
+                  id="acknowledge-conflict"
+                  checked={acknowledgedConflicts}
+                  onCheckedChange={(checked) => setAcknowledgedConflicts(checked === true)}
+                  data-testid="checkbox-acknowledge-conflict"
+                />
+                <Label 
+                  htmlFor="acknowledge-conflict" 
+                  className="text-sm cursor-pointer leading-tight"
+                >
+                  I understand and want to proceed anyway
+                </Label>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -406,7 +444,7 @@ export function PackageSelectionDialog({
           </Button>
           <Button
             onClick={handleAddToCart}
-            disabled={packages.length > 0 && !selectedPackageId}
+            disabled={(packages.length > 0 && !selectedPackageId) || (conflicts.length > 0 && !acknowledgedConflicts)}
             className="flex-1"
             data-testid="button-add-to-cart"
           >
