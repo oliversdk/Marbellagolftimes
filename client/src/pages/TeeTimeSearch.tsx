@@ -99,7 +99,7 @@ export default function TeeTimeSearch() {
         players: parseInt(players),
         holes: parseInt(holes),
       });
-      return response as unknown as MultiSearchResponse;
+      return await response.json() as MultiSearchResponse;
     },
   });
 

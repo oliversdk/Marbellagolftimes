@@ -7119,6 +7119,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }> = [];
       
       // Process each course
+      console.log(`[Multi-Search] Processing ${selectedCourses.length} courses, zestFacilityMap has ${zestFacilityMap.size} entries`);
+      
       for (const course of selectedCourses) {
         if (!course) continue;
         
@@ -7129,10 +7131,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dates: [],
         };
         
+        console.log(`[Multi-Search] Checking course: ${course.name} (${course.id}), has Zest: ${zestFacilityMap.has(course.id)}`);
+        
         // Check if Zest course
         if (zestFacilityMap.has(course.id)) {
           courseResult.providerType = 'zest';
           const facilityId = zestFacilityMap.get(course.id)!;
+          console.log(`[Multi-Search] Calling Zest API for ${course.name} with facilityId ${facilityId}`);
           
           try {
             const { getZestGolfService } = await import("./services/zestGolf");
@@ -7140,6 +7145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             for (const date of dates) {
               try {
+                console.log(`[Multi-Search] Fetching Zest tee times for date: ${date.toISOString().split('T')[0]}`);
                 const response = await zest.getTeeTimes(facilityId, date, players, holes as 9 | 18);
                 courseResult.dates.push({
                   date: date.toISOString().split('T')[0],
