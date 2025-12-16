@@ -7172,65 +7172,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 courseResult.dates.push({
                   date: date.toISOString().split('T')[0],
                   teeTimes: (response.teeTimeV3 || []).map((tt: any) => {
-                    // Zest API returns per-player prices - do NOT divide by players
+                    // Zest API returns per-player prices
                     const perPlayerPrice = tt.pricing?.[0]?.price?.amount || tt.pricing?.[0]?.publicRate?.amount || 0;
                     
+                    // Separate base packages (main green fee) from add-ons
                     const packages: any[] = [];
+                    const addOns: any[] = [];
                     
-                    // Map main products (e.g., green fee packages)
-                    if (tt.products && Array.isArray(tt.products)) {
+                    // Map main products (e.g., green fee packages) - these are required
+                    if (tt.products && Array.isArray(tt.products) && tt.products.length > 0) {
                       for (const product of tt.products) {
                         const productPrice = product.publicRate?.amount || product.price?.amount || 
                                             product.pricing?.[0]?.publicRate?.amount || product.pricing?.[0]?.price?.amount || perPlayerPrice;
                         packages.push({
                           id: product.mid,
                           name: product.name,
-                          price: productPrice, // Already per-player price
+                          price: productPrice,
                           includesBuggy: product.name?.toLowerCase().includes('buggy') || product.category?.toLowerCase().includes('buggy'),
                           includesLunch: product.name?.toLowerCase().includes('lunch') || product.name?.toLowerCase().includes('almuerzo'),
                           category: product.category,
                           isMain: true,
                         });
                       }
-                    }
-                    
-                    // Map extra products (add-ons like buggy, clubs, lunch)
-                    if (tt.extraProducts && Array.isArray(tt.extraProducts)) {
-                      for (const extra of tt.extraProducts) {
-                        const extraPrice = extra.publicRate?.amount || extra.price?.amount ||
-                                          extra.pricing?.[0]?.publicRate?.amount || extra.pricing?.[0]?.price?.amount || 0;
-                        packages.push({
-                          id: extra.mid,
-                          name: extra.name,
-                          price: extraPrice, // Per-player price for add-ons
-                          includesBuggy: extra.name?.toLowerCase().includes('buggy') || extra.category?.toLowerCase().includes('buggy'),
-                          includesLunch: extra.name?.toLowerCase().includes('lunch') || extra.name?.toLowerCase().includes('almuerzo'),
-                          category: extra.category,
-                          isAddOn: true,
-                        });
-                      }
-                    }
-                    
-                    // Fallback: create standard package if no products available
-                    if (packages.length === 0) {
+                    } else {
+                      // No products - create default Green Fee package from tee time pricing
                       packages.push({
-                        id: 'standard',
+                        id: 'green-fee',
                         name: 'Green Fee',
                         price: perPlayerPrice,
                         includesBuggy: false,
                         includesLunch: false,
+                        isMain: true,
                       });
+                    }
+                    
+                    // Map extra products as optional add-ons (buggy, clubs, trolley, lunch)
+                    if (tt.extraProducts && Array.isArray(tt.extraProducts)) {
+                      for (const extra of tt.extraProducts) {
+                        const extraPrice = extra.publicRate?.amount || extra.price?.amount ||
+                                          extra.pricing?.[0]?.publicRate?.amount || extra.pricing?.[0]?.price?.amount || 0;
+                        const nameLower = extra.name?.toLowerCase() || '';
+                        const isBuggy = nameLower.includes('buggy');
+                        
+                        addOns.push({
+                          id: extra.mid,
+                          name: extra.name,
+                          price: extraPrice,
+                          includesBuggy: isBuggy || extra.category?.toLowerCase().includes('buggy'),
+                          includesLunch: nameLower.includes('lunch') || nameLower.includes('almuerzo'),
+                          category: extra.category,
+                          isAddOn: true,
+                          // Buggy is typically shared (1 per 2 players), other add-ons are per player
+                          pricingType: isBuggy ? 'per-buggy' : 'per-player',
+                        });
+                      }
                     }
                     
                     return {
                       id: tt.id,
                       time: tt.time,
-                      price: perPlayerPrice, // Per-player price from API
+                      price: perPlayerPrice,
                       currency: tt.pricing?.[0]?.price?.currency || 'EUR',
                       players: tt.players || players,
                       holes: tt.holes || holes,
                       source: 'Zest',
-                      packages,
+                      packages, // Main packages (green fee options) - user must select one
+                      addOns,   // Optional add-ons (buggy, trolley, clubs) - user can add multiple
                     };
                   }),
                 });

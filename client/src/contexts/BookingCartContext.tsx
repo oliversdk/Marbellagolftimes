@@ -3,11 +3,18 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 const STORAGE_KEY = 'marbella-golf-booking-cart';
 
 export interface CartPackage {
-  id: number;
+  id: number | string;
   name: string;
   price: number;
   includesBuggy?: boolean;
   includesLunch?: boolean;
+}
+
+export interface CartAddOn {
+  id: number | string;
+  name: string;
+  price: number;
+  totalPrice: number;
 }
 
 export interface CartItem {
@@ -18,6 +25,7 @@ export interface CartItem {
   time: string;
   players: number;
   package: CartPackage;
+  addOns?: CartAddOn[];
   totalPrice: number;
   providerType: string;
 }

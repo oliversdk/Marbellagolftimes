@@ -151,6 +151,11 @@ export function CartSidebar({ className }: CartSidebarProps) {
                             Lunch
                           </Badge>
                         )}
+                        {item.addOns && item.addOns.map((addOn) => (
+                          <Badge key={addOn.id} variant="secondary" className="text-xs">
+                            {addOn.name}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   ))}
