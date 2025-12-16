@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { BookingCartProvider } from "@/contexts/BookingCartContext";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { GolfLoader } from "@/components/GolfLoader";
 import Home from "@/pages/Home";
@@ -88,12 +89,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <FavoritesProvider>
-          <AnalyticsProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Router />
-            </TooltipProvider>
-          </AnalyticsProvider>
+          <BookingCartProvider>
+            <AnalyticsProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Router />
+              </TooltipProvider>
+            </AnalyticsProvider>
+          </BookingCartProvider>
         </FavoritesProvider>
       </I18nProvider>
     </QueryClientProvider>

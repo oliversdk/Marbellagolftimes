@@ -13,8 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { format, addDays, differenceInDays } from "date-fns";
-import { Calendar as CalendarIcon, Search, MapPin, Clock, Users, ArrowLeft, ChevronDown, ChevronUp, Euro } from "lucide-react";
+import { Calendar as CalendarIcon, Search, MapPin, Clock, Users, ArrowLeft, ChevronDown, ChevronUp, Euro, Check, ShoppingCart } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { PackageSelectionDialog } from "@/components/PackageSelectionDialog";
+import { CartSidebar } from "@/components/CartSidebar";
+import { useBookingCart } from "@/contexts/BookingCartContext";
 
 interface RealTimeCourse {
   id: string;
@@ -71,6 +74,13 @@ export default function TeeTimeSearch() {
   const [players, setPlayers] = useState<string>("4");
   const [holes, setHoles] = useState<string>("18");
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  
+  const [packageDialogOpen, setPackageDialogOpen] = useState(false);
+  const [selectedTeeTime, setSelectedTeeTime] = useState<TeeTime | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<{ courseId: string; courseName: string; providerType: string; city?: string } | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  
+  const { hasItem, getItemCount } = useBookingCart();
 
   // Use the new multi-provider endpoint that returns Zest AND Golfmanager courses
   const { data: courses, isLoading: coursesLoading } = useQuery<{ success: boolean; courses: RealTimeCourse[] }>({
@@ -182,7 +192,7 @@ export default function TeeTimeSearch() {
             Back to Courses
           </Button>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div className="lg:col-span-1 space-y-4">
               <Card>
                 <CardHeader>
@@ -362,7 +372,7 @@ export default function TeeTimeSearch() {
               </Card>
             </div>
 
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 xl:col-span-2">
               {searchMutation.data ? (
                 !searchMutation.data.courses?.length || searchMutation.data.summary?.totalTeeTimes === 0 ? (
                   <Card>
@@ -450,10 +460,22 @@ export default function TeeTimeSearch() {
                                     {(dateData.teeTimes || []).map((teeTime, idx) => (
                                       <Button
                                         key={`${teeTime.id}-${idx}`}
-                                        variant="outline"
-                                        className="flex flex-col items-start p-3 h-auto"
+                                        variant={hasItem(course.courseId, teeTime.time) ? "default" : "outline"}
+                                        className={cn(
+                                          "flex flex-col items-start p-3 h-auto",
+                                          hasItem(course.courseId, teeTime.time) && "ring-2 ring-primary"
+                                        )}
                                         onClick={() => {
-                                          navigate(`/course/${course.courseId}?date=${dateData.date}`);
+                                          const courseInfo = getCourseInfo(course.courseId);
+                                          setSelectedTeeTime(teeTime);
+                                          setSelectedCourse({
+                                            courseId: course.courseId,
+                                            courseName: course.courseName,
+                                            providerType: course.providerType,
+                                            city: courseInfo?.city,
+                                          });
+                                          setSelectedDate(dateData.date);
+                                          setPackageDialogOpen(true);
                                         }}
                                         data-testid={`button-teetime-${teeTime.id}`}
                                       >
@@ -533,9 +555,37 @@ export default function TeeTimeSearch() {
                 </Card>
               )}
             </div>
+            
+            <div className="hidden xl:block xl:col-span-1">
+              <div className="sticky top-4">
+                <CartSidebar />
+              </div>
+            </div>
           </div>
+          
+          {getItemCount() > 0 && (
+            <div className="xl:hidden fixed bottom-4 right-4 z-50">
+              <Button
+                size="lg"
+                className="rounded-full shadow-lg"
+                onClick={() => navigate('/checkout')}
+                data-testid="button-mobile-checkout"
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                {getItemCount()} items
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+      
+      <PackageSelectionDialog
+        open={packageDialogOpen}
+        onOpenChange={setPackageDialogOpen}
+        teeTime={selectedTeeTime}
+        course={selectedCourse}
+        date={selectedDate}
+      />
     </>
   );
 }
