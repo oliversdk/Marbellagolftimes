@@ -12,8 +12,8 @@ export function GolfLoader({ size = "md", text, className = "" }: GolfLoaderProp
   };
 
   return (
-    <div className={`flex flex-col items-center justify-center gap-3 ${className}`} data-testid="golf-loader">
-      <div className={`relative ${sizes[size]}`}>
+    <div className={`flex flex-col items-center justify-center gap-4 ${className}`} data-testid="golf-loader">
+      <div className={`relative ${sizes[size]} drop-shadow-lg`}>
         <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
           <defs>
             <style>{`
@@ -131,7 +131,11 @@ export function GolfLoader({ size = "md", text, className = "" }: GolfLoaderProp
           <circle className="ball-trail text-muted-foreground/30" cx="80" cy="45" r="1.5" fill="currentColor" style={{ animationDelay: "0.15s" }} />
         </svg>
       </div>
-      {text && <p className="text-sm text-muted-foreground">{text}</p>}
+      {text && (
+        <p className="text-sm text-muted-foreground animate-pulse font-medium">
+          {text}
+        </p>
+      )}
     </div>
   );
 }
