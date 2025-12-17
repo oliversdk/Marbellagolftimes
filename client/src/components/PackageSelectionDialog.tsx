@@ -231,8 +231,11 @@ export function PackageSelectionDialog({
     const price = pkg.price ?? teeTime?.price ?? 0;
     // Use exact normalized name - includes holes, extras, everything except leading number
     const normalizedName = normalizeForComparison(pkg.name);
+    // Include minPlayers only if it's a special restriction (e.g., 4+ players)
+    // For 1-2 players, treat as same package to merge "2 Greenfee + Buggy" with "Greenfee + Buggy"
     const minPlayers = pkg.minPlayers || 1;
-    return `${price}-${minPlayers}-${normalizedName}`;
+    const playerGroup = minPlayers <= 2 ? 'standard' : `min${minPlayers}`;
+    return `${price}-${playerGroup}-${normalizedName}`;
   };
   
   const packages = afterTimeFiltering.reduce((unique: Package[], pkg) => {
@@ -242,8 +245,17 @@ export function PackageSelectionDialog({
     if (existingIndex === -1) {
       unique.push(pkg);
     } else {
-      // Duplicate found - prefer shorter name (cleaner display)
-      if (pkg.name.length < unique[existingIndex].name.length) {
+      // Duplicate found - prefer the version WITHOUT leading number (cleaner display)
+      const existingHasLeadingNumber = /^\d+\s+/.test(unique[existingIndex].name);
+      const newHasLeadingNumber = /^\d+\s+/.test(pkg.name);
+      
+      if (existingHasLeadingNumber && !newHasLeadingNumber) {
+        // Replace "2 Greenfee + Buggy" with "Greenfee + Buggy"
+        unique[existingIndex] = pkg;
+      } else if (!existingHasLeadingNumber && newHasLeadingNumber) {
+        // Keep existing (no leading number)
+      } else if (pkg.name.length < unique[existingIndex].name.length) {
+        // Both have or don't have leading numbers - prefer shorter
         unique[existingIndex] = pkg;
       }
     }
