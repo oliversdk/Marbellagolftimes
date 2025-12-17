@@ -49,11 +49,18 @@ interface TeeTimeData {
   addOns?: AddOn[];
 }
 
+interface ContractSettings {
+  twilightStartTime: string | null; // e.g., "14:00"
+  earlyBirdEndTime: string | null;  // e.g., "10:00"
+  currentSeason: string | null;     // e.g., "Winter", "Low Season"
+}
+
 interface CourseData {
   courseId: string;
   courseName: string;
   providerType: string;
   city?: string;
+  contractSettings?: ContractSettings;
 }
 
 interface PackageSelectionDialogProps {
@@ -88,12 +95,21 @@ export function PackageSelectionDialog({
   const allPackages = teeTime.packages || [];
   const addOns = teeTime.addOns || [];
   
-  // Filter packages based on tee time
-  // Twilight packages only available from 14:00 onwards
-  // Early Bird packages only available before 10:00
+  // Get contract time settings or use defaults
+  const contractSettings = course.contractSettings;
+  const twilightStartTime = contractSettings?.twilightStartTime || '14:00';
+  const earlyBirdEndTime = contractSettings?.earlyBirdEndTime || '10:00';
+  const currentSeason = contractSettings?.currentSeason;
+  
+  // Parse time strings to hours for comparison
+  const parseTimeToHour = (time: string): number => {
+    const [hours] = time.split(':').map(Number);
+    return hours || 0;
+  };
+  
+  const TWILIGHT_START_HOUR = parseTimeToHour(twilightStartTime);
+  const EARLY_BIRD_END_HOUR = parseTimeToHour(earlyBirdEndTime);
   const teeTimeHour = new Date(teeTime.time).getHours();
-  const TWILIGHT_START_HOUR = 14; // 2:00 PM
-  const EARLY_BIRD_END_HOUR = 10; // 10:00 AM
   
   const packages = allPackages.filter(pkg => {
     // Check if package name or isTwilight flag indicates twilight
@@ -106,12 +122,12 @@ export function PackageSelectionDialog({
       pkg.name.toLowerCase().includes('early bird') ||
       pkg.name.toLowerCase().includes('madrugador');
     
-    // Twilight packages: only show if tee time is 14:00 or later
+    // Twilight packages: only show if tee time is at or after twilight start (from contract)
     if (isTwilightPackage && teeTimeHour < TWILIGHT_START_HOUR) {
       return false;
     }
     
-    // Early bird packages: only show if tee time is before 10:00
+    // Early bird packages: only show if tee time is before early bird end (from contract)
     if (isEarlyBirdPackage && teeTimeHour >= EARLY_BIRD_END_HOUR) {
       return false;
     }
