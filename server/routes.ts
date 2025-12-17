@@ -7151,6 +7151,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const course of selectedCourses) {
         if (!course) continue;
         
+        // Get add-ons for this course from database
+        const courseAddOns = await storage.getAddOnsByCourseId(course.id);
+        const addOnsForTeeTime = courseAddOns.map((addon: any) => ({
+          id: addon.id,
+          name: addon.name,
+          price: addon.priceCents / 100, // Convert cents to euros
+          pricingType: addon.perPlayer === 'true' ? 'per-player' : 
+                       addon.type === 'buggy' ? 'per-buggy' : 'per-player',
+          category: addon.type || 'other',
+          description: addon.description || undefined,
+        }));
+        
         // Get contract rate periods for this course to extract time settings
         const courseRates = await db.select().from(courseRatePeriods).where(eq(courseRatePeriods.courseId, course.id));
         
@@ -7381,6 +7393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     source: 'Golfmanager',
                     packageName: tt.packageName,
                     packages: tt.packages,
+                    addOns: addOnsForTeeTime, // Include add-ons from database
                   })),
                 });
               } catch (e: any) {

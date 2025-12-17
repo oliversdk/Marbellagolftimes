@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus, AlertTriangle, Sunrise, Sunset, Snowflake, Sun, Leaf, Tag } from "lucide-react";
+import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus, AlertTriangle, Sunrise, Sunset, Snowflake, Sun, Leaf, Tag, Minus, Info } from "lucide-react";
 import { useBookingCart, CartItem, BookingConflict } from "@/contexts/BookingCartContext";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -79,14 +79,15 @@ export function PackageSelectionDialog({
   date,
 }: PackageSelectionDialogProps) {
   const [selectedPackageId, setSelectedPackageId] = useState<string>("");
-  const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
+  // Map of addOn id -> quantity (0 = not selected)
+  const [addOnQuantities, setAddOnQuantities] = useState<Map<string, number>>(new Map());
   const [acknowledgedConflicts, setAcknowledgedConflicts] = useState(false);
   const { addItem, hasItem, checkConflicts } = useBookingCart();
   const { toast } = useToast();
 
   useEffect(() => {
     setSelectedPackageId("");
-    setSelectedAddOns(new Set());
+    setAddOnQuantities(new Map());
     setAcknowledgedConflicts(false);
   }, [teeTime?.id, teeTime?.time]);
 
@@ -212,16 +213,106 @@ export function PackageSelectionDialog({
     return `€${addOn.price ?? 0}/player`;
   };
 
-  const toggleAddOn = (addOnId: string) => {
-    const newSelected = new Set(selectedAddOns);
-    if (newSelected.has(addOnId)) {
-      newSelected.delete(addOnId);
-    } else {
-      newSelected.add(addOnId);
+  // Determine add-on category for conflict detection
+  const getAddOnCategory = (addOn: AddOn): 'buggy' | 'trolley' | 'clubs' | 'other' => {
+    const nameLower = addOn.name.toLowerCase();
+    if (nameLower.includes('buggy') || nameLower.includes('cart')) return 'buggy';
+    if (nameLower.includes('trolley') || nameLower.includes('trundler')) return 'trolley';
+    if (nameLower.includes('club') || nameLower.includes('rental')) return 'clubs';
+    return 'other';
+  };
+  
+  // Check if package already includes buggy
+  const packageIncludesBuggy = selectedPackage?.includesBuggy || 
+    selectedPackage?.name.toLowerCase().includes('buggy');
+  
+  // Get max quantity for an add-on based on its type
+  const getMaxQuantity = (addOn: AddOn): number => {
+    const category = getAddOnCategory(addOn);
+    if (category === 'buggy') {
+      // Buggies: max is ceil(players/2) since 2 share per buggy
+      return Math.ceil(teeTime.players / 2);
     }
-    setSelectedAddOns(newSelected);
+    // Trolleys and clubs: max is number of players
+    return teeTime.players;
+  };
+  
+  // Check if an add-on is in conflict with selected items
+  const isAddOnConflicting = (addOn: AddOn): { conflicting: boolean; reason?: string } => {
+    const category = getAddOnCategory(addOn);
+    
+    // If package includes buggy, buggy add-on is redundant
+    if (category === 'buggy' && packageIncludesBuggy) {
+      return { conflicting: true, reason: 'Already included in package' };
+    }
+    
+    // Check buggy vs trolley conflict
+    const hasBuggySelected = packageIncludesBuggy || 
+      addOns.some(a => getAddOnCategory(a) === 'buggy' && (addOnQuantities.get(a.id?.toString()) || 0) > 0);
+    const hasTrolleySelected = addOns.some(a => 
+      getAddOnCategory(a) === 'trolley' && (addOnQuantities.get(a.id?.toString()) || 0) > 0
+    );
+    
+    if (category === 'buggy' && hasTrolleySelected) {
+      return { conflicting: true, reason: 'Cannot combine with trolley' };
+    }
+    if (category === 'trolley' && hasBuggySelected) {
+      return { conflicting: true, reason: 'Buggy already selected' };
+    }
+    
+    return { conflicting: false };
+  };
+  
+  // Update quantity for an add-on
+  const setAddOnQuantity = (addOnId: string, quantity: number) => {
+    const addOn = addOns.find(a => a.id?.toString() === addOnId);
+    if (!addOn) return;
+    
+    const category = getAddOnCategory(addOn);
+    const newQuantities = new Map(addOnQuantities);
+    
+    if (quantity <= 0) {
+      newQuantities.delete(addOnId);
+    } else {
+      const max = getMaxQuantity(addOn);
+      newQuantities.set(addOnId, Math.min(quantity, max));
+    }
+    
+    // If selecting buggy, clear all trolleys (and vice versa)
+    if (quantity > 0) {
+      if (category === 'buggy') {
+        addOns.forEach(a => {
+          if (getAddOnCategory(a) === 'trolley') {
+            newQuantities.delete(a.id?.toString());
+          }
+        });
+      } else if (category === 'trolley') {
+        addOns.forEach(a => {
+          if (getAddOnCategory(a) === 'buggy') {
+            newQuantities.delete(a.id?.toString());
+          }
+        });
+      }
+    }
+    
+    setAddOnQuantities(newQuantities);
+  };
+  
+  // Get the currently selected add-on quantity
+  const getAddOnQuantity = (addOnId: string): number => {
+    return addOnQuantities.get(addOnId) || 0;
   };
 
+  // Calculate add-on price based on quantity and pricing type
+  const calculateAddOnTotal = (addOn: AddOn, quantity: number): number => {
+    const basePrice = addOn.price ?? 0;
+    // Buggy is per-buggy, others are per-player
+    if (addOn.pricingType === 'per-buggy' || addOn.includesBuggy || getAddOnCategory(addOn) === 'buggy') {
+      return basePrice * quantity;
+    }
+    return basePrice * quantity;
+  };
+  
   const calculateTotal = (): number => {
     let total = 0;
     
@@ -230,11 +321,11 @@ export function PackageSelectionDialog({
       total = getPackagePrice(selectedPackage) * teeTime.players;
     }
     
-    // Add selected add-ons
-    Array.from(selectedAddOns).forEach(addOnId => {
+    // Add selected add-ons based on quantities
+    addOnQuantities.forEach((quantity, addOnId) => {
       const addOn = addOns.find(a => a.id?.toString() === addOnId);
-      if (addOn) {
-        total += getAddOnPrice(addOn);
+      if (addOn && quantity > 0) {
+        total += calculateAddOnTotal(addOn, quantity);
       }
     });
     
@@ -251,12 +342,18 @@ export function PackageSelectionDialog({
       return;
     }
 
-    // Build selected add-ons list
-    const selectedAddOnsList = addOns.filter(a => selectedAddOns.has(a.id?.toString()));
+    // Build selected add-ons list with quantities
+    const selectedAddOnsList: Array<{ addOn: AddOn; quantity: number }> = [];
+    addOnQuantities.forEach((quantity, addOnId) => {
+      const addOn = addOns.find(a => a.id?.toString() === addOnId);
+      if (addOn && quantity > 0) {
+        selectedAddOnsList.push({ addOn, quantity });
+      }
+    });
     
     // Check if any selected add-on includes buggy
-    const hasBuggyAddOn = selectedAddOnsList.some(a => a.includesBuggy);
-    const hasLunchAddOn = selectedAddOnsList.some(a => a.includesLunch);
+    const hasBuggyAddOn = selectedAddOnsList.some(({ addOn }) => addOn.includesBuggy || getAddOnCategory(addOn) === 'buggy');
+    const hasLunchAddOn = selectedAddOnsList.some(({ addOn }) => addOn.includesLunch);
 
     const cartItem: CartItem = {
       id: `${course.courseId}-${teeTime.time}-${Date.now()}`,
@@ -272,11 +369,12 @@ export function PackageSelectionDialog({
         includesBuggy: selectedPackage.includesBuggy || hasBuggyAddOn,
         includesLunch: selectedPackage.includesLunch || hasLunchAddOn,
       },
-      addOns: selectedAddOnsList.map(a => ({
-        id: a.id,
-        name: a.name,
-        price: a.price ?? 0,
-        totalPrice: getAddOnPrice(a),
+      addOns: selectedAddOnsList.map(({ addOn, quantity }) => ({
+        id: addOn.id,
+        name: addOn.name,
+        price: addOn.price ?? 0,
+        quantity: quantity,
+        totalPrice: calculateAddOnTotal(addOn, quantity),
       })),
       totalPrice: calculateTotal(),
       providerType: course.providerType,
@@ -441,54 +539,125 @@ export function PackageSelectionDialog({
                   Optional Add-ons
                 </h4>
                 
+                {/* Info about buggy already included */}
+                {packageIncludesBuggy && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 p-2 rounded bg-muted/50">
+                    <Info className="h-3 w-3" />
+                    Your package includes buggy - transport add-ons not needed
+                  </div>
+                )}
+                
                 <div className="space-y-2">
                   {addOns.map((addOn) => {
-                    const isSelected = selectedAddOns.has(addOn.id?.toString());
-                    const addOnTotal = getAddOnPrice(addOn);
+                    const addOnId = addOn.id?.toString() || '';
+                    const quantity = getAddOnQuantity(addOnId);
+                    const category = getAddOnCategory(addOn);
+                    const conflict = isAddOnConflicting(addOn);
+                    const maxQty = getMaxQuantity(addOn);
+                    const unitPrice = addOn.price ?? 0;
+                    const totalForAddOn = calculateAddOnTotal(addOn, quantity);
+                    
+                    // Hide buggy add-ons if package includes buggy
+                    if (category === 'buggy' && packageIncludesBuggy) {
+                      return null;
+                    }
+                    
+                    const isDisabled = conflict.conflicting && quantity === 0;
                     
                     return (
                       <div
                         key={addOn.id}
-                        className={`flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                          isSelected
+                        className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
+                          quantity > 0
                             ? 'border-primary bg-primary/5'
-                            : 'hover-elevate'
+                            : isDisabled
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover-elevate'
                         }`}
-                        onClick={() => toggleAddOn(addOn.id?.toString())}
                         data-testid={`addon-option-${addOn.id}`}
                       >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleAddOn(addOn.id?.toString())}
-                          id={`addon-${addOn.id}`}
-                        />
+                        {/* Quantity Selector */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={quantity === 0 || isDisabled}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddOnQuantity(addOnId, quantity - 1);
+                            }}
+                            data-testid={`button-addon-minus-${addOn.id}`}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-6 text-center text-sm font-medium">
+                            {quantity}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={quantity >= maxQty || isDisabled}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddOnQuantity(addOnId, quantity + 1);
+                            }}
+                            data-testid={`button-addon-plus-${addOn.id}`}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        
                         <div className="flex-1 space-y-1">
-                          <Label htmlFor={`addon-${addOn.id}`} className="text-sm font-medium cursor-pointer">
+                          <div className="text-sm font-medium">
                             {addOn.name}
-                          </Label>
+                          </div>
+                          {addOn.category && (
+                            <div className="text-xs text-muted-foreground">
+                              {addOn.category}
+                            </div>
+                          )}
+                          {conflict.conflicting && quantity === 0 && (
+                            <div className="text-xs text-orange-600">
+                              {conflict.reason}
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-1.5">
-                            {addOn.includesBuggy && (
+                            {category === 'buggy' && (
                               <Badge variant="secondary" className="text-xs">
                                 <Car className="h-3 w-3 mr-1" />
-                                Buggy
+                                {maxQty === 1 ? '1-2 players share' : `${maxQty} buggies max`}
                               </Badge>
                             )}
-                            {addOn.includesLunch && (
+                            {category === 'trolley' && (
                               <Badge variant="secondary" className="text-xs">
-                                <Utensils className="h-3 w-3 mr-1" />
-                                Lunch
+                                Per player
                               </Badge>
                             )}
                           </div>
                         </div>
                         
                         <div className="text-right">
-                          <div className="text-sm font-medium flex items-center gap-0.5">
-                            +€{addOnTotal}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {getAddOnPriceLabel(addOn)}
-                          </div>
+                          {quantity > 0 ? (
+                            <>
+                              <div className="text-sm font-medium text-primary">
+                                +€{totalForAddOn}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                €{unitPrice} × {quantity}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm font-medium">
+                                €{unitPrice}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {category === 'buggy' ? 'per buggy' : 'per player'}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -511,7 +680,7 @@ export function PackageSelectionDialog({
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
                   {selectedPackage.name} ({teeTime.players} players)
-                  {selectedAddOns.size > 0 && ` + ${selectedAddOns.size} add-on${selectedAddOns.size > 1 ? 's' : ''}`}
+                  {addOnQuantities.size > 0 && ` + ${addOnQuantities.size} add-on${addOnQuantities.size > 1 ? 's' : ''}`}
                 </div>
               </div>
             </>

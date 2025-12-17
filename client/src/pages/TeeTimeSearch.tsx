@@ -41,6 +41,7 @@ interface TeeTime {
   source: string;
   packageName?: string;
   packages?: any[];
+  addOns?: any[];
 }
 
 interface ContractSettings {

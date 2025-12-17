@@ -89,6 +89,14 @@ The platform integrates with Stripe Checkout for secure payment processing:
 
 ### Recent Improvements (December 2024)
 
+-   **Smart Add-on Logic**: PackageSelectionDialog implements intelligent add-on handling:
+    - Buggy and trolley are mutually exclusive (transport conflict group)
+    - When package includes buggy, buggy add-ons are hidden and info banner shown
+    - Trolley add-ons show "Buggy already selected" conflict message when buggy is in cart
+    - Club Rental remains independently selectable
+    - Quantity-based selection with +/- buttons for each add-on
+-   **Add-ons in Multi-Search Response**: The `/api/teetimes/multi-search` endpoint now includes add-ons from database (`storage.getAddOnsByCourseId()`) for all providers (Zest and Golfmanager)
+-   **Package Deduplication**: Early Bird/Twilight packages replace regular variants during their time windows, preventing duplicate package display
 -   **Commission Sync Service**: Centralized `commissionSync.ts` service ensures kickback percentages stay synchronized across `golf_courses.kickbackPercent`, `course_onboarding.agreedCommission`, and `courseRatePeriods`. Automatically upserts onboarding rows when missing.
 -   **Persistent Booking Holds**: `bookingHolds` table stores tee time holds in database with TTL, including full order payload as JSON. Survives server restarts with unique constraint on (sessionId, courseId, teeTime).
 -   **API Retry Logic**: Both `zestGolf.ts` and `golfmanager.ts` services now include retry logic with exponential backoff for transient network errors (ECONNRESET, ETIMEDOUT, 5xx responses). 30-second timeout configured.
