@@ -6,8 +6,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
-import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus, AlertTriangle, Sunrise, Sunset, Snowflake, Sun, Leaf, Tag, Minus, Info } from "lucide-react";
+import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus, AlertTriangle, Sunrise, Sunset, Snowflake, Sun, Leaf, Tag, Minus, Info, User } from "lucide-react";
 import { useBookingCart, CartItem, BookingConflict } from "@/contexts/BookingCartContext";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -82,13 +83,28 @@ export function PackageSelectionDialog({
   // Map of addOn id -> quantity (0 = not selected)
   const [addOnQuantities, setAddOnQuantities] = useState<Map<string, number>>(new Map());
   const [acknowledgedConflicts, setAcknowledgedConflicts] = useState(false);
+  // Player names (required like Golfmanager flow)
+  const [playerNames, setPlayerNames] = useState<string[]>([]);
+  // Track which fields have been touched (for validation feedback)
+  const [touchedFields, setTouchedFields] = useState<Set<number>>(new Set());
   const { addItem, hasItem, checkConflicts } = useBookingCart();
   const { toast } = useToast();
+
+  // Initialize player names array when players count changes
+  useEffect(() => {
+    if (teeTime?.players) {
+      setPlayerNames(Array(teeTime.players).fill(''));
+    }
+  }, [teeTime?.players]);
 
   useEffect(() => {
     setSelectedPackageId("");
     setAddOnQuantities(new Map());
     setAcknowledgedConflicts(false);
+    setTouchedFields(new Set());
+    if (teeTime?.players) {
+      setPlayerNames(Array(teeTime.players).fill(''));
+    }
   }, [teeTime?.id, teeTime?.time]);
 
   if (!teeTime || !course) return null;
@@ -157,7 +173,7 @@ export function PackageSelectionDialog({
   
   // Second pass: when a discounted variant is available, hide the regular-priced equivalent
   // This prevents showing both "Greenfee + Buggy" (€320) and "Greenfee + Buggy Earlybird" (€280)
-  const packages = timeFilteredPackages.filter(pkg => {
+  const afterTimeFiltering = timeFilteredPackages.filter(pkg => {
     // If this is a discounted package (early bird/twilight), keep it
     if (isEarlyBirdPackage(pkg) || isTwilightPackage(pkg)) {
       return true;
@@ -188,6 +204,38 @@ export function PackageSelectionDialog({
     
     return true;
   });
+  
+  // Third pass: Deduplicate packages ONLY when they differ only by a leading number
+  // e.g., "2 Greenfee + Buggy" and "Greenfee + Buggy" with SAME price are duplicates
+  // But "Greenfee 9 holes" and "Greenfee 18 holes" are DIFFERENT products
+  // This conservative approach avoids incorrectly merging distinct SKUs
+  const normalizeForComparison = (name: string): string => {
+    // Only remove leading number prefix (e.g., "2 Greenfee" → "greenfee")
+    return name.replace(/^\d+\s+/i, '').toLowerCase().trim();
+  };
+  
+  const getPackageSignature = (pkg: Package): string => {
+    const price = pkg.price ?? teeTime?.price ?? 0;
+    // Use exact normalized name - includes holes, extras, everything except leading number
+    const normalizedName = normalizeForComparison(pkg.name);
+    const minPlayers = pkg.minPlayers || 1;
+    return `${price}-${minPlayers}-${normalizedName}`;
+  };
+  
+  const packages = afterTimeFiltering.reduce((unique: Package[], pkg) => {
+    const signature = getPackageSignature(pkg);
+    const existingIndex = unique.findIndex(p => getPackageSignature(p) === signature);
+    
+    if (existingIndex === -1) {
+      unique.push(pkg);
+    } else {
+      // Duplicate found - prefer shorter name (cleaner display)
+      if (pkg.name.length < unique[existingIndex].name.length) {
+        unique[existingIndex] = pkg;
+      }
+    }
+    return unique;
+  }, []);
   
   const selectedPackage = packages.find(p => p.id?.toString() === selectedPackageId);
   const isAlreadyInCart = hasItem(course.courseId, teeTime.time);
@@ -332,11 +380,25 @@ export function PackageSelectionDialog({
     return total;
   };
 
+  // Check if all player names are filled (trimmed, non-empty)
+  const allPlayerNamesFilled = playerNames.length === teeTime.players && 
+    playerNames.every(name => name.trim().length >= 2); // Minimum 2 characters for a valid name
+
   const handleAddToCart = () => {
     if (!selectedPackage) {
       toast({
         title: "Please select a package",
         description: "Choose a green fee package before adding to cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate player names
+    if (!allPlayerNamesFilled) {
+      toast({
+        title: "Player names required",
+        description: "Please enter names for all players",
         variant: "destructive",
       });
       return;
@@ -362,6 +424,7 @@ export function PackageSelectionDialog({
       date: date,
       time: teeTime.time,
       players: teeTime.players,
+      playerNames: playerNames.map(name => name.trim()),
       package: {
         id: selectedPackage.id,
         name: selectedPackage.name,
@@ -389,7 +452,9 @@ export function PackageSelectionDialog({
 
     onOpenChange(false);
     setSelectedPackageId("");
-    setSelectedAddOns(new Set());
+    setAddOnQuantities(new Map());
+    setPlayerNames(Array(teeTime.players).fill(''));
+    setTouchedFields(new Set());
   };
 
   const formatTime = (timeStr: string) => {
@@ -529,8 +594,74 @@ export function PackageSelectionDialog({
             )}
           </div>
 
+          {/* Player Names Section - Required like Golfmanager */}
+          {selectedPackage && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Player Details
+                </h4>
+                <div className="space-y-2">
+                  {Array.from({ length: teeTime.players }).map((_, index) => {
+                    const currentValue = playerNames[index] || '';
+                    const trimmedValue = currentValue.trim();
+                    const isInvalid = trimmedValue.length < 2; // Minimum 2 characters
+                    const isTouched = touchedFields.has(index);
+                    const showError = isInvalid && isTouched;
+                    
+                    return (
+                      <div key={index} className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${
+                            !isInvalid ? 'bg-primary/10 text-primary' : showError ? 'bg-destructive/10 text-destructive' : 'bg-muted'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <Input
+                            placeholder={index === 0 ? "Lead booker name (required)" : `Player ${index + 1} name (required)`}
+                            value={currentValue}
+                            onChange={(e) => {
+                              const newNames = [...playerNames];
+                              newNames[index] = e.target.value;
+                              setPlayerNames(newNames);
+                            }}
+                            onBlur={(e) => {
+                              // Mark as touched and trim on blur
+                              setTouchedFields(prev => new Set(prev).add(index));
+                              const newNames = [...playerNames];
+                              newNames[index] = e.target.value.trim();
+                              setPlayerNames(newNames);
+                            }}
+                            className={`flex-1 ${showError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            data-testid={`input-player-name-${index}`}
+                          />
+                        </div>
+                        {showError && (
+                          <p className="text-xs text-destructive ml-8">
+                            {trimmedValue.length === 0 
+                              ? (index === 0 ? 'Lead booker name is required' : 'Player name is required')
+                              : 'Name must be at least 2 characters'
+                            }
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className={`text-xs mt-2 ${allPlayerNamesFilled ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {allPlayerNamesFilled 
+                    ? `✓ All ${teeTime.players} player names entered`
+                    : `Please enter all ${teeTime.players} player names to continue`
+                  }
+                </p>
+              </div>
+            </>
+          )}
+
           {/* Optional Add-ons */}
-          {addOns.length > 0 && (
+          {addOns.length > 0 && selectedPackage && (
             <>
               <Separator />
               <div>
@@ -737,6 +868,7 @@ export function PackageSelectionDialog({
             onClick={handleAddToCart}
             disabled={
               (packages.length > 0 && !selectedPackageId) || 
+              !allPlayerNamesFilled ||
               conflicts.some(c => c.type === 'time-overlap') ||
               (conflicts.some(c => c.type === 'same-course-same-day') && !acknowledgedConflicts)
             }
@@ -746,9 +878,11 @@ export function PackageSelectionDialog({
             <ShoppingCart className="h-4 w-4 mr-2" />
             {conflicts.some(c => c.type === 'time-overlap') 
               ? 'Time Conflict' 
-              : isAlreadyInCart 
-                ? 'Update Cart' 
-                : 'Add to Cart'}
+              : !allPlayerNamesFilled && selectedPackageId
+                ? 'Enter Player Names'
+                : isAlreadyInCart 
+                  ? 'Update Cart' 
+                  : 'Add to Cart'}
           </Button>
         </DialogFooter>
       </DialogContent>

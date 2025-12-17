@@ -25,6 +25,7 @@ export interface CartItem {
   date: string;
   time: string;
   players: number;
+  playerNames?: string[];
   package: CartPackage;
   addOns?: CartAddOn[];
   totalPrice: number;
