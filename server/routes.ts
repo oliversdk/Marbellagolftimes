@@ -7128,11 +7128,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentDate.setDate(currentDate.getDate() + 1);
       }
       
-      // Results array
+      // Results array with contract time settings
       const results: Array<{
         courseId: string;
         courseName: string;
         providerType: string;
+        contractSettings?: {
+          twilightStartTime: string | null; // e.g., "14:00"
+          earlyBirdEndTime: string | null;  // e.g., "10:00"
+          currentSeason: string | null;     // e.g., "Winter", "Low Season"
+        };
         dates: Array<{
           date: string;
           teeTimes: any[];
@@ -7146,14 +7151,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const course of selectedCourses) {
         if (!course) continue;
         
+        // Get contract rate periods for this course to extract time settings
+        const courseRates = await db.select().from(courseRatePeriods).where(eq(courseRatePeriods.courseId, course.id));
+        
+        // Extract twilight/early bird times from contract data
+        // Find the first rate that has these settings defined
+        const twilightRate = courseRates.find(r => r.isTwilight === 'true' && r.twilightStartTime);
+        const earlyBirdRate = courseRates.find(r => r.isEarlyBird === 'true' && r.earlyBirdEndTime);
+        
+        // Determine current season based on search date
+        const searchDate = dates[0] || new Date();
+        const month = searchDate.getMonth() + 1; // 1-12
+        let currentSeason: string | null = null;
+        
+        // Find applicable rate period for current date
+        for (const rate of courseRates) {
+          if (rate.startDate && rate.endDate) {
+            // Try to parse MM-DD format or month names
+            const startMonth = parseInt(rate.startDate.split('-')[0]) || 0;
+            const endMonth = parseInt(rate.endDate.split('-')[0]) || 0;
+            
+            if (startMonth && endMonth) {
+              const inRange = startMonth <= endMonth 
+                ? (month >= startMonth && month <= endMonth)
+                : (month >= startMonth || month <= endMonth); // Wraps around year
+              
+              if (inRange) {
+                currentSeason = rate.seasonLabel;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Default season detection if not in contract
+        if (!currentSeason) {
+          if (month >= 11 || month <= 2) currentSeason = 'Winter';
+          else if (month >= 6 && month <= 8) currentSeason = 'Summer';
+          else currentSeason = 'Mid Season';
+        }
+        
         const courseResult: typeof results[0] = {
           courseId: course.id,
           courseName: course.name,
           providerType: 'unknown',
+          contractSettings: {
+            twilightStartTime: twilightRate?.twilightStartTime || '14:00', // Default to 14:00 if not in contract
+            earlyBirdEndTime: earlyBirdRate?.earlyBirdEndTime || '10:00',   // Default to 10:00 if not in contract
+            currentSeason,
+          },
           dates: [],
         };
         
-        console.log(`[Multi-Search] Checking course: ${course.name} (${course.id}), has Zest: ${zestFacilityMap.has(course.id)}`);
+        console.log(`[Multi-Search] Checking course: ${course.name} (${course.id}), has Zest: ${zestFacilityMap.has(course.id)}, season: ${currentSeason}`);
         
         // Check if Zest course
         if (zestFacilityMap.has(course.id)) {
@@ -7184,14 +7234,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       for (const product of tt.products) {
                         const productPrice = product.publicRate?.amount || product.price?.amount || 
                                             product.pricing?.[0]?.publicRate?.amount || product.pricing?.[0]?.price?.amount || perPlayerPrice;
+                        const nameLower = product.name?.toLowerCase() || '';
                         packages.push({
                           id: product.mid,
                           name: product.name,
                           price: productPrice,
-                          includesBuggy: product.name?.toLowerCase().includes('buggy') || product.category?.toLowerCase().includes('buggy'),
-                          includesLunch: product.name?.toLowerCase().includes('lunch') || product.name?.toLowerCase().includes('almuerzo'),
+                          includesBuggy: nameLower.includes('buggy') || product.category?.toLowerCase().includes('buggy'),
+                          includesLunch: nameLower.includes('lunch') || nameLower.includes('almuerzo'),
                           category: product.category,
                           isMain: true,
+                          // Detect time-based packages from name
+                          isTwilight: nameLower.includes('twilight') || nameLower.includes('crepuscular') || nameLower.includes('atardecer'),
+                          isEarlyBird: nameLower.includes('early bird') || nameLower.includes('madrugador') || nameLower.includes('morning'),
+                          // Detect seasonal packages
+                          seasonLabel: nameLower.includes('invierno') || nameLower.includes('winter') ? 'Winter' :
+                                      nameLower.includes('verano') || nameLower.includes('summer') ? 'Summer' :
+                                      nameLower.includes('high season') || nameLower.includes('temporada alta') ? 'High Season' :
+                                      nameLower.includes('low season') || nameLower.includes('temporada baja') ? 'Low Season' : null,
                         });
                       }
                     } else {
