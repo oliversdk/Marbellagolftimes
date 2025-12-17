@@ -85,8 +85,40 @@ export function PackageSelectionDialog({
 
   if (!teeTime || !course) return null;
 
-  const packages = teeTime.packages || [];
+  const allPackages = teeTime.packages || [];
   const addOns = teeTime.addOns || [];
+  
+  // Filter packages based on tee time
+  // Twilight packages only available from 14:00 onwards
+  // Early Bird packages only available before 10:00
+  const teeTimeHour = new Date(teeTime.time).getHours();
+  const TWILIGHT_START_HOUR = 14; // 2:00 PM
+  const EARLY_BIRD_END_HOUR = 10; // 10:00 AM
+  
+  const packages = allPackages.filter(pkg => {
+    // Check if package name or isTwilight flag indicates twilight
+    const isTwilightPackage = pkg.isTwilight || 
+      pkg.name.toLowerCase().includes('twilight') ||
+      pkg.name.toLowerCase().includes('crepuscular');
+    
+    // Check if package is early bird
+    const isEarlyBirdPackage = pkg.isEarlyBird || 
+      pkg.name.toLowerCase().includes('early bird') ||
+      pkg.name.toLowerCase().includes('madrugador');
+    
+    // Twilight packages: only show if tee time is 14:00 or later
+    if (isTwilightPackage && teeTimeHour < TWILIGHT_START_HOUR) {
+      return false;
+    }
+    
+    // Early bird packages: only show if tee time is before 10:00
+    if (isEarlyBirdPackage && teeTimeHour >= EARLY_BIRD_END_HOUR) {
+      return false;
+    }
+    
+    return true;
+  });
+  
   const selectedPackage = packages.find(p => p.id?.toString() === selectedPackageId);
   const isAlreadyInCart = hasItem(course.courseId, teeTime.time);
   const conflicts = checkConflicts(course.courseId, date, teeTime.time);
