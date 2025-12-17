@@ -104,3 +104,8 @@ The platform integrates with Stripe Checkout for secure payment processing:
 -   **Database Performance Indexes**: Added composite indexes for `courseRatePeriods(courseId, seasonLabel)`, `zestPricingData(courseId, zestFacilityId)`, and `bookingRequests(courseId, teeTime)`.
 -   **Loading States**: Admin dashboard uses Skeleton components for loading states on bookings, users, follow-ups, and course management sections.
 -   **Image Serving Fallback**: Static route serves `/generated_images` from both `client/public/generated_images` and `attached_assets/generated_images` as fallback
+-   **Contract-Driven Pricing (December 2024)**: Price matching now correctly uses contract rack rates from `courseRatePeriods` table instead of TTOO+20% fallback markup. Key fixes:
+    - Rate period date filtering matches tee time dates to applicable season periods (startDate/endDate)
+    - Boolean flags (isTwilight, isEarlyBird, includesLunch) correctly compared as strings ("true"/"false") matching DB text type
+    - Package type matching: Twilight packages match `isTwilight=true` periods, Lunch matches `includesLunch=true`, Regular matches no special flags
+    - Winter 2025 rates populated: Twilight €62, Regular €72, Lunch €95 for Alhaurin Golf

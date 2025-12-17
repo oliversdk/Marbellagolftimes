@@ -7364,13 +7364,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 );
                 
                 // Convert rate periods to the format expected by convertSlotsToTeeTime
+                // Note: isTwilight/isEarlyBird/includesLunch are stored as text ("true"/"false") in DB
                 const ratePeriodData = ratePeriods.map(rp => ({
+                  packageType: rp.packageType,
+                  rackRate: Number(rp.rackRate),
+                  netRate: Number(rp.netRate),
+                  kickbackPercent: Number(rp.kickbackPercent) || 20,
                   seasonLabel: rp.seasonLabel,
-                  packageName: rp.packageType, // Use packageType as packageName
-                  customerRackRate: Number(rp.rackRate),
-                  ttooNetRate: Number(rp.netRate),
-                  validFrom: rp.startDate,
-                  validTo: rp.endDate,
+                  isEarlyBird: rp.isEarlyBird === "true" ? "true" : "false",
+                  isTwilight: rp.isTwilight === "true" ? "true" : "false",
+                  includesLunch: rp.includesLunch === "true" ? "true" : "false",
+                  startDate: rp.startDate,
+                  endDate: rp.endDate,
                 }));
                 
                 const teeTimes = provider.convertSlotsToTeeTime(

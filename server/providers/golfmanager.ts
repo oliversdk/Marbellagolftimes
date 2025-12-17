@@ -166,16 +166,36 @@ interface RatePeriod {
 /**
  * Get customer price from rate periods (contract data)
  * Matches package name to rate period and returns rack rate
+ * Filters by tee time date to find the correct season's pricing
  */
 function getCustomerPriceFromRatePeriods(
   ttooPrice: number,
   packageName: string,
   ratePeriods: RatePeriod[],
-  fallbackKickback: number = 20
+  fallbackKickback: number = 20,
+  teeTimeDate?: string
 ): number {
   if (!ratePeriods || ratePeriods.length === 0) {
     // No rate periods - use fallback markup
     return Math.round(ttooPrice * (1 + fallbackKickback / 100) * 100) / 100;
+  }
+  
+  // Filter rate periods by date if tee time date is provided
+  let applicablePeriods = ratePeriods;
+  if (teeTimeDate) {
+    const teeDate = new Date(teeTimeDate);
+    applicablePeriods = ratePeriods.filter(rp => {
+      if (!rp.startDate || !rp.endDate) return true; // No date restriction
+      const start = new Date(rp.startDate);
+      const end = new Date(rp.endDate);
+      return teeDate >= start && teeDate <= end;
+    });
+    
+    if (applicablePeriods.length === 0) {
+      // No periods match the date - try without date filter as fallback
+      console.log(`[Golfmanager] No rate periods found for date ${teeTimeDate}, using all periods`);
+      applicablePeriods = ratePeriods;
+    }
   }
   
   const nameLower = packageName.toLowerCase();
@@ -183,18 +203,24 @@ function getCustomerPriceFromRatePeriods(
   // Find matching rate period based on package characteristics
   let matchedPeriod: RatePeriod | undefined;
   
-  if (nameLower.includes("earlybird") || nameLower.includes("early bird")) {
-    matchedPeriod = ratePeriods.find(rp => rp.isEarlyBird === "true");
-  } else if (nameLower.includes("twilight") || nameLower.includes("tarde")) {
-    matchedPeriod = ratePeriods.find(rp => rp.isTwilight === "true");
+  // Check for twilight package (including seasonal variants like "invierno")
+  if (nameLower.includes("earlybird") || nameLower.includes("early bird") || nameLower.includes("madrugador")) {
+    matchedPeriod = applicablePeriods.find(rp => rp.isEarlyBird === "true" || rp.isEarlyBird === true as any);
+  } else if (nameLower.includes("twilight") || nameLower.includes("tarde") || nameLower.includes("crepuscular")) {
+    // Twilight packages - look for twilight rate period
+    matchedPeriod = applicablePeriods.find(rp => rp.isTwilight === "true" || rp.isTwilight === true as any);
   } else if (nameLower.includes("lunch") || nameLower.includes("almuerzo")) {
-    matchedPeriod = ratePeriods.find(rp => rp.includesLunch === "true" && rp.isEarlyBird !== "true" && rp.isTwilight !== "true");
+    matchedPeriod = applicablePeriods.find(rp => 
+      (rp.includesLunch === "true" || rp.includesLunch === true as any) && 
+      rp.isEarlyBird !== "true" && rp.isEarlyBird !== true as any && 
+      rp.isTwilight !== "true" && rp.isTwilight !== true as any
+    );
   } else {
     // Standard greenfee - find one without special flags
-    matchedPeriod = ratePeriods.find(rp => 
-      rp.isEarlyBird !== "true" && 
-      rp.isTwilight !== "true" && 
-      rp.includesLunch !== "true"
+    matchedPeriod = applicablePeriods.find(rp => 
+      rp.isEarlyBird !== "true" && rp.isEarlyBird !== true as any && 
+      rp.isTwilight !== "true" && rp.isTwilight !== true as any && 
+      rp.includesLunch !== "true" && rp.includesLunch !== true as any
     );
   }
   
@@ -412,8 +438,9 @@ export class GolfmanagerProvider {
     kickbackPercent: number = 20
   ): TeeTimeSlot[] {
     // Helper to get customer price using rate periods (contract rack rates)
-    const getCustomerPrice = (ttooPrice: number, packageName: string): number => {
-      return getCustomerPriceFromRatePeriods(ttooPrice, packageName, ratePeriods, kickbackPercent);
+    // Now accepts teeTimeDate to filter rate periods by date
+    const getCustomerPrice = (ttooPrice: number, packageName: string, teeTimeDate?: string): number => {
+      return getCustomerPriceFromRatePeriods(ttooPrice, packageName, ratePeriods, kickbackPercent, teeTimeDate);
     };
     const results: TeeTimeSlot[] = [];
     
@@ -429,11 +456,14 @@ export class GolfmanagerProvider {
         );
         
         if (validTypes.length > 0) {
+          // Get tee time date for rate period filtering
+          const teeTimeDate = slot.date || (validTypes[0]?.start ? validTypes[0].start.split('T')[0] : undefined);
+          
           // Convert all valid types to packages with customer prices
           const packages: TeeTimePackage[] = validTypes.map((t: any) => {
             const cleanedName = cleanPackageName(t.name);
             const nameLower = cleanedName.toLowerCase();
-            const customerPrice = getCustomerPrice(t.price || 0, cleanedName);
+            const customerPrice = getCustomerPrice(t.price || 0, cleanedName, teeTimeDate);
             return {
               id: t.id || t.idType || 0,
               name: cleanedName,
@@ -474,7 +504,8 @@ export class GolfmanagerProvider {
       else if (slot.start) {
         if (slot.available !== false) {
           const ttooPrice = slot.pricePerSlot || slot.price || 0;
-          const customerPrice = getCustomerPrice(ttooPrice, "standard");
+          const teeTimeDate = slot.start ? slot.start.split('T')[0] : undefined;
+          const customerPrice = getCustomerPrice(ttooPrice, "standard", teeTimeDate);
           results.push({
             teeTime: slot.start,
             greenFee: customerPrice, // Use customer price
