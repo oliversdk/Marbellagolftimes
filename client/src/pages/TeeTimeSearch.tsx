@@ -43,10 +43,17 @@ interface TeeTime {
   packages?: any[];
 }
 
+interface ContractSettings {
+  twilightStartTime: string | null;
+  earlyBirdEndTime: string | null;
+  currentSeason: string | null;
+}
+
 interface CourseSearchResult {
   courseId: string;
   courseName: string;
   providerType: string;
+  contractSettings?: ContractSettings;
   dates: Array<{
     date: string;
     teeTimes: TeeTime[];
@@ -77,7 +84,7 @@ export default function TeeTimeSearch() {
   
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [selectedTeeTime, setSelectedTeeTime] = useState<TeeTime | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<{ courseId: string; courseName: string; providerType: string; city?: string } | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<{ courseId: string; courseName: string; providerType: string; city?: string; contractSettings?: ContractSettings } | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
   
   const { hasItem, getItemCount } = useBookingCart();
@@ -475,6 +482,7 @@ export default function TeeTimeSearch() {
                                             courseName: course.courseName,
                                             providerType: course.providerType,
                                             city: courseInfo?.city,
+                                            contractSettings: course.contractSettings,
                                           });
                                           setSelectedDate(dateData.date);
                                           setPackageDialogOpen(true);

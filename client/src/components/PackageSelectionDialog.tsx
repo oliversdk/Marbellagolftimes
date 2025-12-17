@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus, AlertTriangle } from "lucide-react";
+import { Clock, Users, Car, Utensils, Euro, ShoppingCart, Plus, AlertTriangle, Sunrise, Sunset, Snowflake, Sun, Leaf, Tag } from "lucide-react";
 import { useBookingCart, CartItem, BookingConflict } from "@/contexts/BookingCartContext";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -101,15 +101,18 @@ export function PackageSelectionDialog({
   const earlyBirdEndTime = contractSettings?.earlyBirdEndTime || '10:00';
   const currentSeason = contractSettings?.currentSeason;
   
-  // Parse time strings to hours for comparison
-  const parseTimeToHour = (time: string): number => {
-    const [hours] = time.split(':').map(Number);
-    return hours || 0;
+  // Parse time strings to minutes for accurate comparison (handles both 14:00 and 14:30)
+  const parseTimeToMinutes = (time: string): number => {
+    const parts = time.split(':').map(Number);
+    const hours = parts[0] || 0;
+    const minutes = parts[1] || 0;
+    return hours * 60 + minutes;
   };
   
-  const TWILIGHT_START_HOUR = parseTimeToHour(twilightStartTime);
-  const EARLY_BIRD_END_HOUR = parseTimeToHour(earlyBirdEndTime);
-  const teeTimeHour = new Date(teeTime.time).getHours();
+  const twilightStartMinutes = parseTimeToMinutes(twilightStartTime);
+  const earlyBirdEndMinutes = parseTimeToMinutes(earlyBirdEndTime);
+  const teeTimeDate = new Date(teeTime.time);
+  const teeTimeMinutes = teeTimeDate.getHours() * 60 + teeTimeDate.getMinutes();
   
   const packages = allPackages.filter(pkg => {
     // Check if package name or isTwilight flag indicates twilight
@@ -123,12 +126,14 @@ export function PackageSelectionDialog({
       pkg.name.toLowerCase().includes('madrugador');
     
     // Twilight packages: only show if tee time is at or after twilight start (from contract)
-    if (isTwilightPackage && teeTimeHour < TWILIGHT_START_HOUR) {
+    // Uses minute-level comparison for accuracy (e.g., 14:30 means 14:05 is NOT twilight)
+    if (isTwilightPackage && teeTimeMinutes < twilightStartMinutes) {
       return false;
     }
     
     // Early bird packages: only show if tee time is before early bird end (from contract)
-    if (isEarlyBirdPackage && teeTimeHour >= EARLY_BIRD_END_HOUR) {
+    // Uses minute-level comparison for accuracy (e.g., 09:30 means 09:15 IS early bird)
+    if (isEarlyBirdPackage && teeTimeMinutes >= earlyBirdEndMinutes) {
       return false;
     }
     
@@ -257,7 +262,7 @@ export function PackageSelectionDialog({
             <Clock className="h-5 w-5" />
             {formatTime(teeTime.time)}
           </DialogTitle>
-          <DialogDescription className="space-y-1">
+          <DialogDescription className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="font-medium">{course.courseName}</span>
             </div>
@@ -268,6 +273,18 @@ export function PackageSelectionDialog({
               </span>
               <span>{format(new Date(date), 'EEEE, MMMM d')}</span>
             </div>
+            {/* Show current season badge */}
+            {currentSeason && (
+              <div className="flex items-center gap-2 pt-1">
+                <Badge variant="outline" className="text-xs bg-background">
+                  {currentSeason.toLowerCase().includes('winter') && <Snowflake className="h-3 w-3 mr-1 text-blue-500" />}
+                  {currentSeason.toLowerCase().includes('summer') && <Sun className="h-3 w-3 mr-1 text-yellow-500" />}
+                  {(currentSeason.toLowerCase().includes('mid') || currentSeason.toLowerCase().includes('spring') || currentSeason.toLowerCase().includes('autumn')) && <Leaf className="h-3 w-3 mr-1 text-green-500" />}
+                  {!currentSeason.toLowerCase().includes('winter') && !currentSeason.toLowerCase().includes('summer') && !currentSeason.toLowerCase().includes('mid') && !currentSeason.toLowerCase().includes('spring') && !currentSeason.toLowerCase().includes('autumn') && <Tag className="h-3 w-3 mr-1" />}
+                  {currentSeason} Rate
+                </Badge>
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -319,10 +336,16 @@ export function PackageSelectionDialog({
                             </Badge>
                           )}
                           {pkg.isEarlyBird && (
-                            <Badge variant="outline" className="text-xs">Early Bird</Badge>
+                            <Badge variant="outline" className="text-xs text-orange-600 border-orange-300 bg-orange-50">
+                              <Sunrise className="h-3 w-3 mr-1" />
+                              Early Bird (before {earlyBirdEndTime})
+                            </Badge>
                           )}
                           {pkg.isTwilight && (
-                            <Badge variant="outline" className="text-xs">Twilight</Badge>
+                            <Badge variant="outline" className="text-xs text-purple-600 border-purple-300 bg-purple-50">
+                              <Sunset className="h-3 w-3 mr-1" />
+                              Twilight (from {twilightStartTime})
+                            </Badge>
                           )}
                         </div>
                         
