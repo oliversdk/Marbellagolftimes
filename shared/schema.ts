@@ -674,6 +674,8 @@ export const courseRatePeriods = pgTable(
     isEarlyBird: text("is_early_bird").notNull().default("false"), // Before 9am typically
     isTwilight: text("is_twilight").notNull().default("false"), // After 3pm typically
     timeRestriction: text("time_restriction"), // e.g., "8:00-9:00" or "from 15:00"
+    earlyBirdEndTime: text("early_bird_end_time"), // e.g., "10:00" - last tee time for early bird
+    twilightStartTime: text("twilight_start_time"), // e.g., "14:00" - first tee time for twilight
     // Group discount rules
     minPlayersForDiscount: integer("min_players_for_discount"), // e.g., 8 for "1 free per 8"
     freePlayersPerGroup: integer("free_players_per_group"), // e.g., 1 for "1 free per 8"
