@@ -96,7 +96,8 @@ The platform integrates with Stripe Checkout for secure payment processing:
     - Club Rental remains independently selectable
     - Quantity-based selection with +/- buttons for each add-on
 -   **Add-ons in Multi-Search Response**: The `/api/teetimes/multi-search` endpoint now includes add-ons from database (`storage.getAddOnsByCourseId()`) for all providers (Zest and Golfmanager)
--   **Package Deduplication**: Early Bird/Twilight packages replace regular variants during their time windows, preventing duplicate package display
+-   **Package Deduplication**: Enhanced deduplication ensures discounted variants (Early Bird, Twilight, or seasonal like "invierno/verano") supersede their regular equivalents. When a time-restricted package is available, the regular version is hidden. Supports both Spanish and English seasonal keywords.
+-   **Player Name Input**: Golfmanager-style booking flow requires player names after package selection (minimum 2 characters), with per-field validation and inline error feedback
 -   **Commission Sync Service**: Centralized `commissionSync.ts` service ensures kickback percentages stay synchronized across `golf_courses.kickbackPercent`, `course_onboarding.agreedCommission`, and `courseRatePeriods`. Automatically upserts onboarding rows when missing.
 -   **Persistent Booking Holds**: `bookingHolds` table stores tee time holds in database with TTL, including full order payload as JSON. Survives server restarts with unique constraint on (sessionId, courseId, teeTime).
 -   **API Retry Logic**: Both `zestGolf.ts` and `golfmanager.ts` services now include retry logic with exponential backoff for transient network errors (ECONNRESET, ETIMEDOUT, 5xx responses). 30-second timeout configured.

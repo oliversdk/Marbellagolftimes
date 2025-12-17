@@ -143,11 +143,35 @@ export function PackageSelectionDialog({
     pkg.name.toLowerCase().includes('twilight') ||
     pkg.name.toLowerCase().includes('crepuscular');
   
-  // Normalize package name to get base product (strip time-of-day suffixes)
+  // Helper to check if package has seasonal/winter modifiers
+  const isSeasonalPackage = (pkg: Package) => {
+    const nameLower = pkg.name.toLowerCase();
+    return nameLower.includes('invierno') || 
+           nameLower.includes('verano') ||
+           nameLower.includes('winter') ||
+           nameLower.includes('summer') ||
+           nameLower.includes('primavera') ||
+           nameLower.includes('spring') ||
+           nameLower.includes('otoño') ||
+           nameLower.includes('autumn') ||
+           nameLower.includes('fall');
+  };
+  
+  // Check if package is any time-restricted or seasonal variant
+  const isDiscountedVariant = (pkg: Package) => 
+    isEarlyBirdPackage(pkg) || isTwilightPackage(pkg) || isSeasonalPackage(pkg);
+  
+  // Normalize package name to get base product (strip time-of-day AND seasonal suffixes)
   const getBaseProductName = (name: string): string => {
     return name
       .toLowerCase()
+      // Remove leading numbers (e.g., "2 Greenfee" → "Greenfee")
+      .replace(/^\d+\s+/i, '')
+      // Remove early bird/twilight keywords
       .replace(/\s*(early\s*bird|earlybird|madrugador|twilight|crepuscular)\s*/gi, '')
+      // Remove seasonal keywords including parenthetical versions
+      .replace(/\s*\(?\s*(invierno|verano|winter|summer|primavera|spring|otoño|autumn|fall)\s*\)?\s*/gi, '')
+      // Clean up multiple spaces
       .replace(/\s+/g, ' ')
       .trim();
   };
@@ -172,34 +196,23 @@ export function PackageSelectionDialog({
   });
   
   // Second pass: when a discounted variant is available, hide the regular-priced equivalent
-  // This prevents showing both "Greenfee + Buggy" (€320) and "Greenfee + Buggy Earlybird" (€280)
+  // This prevents showing both "Greenfee + Buggy" (€160) and "GREENFEE + BUGGY TWILIGHT (invierno)" (€140)
   const afterTimeFiltering = timeFilteredPackages.filter(pkg => {
-    // If this is a discounted package (early bird/twilight), keep it
-    if (isEarlyBirdPackage(pkg) || isTwilightPackage(pkg)) {
+    // If this is a discounted package (early bird/twilight/seasonal), always keep it
+    if (isDiscountedVariant(pkg)) {
       return true;
     }
     
-    // For regular packages, check if there's a discounted variant available
+    // For regular packages, check if there's ANY discounted variant available with same base product
     const baseName = getBaseProductName(pkg.name);
     
-    // Check if there's an early bird version of this package (and we're in early bird time)
-    if (isEarlyBirdTime) {
-      const hasEarlyBirdVariant = timeFilteredPackages.some(other => 
-        isEarlyBirdPackage(other) && getBaseProductName(other.name) === baseName
-      );
-      if (hasEarlyBirdVariant) {
-        return false; // Hide regular, show early bird instead
-      }
-    }
+    // Check if there's a discounted variant of this package in the time-filtered list
+    const hasDiscountedVariant = timeFilteredPackages.some(other => 
+      isDiscountedVariant(other) && getBaseProductName(other.name) === baseName
+    );
     
-    // Check if there's a twilight version of this package (and we're in twilight time)
-    if (isTwilightTime) {
-      const hasTwilightVariant = timeFilteredPackages.some(other => 
-        isTwilightPackage(other) && getBaseProductName(other.name) === baseName
-      );
-      if (hasTwilightVariant) {
-        return false; // Hide regular, show twilight instead
-      }
+    if (hasDiscountedVariant) {
+      return false; // Hide regular, the discounted variant will be shown instead
     }
     
     return true;
