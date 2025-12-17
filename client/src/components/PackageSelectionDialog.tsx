@@ -255,23 +255,25 @@ export function PackageSelectionDialog({
   const conflicts = checkConflicts(course.courseId, date, teeTime.time);
   
   const getPackagePrice = (pkg: Package): number => {
-    return pkg.price ?? teeTime.price ?? 0;
+    // Round to 2 decimal places to avoid floating point precision issues
+    return Math.round((pkg.price ?? teeTime.price ?? 0) * 100) / 100;
   };
 
   const getAddOnPrice = (addOn: AddOn): number => {
-    const basePrice = addOn.price ?? 0;
+    const basePrice = Math.round((addOn.price ?? 0) * 100) / 100;
     // Buggy is shared (1 per 2 players), other add-ons are per player
     if (addOn.pricingType === 'per-buggy' || addOn.includesBuggy) {
-      return basePrice * Math.ceil(teeTime.players / 2);
+      return Math.round(basePrice * Math.ceil(teeTime.players / 2) * 100) / 100;
     }
-    return basePrice * teeTime.players;
+    return Math.round(basePrice * teeTime.players * 100) / 100;
   };
 
   const getAddOnPriceLabel = (addOn: AddOn): string => {
+    const price = Math.round((addOn.price ?? 0) * 100) / 100;
     if (addOn.pricingType === 'per-buggy' || addOn.includesBuggy) {
-      return `€${addOn.price ?? 0}/buggy`;
+      return `€${price}/buggy`;
     }
-    return `€${addOn.price ?? 0}/player`;
+    return `€${price}/player`;
   };
 
   // Determine add-on category for conflict detection
@@ -366,12 +368,12 @@ export function PackageSelectionDialog({
 
   // Calculate add-on price based on quantity and pricing type
   const calculateAddOnTotal = (addOn: AddOn, quantity: number): number => {
-    const basePrice = addOn.price ?? 0;
+    const basePrice = Math.round((addOn.price ?? 0) * 100) / 100;
     // Buggy is per-buggy, others are per-player
     if (addOn.pricingType === 'per-buggy' || addOn.includesBuggy || getAddOnCategory(addOn) === 'buggy') {
-      return basePrice * quantity;
+      return Math.round(basePrice * quantity * 100) / 100;
     }
-    return basePrice * quantity;
+    return Math.round(basePrice * quantity * 100) / 100;
   };
   
   const calculateTotal = (): number => {
@@ -390,7 +392,8 @@ export function PackageSelectionDialog({
       }
     });
     
-    return total;
+    // Round to 2 decimal places to avoid floating point precision issues
+    return Math.round(total * 100) / 100;
   };
 
   // Check if all player names are filled (trimmed, non-empty)
@@ -527,7 +530,7 @@ export function PackageSelectionDialog({
               >
                 {packages.map((pkg) => {
                   const price = getPackagePrice(pkg);
-                  const totalPrice = price * teeTime.players;
+                  const totalPrice = Math.round(price * teeTime.players * 100) / 100;
                   
                   return (
                     <div
@@ -597,11 +600,11 @@ export function PackageSelectionDialog({
                 <p className="text-sm text-muted-foreground mb-2">Standard Rate</p>
                 <div className="text-2xl font-bold flex items-center justify-center gap-1">
                   <Euro className="h-5 w-5" />
-                  {teeTime.price}
+                  {Math.round((teeTime.price ?? 0) * 100) / 100}
                 </div>
                 <p className="text-xs text-muted-foreground">per player</p>
                 <p className="text-sm font-medium text-primary mt-2">
-                  Total: €{teeTime.price * teeTime.players}
+                  Total: €{Math.round((teeTime.price ?? 0) * teeTime.players * 100) / 100}
                 </p>
               </div>
             )}
@@ -698,7 +701,7 @@ export function PackageSelectionDialog({
                     const category = getAddOnCategory(addOn);
                     const conflict = isAddOnConflicting(addOn);
                     const maxQty = getMaxQuantity(addOn);
-                    const unitPrice = addOn.price ?? 0;
+                    const unitPrice = Math.round((addOn.price ?? 0) * 100) / 100;
                     const totalForAddOn = calculateAddOnTotal(addOn, quantity);
                     
                     // Hide buggy add-ons if package includes buggy

@@ -7234,8 +7234,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 courseResult.dates.push({
                   date: date.toISOString().split('T')[0],
                   teeTimes: (response.teeTimeV3 || []).map((tt: any) => {
-                    // Zest API returns per-player prices
-                    const perPlayerPrice = tt.pricing?.[0]?.price?.amount || tt.pricing?.[0]?.publicRate?.amount || 0;
+                    // Zest API returns per-player prices - round to 2 decimal places
+                    const perPlayerPrice = Math.round((tt.pricing?.[0]?.price?.amount || tt.pricing?.[0]?.publicRate?.amount || 0) * 100) / 100;
                     
                     // Separate base packages (main green fee) from add-ons
                     const packages: any[] = [];
@@ -7244,8 +7244,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     // Map main products (e.g., green fee packages) - these are required
                     if (tt.products && Array.isArray(tt.products) && tt.products.length > 0) {
                       for (const product of tt.products) {
-                        const productPrice = product.publicRate?.amount || product.price?.amount || 
-                                            product.pricing?.[0]?.publicRate?.amount || product.pricing?.[0]?.price?.amount || perPlayerPrice;
+                        const productPrice = Math.round((product.publicRate?.amount || product.price?.amount || 
+                                            product.pricing?.[0]?.publicRate?.amount || product.pricing?.[0]?.price?.amount || perPlayerPrice) * 100) / 100;
                         const nameLower = product.name?.toLowerCase() || '';
                         packages.push({
                           id: product.mid,
@@ -7280,8 +7280,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     // Map extra products as optional add-ons (buggy, clubs, trolley, lunch)
                     if (tt.extraProducts && Array.isArray(tt.extraProducts)) {
                       for (const extra of tt.extraProducts) {
-                        const extraPrice = extra.publicRate?.amount || extra.price?.amount ||
-                                          extra.pricing?.[0]?.publicRate?.amount || extra.pricing?.[0]?.price?.amount || 0;
+                        const extraPrice = Math.round((extra.publicRate?.amount || extra.price?.amount ||
+                                          extra.pricing?.[0]?.publicRate?.amount || extra.pricing?.[0]?.price?.amount || 0) * 100) / 100;
                         const nameLower = extra.name?.toLowerCase() || '';
                         const isBuggy = nameLower.includes('buggy');
                         
