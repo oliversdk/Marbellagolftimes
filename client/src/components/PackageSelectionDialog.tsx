@@ -114,27 +114,75 @@ export function PackageSelectionDialog({
   const teeTimeDate = new Date(teeTime.time);
   const teeTimeMinutes = teeTimeDate.getHours() * 60 + teeTimeDate.getMinutes();
   
-  const packages = allPackages.filter(pkg => {
-    // Check if package name or isTwilight flag indicates twilight
-    const isTwilightPackage = pkg.isTwilight || 
-      pkg.name.toLowerCase().includes('twilight') ||
-      pkg.name.toLowerCase().includes('crepuscular');
-    
-    // Check if package is early bird
-    const isEarlyBirdPackage = pkg.isEarlyBird || 
-      pkg.name.toLowerCase().includes('early bird') ||
-      pkg.name.toLowerCase().includes('madrugador');
-    
-    // Twilight packages: only show if tee time is at or after twilight start (from contract)
-    // Uses minute-level comparison for accuracy (e.g., 14:30 means 14:05 is NOT twilight)
-    if (isTwilightPackage && teeTimeMinutes < twilightStartMinutes) {
+  // Helper to check if package is early bird or twilight
+  const isEarlyBirdPackage = (pkg: Package) => 
+    pkg.isEarlyBird || 
+    pkg.name.toLowerCase().includes('early bird') ||
+    pkg.name.toLowerCase().includes('earlybird') ||
+    pkg.name.toLowerCase().includes('madrugador');
+  
+  const isTwilightPackage = (pkg: Package) => 
+    pkg.isTwilight || 
+    pkg.name.toLowerCase().includes('twilight') ||
+    pkg.name.toLowerCase().includes('crepuscular');
+  
+  // Normalize package name to get base product (strip time-of-day suffixes)
+  const getBaseProductName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/\s*(early\s*bird|earlybird|madrugador|twilight|crepuscular)\s*/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+  
+  // Check if we're in early bird or twilight time window
+  const isEarlyBirdTime = teeTimeMinutes < earlyBirdEndMinutes;
+  const isTwilightTime = teeTimeMinutes >= twilightStartMinutes;
+  
+  // First pass: filter packages based on time windows
+  const timeFilteredPackages = allPackages.filter(pkg => {
+    // Twilight packages: only show if tee time is at or after twilight start
+    if (isTwilightPackage(pkg) && !isTwilightTime) {
       return false;
     }
     
-    // Early bird packages: only show if tee time is before early bird end (from contract)
-    // Uses minute-level comparison for accuracy (e.g., 09:30 means 09:15 IS early bird)
-    if (isEarlyBirdPackage && teeTimeMinutes >= earlyBirdEndMinutes) {
+    // Early bird packages: only show if tee time is before early bird end
+    if (isEarlyBirdPackage(pkg) && !isEarlyBirdTime) {
       return false;
+    }
+    
+    return true;
+  });
+  
+  // Second pass: when a discounted variant is available, hide the regular-priced equivalent
+  // This prevents showing both "Greenfee + Buggy" (€320) and "Greenfee + Buggy Earlybird" (€280)
+  const packages = timeFilteredPackages.filter(pkg => {
+    // If this is a discounted package (early bird/twilight), keep it
+    if (isEarlyBirdPackage(pkg) || isTwilightPackage(pkg)) {
+      return true;
+    }
+    
+    // For regular packages, check if there's a discounted variant available
+    const baseName = getBaseProductName(pkg.name);
+    
+    // Check if there's an early bird version of this package (and we're in early bird time)
+    if (isEarlyBirdTime) {
+      const hasEarlyBirdVariant = timeFilteredPackages.some(other => 
+        isEarlyBirdPackage(other) && getBaseProductName(other.name) === baseName
+      );
+      if (hasEarlyBirdVariant) {
+        return false; // Hide regular, show early bird instead
+      }
+    }
+    
+    // Check if there's a twilight version of this package (and we're in twilight time)
+    if (isTwilightTime) {
+      const hasTwilightVariant = timeFilteredPackages.some(other => 
+        isTwilightPackage(other) && getBaseProductName(other.name) === baseName
+      );
+      if (hasTwilightVariant) {
+        return false; // Hide regular, show twilight instead
+      }
     }
     
     return true;
@@ -335,13 +383,13 @@ export function PackageSelectionDialog({
                               Lunch
                             </Badge>
                           )}
-                          {pkg.isEarlyBird && (
+                          {isEarlyBirdPackage(pkg) && (
                             <Badge variant="outline" className="text-xs text-orange-600 border-orange-300 bg-orange-50">
                               <Sunrise className="h-3 w-3 mr-1" />
                               Early Bird (before {earlyBirdEndTime})
                             </Badge>
                           )}
-                          {pkg.isTwilight && (
+                          {isTwilightPackage(pkg) && (
                             <Badge variant="outline" className="text-xs text-purple-600 border-purple-300 bg-purple-50">
                               <Sunset className="h-3 w-3 mr-1" />
                               Twilight (from {twilightStartTime})
