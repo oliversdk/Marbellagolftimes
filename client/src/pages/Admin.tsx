@@ -6680,39 +6680,74 @@ export default function Admin() {
                             Already Contacted via Zest
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            ({zestContactedCourses.length} course{zestContactedCourses.length !== 1 && "s"})
+                            ({zestContactedCourses.length} course{zestContactedCourses.length !== 1 && "s"}) - select to resend
                           </span>
                         </div>
                         <div className="border rounded-md max-h-[200px] overflow-y-auto bg-muted/30">
                           {zestContactedCourses.map((course) => {
                             const stage = getCourseOnboardingStage(course.id);
                             const stageInfo = ONBOARDING_STAGES.find(s => s.value === stage);
+                            const canResend = course.outreachResendCount < 1;
                             return (
                               <div
                                 key={course.id}
-                                className="flex items-center justify-between gap-3 p-3 border-b last:border-b-0"
+                                className="flex items-center gap-3 p-3 border-b last:border-b-0 hover-elevate"
                                 data-testid={`zest-contacted-course-${course.id}`}
                               >
-                                <div className="flex-1 text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-muted-foreground">{course.name}</span>
+                                <Checkbox
+                                  id={`resend-course-${course.id}`}
+                                  checked={selectedCourseIds.includes(course.id)}
+                                  onCheckedChange={() => handleToggleCourse(course.id)}
+                                  disabled={!canResend}
+                                />
+                                <label
+                                  htmlFor={`resend-course-${course.id}`}
+                                  className={`flex-1 text-sm cursor-pointer ${!canResend ? 'opacity-50' : ''}`}
+                                >
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium">{course.name}</span>
                                     {getCourseProvider(course.id) === "golfmanager" && (
                                       <Badge variant="outline" className="text-xs">Golfmanager</Badge>
                                     )}
                                     {getCourseProvider(course.id) === "teeone" && (
                                       <Badge variant="outline" className="text-xs">TeeOne</Badge>
                                     )}
+                                    <Badge 
+                                      variant="secondary" 
+                                      className={`text-xs ${stageInfo?.color || ''}`}
+                                    >
+                                      {stageInfo?.label || stage}
+                                    </Badge>
+                                    {canResend ? (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                                            <RefreshCw className="h-3 w-3 mr-1" />
+                                            1 resend available
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          You can resend one email to this course
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    ) : (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="secondary" className="text-xs bg-red-100 text-red-700 border-red-200">
+                                            <XCircle className="h-3 w-3 mr-1" />
+                                            Resend used
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          Maximum of 1 resend already used
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
                                   </div>
                                   <div className="text-muted-foreground text-xs">
                                     {course.email || "No email"}
                                   </div>
-                                </div>
-                                <Badge 
-                                  variant="secondary" 
-                                  className={`text-xs ${stageInfo?.color || ''}`}
-                                >
-                                  {stageInfo?.label || stage}
-                                </Badge>
+                                </label>
                               </div>
                             );
                           })}
