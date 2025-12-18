@@ -791,7 +791,13 @@ export function PackageSelectionDialog({
                             )}
                             {category === 'trolley' && (
                               <Badge variant="secondary" className="text-xs">
-                                Per player
+                                Per player (max {maxQty})
+                              </Badge>
+                            )}
+                            {category === 'clubs' && (
+                              <Badge variant="secondary" className="text-xs">
+                                <User className="h-3 w-3 mr-1" />
+                                Per player (choose 1-{maxQty})
                               </Badge>
                             )}
                           </div>
