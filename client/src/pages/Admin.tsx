@@ -81,6 +81,8 @@ const DEFAULT_EMAIL_TEMPLATE = {
 
 My name is [SENDER_NAME] and I run a new tee-time finder for golfers on the Costa del Sol.
 
+You can see our website here: https://marbellagolftimes.com
+
 Our guests are mainly international golfers staying between Sotogrande and Málaga, and we would like to send more players to your course.
 
 We are currently establishing partnerships with courses in the region and would be very interested in learning about your terms for collaboration.
@@ -99,6 +101,8 @@ Kind regards,
 Estimado equipo de [COURSE_NAME],
 
 Me llamo [SENDER_NAME] y gestiono una nueva plataforma de reservas de green fees en la Costa del Sol.
+
+Puede ver nuestra página web aquí: https://marbellagolftimes.com
 
 Nuestros clientes son principalmente golfistas internacionales entre Sotogrande y Málaga y nos gustaría enviar más jugadores a su campo.
 
