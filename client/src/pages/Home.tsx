@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useI18n } from "@/lib/i18n";
@@ -232,17 +232,18 @@ function getInitialLocation(): { lat: number; lng: number } | null {
 
 export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [hasHydrated, setHasHydrated] = useState(false);
   const { searchFilters, setSearchFilters, sortMode, setSortMode, viewMode, setViewMode } = useFilterPersistence();
   
-  // CRITICAL: Set Marbella location immediately on mobile mount (before any render)
-  useEffect(() => {
-    if (userLocation) return; // Already have location
+  // CRITICAL: Mark as hydrated and set Marbella location on mobile BEFORE paint
+  useLayoutEffect(() => {
+    setHasHydrated(true);
     if (typeof window === 'undefined') return;
     if (window.innerWidth < 768) {
       // Mobile: Set Marbella immediately
       setUserLocation(MARBELLA_COORDS);
     }
-  }, []); // Empty deps - run once on mount
+  }, []);
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -815,7 +816,7 @@ export default function Home() {
       )}
 
       {/* Mobile compact header when location is set - shows branding without big hero */}
-      {isMobile && userLocation && (
+      {hasHydrated && isMobile && userLocation && (
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 py-4 px-4">
           <div className="text-center">
             <h1 className="font-serif text-xl font-bold text-foreground">
@@ -828,8 +829,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero Section - Hidden on mobile when location is set, show courses directly */}
-      {!(isMobile && userLocation) && (
+      {/* Hero Section - Hidden on mobile when hydrated and location is set */}
+      {!(hasHydrated && isMobile && userLocation) && (
         <div className="relative h-[40vh] min-h-[350px] sm:h-[50vh] sm:min-h-[450px] md:h-[60vh] md:min-h-[500px] w-full overflow-hidden">
           <div className="absolute inset-0">
             {/* Show poster image on mobile for performance, video on desktop */}
