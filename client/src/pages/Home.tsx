@@ -217,8 +217,21 @@ function sortCourses(courses: CourseWithSlots[], mode: SortMode): CourseWithSlot
   }
 }
 
+// Marbella default coordinates
+const MARBELLA_COORDS = { lat: 36.5101, lng: -4.8826 };
+
+// Check if mobile on initial load (client-side only)
+function getInitialLocation(): { lat: number; lng: number } | null {
+  if (typeof window === 'undefined') return null;
+  // On mobile, start with Marbella immediately so courses show right away
+  if (window.innerWidth < 768) {
+    return MARBELLA_COORDS;
+  }
+  return null;
+}
+
 export default function Home() {
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(getInitialLocation);
   const { searchFilters, setSearchFilters, sortMode, setSortMode, viewMode, setViewMode } = useFilterPersistence();
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
@@ -448,45 +461,26 @@ export default function Home() {
     setVisibleCount(12);
   }, [searchFilters, sortMode]);
 
-  // Marbella default coordinates (fallback for mobile)
-  const MARBELLA_COORDS = { lat: 36.5101, lng: -4.8826 };
-
-  // Auto-set location on mobile: try geolocation first, fallback to Marbella
+  // On mobile, try to upgrade to user's actual location (non-blocking)
   useEffect(() => {
-    if (!isMobile || userLocation) return;
+    const actuallyMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (!actuallyMobile || !navigator.geolocation) return;
 
-    // Try to get user's actual location first
-    if (navigator.geolocation) {
-      const timeoutId = setTimeout(() => {
-        // After 3 seconds, use Marbella as fallback
-        if (!userLocation) {
-          console.log('[Mobile] Geolocation timeout, using Marbella as default');
-          setUserLocation(MARBELLA_COORDS);
-        }
-      }, 3000);
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          clearTimeout(timeoutId);
-          console.log('[Mobile] Got user location');
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        (error) => {
-          clearTimeout(timeoutId);
-          console.log('[Mobile] Geolocation error, using Marbella:', error.message);
-          setUserLocation(MARBELLA_COORDS);
-        },
-        { timeout: 3000, maximumAge: 300000 }
-      );
-    } else {
-      // No geolocation support, use Marbella
-      console.log('[Mobile] No geolocation support, using Marbella');
-      setUserLocation(MARBELLA_COORDS);
-    }
-  }, [isMobile, userLocation]);
+    // Try to get more accurate location in background
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('[Mobile] Upgraded to user actual location');
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        // Keep Marbella default, don't log error
+      },
+      { timeout: 5000, maximumAge: 300000 }
+    );
+  }, []);
 
   // Fetch all courses
   const { data: courses, isLoading: coursesLoading } = useQuery<GolfCourse[]>({
