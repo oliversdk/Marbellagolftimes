@@ -912,6 +912,8 @@ function EmailLogTab({
         return <Badge variant="secondary" className="text-xs">Course</Badge>;
       case "REVIEW_REQUEST":
         return <Badge variant="outline" className="text-xs">Review</Badge>;
+      case "AFFILIATE_OUTREACH":
+        return <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">Affiliate</Badge>;
       default:
         return <Badge variant="outline" className="text-xs">{type}</Badge>;
     }
@@ -937,7 +939,7 @@ function EmailLogTab({
             Email Log
           </CardTitle>
           <CardDescription>
-            Track all booking-related emails sent to customers and courses
+            Track all emails sent to customers and courses
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">
@@ -950,6 +952,7 @@ function EmailLogTab({
               <SelectItem value="CUSTOMER_CONFIRMATION">Customer Confirmation</SelectItem>
               <SelectItem value="COURSE_NOTIFICATION">Course Notification</SelectItem>
               <SelectItem value="REVIEW_REQUEST">Review Request</SelectItem>
+              <SelectItem value="AFFILIATE_OUTREACH">Affiliate Outreach</SelectItem>
             </SelectContent>
           </Select>
           <Button 

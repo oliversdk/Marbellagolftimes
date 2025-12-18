@@ -1005,7 +1005,7 @@ export type InsertEmailLog = z.infer<typeof insertEmailLogSchema>;
 export type EmailLog = typeof emailLogs.$inferSelect;
 
 // Email log types
-export const EMAIL_LOG_TYPES = ["CUSTOMER_CONFIRMATION", "COURSE_NOTIFICATION", "REVIEW_REQUEST"] as const;
+export const EMAIL_LOG_TYPES = ["CUSTOMER_CONFIRMATION", "COURSE_NOTIFICATION", "REVIEW_REQUEST", "AFFILIATE_OUTREACH"] as const;
 export type EmailLogType = typeof EMAIL_LOG_TYPES[number];
 
 // Booking Holds - Persistent tee time holds with TTL

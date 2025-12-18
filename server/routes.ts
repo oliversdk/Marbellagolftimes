@@ -4618,6 +4618,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             loggedByUserId: req.user?.id || null,
           });
           
+          // Log to email_logs for unified email tracking
+          await storage.createEmailLog({
+            courseId,
+            bookingId: null,
+            emailType: "AFFILIATE_OUTREACH",
+            recipientEmail: course.email!,
+            recipientName: course.name,
+            subject: personalizedSubject,
+            bodyText: personalizedBody,
+            bodyHtml: null,
+            status: "SENT",
+            errorMessage: null,
+          });
+          
           // Update onboarding stage and resend count
           if (alreadyContacted && forceResend) {
             // This is a resend - increment resend count
