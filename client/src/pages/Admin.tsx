@@ -3764,10 +3764,23 @@ export default function Admin() {
     setShowEmailConfirmDialog(true);
   };
 
+  // Check if any selected courses are already contacted (have an onboarding stage)
+  const alreadyContactedSelected = useMemo(() => {
+    return selectedCourseIds.filter(id => {
+      const course = affiliateEmailCourses?.find(c => c.id === id);
+      if (!course) return false;
+      // Same logic as backend - any course with OUTREACH_SENT, INTERESTED, or NOT_INTERESTED
+      return course.onboardingStage === "OUTREACH_SENT" || 
+             course.onboardingStage === "INTERESTED" || 
+             course.onboardingStage === "NOT_INTERESTED";
+    });
+  }, [selectedCourseIds, affiliateEmailCourses]);
+
   const confirmSendEmails = () => {
     setShowEmailConfirmDialog(false);
     
-    if (recentlyContactedSelected.length > 0) {
+    // If any selected courses have already been contacted, show resend dialog
+    if (recentlyContactedSelected.length > 0 || alreadyContactedSelected.length > 0) {
       setShowResendConfirmDialog(true);
       return;
     }
@@ -6910,22 +6923,28 @@ export default function Admin() {
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-orange-600">
                       <AlertTriangle className="h-5 w-5" />
-                      Recently Contacted Courses
+                      Already Contacted Courses
                     </DialogTitle>
                     <DialogDescription>
-                      Some of the selected courses were contacted within the last 7 days. Are you sure you want to send emails to them again?
+                      Some of the selected courses have already received outreach emails. Are you sure you want to resend?
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {recentlyContactedSelected.map(courseId => {
+                    {alreadyContactedSelected.map(courseId => {
                       const course = affiliateEmailCourses?.find(c => c.id === courseId);
-                      const contactStatus = course ? isRecentlyContacted(course) : { daysAgo: 0 };
+                      const contactStatus = course ? isRecentlyContacted(course) : { daysAgo: 0, recent: false };
                       return (
                         <div key={courseId} className="flex items-center justify-between p-2 border rounded-md" data-testid={`resend-confirm-course-${courseId}`}>
                           <span className="text-sm font-medium">{course?.name}</span>
-                          <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">
-                            {contactStatus.daysAgo} day{contactStatus.daysAgo !== 1 ? 's' : ''} ago
-                          </Badge>
+                          {contactStatus.recent ? (
+                            <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">
+                              {contactStatus.daysAgo} day{contactStatus.daysAgo !== 1 ? 's' : ''} ago
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              {course?.onboardingStage?.replace(/_/g, ' ') || 'Contacted'}
+                            </Badge>
+                          )}
                         </div>
                       );
                     })}
