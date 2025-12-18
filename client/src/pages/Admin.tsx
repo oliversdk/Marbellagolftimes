@@ -224,6 +224,7 @@ type AffiliateEmailCourse = {
   onboardingStage: string | null;
   totalOpens: number;
   lastOpenedAt: string | null;
+  outreachResendCount: number;
 };
 
 type SentAffiliateEmail = {
@@ -3107,7 +3108,7 @@ export default function Admin() {
 
   // Send affiliate emails mutation
   const sendEmailsMutation = useMutation({
-    mutationFn: async (data: { courseIds: string[]; subject: string; body: string; senderName: string }) => {
+    mutationFn: async (data: { courseIds: string[]; subject: string; body: string; senderName: string; forceResend?: boolean }) => {
       return await apiRequest("/api/affiliate-emails/send", "POST", data);
     },
     onSuccess: (data: any) => {
@@ -3780,6 +3781,7 @@ export default function Admin() {
       subject: emailSubject,
       body: emailBody,
       senderName,
+      forceResend: true, // Override for already-contacted courses (max 1 resend)
     });
   };
 
@@ -6614,6 +6616,32 @@ export default function Admin() {
                                     <Clock className="h-3 w-3 mr-1" />
                                     Sent {contactStatus.daysAgo} day{contactStatus.daysAgo !== 1 ? 's' : ''} ago
                                   </Badge>
+                                )}
+                                {course.outreachResendCount >= 1 && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="secondary" className="text-xs bg-red-100 text-red-700 border-red-200" data-testid={`badge-resend-limit-${course.id}`}>
+                                        <XCircle className="h-3 w-3 mr-1" />
+                                        Resend used
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Maximum of 1 resend already used - no more resends available
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {contactStatus.recent && course.outreachResendCount === 0 && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200" data-testid={`badge-resend-available-${course.id}`}>
+                                        <RefreshCw className="h-3 w-3 mr-1" />
+                                        1 resend left
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      You can resend one more email to this course
+                                    </TooltipContent>
+                                  </Tooltip>
                                 )}
                                 {course.emailCount > 0 && !contactStatus.recent && (
                                   <Badge variant="outline" className="text-xs">

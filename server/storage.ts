@@ -111,7 +111,7 @@ export interface IStorage {
   getAllAffiliateEmails(): Promise<AffiliateEmail[]>;
   createAffiliateEmail(email: InsertAffiliateEmail): Promise<AffiliateEmail>;
   updateAffiliateEmail(id: string, updates: Partial<AffiliateEmail>): Promise<AffiliateEmail | undefined>;
-  getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null }>>;
+  getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null; outreachResendCount: number }>>;
   getAffiliateEmailByToken(token: string): Promise<AffiliateEmail | undefined>;
   recordEmailOpen(token: string): Promise<void>;
 
@@ -1506,7 +1506,7 @@ export class MemStorage implements IStorage {
     return updatedEmail;
   }
 
-  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null }>> {
+  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null; outreachResendCount: number }>> {
     return Array.from(this.courses.values()).map(course => ({
       ...course,
       lastAffiliateSentAt: null,
@@ -1514,6 +1514,7 @@ export class MemStorage implements IStorage {
       onboardingStage: null,
       totalOpens: 0,
       lastOpenedAt: null,
+      outreachResendCount: 0,
     }));
   }
 
@@ -2379,7 +2380,7 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
 
-  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null }>> {
+  async getAffiliateEmailCourses(): Promise<Array<GolfCourse & { lastAffiliateSentAt: Date | null; emailCount: number; onboardingStage: string | null; totalOpens: number; lastOpenedAt: Date | null; outreachResendCount: number }>> {
     const results = await db
       .select({
         course: golfCourses,
@@ -2388,11 +2389,12 @@ export class DatabaseStorage implements IStorage {
         onboardingStage: courseOnboarding.stage,
         totalOpens: sql<number>`COALESCE(SUM(${affiliateEmails.openCount}), 0)::int`,
         lastOpenedAt: sql<Date | null>`MAX(${affiliateEmails.openedAt})`,
+        outreachResendCount: courseOnboarding.outreachResendCount,
       })
       .from(golfCourses)
       .leftJoin(affiliateEmails, eq(golfCourses.id, affiliateEmails.courseId))
       .leftJoin(courseOnboarding, eq(golfCourses.id, courseOnboarding.courseId))
-      .groupBy(golfCourses.id, courseOnboarding.stage);
+      .groupBy(golfCourses.id, courseOnboarding.stage, courseOnboarding.outreachResendCount);
     
     return results.map(r => ({
       ...r.course,
@@ -2401,6 +2403,7 @@ export class DatabaseStorage implements IStorage {
       onboardingStage: r.onboardingStage || null,
       totalOpens: r.totalOpens || 0,
       lastOpenedAt: r.lastOpenedAt,
+      outreachResendCount: r.outreachResendCount || 0,
     }));
   }
 
