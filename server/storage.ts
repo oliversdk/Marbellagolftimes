@@ -171,6 +171,7 @@ export interface IStorage {
   createOnboarding(onboarding: InsertCourseOnboarding): Promise<CourseOnboarding>;
   updateOnboarding(courseId: string, updates: Partial<CourseOnboarding>): Promise<CourseOnboarding | undefined>;
   updateOnboardingStage(courseId: string, stage: OnboardingStage): Promise<CourseOnboarding | undefined>;
+  incrementOnboardingResendCount(courseId: string): Promise<CourseOnboarding | undefined>;
   getOnboardingStats(): Promise<Record<OnboardingStage, number>>;
   getCoursesNeedingFollowUp(): Promise<CourseOnboarding[]>;
   snoozeFollowUp(courseId: string, snoozeDays: number): Promise<CourseOnboarding | undefined>;
@@ -1913,6 +1914,10 @@ export class MemStorage implements IStorage {
     return undefined;
   }
 
+  async incrementOnboardingResendCount(courseId: string): Promise<CourseOnboarding | undefined> {
+    return undefined;
+  }
+
   async getOnboardingStats(): Promise<Record<OnboardingStage, number>> {
     return {
       NOT_CONTACTED: 0,
@@ -2894,6 +2899,23 @@ export class DatabaseStorage implements IStorage {
     }
 
     return await this.updateOnboarding(courseId, updates);
+  }
+
+  async incrementOnboardingResendCount(courseId: string): Promise<CourseOnboarding | undefined> {
+    const existing = await this.getOnboardingByCourseId(courseId);
+    if (!existing) return undefined;
+    
+    const currentCount = existing.outreachResendCount || 0;
+    const result = await db
+      .update(courseOnboarding)
+      .set({ 
+        outreachResendCount: currentCount + 1,
+        outreachSentAt: new Date(), // Update outreach sent timestamp for resend
+        updatedAt: new Date()
+      })
+      .where(eq(courseOnboarding.courseId, courseId))
+      .returning();
+    return result[0];
   }
 
   async getOnboardingStats(): Promise<Record<OnboardingStage, number>> {

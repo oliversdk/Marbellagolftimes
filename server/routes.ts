@@ -4510,7 +4510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/affiliate-emails/send - Send affiliate partnership emails (Admin only)
   app.post("/api/affiliate-emails/send", isAuthenticated, async (req: any, res) => {
     try {
-      const { courseIds, subject, body, senderName } = req.body;
+      const { courseIds, subject, body, senderName, forceResend } = req.body;
 
       if (!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
         return res.status(400).json({ error: "courseIds array is required" });
@@ -4535,6 +4535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results = [];
       let sentCount = 0;
       let errorCount = 0;
+      let skippedCount = 0;
 
       // Send email to each course
       for (const courseId of courseIds) {
@@ -4542,6 +4543,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!course) {
           results.push({ courseId, success: false, error: "Course not found" });
           errorCount++;
+          continue;
+        }
+
+        // Check onboarding status for resend limits
+        const onboarding = await storage.getOnboardingByCourseId(courseId);
+        const currentResendCount = onboarding?.outreachResendCount || 0;
+        const alreadyContacted = onboarding?.stage === "OUTREACH_SENT" || 
+                                  onboarding?.stage === "INTERESTED" || 
+                                  onboarding?.stage === "NOT_INTERESTED";
+        
+        // If already contacted and not forcing resend, skip
+        if (alreadyContacted && !forceResend) {
+          results.push({ 
+            courseId, 
+            courseName: course.name, 
+            success: false, 
+            error: "Already contacted - use resend option",
+            skipped: true 
+          });
+          skippedCount++;
+          continue;
+        }
+        
+        // If forcing resend but already used resend allowance (max 1 resend)
+        if (alreadyContacted && forceResend && currentResendCount >= 1) {
+          results.push({ 
+            courseId, 
+            courseName: course.name, 
+            success: false, 
+            error: "Maximum resend limit reached (1 resend allowed)",
+            skipped: true 
+          });
+          skippedCount++;
           continue;
         }
 
@@ -4584,10 +4618,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             loggedByUserId: req.user?.id || null,
           });
           
-          // Update onboarding stage to OUTREACH_SENT
-          await storage.updateOnboardingStage(courseId, "OUTREACH_SENT");
+          // Update onboarding stage and resend count
+          if (alreadyContacted && forceResend) {
+            // This is a resend - increment resend count
+            await storage.incrementOnboardingResendCount(courseId);
+          } else {
+            // First outreach - set stage to OUTREACH_SENT
+            await storage.updateOnboardingStage(courseId, "OUTREACH_SENT");
+          }
           
-          results.push({ courseId, courseName: course.name, success: true });
+          const isResend = alreadyContacted && forceResend;
+          results.push({ courseId, courseName: course.name, success: true, isResend });
           sentCount++;
         } else {
           // Update record with error
@@ -4608,6 +4649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         sent: sentCount,
         errors: errorCount,
+        skipped: skippedCount,
         total: courseIds.length,
         results,
       });

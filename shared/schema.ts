@@ -232,6 +232,7 @@ export const courseOnboarding = pgTable("course_onboarding", {
   // Outreach tracking
   outreachSentAt: timestamp("outreach_sent_at"),
   outreachMethod: text("outreach_method"), // EMAIL, PHONE, IN_PERSON
+  outreachResendCount: integer("outreach_resend_count").default(0), // Track number of resends (max 1 allowed)
   // Response tracking
   responseReceivedAt: timestamp("response_received_at"),
   responseNotes: text("response_notes"),
