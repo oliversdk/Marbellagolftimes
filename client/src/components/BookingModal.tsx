@@ -162,11 +162,27 @@ export function BookingModal({
     return 'other';
   };
 
-  // Get max quantity for an add-on
+  // Get total trolleys already selected (for shared trolley limit)
+  const getTotalTrolleysSelected = (excludeAddonId?: string): number => {
+    let total = 0;
+    courseAddOns.forEach(a => {
+      if (getAddOnCategory(a) === 'trolley' && a.id !== excludeAddonId) {
+        total += addOnQuantities.get(a.id) || 0;
+      }
+    });
+    return total;
+  };
+
+  // Get max quantity for an add-on (considers shared limits for trolleys)
   const getMaxQuantity = (addon: CourseAddOn): number => {
     const category = getAddOnCategory(addon);
     if (category === 'buggy' || addon.type === 'buggy_shared') {
       return Math.ceil(players / 2);
+    }
+    // For trolleys, max is players minus trolleys of OTHER types already selected
+    if (category === 'trolley') {
+      const otherTrolleysSelected = getTotalTrolleysSelected(addon.id);
+      return Math.max(0, players - otherTrolleysSelected);
     }
     return players;
   };
