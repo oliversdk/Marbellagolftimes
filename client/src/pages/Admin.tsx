@@ -6687,7 +6687,8 @@ export default function Admin() {
                           {zestContactedCourses.map((course) => {
                             const stage = getCourseOnboardingStage(course.id);
                             const stageInfo = ONBOARDING_STAGES.find(s => s.value === stage);
-                            const canResend = course.outreachResendCount < 1;
+                            const isCompleted = stage === 'CREDENTIALS_RECEIVED' || stage === 'PARTNERSHIP_ACCEPTED';
+                            const canResend = !isCompleted && course.outreachResendCount < 1;
                             return (
                               <div
                                 key={course.id}
@@ -6718,7 +6719,19 @@ export default function Admin() {
                                     >
                                       {stageInfo?.label || stage}
                                     </Badge>
-                                    {canResend ? (
+                                    {isCompleted ? (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 border-green-200">
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Partner
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          This course is already a partner - no outreach needed
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    ) : canResend ? (
                                       <Tooltip>
                                         <TooltipTrigger asChild>
                                           <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
