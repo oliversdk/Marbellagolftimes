@@ -448,6 +448,46 @@ export default function Home() {
     setVisibleCount(12);
   }, [searchFilters, sortMode]);
 
+  // Marbella default coordinates (fallback for mobile)
+  const MARBELLA_COORDS = { lat: 36.5101, lng: -4.8826 };
+
+  // Auto-set location on mobile: try geolocation first, fallback to Marbella
+  useEffect(() => {
+    if (!isMobile || userLocation) return;
+
+    // Try to get user's actual location first
+    if (navigator.geolocation) {
+      const timeoutId = setTimeout(() => {
+        // After 3 seconds, use Marbella as fallback
+        if (!userLocation) {
+          console.log('[Mobile] Geolocation timeout, using Marbella as default');
+          setUserLocation(MARBELLA_COORDS);
+        }
+      }, 3000);
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          clearTimeout(timeoutId);
+          console.log('[Mobile] Got user location');
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          clearTimeout(timeoutId);
+          console.log('[Mobile] Geolocation error, using Marbella:', error.message);
+          setUserLocation(MARBELLA_COORDS);
+        },
+        { timeout: 3000, maximumAge: 300000 }
+      );
+    } else {
+      // No geolocation support, use Marbella
+      console.log('[Mobile] No geolocation support, using Marbella');
+      setUserLocation(MARBELLA_COORDS);
+    }
+  }, [isMobile, userLocation]);
+
   // Fetch all courses
   const { data: courses, isLoading: coursesLoading } = useQuery<GolfCourse[]>({
     queryKey: ["/api/courses"],
