@@ -231,8 +231,18 @@ function getInitialLocation(): { lat: number; lng: number } | null {
 }
 
 export default function Home() {
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(getInitialLocation);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { searchFilters, setSearchFilters, sortMode, setSortMode, viewMode, setViewMode } = useFilterPersistence();
+  
+  // CRITICAL: Set Marbella location immediately on mobile mount (before any render)
+  useEffect(() => {
+    if (userLocation) return; // Already have location
+    if (typeof window === 'undefined') return;
+    if (window.innerWidth < 768) {
+      // Mobile: Set Marbella immediately
+      setUserLocation(MARBELLA_COORDS);
+    }
+  }, []); // Empty deps - run once on mount
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -804,52 +814,68 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero Section - Responsive heights and mobile optimizations */}
-      <div className="relative h-[40vh] min-h-[350px] sm:h-[50vh] sm:min-h-[450px] md:h-[60vh] md:min-h-[500px] w-full overflow-hidden">
-        <div className="absolute inset-0">
-          {/* Show poster image on mobile for performance, video on desktop */}
-          {isMobile ? (
-            <img
-              src={heroImage}
-              alt="Costa del Sol Golf Course"
-              className="w-full h-full object-cover"
-              data-testid="img-hero-mobile"
-            />
-          ) : (
-            <video
-              src={golfVideo}
-              autoPlay
-              muted
-              loop
-              playsInline
-              poster={heroImage}
-              className="w-full h-full object-cover"
-              data-testid="video-hero"
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
-        </div>
-
-        <div className="relative h-full flex items-center justify-center px-3 sm:px-4">
-          <div className="max-w-3xl mx-auto text-center space-y-3 sm:space-y-4 md:space-y-6">
-            <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight px-1">
-              {t('home.heroTitle')}
+      {/* Mobile compact header when location is set - shows branding without big hero */}
+      {isMobile && userLocation && (
+        <div className="bg-gradient-to-r from-primary/10 to-accent/10 py-4 px-4">
+          <div className="text-center">
+            <h1 className="font-serif text-xl font-bold text-foreground">
+              {t('home.resultsTitle')}
             </h1>
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto px-1">
-              {t('home.heroDescription')}
+            <p className="text-sm text-muted-foreground mt-1">
+              Costa del Sol
             </p>
-
-            <Card className="bg-white/95 backdrop-blur-md border-0 shadow-xl max-w-xl mx-auto">
-              <CardHeader className="pb-3 sm:pb-4 md:pb-6 px-3 sm:px-6">
-                <CardTitle className="text-center text-base sm:text-lg md:text-xl">{t('home.startSearchTitle')}</CardTitle>
-              </CardHeader>
-              <CardContent className="px-3 sm:px-6">
-                <LocationSearch onLocationSelected={handleLocationSelected} />
-              </CardContent>
-            </Card>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Hero Section - Hidden on mobile when location is set, show courses directly */}
+      {!(isMobile && userLocation) && (
+        <div className="relative h-[40vh] min-h-[350px] sm:h-[50vh] sm:min-h-[450px] md:h-[60vh] md:min-h-[500px] w-full overflow-hidden">
+          <div className="absolute inset-0">
+            {/* Show poster image on mobile for performance, video on desktop */}
+            {isMobile ? (
+              <img
+                src={heroImage}
+                alt="Costa del Sol Golf Course"
+                className="w-full h-full object-cover"
+                data-testid="img-hero-mobile"
+              />
+            ) : (
+              <video
+                src={golfVideo}
+                autoPlay
+                muted
+                loop
+                playsInline
+                poster={heroImage}
+                className="w-full h-full object-cover"
+                data-testid="video-hero"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+          </div>
+
+          <div className="relative h-full flex items-center justify-center px-3 sm:px-4">
+            <div className="max-w-3xl mx-auto text-center space-y-3 sm:space-y-4 md:space-y-6">
+              <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight px-1">
+                {t('home.heroTitle')}
+              </h1>
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto px-1">
+                {t('home.heroDescription')}
+              </p>
+
+              <Card className="bg-white/95 backdrop-blur-md border-0 shadow-xl max-w-xl mx-auto">
+                <CardHeader className="pb-3 sm:pb-4 md:pb-6 px-3 sm:px-6">
+                  <CardTitle className="text-center text-base sm:text-lg md:text-xl">{t('home.startSearchTitle')}</CardTitle>
+                </CardHeader>
+                <CardContent className="px-3 sm:px-6">
+                  <LocationSearch onLocationSelected={handleLocationSelected} />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Filters - Mobile drawer vs Desktop inline */}
       {userLocation && (
