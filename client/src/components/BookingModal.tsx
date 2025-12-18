@@ -22,7 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarIcon, Clock, ChevronRight, Car, Utensils, Sun, Sunset, Users, ShoppingBag } from "lucide-react";
+import { CalendarIcon, Clock, ChevronRight, Car, Utensils, Sun, Sunset, Users, ShoppingBag, Plus, Minus, User as UserIcon } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
@@ -79,7 +79,7 @@ export function BookingModal({
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<SelectedPackage | null>(null);
   const [selectedApiPackage, setSelectedApiPackage] = useState<TeeTimePackage | null>(null);
-  const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
+  const [addOnQuantities, setAddOnQuantities] = useState<Map<string, number>>(new Map());
   const [searchDate, setSearchDate] = useState<Date>(new Date());
   const [players, setPlayers] = useState<number>(2);
   const [customerName, setCustomerName] = useState("");
@@ -152,6 +152,88 @@ export function BookingModal({
     return ttooPrice / (1 - kickback / 100);
   };
 
+  // Helper to determine add-on category
+  const getAddOnCategory = (addon: CourseAddOn): 'buggy' | 'trolley' | 'clubs' | 'other' => {
+    const nameLower = addon.name.toLowerCase();
+    const typeLower = addon.type.toLowerCase();
+    if (typeLower.includes('buggy') || typeLower.includes('cart') || nameLower.includes('buggy') || nameLower.includes('cart')) return 'buggy';
+    if (nameLower.includes('trolley') || nameLower.includes('trundler')) return 'trolley';
+    if (nameLower.includes('club') || nameLower.includes('rental')) return 'clubs';
+    return 'other';
+  };
+
+  // Get max quantity for an add-on
+  const getMaxQuantity = (addon: CourseAddOn): number => {
+    const category = getAddOnCategory(addon);
+    if (category === 'buggy' || addon.type === 'buggy_shared') {
+      return Math.ceil(players / 2);
+    }
+    return players;
+  };
+
+  // Check if package includes buggy
+  const packageIncludesBuggy = selectedApiPackage?.includesBuggy || selectedPackage?.includesBuggy;
+
+  // Check if an add-on conflicts with current selections
+  const isAddOnConflicting = (addon: CourseAddOn): { conflicting: boolean; reason?: string } => {
+    const category = getAddOnCategory(addon);
+    
+    if (category === 'buggy' && packageIncludesBuggy) {
+      return { conflicting: true, reason: 'Already included in package' };
+    }
+    
+    // Check buggy vs trolley conflict
+    const hasBuggySelected = packageIncludesBuggy || 
+      courseAddOns.some(a => getAddOnCategory(a) === 'buggy' && (addOnQuantities.get(a.id) || 0) > 0);
+    const hasTrolleySelected = courseAddOns.some(a => 
+      getAddOnCategory(a) === 'trolley' && (addOnQuantities.get(a.id) || 0) > 0
+    );
+    
+    if (category === 'buggy' && hasTrolleySelected) {
+      return { conflicting: true, reason: 'Cannot combine with trolley' };
+    }
+    if (category === 'trolley' && hasBuggySelected) {
+      return { conflicting: true, reason: 'Buggy already selected' };
+    }
+    
+    return { conflicting: false };
+  };
+
+  // Update quantity for an add-on
+  const setAddOnQuantity = (addonId: string, quantity: number) => {
+    const addon = courseAddOns.find(a => a.id === addonId);
+    if (!addon) return;
+    
+    const category = getAddOnCategory(addon);
+    const newQuantities = new Map(addOnQuantities);
+    
+    if (quantity <= 0) {
+      newQuantities.delete(addonId);
+    } else {
+      const max = getMaxQuantity(addon);
+      newQuantities.set(addonId, Math.min(quantity, max));
+    }
+    
+    // If selecting buggy, clear trolleys (and vice versa)
+    if (quantity > 0) {
+      if (category === 'buggy') {
+        courseAddOns.forEach(a => {
+          if (getAddOnCategory(a) === 'trolley') {
+            newQuantities.delete(a.id);
+          }
+        });
+      } else if (category === 'trolley') {
+        courseAddOns.forEach(a => {
+          if (getAddOnCategory(a) === 'buggy') {
+            newQuantities.delete(a.id);
+          }
+        });
+      }
+    }
+    
+    setAddOnQuantities(newQuantities);
+  };
+
   // Calculate total price including add-ons
   const calculateTotal = () => {
     // Priority: API package > DB package > slot greenFee
@@ -180,23 +262,16 @@ export function BookingModal({
     
     let addOnsTotal = 0;
     
-    // Only add add-ons if package doesn't include buggy (avoid double-charging)
-    const packageIncludesBuggy = selectedApiPackage?.includesBuggy || selectedPackage?.includesBuggy;
-    
     courseAddOns.forEach(addon => {
-      if (selectedAddOns.has(addon.id)) {
+      const quantity = addOnQuantities.get(addon.id) || 0;
+      if (quantity > 0) {
         // Skip buggy add-on if package already includes buggy
         if (packageIncludesBuggy && (addon.type === 'buggy_shared' || addon.type === 'buggy_individual')) {
           return;
         }
         const price = addon.priceCents / 100;
-        if (addon.type === 'buggy_shared') {
-          addOnsTotal += price * Math.ceil(players / 2);
-        } else if (addon.perPlayer === 'true') {
-          addOnsTotal += price * players;
-        } else {
-          addOnsTotal += price;
-        }
+        // Multiply by quantity (already capped at max)
+        addOnsTotal += price * quantity;
       }
     });
     
@@ -206,18 +281,6 @@ export function BookingModal({
   // Get API packages from selected slot (if available from Golfmanager/TeeOne)
   const apiPackages = selectedSlot?.packages || [];
 
-  // Toggle add-on selection
-  const toggleAddOn = (addOnId: string) => {
-    setSelectedAddOns(prev => {
-      const next = new Set(prev);
-      if (next.has(addOnId)) {
-        next.delete(addOnId);
-      } else {
-        next.add(addOnId);
-      }
-      return next;
-    });
-  };
 
   // Helper to handle boolean values (may come as string "true"/"false" or actual booleans)
   const toBool = (val: any): boolean => val === true || val === "true";
@@ -372,7 +435,7 @@ export function BookingModal({
       setSelectedSlot(null);
       setSelectedPackage(null);
       setSelectedApiPackage(null);
-      setSelectedAddOns(new Set());
+      setAddOnQuantities(new Map());
       setSearchDate(new Date());
       updatePlayerCount(2);
       setPlayerNames(["", ""]);
@@ -434,7 +497,7 @@ export function BookingModal({
     setSelectedSlot(null);
     setSelectedPackage(null);
     setSelectedApiPackage(null);
-    setSelectedAddOns(new Set());
+    setAddOnQuantities(new Map());
   };
 
   const handleContinueToDetails = () => {
@@ -478,7 +541,7 @@ export function BookingModal({
           teeTime: selectedSlot.teeTime,
           players,
           playerNames: playerNames.map(n => n.trim()),
-          selectedAddOnIds: Array.from(selectedAddOns),
+          addOnQuantities: Object.fromEntries(addOnQuantities),
           customerName,
           customerEmail,
           customerPhone,
@@ -536,7 +599,7 @@ export function BookingModal({
             teeTime: selectedSlot.teeTime,
             players,
             playerNames: playerNames.map(n => n.trim()),
-            selectedAddOnIds: Array.from(selectedAddOns),
+            addOnQuantities: Object.fromEntries(addOnQuantities),
             customerName,
             customerEmail,
             customerPhone,
@@ -574,7 +637,7 @@ export function BookingModal({
             teeTime: selectedSlot.teeTime,
             players,
             playerNames: playerNames.map(n => n.trim()),
-            selectedAddOnIds: Array.from(selectedAddOns),
+            addOnQuantities: Object.fromEntries(addOnQuantities),
             customerName,
             customerEmail,
             // Include API package info if selected
@@ -958,60 +1021,129 @@ export function BookingModal({
             </>
           )}
 
-          {/* Add-ons */}
+          {/* Add-ons with Quantity Selectors */}
           {courseAddOns.length > 0 && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Optional Add-ons</Label>
+              
+              {/* Info about buggy already included */}
+              {packageIncludesBuggy && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground p-2 rounded bg-muted/50">
+                  <Car className="h-3 w-3" />
+                  Your package includes buggy - transport add-ons not needed
+                </div>
+              )}
+              
               <div className="space-y-2" data-testid="list-addons">
                 {courseAddOns.map((addon) => {
-                  const isSelected = selectedAddOns.has(addon.id);
+                  const quantity = addOnQuantities.get(addon.id) || 0;
+                  const category = getAddOnCategory(addon);
+                  const conflict = isAddOnConflicting(addon);
+                  const maxQty = getMaxQuantity(addon);
                   const price = addon.priceCents / 100;
-                  let displayPrice = price;
-                  let priceLabel = "";
+                  const totalForAddOn = price * quantity;
                   
-                  if (addon.type === 'buggy_shared') {
-                    displayPrice = price * Math.ceil(players / 2);
-                    priceLabel = `€${price}/buggy`;
-                  } else if (addon.perPlayer === 'true') {
-                    displayPrice = price * players;
-                    priceLabel = `€${price}/player`;
-                  } else {
-                    priceLabel = `€${price}`;
+                  // Hide buggy add-ons if package includes buggy
+                  if (category === 'buggy' && packageIncludesBuggy) {
+                    return null;
                   }
+                  
+                  const isDisabled = conflict.conflicting && quantity === 0;
 
                   return (
                     <div
                       key={addon.id}
-                      className={`flex items-center justify-between p-3 rounded-md border cursor-pointer transition-colors ${
-                        isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                      className={`flex items-center gap-3 p-3 rounded-md border transition-colors ${
+                        quantity > 0 ? 'border-primary bg-primary/5' : isDisabled ? 'opacity-50' : 'border-border'
                       }`}
-                      onClick={() => toggleAddOn(addon.id)}
                       data-testid={`addon-${addon.type}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleAddOn(addon.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            {addon.type === 'buggy_shared' || addon.type === 'buggy_individual' ? (
-                              <Car className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span className="font-medium text-sm">{addon.name}</span>
-                          </div>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
+                      {/* Quantity Selector */}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-7 w-7"
+                          disabled={quantity === 0 || isDisabled}
+                          onClick={() => setAddOnQuantity(addon.id, quantity - 1)}
+                          data-testid={`button-addon-minus-${addon.id}`}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-6 text-center text-sm font-medium">
+                          {quantity}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-7 w-7"
+                          disabled={quantity >= maxQty || isDisabled}
+                          onClick={() => setAddOnQuantity(addon.id, quantity + 1)}
+                          data-testid={`button-addon-plus-${addon.id}`}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          {category === 'buggy' ? (
+                            <Car className="h-4 w-4 text-muted-foreground" />
+                          ) : category === 'clubs' ? (
+                            <UserIcon className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                           )}
-                          <span className="text-xs text-muted-foreground">{priceLabel}</span>
+                          <span className="font-medium text-sm">{addon.name}</span>
+                        </div>
+                        {addon.description && (
+                          <p className="text-xs text-muted-foreground">{addon.description}</p>
+                        )}
+                        {conflict.conflicting && quantity === 0 && (
+                          <p className="text-xs text-orange-600">{conflict.reason}</p>
+                        )}
+                        <div className="flex flex-wrap gap-1.5">
+                          {category === 'buggy' && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Car className="h-3 w-3 mr-1" />
+                              {maxQty === 1 ? '1-2 players share' : `${maxQty} buggies max`}
+                            </Badge>
+                          )}
+                          {category === 'trolley' && (
+                            <Badge variant="secondary" className="text-xs">
+                              Per player (max {maxQty})
+                            </Badge>
+                          )}
+                          {category === 'clubs' && (
+                            <Badge variant="secondary" className="text-xs">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Per player (choose 1-{maxQty})
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      <span className="font-medium text-sm">
-                        {isSelected ? `+€${displayPrice.toFixed(0)}` : `€${displayPrice.toFixed(0)}`}
-                      </span>
+                      
+                      <div className="text-right">
+                        {quantity > 0 ? (
+                          <>
+                            <div className="text-sm font-medium text-primary">
+                              +€{totalForAddOn.toFixed(0)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              €{price} × {quantity}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-sm font-medium">
+                              €{price}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {category === 'buggy' ? 'per buggy' : 'per player'}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1026,7 +1158,7 @@ export function BookingModal({
               <span className="text-xl font-bold text-primary">€{calculateTotal().toFixed(0)}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Includes green fee for {players} player{players > 1 ? 's' : ''}{selectedAddOns.size > 0 ? ` + ${selectedAddOns.size} add-on${selectedAddOns.size > 1 ? 's' : ''}` : ''}
+              Includes green fee for {players} player{players > 1 ? 's' : ''}{addOnQuantities.size > 0 ? ` + ${addOnQuantities.size} add-on${addOnQuantities.size > 1 ? 's' : ''}` : ''}
             </p>
           </div>
         </div>
@@ -1086,7 +1218,7 @@ export function BookingModal({
                     {formatPackageType(selectedPackage.packageType)}
                   </Badge>
                 )}
-                {(selectedPackage?.includesBuggy || selectedAddOns.size > 0) && (
+                {(selectedPackage?.includesBuggy || addOnQuantities.size > 0) && (
                   <>
                     {selectedPackage?.includesBuggy && (
                       <Badge variant="outline" className="text-xs">
@@ -1098,9 +1230,9 @@ export function BookingModal({
                         <Utensils className="h-3 w-3 mr-1" />Lunch
                       </Badge>
                     )}
-                    {selectedAddOns.size > 0 && (
+                    {addOnQuantities.size > 0 && (
                       <Badge variant="outline" className="text-xs">
-                        +{selectedAddOns.size} add-on{selectedAddOns.size > 1 ? 's' : ''}
+                        +{addOnQuantities.size} add-on{addOnQuantities.size > 1 ? 's' : ''}
                       </Badge>
                     )}
                   </>
