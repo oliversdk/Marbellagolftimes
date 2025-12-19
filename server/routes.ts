@@ -483,6 +483,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Serve images from Object Storage via /objects/ path
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    try {
+      const { objectPath } = req.params;
+      const objectStorageService = new ObjectStorageService();
+      const file = await objectStorageService.searchPublicObject(objectPath);
+      if (!file) {
+        return res.sendStatus(404);
+      }
+      const [metadata] = await file.getMetadata();
+      res.set({
+        "Content-Type": metadata.contentType || "application/octet-stream",
+        "Content-Length": metadata.size,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      });
+      const stream = file.createReadStream();
+      stream.on("error", (err) => {
+        console.error("Object storage stream error:", err);
+        if (!res.headersSent) res.sendStatus(500);
+      });
+      stream.pipe(res);
+    } catch (error) {
+      console.error("Object storage error:", error);
+      res.sendStatus(500);
+    }
+  });
+
   // Optimized image versions mapping (for responsive images)
   let imageVersionsCache: Record<string, { desktop: string; mobile: string; thumbnail: string }> | null = null;
   app.get("/api/image-versions", async (req, res) => {

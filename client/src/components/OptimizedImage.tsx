@@ -103,6 +103,14 @@ export function OptimizedImage({
 
   const imageSrc = getOptimizedSrc();
 
+  if (!src && !hasError) {
+    return (
+      <div className={cn("relative shrink-0 bg-muted flex items-center justify-center", className)}>
+        <img src={fallbackSrc} alt={alt} className={cn("object-cover", className)} {...props} />
+      </div>
+    );
+  }
+
   return (
     <div className={cn("relative shrink-0", className)}>
       {!isLoaded && (
@@ -112,6 +120,7 @@ export function OptimizedImage({
         />
       )}
       <img
+        key={imageSrc}
         src={imageSrc}
         alt={alt}
         loading={priority ? "eager" : "lazy"}
