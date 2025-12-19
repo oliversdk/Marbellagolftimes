@@ -64,7 +64,13 @@ Client-side geolocation uses the Browser Geolocation API for proximity-based cou
 ### API Integration Points
 
 -   **Golfmanager Integration**: Supports Golfmanager API V1/V3 for 14 courses (e.g., Finca Cortesín, La Cala Resort). Features per-tenant authentication with **course-specific credentials stored in the database** (`golfmanagerV1User`, `golfmanagerV1Password` for V1, `golfmanagerUser`, `golfmanagerPassword` for V3). Admin can manage credentials via Courses → Credentials tab with copy-to-clipboard buttons. Alhaurin Golf is LIVE with real tee times and packages.
--   **TeeOne Golf System**: Integrates with TeeOne API for 12 courses (e.g., El Paraíso, Marbella Golf & CC). Features per-tenant authentication and operates in MOCK mode, with production readiness awaiting credentials.
+-   **TeeOne Golf System**: Integrates with TeeOne Online Booking Engine API v1.12 for 12 courses (e.g., El Paraíso, Marbella Golf & CC). 
+    - **API Base URL**: Development: `https://devapi.teeone.golf/TOBookingEngine/v1`, Production: `https://api.teeone.golf/TOBookingEngine/v1`
+    - **Authentication**: Token-based with username/password → sessionID, vendorID, accessToken
+    - **Endpoints**: `Access/Token`, `Vendors/Providers`, `Vendors/ProviderCourses`, `Availability/DayAvailability`, `PreBooking/PreBookingRequest`, `Booking/BookingConfirmationRequest`, `Booking/BookingDetails`, `PreCancellation/PreCancellationRequest`, `Cancellation/CancellationConfirmationRequest`
+    - **Price Format**: Integers with last 2 digits as decimals (7200 = €72.00)
+    - **Service**: `server/services/teeoneBooking.ts` with full prebooking/confirmation flow
+    - **Status**: MOCK mode, awaiting credentials (TEEONE_USERNAME, TEEONE_PASSWORD env vars)
 -   **Zest Golf Integration**: Supports Zest Golf API for real-time tee times, bulk booking (multiple tee times in one request), and cancellation with policy enforcement. Features `POST /api/zest/bookings/bulk` for multi-booking requests returning groupId.
 -   **Tee Time Provider Integration**: Flexible system supporting REST APIs, direct booking links, and web scraping.
 -   **Open-Meteo API**: Provides real-time weather data for course detail pages.
