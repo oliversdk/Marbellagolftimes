@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes, preWarmTeeTimeCache } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./storage";
 import { startAlertScheduler } from "./inbox-alerts";
@@ -93,7 +93,15 @@ app.use((req, res, next) => {
     
     // Seed database AFTER server starts listening (non-blocking)
     seedDatabase()
-      .then(() => log("Database seeding completed"))
+      .then(() => {
+        log("Database seeding completed");
+        // Pre-warm tee time cache for faster first load (Google SEO)
+        setTimeout(() => {
+          preWarmTeeTimeCache().catch(err => 
+            console.error("Cache pre-warm failed:", err)
+          );
+        }, 2000); // Wait 2 seconds for server to stabilize
+      })
       .catch((err) => console.error("Database seeding failed:", err));
     
     // Alert scheduler disabled - too many emails being sent

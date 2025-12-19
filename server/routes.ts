@@ -113,6 +113,73 @@ setInterval(() => {
   });
 }, 10 * 60 * 1000);
 
+// Flag to track if pre-warming is complete
+let cachePreWarmed = false;
+
+// Pre-warm cache with common searches (called after routes are registered)
+export async function preWarmTeeTimeCache(): Promise<void> {
+  if (cachePreWarmed) return;
+  
+  console.log("[Cache Pre-Warm] Starting background tee time pre-fetch...");
+  const startTime = Date.now();
+  
+  // Common search locations in Costa del Sol
+  const MARBELLA = { lat: "36.5101", lng: "-4.8826" };
+  
+  // Pre-warm for today and tomorrow
+  const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  // Common player counts
+  const playerCounts = ["2", "4"];
+  
+  try {
+    // Fetch and cache in background (don't block server startup)
+    const searches = [];
+    for (const date of [today, tomorrow]) {
+      for (const players of playerCounts) {
+        const cacheKey = getSearchCacheKey(MARBELLA.lat, MARBELLA.lng, date, players, "18");
+        // Only pre-warm if not already cached
+        if (!getCachedSearchResult(cacheKey)) {
+          searches.push({ date, players, cacheKey });
+        }
+      }
+    }
+    
+    // Fetch first search to warm cache (others benefit from same data)
+    if (searches.length > 0) {
+      const url = `http://localhost:5000/api/slots/search?lat=${MARBELLA.lat}&lng=${MARBELLA.lng}&date=${searches[0].date}&players=${searches[0].players}&holes=18&radiusKm=100`;
+      const response = await fetch(url);
+      if (response.ok) {
+        console.log(`[Cache Pre-Warm] Cached tee times for ${searches[0].date}, ${searches[0].players} players`);
+      }
+    }
+    
+    cachePreWarmed = true;
+    console.log(`[Cache Pre-Warm] Completed in ${Date.now() - startTime}ms`);
+  } catch (error) {
+    console.error("[Cache Pre-Warm] Error pre-warming cache:", error);
+  }
+}
+
+// Refresh cache every 4 minutes (before 5-min expiry)
+setInterval(async () => {
+  if (!cachePreWarmed) return; // Don't refresh if initial warm didn't complete
+  
+  console.log("[Cache Refresh] Background refresh starting...");
+  const MARBELLA = { lat: "36.5101", lng: "-4.8826" };
+  const today = new Date().toISOString().split('T')[0];
+  
+  try {
+    // Refresh most common search
+    const url = `http://localhost:5000/api/slots/search?lat=${MARBELLA.lat}&lng=${MARBELLA.lng}&date=${today}&players=2&holes=18&radiusKm=100`;
+    await fetch(url);
+    console.log("[Cache Refresh] Cache refreshed successfully");
+  } catch (error) {
+    console.error("[Cache Refresh] Error:", error);
+  }
+}, 4 * 60 * 1000);
+
 // Convert TTOO (Tour Operator) wholesale price to customer-facing price
 // API returns TTOO prices (what we pay), we add our markup percentage on top
 // Formula: customerPrice = ttooPrice × (1 + markupPercent/100)
