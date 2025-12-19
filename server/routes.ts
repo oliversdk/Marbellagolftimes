@@ -508,7 +508,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!file) {
         return res.sendStatus(404);
       }
-      await objectStorageService.downloadObject(file, res, 31536000);
+      const [metadata] = await file.getMetadata();
+      res.set({
+        "Content-Type": metadata.contentType || "image/webp",
+        "Content-Length": metadata.size,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      });
+      const stream = file.createReadStream();
+      stream.on("error", (err) => {
+        console.error("CDN stream error:", err);
+        if (!res.headersSent) res.sendStatus(500);
+      });
+      stream.pipe(res);
     } catch (error) {
       console.error("CDN image error:", error);
       res.sendStatus(500);
