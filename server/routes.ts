@@ -483,6 +483,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Optimized image versions mapping (for responsive images)
+  let imageVersionsCache: Record<string, { desktop: string; mobile: string; thumbnail: string }> | null = null;
+  app.get("/api/image-versions", async (req, res) => {
+    try {
+      if (!imageVersionsCache) {
+        const versionsPath = path.join(projectRoot, "server/data/imageVersions.json");
+        const data = await fs.readFile(versionsPath, "utf-8");
+        imageVersionsCache = JSON.parse(data);
+      }
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.json(imageVersionsCache);
+    } catch (error) {
+      res.json({});
+    }
+  });
+
+  // Serve optimized images from Object Storage (public access not available on bucket)
+  app.get("/cdn/images/:imagePath(*)", async (req, res) => {
+    try {
+      const { imagePath } = req.params;
+      const objectStorageService = new ObjectStorageService();
+      const file = await objectStorageService.searchPublicObject(`course-images/${imagePath}`);
+      if (!file) {
+        return res.sendStatus(404);
+      }
+      await objectStorageService.downloadObject(file, res, 31536000);
+    } catch (error) {
+      console.error("CDN image error:", error);
+      res.sendStatus(500);
+    }
+  });
+
   // Session setup - MUST be before any routes that use authentication
   app.set("trust proxy", 1);
   app.use(getSession());

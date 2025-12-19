@@ -1,7 +1,14 @@
 import { useState, useEffect, ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
 import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
+
+interface ImageVersions {
+  desktop: string;
+  mobile: string;
+  thumbnail: string;
+}
 
 interface OptimizedImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   src?: string;
@@ -12,6 +19,17 @@ interface OptimizedImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   onImageLoad?: () => void;
   onImageError?: () => void;
   priority?: boolean;
+  size?: "thumbnail" | "mobile" | "desktop" | "auto";
+}
+
+function getImageFilename(src: string): string | null {
+  if (!src) return null;
+  const parts = src.split("/");
+  const filename = parts[parts.length - 1];
+  if (filename.endsWith(".png") || filename.endsWith(".jpg") || filename.endsWith(".jpeg")) {
+    return filename;
+  }
+  return null;
 }
 
 export function OptimizedImage({
@@ -23,10 +41,24 @@ export function OptimizedImage({
   onImageLoad,
   onImageError,
   priority = false,
+  size = "auto",
   ...props
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  const { data: imageVersions } = useQuery<Record<string, ImageVersions>>({
+    queryKey: ["/api/image-versions"],
+    staleTime: 60 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     setIsLoaded(false);
@@ -42,12 +74,33 @@ export function OptimizedImage({
     setHasError(true);
     setIsLoaded(true);
     onImageError?.();
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(`Failed to load image: ${src}`);
+  };
+
+  const getOptimizedSrc = (): string => {
+    if (hasError) return fallbackSrc;
+    if (!src) return fallbackSrc;
+    
+    const filename = getImageFilename(src);
+    if (!filename || !imageVersions || !imageVersions[filename]) {
+      return src;
+    }
+
+    const versions = imageVersions[filename];
+    
+    switch (size) {
+      case "thumbnail":
+        return versions.thumbnail;
+      case "mobile":
+        return versions.mobile;
+      case "desktop":
+        return versions.desktop;
+      case "auto":
+      default:
+        return isMobile ? versions.mobile : versions.desktop;
     }
   };
 
-  const imageSrc = hasError ? fallbackSrc : (src || fallbackSrc);
+  const imageSrc = getOptimizedSrc();
 
   return (
     <div className={cn("relative shrink-0", className)}>
