@@ -69,8 +69,49 @@ export function cacheApiPrice(courseId: string, teeTime: string, priceCents: num
   teeTimePriceCache.set(cacheKey, { priceCents, source, expiresAt });
 }
 
-// Slots caching and preloading removed for simplicity (only 2 API-connected courses)
-// Tee times are fetched fresh on each request for maximum accuracy
+// ============================================================
+// Tee Time Search Result Cache (for faster mobile performance)
+// ============================================================
+// Cache full search results for 5 minutes to reduce API calls
+interface CachedSearchResult {
+  data: CourseWithSlots[];
+  expiresAt: Date;
+}
+const teeTimeSearchCache = new Map<string, CachedSearchResult>();
+
+// Generate cache key from search params
+function getSearchCacheKey(lat: string | null, lng: string | null, date: string | null, players: string | null, holes: string | null): string {
+  const normalizedDate = date ? new Date(date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+  return `${lat || 'noLat'}:${lng || 'noLng'}:${normalizedDate}:${players || '2'}:${holes || '18'}`;
+}
+
+// Get cached search result if still valid
+function getCachedSearchResult(key: string): CourseWithSlots[] | null {
+  const cached = teeTimeSearchCache.get(key);
+  if (cached && cached.expiresAt > new Date()) {
+    return cached.data;
+  }
+  if (cached) {
+    teeTimeSearchCache.delete(key);
+  }
+  return null;
+}
+
+// Cache search result with 5 minute TTL
+function cacheSearchResult(key: string, data: CourseWithSlots[]): void {
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min expiry
+  teeTimeSearchCache.set(key, { data, expiresAt });
+}
+
+// Cleanup expired search cache entries every 10 minutes
+setInterval(() => {
+  const now = new Date();
+  teeTimeSearchCache.forEach((value, key) => {
+    if (value.expiresAt < now) {
+      teeTimeSearchCache.delete(key);
+    }
+  });
+}, 10 * 60 * 1000);
 
 // Convert TTOO (Tour Operator) wholesale price to customer-facing price
 // API returns TTOO prices (what we pay), we add our markup percentage on top
@@ -2981,6 +3022,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/slots/search", async (req, res) => {
     try {
       const { lat, lng, radiusKm, date, players, fromTime, toTime, holes, courseId } = req.query;
+      
+      // PERFORMANCE: Check cache first for faster mobile loading
+      // Only cache full searches (not single-course queries)
+      const cacheKey = !courseId ? getSearchCacheKey(
+        lat as string | null, 
+        lng as string | null, 
+        date as string | null, 
+        players as string | null, 
+        holes as string | null
+      ) : null;
+      
+      if (cacheKey) {
+        const cachedResult = getCachedSearchResult(cacheKey);
+        if (cachedResult) {
+          console.log(`[Cache HIT] Returning cached tee times for ${cacheKey}`);
+          res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+          return res.json(cachedResult);
+        }
+        console.log(`[Cache MISS] Fetching fresh tee times for ${cacheKey}`);
+      }
 
       // If courseId is provided, get only that specific course
       let courses;
@@ -3332,6 +3393,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }));
 
+        // Cache the result for faster subsequent requests
+        if (cacheKey) {
+          cacheSearchResult(cacheKey, mockSlots);
+        }
+        res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
         res.json(mockSlots);
       } else if (golfmanagerConfig.mode === "demo" || golfmanagerConfig.mode === "production") {
         // Demo/Production mode: Fetch real tee times from API-connected courses  
@@ -3604,6 +3670,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return a.distanceKm - b.distanceKm;
         });
         
+        // Cache the result for faster subsequent requests
+        if (cacheKey) {
+          cacheSearchResult(cacheKey, results);
+        }
+        res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
         res.json(results);
       }
     } catch (error) {
