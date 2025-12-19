@@ -29,10 +29,11 @@ import nodemailer from "nodemailer";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import Stripe from "stripe";
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-11-17.clover" as const,
-});
+// Initialize Stripe (only if key is available)
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeSecretKey 
+  ? new Stripe(stripeSecretKey, { apiVersion: "2025-11-17.clover" as const })
+  : null;
 
 // ============================================================
 // OnTee-inspired Booking API - Fully Database-backed holds
@@ -4112,6 +4113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create Stripe checkout session
+      if (!stripe) {
+        return res.status(503).json({ error: "Payment processing not configured" });
+      }
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         line_items: lineItems,
@@ -4149,6 +4153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // GET /api/checkout-session/:sessionId - Get checkout session details
   app.get("/api/checkout-session/:sessionId", async (req, res) => {
+    if (!stripe) {
+      return res.status(503).json({ error: "Payment processing not configured" });
+    }
     try {
       const session = await stripe.checkout.sessions.retrieve(req.params.sessionId, {
         expand: ["line_items", "payment_intent"],
@@ -4180,6 +4187,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!webhookSecret) {
       console.log("Stripe webhook received but STRIPE_WEBHOOK_SECRET not configured");
       return res.json({ received: true });
+    }
+
+    if (!stripe) {
+      return res.status(503).json({ error: "Payment processing not configured" });
     }
 
     try {
@@ -4508,6 +4519,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/confirm-payment - Confirm payment and create booking (fallback for webhook)
   // Called from success page when webhook may not be configured
   app.post("/api/confirm-payment", async (req: any, res) => {
+    if (!stripe) {
+      return res.status(503).json({ error: "Payment processing not configured" });
+    }
     try {
       const { sessionId } = req.body;
       
