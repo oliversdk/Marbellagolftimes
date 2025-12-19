@@ -11,6 +11,7 @@ interface OptimizedImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   fallbackSrc?: string;
   onImageLoad?: () => void;
   onImageError?: () => void;
+  priority?: boolean;
 }
 
 export function OptimizedImage({
@@ -21,6 +22,7 @@ export function OptimizedImage({
   fallbackSrc = placeholderImage,
   onImageLoad,
   onImageError,
+  priority = false,
   ...props
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -58,6 +60,8 @@ export function OptimizedImage({
       <img
         src={imageSrc}
         alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
         onLoad={handleLoad}
         onError={handleError}
         className={cn(
