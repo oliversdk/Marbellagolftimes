@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useI18n } from "@/lib/i18n";
@@ -9,10 +9,12 @@ import { SearchFilters } from "@/components/SearchFilters";
 import { CourseCard } from "@/components/CourseCard";
 import { BookingModal } from "@/components/BookingModal";
 import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
-import { CoursesMap } from "@/components/CoursesMap";
 import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
-import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
+
+// Lazy load heavy components for better mobile performance
+const CoursesMap = lazy(() => import("@/components/CoursesMap").then(m => ({ default: m.CoursesMap })));
+const TestimonialsCarousel = lazy(() => import("@/components/TestimonialsCarousel").then(m => ({ default: m.TestimonialsCarousel })));
 import { AvailabilityDotsCompact } from "@/components/AvailabilityDots";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -235,6 +237,9 @@ export default function Home() {
   const [hasHydrated, setHasHydrated] = useState(false);
   const { searchFilters, setSearchFilters, sortMode, setSortMode, viewMode, setViewMode } = useFilterPersistence();
   
+  // Show fewer courses initially on mobile for faster load  
+  const [visibleCount, setVisibleCount] = useState(12);
+  
   // CRITICAL: Mark as hydrated and set Marbella location on mobile BEFORE paint
   useLayoutEffect(() => {
     setHasHydrated(true);
@@ -247,7 +252,6 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState<GolfCourse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(12);
   const [showPostBookingSignup, setShowPostBookingSignup] = useState(false);
   const [lastBookingData, setLastBookingData] = useState<{
     name: string;
@@ -275,7 +279,7 @@ export default function Home() {
   
   const { data: revenueData } = useQuery<ROIAnalytics>({
     queryKey: ['/api/admin/analytics/roi'],
-    enabled: isAdmin,
+    enabled: isAdmin && !isMobile, // Disable on mobile for performance
     queryFn: async () => {
       const response = await fetch('/api/admin/analytics/roi');
       if (!response.ok) throw new Error('Failed to fetch revenue');
@@ -401,7 +405,7 @@ export default function Home() {
 
   const { data: activityFeed } = useQuery<ActivityFeedData>({
     queryKey: ['/api/admin/activity-feed'],
-    enabled: isAdmin,
+    enabled: isAdmin && !isMobile, // Disable on mobile for performance
     refetchInterval: 30000, // Refresh every 30 seconds for live feel
     queryFn: async () => {
       const response = await fetch('/api/admin/activity-feed?limit=5');
@@ -1478,10 +1482,12 @@ export default function Home() {
                     )}
                   </>
                 ) : (
-                  <CoursesMap 
-                    courses={sortedCourses}
-                    center={userLocation}
-                  />
+                  <Suspense fallback={<MapLoadingSkeleton />}>
+                    <CoursesMap 
+                      courses={sortedCourses}
+                      center={userLocation}
+                    />
+                  </Suspense>
                 );
               })()}
             </>
@@ -1578,8 +1584,10 @@ export default function Home() {
         </>
       )}
 
-      {/* Testimonials Carousel */}
-      <TestimonialsCarousel />
+      {/* Testimonials Carousel - lazy loaded */}
+      <Suspense fallback={<div className="py-12"><Skeleton className="h-48 max-w-4xl mx-auto" /></div>}>
+        <TestimonialsCarousel />
+      </Suspense>
 
       {/* Booking Modal */}
       <BookingModal
