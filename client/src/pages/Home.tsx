@@ -11,6 +11,7 @@ import { BookingModal } from "@/components/BookingModal";
 import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 // Lazy load heavy components for better mobile performance
 const CoursesMap = lazy(() => import("@/components/CoursesMap").then(m => ({ default: m.CoursesMap })));
@@ -1181,11 +1182,10 @@ export default function Home() {
                             <div className="flex flex-col md:flex-row gap-4 p-4">
                               {/* Left: Course Image */}
                               <Link href={`/course/${courseSlot.courseId}`} className="w-full md:w-48 flex-shrink-0">
-                                <img 
+                                <OptimizedImage 
                                   src={courseImage}
                                   alt={`${courseSlot.courseName} golf course`}
-                                  loading="lazy"
-                                  decoding="async"
+                                  size="auto"
                                   className="w-full h-32 object-cover rounded-md hover-elevate cursor-pointer"
                                   data-testid={`img-course-${courseSlot.courseId}`}
                                 />
