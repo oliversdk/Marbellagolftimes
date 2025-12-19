@@ -396,11 +396,12 @@ const updateUserSchema = z.object({
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const projectRoot = process.cwd();
 
 // Configure multer for image uploads
 const imageStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = path.join(__dirname, "../client/public/stock_images");
+    const uploadPath = path.join(projectRoot, "client/public/stock_images");
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
@@ -457,7 +458,7 @@ const documentUpload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Static asset caching for images
   // First try client/public/generated_images, then fallback to attached_assets/generated_images
-  app.use('/generated_images', express.static(path.join(__dirname, '../client/public/generated_images'), {
+  app.use('/generated_images', express.static(path.join(projectRoot, 'client/public/generated_images'), {
     maxAge: '1y',
     immutable: true,
     setHeaders: (res) => {
@@ -466,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
   
   // Fallback to attached_assets/generated_images for images not in client/public
-  app.use('/generated_images', express.static(path.join(__dirname, '../attached_assets/generated_images'), {
+  app.use('/generated_images', express.static(path.join(projectRoot, 'attached_assets/generated_images'), {
     maxAge: '1y',
     immutable: true,
     setHeaders: (res) => {
@@ -474,7 +475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
-  app.use('/stock_images', express.static(path.join(__dirname, '../client/public/stock_images'), {
+  app.use('/stock_images', express.static(path.join(projectRoot, 'client/public/stock_images'), {
     maxAge: '1y',
     immutable: true,
     setHeaders: (res) => {
@@ -508,7 +509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Read the index.html template
-      const templatePath = path.join(__dirname, "../client/index.html");
+      const templatePath = path.join(projectRoot, "client/index.html");
       let html = await fs.readFile(templatePath, "utf-8");
       
       // Prepare dynamic content
@@ -3047,7 +3048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetDirectory = directory;
       }
 
-      const filePath = path.join(__dirname, `../client/public/${targetDirectory}`, filename);
+      const filePath = path.join(projectRoot, `client/public/${targetDirectory}`, filename);
       
       // If courseId is provided, verify the course exists first
       if (courseId && typeof courseId === "string") {
