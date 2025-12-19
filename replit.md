@@ -103,7 +103,12 @@ The platform integrates with Stripe Checkout for secure payment processing:
 -   **API Retry Logic**: Both `zestGolf.ts` and `golfmanager.ts` services now include retry logic with exponential backoff for transient network errors (ECONNRESET, ETIMEDOUT, 5xx responses). 30-second timeout configured.
 -   **Database Performance Indexes**: Added composite indexes for `courseRatePeriods(courseId, seasonLabel)`, `zestPricingData(courseId, zestFacilityId)`, and `bookingRequests(courseId, teeTime)`.
 -   **Loading States**: Admin dashboard uses Skeleton components for loading states on bookings, users, follow-ups, and course management sections.
--   **Image Serving Fallback**: Static route serves `/generated_images` from both `client/public/generated_images` and `attached_assets/generated_images` as fallback
+-   **Optimized Image CDN (December 2024)**: Responsive image system for mobile SEO performance:
+    - Original PNG images (1.5-2.3MB) converted to WebP in three sizes: desktop (~150KB), mobile (~45KB), thumbnail (~8KB)
+    - CDN route at `/cdn/images/:imagePath` serves optimized images from Object Storage with `public, max-age=31536000, immutable` caching
+    - `imageVersions.json` maps original filenames to optimized CDN paths
+    - `OptimizedImage` component auto-detects device at first render (no mobile-to-desktop fetch race) and serves appropriate size
+    - 97% reduction in image payload for mobile users
 -   **Contract-Driven Pricing (December 2024)**: Price matching now correctly uses contract rack rates from `courseRatePeriods` table instead of TTOO+20% fallback markup. Key fixes:
     - Rate period date filtering matches tee time dates to applicable season periods (startDate/endDate)
     - Boolean flags (isTwilight, isEarlyBird, includesLunch) correctly compared as strings ("true"/"false") matching DB text type
