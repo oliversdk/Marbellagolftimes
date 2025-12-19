@@ -838,6 +838,8 @@ export default function Home() {
               <img
                 src={heroImage}
                 alt="Costa del Sol Golf Course"
+                fetchPriority="high"
+                decoding="async"
                 className="w-full h-full object-cover"
                 data-testid="img-hero-mobile"
               />
@@ -1178,6 +1180,8 @@ export default function Home() {
                                 <img 
                                   src={courseImage}
                                   alt={`${courseSlot.courseName} golf course`}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-32 object-cover rounded-md hover-elevate cursor-pointer"
                                   data-testid={`img-course-${courseSlot.courseId}`}
                                 />
