@@ -115,6 +115,7 @@ export class TeeOneBookingService {
   private session: TeeOneSession | null = null;
   private providerCache: Map<number, TeeOneProvider[]> = new Map();
   private courseCache: Map<string, TeeOneCourse[]> = new Map();
+  private isAuthenticating: boolean = false;
 
   constructor(options?: {
     username?: string;
@@ -136,15 +137,27 @@ export class TeeOneBookingService {
     return !!(this.username && this.password);
   }
 
-  async authenticate(lifeSpanSeconds: number = 3600): Promise<TeeOneSession | null> {
+  clearSession(): void {
+    this.session = null;
+    console.log("[TeeOne Booking] Session cleared - will re-authenticate on next request");
+  }
+
+  async authenticate(lifeSpanSeconds: number = 3600, forceRefresh: boolean = false): Promise<TeeOneSession | null> {
     if (!this.hasCredentials()) {
       console.log("[TeeOne Booking] No credentials - skipping authentication");
       return null;
     }
 
-    if (this.session && new Date(this.session.expiration) > new Date()) {
+    if (!forceRefresh && this.session && new Date(this.session.expiration) > new Date(Date.now() + 60000)) {
       return this.session;
     }
+
+    if (this.isAuthenticating) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return this.session;
+    }
+
+    this.isAuthenticating = true;
 
     try {
       console.log("[TeeOne Booking] Authenticating...");
@@ -170,11 +183,15 @@ export class TeeOneBookingService {
       }
 
       console.error(`[TeeOne Booking] Authentication failed: ${response.data?.msg}`);
+      this.session = null;
       return null;
     } catch (error) {
       const axiosError = error as AxiosError;
       console.error(`[TeeOne Booking] Auth error: ${axiosError.message}`);
+      this.session = null;
       return null;
+    } finally {
+      this.isAuthenticating = false;
     }
   }
 
@@ -262,67 +279,109 @@ export class TeeOneBookingService {
     providerID: number,
     courseID: number,
     playDate: string,
-    players: number = -1,
-    tourOperatorID: number = -1
+    options: {
+      players?: number;
+      tourOperatorID?: number;
+      fromTime?: string;
+      toTime?: string;
+      fromPrice?: number;
+      toPrice?: number;
+      promoCode?: string;
+      pageSize?: number;
+      pageNum?: number;
+    } = {}
   ): Promise<TeeOneAvailabilityResponse | null> {
-    const session = await this.authenticate();
-    if (!session) return null;
+    const {
+      players = -1,
+      tourOperatorID = -1,
+      fromTime = "07:00",
+      toTime = "18:00",
+      fromPrice = 0,
+      toPrice = 99999,
+      promoCode = "",
+      pageSize = 100,
+      pageNum = 1,
+    } = options;
 
-    try {
-      console.log(`[TeeOne Booking] Fetching availability for course ${courseID} on ${playDate}`);
+    const makeRequest = async (isRetry: boolean = false): Promise<TeeOneAvailabilityResponse | null> => {
+      const currentSession = await this.authenticate(3600, isRetry);
+      if (!currentSession) return null;
 
-      const response = await axios.post<TeeOneAvailabilityResponse>(
-        `${this.baseUrl}/api/External/Availability/DayAvailability`,
-        {
-          vendorID: session.vendorID,
-          providerID,
-          sessionID: session.sessionID,
-          tourOperatorID,
-          accessToken: session.accessToken,
-          culture: "en-GB",
-          courseID,
-          playDate: `${playDate}T00:00`,
-          fromTime: `${playDate}T07:00`,
-          toTime: `${playDate}T18:00`,
-          players,
-          fromPrice: 0,
-          toPrice: 99999,
-          promoCode: "",
-          pageSize: 100,
-          pageNum: 1,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-          timeout: 30000,
+      try {
+        console.log(`[TeeOne Booking] Fetching availability for course ${courseID} on ${playDate} (${fromTime}-${toTime})`);
+
+        const response = await axios.post<TeeOneAvailabilityResponse>(
+          `${this.baseUrl}/api/External/Availability/DayAvailability`,
+          {
+            vendorID: currentSession.vendorID,
+            providerID,
+            sessionID: currentSession.sessionID,
+            tourOperatorID,
+            accessToken: currentSession.accessToken,
+            culture: "en-GB",
+            courseID,
+            playDate: `${playDate}T00:00`,
+            fromTime: `${playDate}T${fromTime}`,
+            toTime: `${playDate}T${toTime}`,
+            players,
+            fromPrice,
+            toPrice,
+            promoCode,
+            pageSize,
+            pageNum,
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: 30000,
+          }
+        );
+
+        if (response.data?.code === 1) {
+          console.log(`[TeeOne Booking] Found ${response.data.data?.teeTimesAvailableCount || 0} tee times`);
+          return response.data;
         }
-      );
 
-      if (response.data?.code === 1) {
-        console.log(`[TeeOne Booking] Found ${response.data.data?.teeTimesAvailableCount || 0} tee times`);
-        return response.data;
+        console.warn(`[TeeOne Booking] Availability error: ${response.data?.msg}`);
+        return null;
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        if (!isRetry && (axiosError.response?.status === 401 || axiosError.response?.status === 403)) {
+          console.log("[TeeOne Booking] Token expired/invalid - retrying with fresh session...");
+          this.clearSession();
+          return makeRequest(true);
+        }
+        console.error(`[TeeOne Booking] Availability error: ${axiosError.message}`);
+        return null;
       }
+    };
 
-      console.warn(`[TeeOne Booking] Availability error: ${response.data?.msg}`);
-      return null;
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      console.error(`[TeeOne Booking] Availability error: ${axiosError.message}`);
-      return null;
-    }
+    return makeRequest(false);
   }
 
   async getTeeTimes(
     providerID: number,
     courseID: number,
     date: string,
-    players: number = 2,
-    tourOperatorID: number = -1
+    options: {
+      players?: number;
+      tourOperatorID?: number;
+      fromTime?: string;
+      toTime?: string;
+    } = {}
   ): Promise<TeeTimeSlot[]> {
+    const { players = 2, tourOperatorID = -1, fromTime, toTime } = options;
+
     if (!this.hasCredentials()) {
       return this.getMockSlots(date, players);
     }
 
-    const availability = await this.getDayAvailability(providerID, courseID, date, players, tourOperatorID);
+    const availability = await this.getDayAvailability(providerID, courseID, date, {
+      players,
+      tourOperatorID,
+      fromTime,
+      toTime,
+    });
+
     if (!availability?.data?.teeTimesAvailable) {
       return this.getMockSlots(date, players);
     }
@@ -332,8 +391,11 @@ export class TeeOneBookingService {
     for (const teeTime of availability.data.teeTimesAvailable) {
       for (const rate of teeTime.ratesList) {
         if (rate.bookablePlayers.includes(players) || rate.bookablePlayers.length === 0) {
-          const pricePerPlayer = priceFromApi(rate.sellPrice);
-          const rackPricePerPlayer = priceFromApi(rate.rackPrice);
+          const totalBookingPrice = priceFromApi(rate.sellPrice);
+          const totalRackPrice = priceFromApi(rate.rackPrice);
+          
+          const playersInRate = this.getPlayersForRateType(rate.rateTypeID, players);
+          const pricePerPlayer = playersInRate > 0 ? totalBookingPrice / playersInRate : totalBookingPrice;
 
           slots.push({
             teeTime: teeTime.time,
@@ -358,6 +420,15 @@ export class TeeOneBookingService {
 
     console.log(`[TeeOne Booking] Converted ${slots.length} tee time slots`);
     return slots;
+  }
+
+  private getPlayersForRateType(rateTypeID: number, requestedPlayers: number): number {
+    switch (rateTypeID) {
+      case 3: case 7: return 2;
+      case 4: case 8: return 4;
+      case 9: case 10: return 1;
+      default: return requestedPlayers;
+    }
   }
 
   async createPreBooking(
