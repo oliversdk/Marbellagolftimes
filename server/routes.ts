@@ -1397,7 +1397,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isAdminUser) {
         res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
       } else {
-        res.setHeader('Cache-Control', 'public, max-age=300');
+        // Use stale-while-revalidate for faster perceived load times
+        res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
       }
       res.json(coursesWithRatings);
     } catch (error) {
