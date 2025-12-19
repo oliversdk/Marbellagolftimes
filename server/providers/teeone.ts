@@ -1,7 +1,9 @@
 import axios from "axios";
 import type { TeeTimeSlot } from "@shared/schema";
+import { getTeeOneBookingService, TeeOneBookingService } from "../services/teeoneBooking";
 
 const TEEONE_API_URL = "https://devapi.teeone.golf/MGClubApp/v1";
+const TEEONE_BOOKING_API_URL = "https://devapi.teeone.golf/TOBookingEngine/v1";
 
 export interface TeeOneCredentials {
   idEmpresa: number;
@@ -316,6 +318,9 @@ export class TeeOneClient {
 }
 
 export const teeoneClient = new TeeOneClient();
+
+// Export booking engine service for prebooking/confirmation flow
+export const teeoneBookingService = getTeeOneBookingService();
 
 export const TEEONE_COURSES: Record<string, { 
   name: string; 
