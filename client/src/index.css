@@ -222,15 +222,6 @@
     touch-action: pan-x;
   }
 
-  /* Lazy loading images */
-  img[loading="lazy"] {
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-
-  img[loading="lazy"].loaded {
-    opacity: 1;
-  }
 
   /* Smooth scrolling on mobile */
   @media (max-width: 1024px) {
