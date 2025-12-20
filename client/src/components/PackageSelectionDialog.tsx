@@ -90,10 +90,42 @@ export function PackageSelectionDialog({
   const { addItem, hasItem, checkConflicts } = useBookingCart();
   const { toast } = useToast();
 
-  // Initialize player names array when players count changes
+  // Helper to get saved player names from localStorage (persists across bookings in multi-search)
+  const getSavedPlayerNames = (count: number): string[] => {
+    try {
+      const saved = localStorage.getItem('mgt-player-names');
+      if (saved) {
+        const parsed = JSON.parse(saved) as string[];
+        // Return saved names up to the player count, pad with empty strings if needed
+        const result = Array(count).fill('');
+        for (let i = 0; i < Math.min(parsed.length, count); i++) {
+          result[i] = parsed[i] || '';
+        }
+        return result;
+      }
+    } catch (e) {
+      console.warn('Failed to load saved player names:', e);
+    }
+    return Array(count).fill('');
+  };
+
+  // Save player names to localStorage whenever they change (for suggesting in next booking)
+  const savePlayerNames = (names: string[]) => {
+    try {
+      // Only save non-empty names
+      const validNames = names.filter(n => n.trim().length >= 2);
+      if (validNames.length > 0) {
+        localStorage.setItem('mgt-player-names', JSON.stringify(names));
+      }
+    } catch (e) {
+      console.warn('Failed to save player names:', e);
+    }
+  };
+
+  // Initialize player names array when players count changes - use saved names if available
   useEffect(() => {
     if (teeTime?.players) {
-      setPlayerNames(Array(teeTime.players).fill(''));
+      setPlayerNames(getSavedPlayerNames(teeTime.players));
     }
   }, [teeTime?.players]);
 
@@ -103,7 +135,8 @@ export function PackageSelectionDialog({
     setAcknowledgedConflicts(false);
     setTouchedFields(new Set());
     if (teeTime?.players) {
-      setPlayerNames(Array(teeTime.players).fill(''));
+      // Pre-fill with saved player names from previous bookings
+      setPlayerNames(getSavedPlayerNames(teeTime.players));
     }
   }, [teeTime?.id, teeTime?.time]);
 
@@ -473,6 +506,9 @@ export function PackageSelectionDialog({
 
     addItem(cartItem);
     
+    // Save player names for suggesting in next booking (multi-search convenience)
+    savePlayerNames(playerNames);
+    
     toast({
       title: "Added to cart",
       description: `${course.courseName} at ${format(new Date(teeTime.time), 'HH:mm')} on ${format(new Date(date), 'MMM d')}`,
@@ -481,7 +517,7 @@ export function PackageSelectionDialog({
     onOpenChange(false);
     setSelectedPackageId("");
     setAddOnQuantities(new Map());
-    setPlayerNames(Array(teeTime.players).fill(''));
+    // Keep showing saved names for next booking (don't reset to empty)
     setTouchedFields(new Set());
   };
 
