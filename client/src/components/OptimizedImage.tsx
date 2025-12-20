@@ -112,7 +112,7 @@ export function OptimizedImage({
   }
 
   return (
-    <div className={cn("relative shrink-0", className)}>
+    <div className={cn("relative shrink-0 overflow-hidden", className)}>
       {!isLoaded && (
         <Skeleton 
           className={cn("absolute inset-0 z-10 rounded-md", skeletonClassName)} 
@@ -128,7 +128,7 @@ export function OptimizedImage({
         onLoad={handleLoad}
         onError={handleError}
         className={cn(
-          "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
+          "w-full h-full object-cover transition-opacity duration-300",
           isLoaded ? "opacity-100" : "opacity-0"
         )}
         {...props}
