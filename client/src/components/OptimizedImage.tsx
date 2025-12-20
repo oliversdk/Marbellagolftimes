@@ -1,4 +1,4 @@
-import { useState, useEffect, ImgHTMLAttributes } from "react";
+import { useState, useEffect, useRef, ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -49,6 +49,7 @@ export function OptimizedImage({
   const [isMobile, setIsMobile] = useState(() => 
     typeof window !== 'undefined' && window.innerWidth < 768
   );
+  const imgRef = useRef<HTMLImageElement>(null);
 
   const { data: imageVersions } = useQuery<Record<string, ImageVersions>>({
     queryKey: ["/api/image-versions"],
@@ -65,6 +66,14 @@ export function OptimizedImage({
     setIsLoaded(false);
     setHasError(false);
   }, [src]);
+
+  // Check if image is already loaded from cache on mount/src change
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img?.complete && img?.naturalWidth > 0) {
+      setIsLoaded(true);
+    }
+  });
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -120,6 +129,7 @@ export function OptimizedImage({
         />
       )}
       <img
+        ref={imgRef}
         key={imageSrc}
         src={imageSrc}
         alt={alt}
@@ -127,10 +137,7 @@ export function OptimizedImage({
         decoding="async"
         onLoad={handleLoad}
         onError={handleError}
-        className={cn(
-          "w-full h-full object-cover transition-opacity duration-300",
-          isLoaded ? "opacity-100" : "opacity-0"
-        )}
+        className="w-full h-full object-cover"
         {...props}
       />
     </div>
