@@ -21,7 +21,8 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
 import type { GolfCourse } from "@shared/schema";
-import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
+// Use CDN path for optimized WebP delivery
+const placeholderImage = "/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
 
 interface SearchFiltersProps {
   currentFilters?: {

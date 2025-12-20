@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, ImgHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import placeholderImage from "@assets/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
+// Use CDN path for optimized WebP delivery
+const defaultPlaceholder = "/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
 
 interface ImageVersions {
   desktop: string;
@@ -37,7 +38,7 @@ export function OptimizedImage({
   alt,
   className,
   skeletonClassName,
-  fallbackSrc = placeholderImage,
+  fallbackSrc = defaultPlaceholder,
   onImageLoad,
   onImageError,
   priority = false,

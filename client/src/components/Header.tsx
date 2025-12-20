@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { User, LogOut, UserCircle, Shield, Menu, Mail, Search } from "lucide-react";
-import logoImage from "@assets/generated_images/marbella_golf_times_logo.png";
+// Use CDN path for optimized logo delivery
+const logoImage = "/generated_images/marbella_golf_times_logo.png";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
