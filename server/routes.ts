@@ -10,6 +10,7 @@ import { getZestGolfService } from "./services/zestGolf";
 import { syncBookingToProvider } from "./services/bookingSyncService";
 import * as bookingHoldsService from "./services/bookingHolds";
 import { syncCommissionForCourse } from "./services/commissionSync";
+import { ExternalAnalyticsService } from "./services/externalAnalytics";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts, zestPricingData } from "@shared/schema";
 import { db } from "./db";
@@ -5664,6 +5665,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // All endpoints require X-API-Key header authentication
   // Scopes: read:courses, read:bookings, write:bookings, read:analytics, read:users
 
+  // Initialize external analytics service
+  const externalAnalyticsService = new ExternalAnalyticsService(storage);
+
   // Helper function to determine management tool type from provider links
   const getManagementToolType = (providerLinks: { providerCourseCode: string | null }[]): string | null => {
     for (const link of providerLinks) {
@@ -5680,21 +5684,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return null;
   };
 
-  // GET /api/v1/external/courses - List all courses with images
+  // GET /api/v1/external/courses - List all courses with images and performance stats
   app.get("/api/v1/external/courses", isApiKeyAuthenticated, requireScope("read:courses"), async (req, res) => {
     try {
       const courses = await storage.getAllCourses();
+      const allBookings = await storage.getAllBookings();
+      
+      // Calculate stats per course
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+      
+      const courseBookings = new Map<string, { total: number; revenue: number; prevTotal: number }>();
+      allBookings.forEach(b => {
+        const current = courseBookings.get(b.courseId) || { total: 0, revenue: 0, prevTotal: 0 };
+        if (b.createdAt && new Date(b.createdAt) >= thirtyDaysAgo) {
+          current.total++;
+          current.revenue += b.totalAmountCents ? b.totalAmountCents / 100 : (b.estimatedPrice || 0);
+        } else if (b.createdAt && new Date(b.createdAt) >= sixtyDaysAgo) {
+          current.prevTotal++;
+        }
+        courseBookings.set(b.courseId, current);
+      });
       
       // Get images and provider info for each course
-      const coursesWithImages = await Promise.all(
+      const coursesWithStats = await Promise.all(
         courses.map(async (course) => {
           const images = await storage.getImagesByCourseId(course.id);
           const providerLinks = await storage.getLinksByCourseId(course.id);
           const managementTool = getManagementToolType(providerLinks);
+          const reviews = await storage.getAllReviewsByCourseId(course.id);
+          
+          const stats = courseBookings.get(course.id) || { total: 0, revenue: 0, prevTotal: 0 };
+          let trend: "up" | "down" | "stable" = "stable";
+          if (stats.total > stats.prevTotal * 1.1) trend = "up";
+          else if (stats.total < stats.prevTotal * 0.9) trend = "down";
+          
+          // Price range from bookings
+          const courseBookingsList = allBookings.filter(b => b.courseId === course.id);
+          const prices = courseBookingsList.map(b => b.totalAmountCents ? b.totalAmountCents / 100 : (b.estimatedPrice || 0)).filter(p => p > 0);
           
           return {
             id: course.id,
             name: course.name,
+            region: course.province || course.city,
+            kickback_percent: course.kickbackPercent || 0,
+            facilities: course.facilities || [],
+            price_range: {
+              min: prices.length > 0 ? Math.min(...prices) : 0,
+              max: prices.length > 0 ? Math.max(...prices) : 0,
+            },
+            rating: reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : null,
+            total_bookings: stats.total,
+            total_revenue: Math.round(stats.revenue),
+            capacity_per_day: 60, // Estimated daily capacity
+            utilization_rate: Math.round((stats.total / 30 / 60) * 100), // Rough estimate
+            avg_booking_value: stats.total > 0 ? Math.round(stats.revenue / stats.total) : 0,
+            trend: trend,
+            last_booking_date: courseBookingsList.length > 0 
+              ? courseBookingsList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())[0]?.createdAt?.toISOString().split('T')[0] || null
+              : null,
+            is_active: true,
+            partner_since: null, // Would need createdAt on courses
             city: course.city,
             province: course.province,
             country: course.country,
@@ -5704,12 +5754,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             bookingUrl: course.bookingUrl,
             email: course.email,
             phone: course.phone,
-            notes: course.notes,
             imageUrl: course.imageUrl,
-            facilities: course.facilities,
-            kickbackPercent: course.kickbackPercent,
-            membersOnly: course.membersOnly,
-            managementTool: managementTool, // golfmanager_v1, golfmanager_v3, teeone, or null
+            managementTool: managementTool,
             images: images.map(img => ({
               id: img.id,
               imageUrl: img.imageUrl,
@@ -5722,8 +5768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         success: true,
-        count: coursesWithImages.length,
-        data: coursesWithImages,
+        count: coursesWithStats.length,
+        data: coursesWithStats,
       });
     } catch (error) {
       console.error("External API - Get courses error:", error);
@@ -5773,34 +5819,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/v1/external/bookings - List all bookings
+  // GET /api/v1/external/bookings - List all bookings with filters and enriched data
   app.get("/api/v1/external/bookings", isApiKeyAuthenticated, requireScope("read:bookings"), async (req, res) => {
     try {
-      const bookings = await storage.getAllBookings();
-      const courses = await storage.getAllCourses();
-      const courseMap = new Map(courses.map(c => [c.id, c]));
+      const { date_from, date_to, course_id, status } = req.query;
       
-      const enrichedBookings = bookings.map(booking => ({
-        id: booking.id,
-        status: booking.status,
-        courseId: booking.courseId,
-        courseName: courseMap.get(booking.courseId)?.name || "Unknown",
-        teeTime: booking.teeTime,
-        players: booking.players,
-        customerName: booking.customerName,
-        customerEmail: booking.customerEmail,
-        customerPhone: booking.customerPhone,
-        estimatedPrice: booking.estimatedPrice,
-        userId: booking.userId,
-        createdAt: booking.createdAt,
-        cancelledAt: booking.cancelledAt,
-        cancellationReason: booking.cancellationReason,
-      }));
+      const enrichedBookings = await externalAnalyticsService.getEnrichedBookings({
+        date_from: date_from as string | undefined,
+        date_to: date_to as string | undefined,
+        course_id: course_id as string | undefined,
+        status: status as string | undefined,
+      });
       
       res.json({
         success: true,
         count: enrichedBookings.length,
-        data: enrichedBookings,
+        data: enrichedBookings.map(booking => ({
+          id: booking.id,
+          status: booking.status,
+          course_id: booking.courseId,
+          course_name: booking.course_name || "Unknown",
+          date: booking.teeTime ? new Date(booking.teeTime).toISOString().split('T')[0] : null,
+          time: booking.teeTime ? new Date(booking.teeTime).toISOString().split('T')[1]?.slice(0, 5) : null,
+          players: booking.players,
+          customer_id: booking.userId,
+          customer_name: booking.customerName,
+          total_price: booking.totalAmountCents ? booking.totalAmountCents / 100 : (booking.estimatedPrice || 0),
+          kickback_amount: 0, // Would need course kickback calculation
+          created_at: booking.createdAt,
+          lead_time_days: booking.lead_time_days,
+          source: booking.source,
+        })),
       });
     } catch (error) {
       console.error("External API - Get bookings error:", error);
@@ -5921,31 +5970,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/v1/external/analytics - Get analytics summary
-  // NOTE: This endpoint exposes full revenue/ROI data. Only grant read:analytics scope to trusted integrations.
+  // GET /api/v1/external/analytics - Get comprehensive analytics for CEO AI Assistant
+  // NOTE: This endpoint exposes full business data. Only grant read:analytics scope to trusted integrations.
   app.get("/api/v1/external/analytics", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
     try {
-      const [revenue, popularCourses, roiAnalytics, bookingsDaily, bookingsWeekly, bookingsMonthly] = await Promise.all([
-        storage.getRevenueAnalytics(),
-        storage.getPopularCourses(10),
-        storage.getROIAnalytics(),
-        storage.getBookingsAnalytics("day"),
-        storage.getBookingsAnalytics("week"),
-        storage.getBookingsAnalytics("month"),
-      ]);
+      const analytics = await externalAnalyticsService.getComprehensiveAnalytics();
       
       res.json({
         success: true,
-        data: {
-          revenue,
-          roi: roiAnalytics,
-          popularCourses,
-          bookingTrends: {
-            daily: bookingsDaily,
-            weekly: bookingsWeekly,
-            monthly: bookingsMonthly,
-          },
-        },
+        data: analytics,
       });
     } catch (error) {
       console.error("External API - Get analytics error:", error);
@@ -5977,6 +6010,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("External API - Get users error:", error);
       res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // GET /api/v1/external/customers - Customer overview with booking history and segmentation
+  app.get("/api/v1/external/customers", isApiKeyAuthenticated, requireScope("read:users"), async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const result = await externalAnalyticsService.getCustomerOverviews({ page, limit });
+      
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      console.error("External API - Get customers error:", error);
+      res.status(500).json({ error: "Failed to fetch customers" });
+    }
+  });
+
+  // GET /api/v1/external/reports/summary - Executive summary for CEO
+  app.get("/api/v1/external/reports/summary", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
+    try {
+      const summary = await externalAnalyticsService.getExecutiveSummary();
+      
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error) {
+      console.error("External API - Get executive summary error:", error);
+      res.status(500).json({ error: "Failed to generate executive summary" });
     }
   });
 
