@@ -186,6 +186,16 @@ export const bookingRequests = pgTable(
     // Review request tracking
     reviewRequestSent: text("review_request_sent").default("false"), // Whether review request email was sent
     reviewRequestSentAt: timestamp("review_request_sent_at"), // When the review request was sent
+    // UTM tracking for marketing attribution
+    utmSource: text("utm_source"), // e.g., google, facebook, email
+    utmMedium: text("utm_medium"), // e.g., cpc, social, email
+    utmCampaign: text("utm_campaign"), // Campaign name
+    utmTerm: text("utm_term"), // Paid search keyword
+    utmContent: text("utm_content"), // Ad variation
+    gclid: text("gclid"), // Google Click ID
+    fbclid: text("fbclid"), // Facebook Click ID
+    referrer: text("referrer"), // Original referrer URL
+    landingPage: text("landing_page"), // First page visited
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => [index("idx_booking_requests_course_teetime").on(table.courseId, table.teeTime)],
@@ -1031,3 +1041,134 @@ export const insertBookingHoldSchema = createInsertSchema(bookingHolds).omit({
 
 export type InsertBookingHold = z.infer<typeof insertBookingHoldSchema>;
 export type BookingHold = typeof bookingHolds.$inferSelect;
+
+// ============================================
+// MARKETING ANALYTICS TABLES
+// ============================================
+
+// Marketing Channels (google, facebook, email, organic, direct, affiliate)
+export const marketingChannels = pgTable("marketing_channels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // google_ads, facebook_ads, organic_search, direct, email, affiliate
+  displayName: text("display_name").notNull(), // "Google Ads", "Facebook Ads", etc.
+  type: text("type").notNull(), // paid, organic, direct, referral
+  isActive: text("is_active").notNull().default("true"),
+  color: text("color"), // For charts: #4285F4 (Google blue), etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMarketingChannelSchema = createInsertSchema(marketingChannels).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertMarketingChannel = z.infer<typeof insertMarketingChannelSchema>;
+export type MarketingChannel = typeof marketingChannels.$inferSelect;
+
+// Marketing Campaigns
+export const marketingCampaigns = pgTable("marketing_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  channelId: varchar("channel_id").notNull().references(() => marketingChannels.id),
+  name: text("name").notNull(), // Campaign name (e.g., "Winter Golf 2025")
+  externalId: text("external_id"), // Google Ads campaign ID, etc.
+  status: text("status").notNull().default("active"), // active, paused, completed
+  budgetCents: integer("budget_cents"), // Total budget in cents
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  targetAudience: text("target_audience"), // Description of target audience
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMarketingCampaignSchema = createInsertSchema(marketingCampaigns).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true
+});
+export type InsertMarketingCampaign = z.infer<typeof insertMarketingCampaignSchema>;
+export type MarketingCampaign = typeof marketingCampaigns.$inferSelect;
+
+// Marketing Metrics Daily (aggregated traffic and spend data)
+export const marketingMetricsDaily = pgTable("marketing_metrics_daily", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: timestamp("date").notNull(),
+  channelId: varchar("channel_id").references(() => marketingChannels.id),
+  campaignId: varchar("campaign_id").references(() => marketingCampaigns.id),
+  // Traffic metrics (from Google Analytics)
+  sessions: integer("sessions").default(0),
+  users: integer("users").default(0),
+  newUsers: integer("new_users").default(0),
+  pageviews: integer("pageviews").default(0),
+  bounceRate: real("bounce_rate"), // 0-100
+  avgSessionDuration: real("avg_session_duration"), // seconds
+  // Conversion metrics
+  conversions: integer("conversions").default(0), // Completed bookings
+  conversionValue: real("conversion_value").default(0), // Revenue in EUR
+  conversionRate: real("conversion_rate"), // 0-100
+  // Cost metrics (from ad platforms)
+  impressions: integer("impressions").default(0),
+  clicks: integer("clicks").default(0),
+  costCents: integer("cost_cents").default(0), // Ad spend in cents
+  cpc: real("cpc"), // Cost per click (calculated)
+  cpm: real("cpm"), // Cost per 1000 impressions (calculated)
+  // ROI metrics (calculated)
+  roas: real("roas"), // Return on ad spend (revenue / cost)
+  cpa: real("cpa"), // Cost per acquisition
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_marketing_metrics_date").on(table.date),
+  index("idx_marketing_metrics_channel").on(table.channelId),
+  index("idx_marketing_metrics_campaign").on(table.campaignId),
+]);
+
+export const insertMarketingMetricsDailySchema = createInsertSchema(marketingMetricsDaily).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertMarketingMetricsDaily = z.infer<typeof insertMarketingMetricsDailySchema>;
+export type MarketingMetricsDaily = typeof marketingMetricsDaily.$inferSelect;
+
+// Ad Spend Records (individual spend entries for manual tracking or imports)
+export const adSpendRecords = pgTable("ad_spend_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  channelId: varchar("channel_id").notNull().references(() => marketingChannels.id),
+  campaignId: varchar("campaign_id").references(() => marketingCampaigns.id),
+  date: timestamp("date").notNull(),
+  amountCents: integer("amount_cents").notNull(), // Spend in cents
+  description: text("description"),
+  invoiceReference: text("invoice_reference"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_ad_spend_date").on(table.date),
+  index("idx_ad_spend_channel").on(table.channelId),
+]);
+
+export const insertAdSpendRecordSchema = createInsertSchema(adSpendRecords).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InsertAdSpendRecord = z.infer<typeof insertAdSpendRecordSchema>;
+export type AdSpendRecord = typeof adSpendRecords.$inferSelect;
+
+// Marketing Goals (KPI targets)
+export const marketingGoals = pgTable("marketing_goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // e.g., "Q1 2025 Revenue Target"
+  metricType: text("metric_type").notNull(), // revenue, bookings, sessions, conversions, roas, cpa
+  targetValue: real("target_value").notNull(), // Target number
+  currentValue: real("current_value").default(0), // Current progress
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  channelId: varchar("channel_id").references(() => marketingChannels.id), // Optional: specific channel
+  status: text("status").notNull().default("active"), // active, completed, missed
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMarketingGoalSchema = createInsertSchema(marketingGoals).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true
+});
+export type InsertMarketingGoal = z.infer<typeof insertMarketingGoalSchema>;
+export type MarketingGoal = typeof marketingGoals.$inferSelect;
