@@ -119,7 +119,8 @@ export const courseAddOns = pgTable("course_add_ons", {
   courseId: varchar("course_id").notNull().references(() => golfCourses.id),
   name: text("name").notNull(),
   description: text("description"),
-  priceCents: integer("price_cents").notNull(), // Price in cents (e.g., 3000 = €30.00)
+  priceCents: integer("price_cents").notNull(), // Selling price in cents (e.g., 3000 = €30.00)
+  costCents: integer("cost_cents"), // Purchase/cost price in cents (what we pay the supplier)
   type: text("type").notNull(), // 'buggy_shared', 'buggy_individual', 'clubs', 'trolley', 'caddy', 'other'
   perPlayer: text("per_player").notNull().default("true"), // If true, multiply by number of players
   isActive: text("is_active").notNull().default("true"),
