@@ -45,6 +45,16 @@ import {
   type InsertOnboardingStageHistory,
   type EmailLog,
   type InsertEmailLog,
+  type MarketingChannel,
+  type InsertMarketingChannel,
+  type MarketingCampaign,
+  type InsertMarketingCampaign,
+  type MarketingMetricsDaily,
+  type InsertMarketingMetricsDaily,
+  type AdSpendRecord,
+  type InsertAdSpendRecord,
+  type MarketingGoal,
+  type InsertMarketingGoal,
   golfCourses,
   courseDocuments,
   teeTimeProviders,
@@ -70,10 +80,15 @@ import {
   bookingNotifications,
   onboardingStageHistory,
   emailLogs,
+  marketingChannels,
+  marketingCampaigns,
+  marketingMetricsDaily,
+  adSpendRecords,
+  marketingGoals,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, ne, desc, sql as sqlFunc, sql, count, sum, and, or, isNull, lt } from "drizzle-orm";
+import { eq, ne, desc, sql as sqlFunc, sql, count, sum, and, or, isNull, lt, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // Golf Courses
@@ -270,6 +285,35 @@ export interface IStorage {
     limit?: number;
     offset?: number;
   }): Promise<{ logs: (EmailLog & { courseName?: string; bookingRef?: string })[]; total: number }>;
+
+  // Marketing Channels
+  getAllMarketingChannels(): Promise<MarketingChannel[]>;
+  getMarketingChannelById(id: string): Promise<MarketingChannel | undefined>;
+  createMarketingChannel(channel: InsertMarketingChannel): Promise<MarketingChannel>;
+  updateMarketingChannel(id: string, updates: Partial<MarketingChannel>): Promise<MarketingChannel | undefined>;
+
+  // Marketing Campaigns
+  getAllMarketingCampaigns(): Promise<MarketingCampaign[]>;
+  getMarketingCampaignById(id: string): Promise<MarketingCampaign | undefined>;
+  getMarketingCampaignsByChannel(channelId: string): Promise<MarketingCampaign[]>;
+  createMarketingCampaign(campaign: InsertMarketingCampaign): Promise<MarketingCampaign>;
+  updateMarketingCampaign(id: string, updates: Partial<MarketingCampaign>): Promise<MarketingCampaign | undefined>;
+
+  // Marketing Metrics Daily
+  getMarketingMetrics(filters?: { startDate?: Date; endDate?: Date; channelId?: string; campaignId?: string }): Promise<MarketingMetricsDaily[]>;
+  createMarketingMetrics(metrics: InsertMarketingMetricsDaily): Promise<MarketingMetricsDaily>;
+  upsertMarketingMetrics(metrics: InsertMarketingMetricsDaily): Promise<MarketingMetricsDaily>;
+
+  // Ad Spend Records
+  getAdSpendRecords(filters?: { startDate?: Date; endDate?: Date; channelId?: string; campaignId?: string }): Promise<AdSpendRecord[]>;
+  createAdSpendRecord(record: InsertAdSpendRecord): Promise<AdSpendRecord>;
+  getTotalAdSpend(filters?: { startDate?: Date; endDate?: Date; channelId?: string }): Promise<number>;
+
+  // Marketing Goals
+  getAllMarketingGoals(): Promise<MarketingGoal[]>;
+  getMarketingGoalById(id: string): Promise<MarketingGoal | undefined>;
+  createMarketingGoal(goal: InsertMarketingGoal): Promise<MarketingGoal>;
+  updateMarketingGoal(id: string, updates: Partial<MarketingGoal>): Promise<MarketingGoal | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -2140,6 +2184,87 @@ export class MemStorage implements IStorage {
   async deleteCourseDocument(id: string): Promise<boolean> {
     return false;
   }
+
+  // Marketing Channels (stub implementations)
+  async getAllMarketingChannels(): Promise<MarketingChannel[]> {
+    return [];
+  }
+
+  async getMarketingChannelById(id: string): Promise<MarketingChannel | undefined> {
+    return undefined;
+  }
+
+  async createMarketingChannel(channel: InsertMarketingChannel): Promise<MarketingChannel> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async updateMarketingChannel(id: string, updates: Partial<MarketingChannel>): Promise<MarketingChannel | undefined> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  // Marketing Campaigns (stub implementations)
+  async getAllMarketingCampaigns(): Promise<MarketingCampaign[]> {
+    return [];
+  }
+
+  async getMarketingCampaignById(id: string): Promise<MarketingCampaign | undefined> {
+    return undefined;
+  }
+
+  async getMarketingCampaignsByChannel(channelId: string): Promise<MarketingCampaign[]> {
+    return [];
+  }
+
+  async createMarketingCampaign(campaign: InsertMarketingCampaign): Promise<MarketingCampaign> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async updateMarketingCampaign(id: string, updates: Partial<MarketingCampaign>): Promise<MarketingCampaign | undefined> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  // Marketing Metrics Daily (stub implementations)
+  async getMarketingMetrics(filters?: { startDate?: Date; endDate?: Date; channelId?: string; campaignId?: string }): Promise<MarketingMetricsDaily[]> {
+    return [];
+  }
+
+  async createMarketingMetrics(metrics: InsertMarketingMetricsDaily): Promise<MarketingMetricsDaily> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async upsertMarketingMetrics(metrics: InsertMarketingMetricsDaily): Promise<MarketingMetricsDaily> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  // Ad Spend Records (stub implementations)
+  async getAdSpendRecords(filters?: { startDate?: Date; endDate?: Date; channelId?: string; campaignId?: string }): Promise<AdSpendRecord[]> {
+    return [];
+  }
+
+  async createAdSpendRecord(record: InsertAdSpendRecord): Promise<AdSpendRecord> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async getTotalAdSpend(filters?: { startDate?: Date; endDate?: Date; channelId?: string }): Promise<number> {
+    return 0;
+  }
+
+  // Marketing Goals (stub implementations)
+  async getAllMarketingGoals(): Promise<MarketingGoal[]> {
+    return [];
+  }
+
+  async getMarketingGoalById(id: string): Promise<MarketingGoal | undefined> {
+    return undefined;
+  }
+
+  async createMarketingGoal(goal: InsertMarketingGoal): Promise<MarketingGoal> {
+    throw new Error("Not implemented in MemStorage");
+  }
+
+  async updateMarketingGoal(id: string, updates: Partial<MarketingGoal>): Promise<MarketingGoal | undefined> {
+    throw new Error("Not implemented in MemStorage");
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3705,6 +3830,179 @@ export class DatabaseStorage implements IStorage {
       })),
       total: countResult[0]?.count || 0,
     };
+  }
+
+  // Marketing Channels
+  async getAllMarketingChannels(): Promise<MarketingChannel[]> {
+    return await db.select().from(marketingChannels);
+  }
+
+  async getMarketingChannelById(id: string): Promise<MarketingChannel | undefined> {
+    const [channel] = await db.select().from(marketingChannels).where(eq(marketingChannels.id, id));
+    return channel;
+  }
+
+  async createMarketingChannel(channel: InsertMarketingChannel): Promise<MarketingChannel> {
+    const [newChannel] = await db.insert(marketingChannels).values(channel).returning();
+    return newChannel;
+  }
+
+  async updateMarketingChannel(id: string, updates: Partial<MarketingChannel>): Promise<MarketingChannel | undefined> {
+    const [updated] = await db
+      .update(marketingChannels)
+      .set(updates)
+      .where(eq(marketingChannels.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Marketing Campaigns
+  async getAllMarketingCampaigns(): Promise<MarketingCampaign[]> {
+    return await db.select().from(marketingCampaigns);
+  }
+
+  async getMarketingCampaignById(id: string): Promise<MarketingCampaign | undefined> {
+    const [campaign] = await db.select().from(marketingCampaigns).where(eq(marketingCampaigns.id, id));
+    return campaign;
+  }
+
+  async getMarketingCampaignsByChannel(channelId: string): Promise<MarketingCampaign[]> {
+    return await db.select().from(marketingCampaigns).where(eq(marketingCampaigns.channelId, channelId));
+  }
+
+  async createMarketingCampaign(campaign: InsertMarketingCampaign): Promise<MarketingCampaign> {
+    const [newCampaign] = await db.insert(marketingCampaigns).values(campaign).returning();
+    return newCampaign;
+  }
+
+  async updateMarketingCampaign(id: string, updates: Partial<MarketingCampaign>): Promise<MarketingCampaign | undefined> {
+    const [updated] = await db
+      .update(marketingCampaigns)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(marketingCampaigns.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Marketing Metrics Daily
+  async getMarketingMetrics(filters?: { startDate?: Date; endDate?: Date; channelId?: string; campaignId?: string }): Promise<MarketingMetricsDaily[]> {
+    const conditions = [];
+    if (filters?.startDate) {
+      conditions.push(gte(marketingMetricsDaily.date, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(marketingMetricsDaily.date, filters.endDate));
+    }
+    if (filters?.channelId) {
+      conditions.push(eq(marketingMetricsDaily.channelId, filters.channelId));
+    }
+    if (filters?.campaignId) {
+      conditions.push(eq(marketingMetricsDaily.campaignId, filters.campaignId));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    return await db.select().from(marketingMetricsDaily).where(whereClause).orderBy(desc(marketingMetricsDaily.date));
+  }
+
+  async createMarketingMetrics(metrics: InsertMarketingMetricsDaily): Promise<MarketingMetricsDaily> {
+    const [newMetrics] = await db.insert(marketingMetricsDaily).values(metrics).returning();
+    return newMetrics;
+  }
+
+  async upsertMarketingMetrics(metrics: InsertMarketingMetricsDaily): Promise<MarketingMetricsDaily> {
+    const existingConditions = [eq(marketingMetricsDaily.date, metrics.date as Date)];
+    if (metrics.channelId) {
+      existingConditions.push(eq(marketingMetricsDaily.channelId, metrics.channelId));
+    }
+    if (metrics.campaignId) {
+      existingConditions.push(eq(marketingMetricsDaily.campaignId, metrics.campaignId));
+    }
+
+    const [existing] = await db
+      .select()
+      .from(marketingMetricsDaily)
+      .where(and(...existingConditions));
+
+    if (existing) {
+      const [updated] = await db
+        .update(marketingMetricsDaily)
+        .set(metrics)
+        .where(eq(marketingMetricsDaily.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      return await this.createMarketingMetrics(metrics);
+    }
+  }
+
+  // Ad Spend Records
+  async getAdSpendRecords(filters?: { startDate?: Date; endDate?: Date; channelId?: string; campaignId?: string }): Promise<AdSpendRecord[]> {
+    const conditions = [];
+    if (filters?.startDate) {
+      conditions.push(gte(adSpendRecords.date, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(adSpendRecords.date, filters.endDate));
+    }
+    if (filters?.channelId) {
+      conditions.push(eq(adSpendRecords.channelId, filters.channelId));
+    }
+    if (filters?.campaignId) {
+      conditions.push(eq(adSpendRecords.campaignId, filters.campaignId));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    return await db.select().from(adSpendRecords).where(whereClause).orderBy(desc(adSpendRecords.date));
+  }
+
+  async createAdSpendRecord(record: InsertAdSpendRecord): Promise<AdSpendRecord> {
+    const [newRecord] = await db.insert(adSpendRecords).values(record).returning();
+    return newRecord;
+  }
+
+  async getTotalAdSpend(filters?: { startDate?: Date; endDate?: Date; channelId?: string }): Promise<number> {
+    const conditions = [];
+    if (filters?.startDate) {
+      conditions.push(gte(adSpendRecords.date, filters.startDate));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(adSpendRecords.date, filters.endDate));
+    }
+    if (filters?.channelId) {
+      conditions.push(eq(adSpendRecords.channelId, filters.channelId));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const [result] = await db
+      .select({ total: sum(adSpendRecords.amountCents) })
+      .from(adSpendRecords)
+      .where(whereClause);
+
+    return Number(result?.total || 0);
+  }
+
+  // Marketing Goals
+  async getAllMarketingGoals(): Promise<MarketingGoal[]> {
+    return await db.select().from(marketingGoals);
+  }
+
+  async getMarketingGoalById(id: string): Promise<MarketingGoal | undefined> {
+    const [goal] = await db.select().from(marketingGoals).where(eq(marketingGoals.id, id));
+    return goal;
+  }
+
+  async createMarketingGoal(goal: InsertMarketingGoal): Promise<MarketingGoal> {
+    const [newGoal] = await db.insert(marketingGoals).values(goal).returning();
+    return newGoal;
+  }
+
+  async updateMarketingGoal(id: string, updates: Partial<MarketingGoal>): Promise<MarketingGoal | undefined> {
+    const [updated] = await db
+      .update(marketingGoals)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(marketingGoals.id, id))
+      .returning();
+    return updated;
   }
 }
 
