@@ -1,0 +1,121 @@
+Her er API-specifikationen til MarbellaGolfTimes backend:
+
+API Endpoint Specifikationer for CEO AI Assistant
+Endpoint 1: Marketing KPI'er
+URL: GET /api/v1/external/marketing
+
+Headers:
+
+X-API-Key: [mgt_api_key]
+Content-Type: application/json
+Query Parameters (valgfri):
+
+from - Startdato (YYYY-MM-DD)
+to - Slutdato (YYYY-MM-DD)
+Expected Response:
+
+{
+  "success": true,
+  "data": {
+    "roas": 3.2,
+    "cpa": 45.50,
+    "total_ad_spend": 15000,
+    "total_revenue_from_ads": 48000,
+    "conversion_rate": 2.8,
+    "campaigns": [
+      {
+        "name": "Google Ads - Golf Marbella",
+        "spend": 8000,
+        "revenue": 28000,
+        "roas": 3.5,
+        "clicks": 12500,
+        "conversions": 85
+      },
+      {
+        "name": "Meta - Costa del Sol Golf",
+        "spend": 7000,
+        "revenue": 20000,
+        "roas": 2.86,
+        "clicks": 9800,
+        "conversions": 62
+      }
+    ],
+    "traffic": {
+      "total_sessions": 45000,
+      "organic_sessions": 28000,
+      "paid_sessions": 17000,
+      "bounce_rate": 42.5,
+      "avg_session_duration": 185
+    },
+    "period": {
+      "from": "2025-11-01",
+      "to": "2025-12-21"
+    }
+  }
+}
+Endpoint 2: Rentabilitet/Profitability
+URL: GET /api/v1/external/profitability
+
+Headers:
+
+X-API-Key: [mgt_api_key]
+Content-Type: application/json
+Query Parameters (valgfri):
+
+from - Startdato (YYYY-MM-DD)
+to - Slutdato (YYYY-MM-DD)
+Expected Response:
+
+{
+  "success": true,
+  "data": {
+    "gross_profit_margin": 22.5,
+    "net_profit_margin": 18.2,
+    "total_revenue": 178000,
+    "total_costs": 138000,
+    "gross_profit": 40000,
+    "loss_transactions": {
+      "count": 3,
+      "total_loss": -450,
+      "transactions": [
+        {
+          "booking_id": "BK-12345",
+          "course_name": "Valderrama",
+          "date": "2025-12-15",
+          "revenue": 120,
+          "cost": 180,
+          "loss": -60,
+          "reason": "Low kickback percentage"
+        }
+      ]
+    },
+    "profitable_courses": [
+      {
+        "course_id": "abc123",
+        "course_name": "Santa Clara Golf",
+        "margin": 35.2,
+        "bookings": 45,
+        "revenue": 12500
+      }
+    ],
+    "unprofitable_courses": [
+      {
+        "course_id": "xyz789",
+        "course_name": "Example Course",
+        "margin": -5.2,
+        "bookings": 8,
+        "revenue": 1200
+      }
+    ],
+    "period": {
+      "from": "2025-11-01",
+      "to": "2025-12-21"
+    }
+  }
+}
+KPI Mål (til reference):
+KPI	Mål	Beskrivelse
+ROAS	> 3.0	Return on Ad Spend
+Gross Profit Margin	> 20%	Dækningsbidrag
+CPA	< €50	Cost per Acquisition
+Kopier dette til jeres backend-team. Når endpoints returnerer JSON i dette format, vil CEO AI Assistant automatisk vise dataen og inkludere den i AI-analyser.
