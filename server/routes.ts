@@ -6087,12 +6087,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // NOTE: This endpoint exposes full business data. Only grant read:analytics scope to trusted integrations.
   app.get("/api/v1/external/analytics", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
     try {
+      const { from, to } = req.query;
+      const marketingOptions: { startDate?: Date; endDate?: Date } = {};
+      
+      if (from && typeof from === 'string') {
+        marketingOptions.startDate = new Date(from);
+      }
+      if (to && typeof to === 'string') {
+        marketingOptions.endDate = new Date(to);
+      }
+      
       const analytics = await externalAnalyticsService.getComprehensiveAnalytics();
       
       // Include marketing summary
       let marketingSummary = null;
       try {
-        const marketing = await marketingAnalyticsService.getMarketingAnalytics();
+        const marketing = await marketingAnalyticsService.getMarketingAnalytics(marketingOptions);
         marketingSummary = {
           total_spend: marketing.spend.total_spend,
           overall_roas: marketing.roi.overall_roas,
@@ -6119,7 +6129,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/v1/external/marketing - Get full marketing analytics
   app.get("/api/v1/external/marketing", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
     try {
-      const marketing = await marketingAnalyticsService.getMarketingAnalytics();
+      const { from, to } = req.query;
+      const options: { startDate?: Date; endDate?: Date } = {};
+      
+      if (from && typeof from === 'string') {
+        options.startDate = new Date(from);
+      }
+      if (to && typeof to === 'string') {
+        options.endDate = new Date(to);
+      }
+      
+      const marketing = await marketingAnalyticsService.getMarketingAnalytics(options);
       
       res.json({
         success: true,

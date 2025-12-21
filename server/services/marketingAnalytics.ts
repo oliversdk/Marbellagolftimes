@@ -31,6 +31,10 @@ function mapUtmSourceToChannel(utmSource: string | null | undefined): string {
   return 'other';
 }
 
+function normalizeChannelName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+
 export interface MarketingAnalytics {
   period: { start: string; end: string };
   traffic: {
@@ -93,33 +97,36 @@ interface CampaignPerformance {
 export class MarketingAnalyticsService {
   constructor(private storage: IStorage) {}
 
-  async getMarketingAnalytics(): Promise<MarketingAnalytics> {
+  async getMarketingAnalytics(options?: { startDate?: Date; endDate?: Date }): Promise<MarketingAnalytics> {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const startDate = options?.startDate || thirtyDaysAgo;
+    const endDate = options?.endDate || now;
 
     const period = {
-      start: formatDate(thirtyDaysAgo),
-      end: formatDate(now),
+      start: formatDate(startDate),
+      end: formatDate(endDate),
     };
 
     const [channels, campaigns, metrics, adSpend, goals, bookings] = await Promise.all([
       this.storage.getAllMarketingChannels(),
       this.storage.getAllMarketingCampaigns(),
-      this.storage.getMarketingMetrics({ startDate: thirtyDaysAgo, endDate: now }),
-      this.storage.getAdSpendRecords({ startDate: thirtyDaysAgo, endDate: now }),
+      this.storage.getMarketingMetrics({ startDate, endDate }),
+      this.storage.getAdSpendRecords({ startDate, endDate }),
       this.storage.getAllMarketingGoals(),
       this.storage.getAllBookings(),
     ]);
 
     const currentPeriodBookings = bookings.filter(b => 
-      b.createdAt && new Date(b.createdAt) >= thirtyDaysAgo && b.status !== 'CANCELLED'
+      b.createdAt && new Date(b.createdAt) >= startDate && new Date(b.createdAt) <= endDate && b.status !== 'CANCELLED'
     );
 
     const channelMap = new Map(channels.map(c => [c.id, c]));
     const campaignMap = new Map(campaigns.map(c => [c.id, c]));
 
-    const channelSummaries = await this.getChannelSummary(thirtyDaysAgo, now, metrics, adSpend, currentPeriodBookings, channelMap);
-    const campaignPerformances = await this.getCampaignPerformance(thirtyDaysAgo, now, campaigns, metrics, adSpend, currentPeriodBookings, channelMap);
+    const channelSummaries = await this.getChannelSummary(startDate, endDate, metrics, adSpend, currentPeriodBookings, channelMap);
+    const campaignPerformances = await this.getCampaignPerformance(startDate, endDate, campaigns, metrics, adSpend, currentPeriodBookings, channelMap);
 
     const traffic = this.buildTrafficAnalytics(metrics, channelSummaries, channels);
     const acquisition = this.buildAcquisitionAnalytics(channelSummaries, campaignPerformances, currentPeriodBookings);
@@ -364,14 +371,15 @@ export class MarketingAnalyticsService {
   ): Map<string, number> {
     const revenueMap = new Map<string, number>();
     
-    const channelByName = new Map<string, string>();
+    const channelBySlug = new Map<string, string>();
     for (const [id, channel] of Array.from(channelMap.entries())) {
-      channelByName.set(channel.name, id);
+      const slug = normalizeChannelName(channel.name);
+      channelBySlug.set(slug, id);
     }
 
     for (const booking of bookings) {
       const channelKey = mapUtmSourceToChannel(booking.utmSource);
-      const channelId = channelByName.get(channelKey);
+      const channelId = channelBySlug.get(channelKey);
       if (channelId) {
         const current = revenueMap.get(channelId) || 0;
         revenueMap.set(channelId, current + getBookingPriceEuros(booking));

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Marbella Golf Times is a boutique-premium golf tee-time service for the Costa del Sol, Spain. It provides real tee-time availability across over 40 premier courses, curated course selection, geolocation search, and a complete booking flow with concierge-quality service. The platform aims to offer a modern, efficient, and user-friendly experience for booking golf tee times, enhancing the golf tourism market in the region. The project also has ambitions to integrate AI for enhanced contract processing and an external API for AI CEO integration, positioning itself as a leader in golf tourism technology.
+Marbella Golf Times is a boutique tee-time booking service for the Costa del Sol, Spain. It provides real-time tee-time availability across over 40 premier golf courses, offering a curated selection, geolocation search, and a complete booking flow with concierge-quality service. The platform aims to modernize golf tourism booking, with future ambitions for AI integration in contract processing and an external API for AI CEO integration, positioning itself as a leader in the golf tourism technology market.
 
 ## User Preferences
 
@@ -11,112 +11,40 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-
-The frontend uses React 18, TypeScript, Vite, Wouter for routing, and `shadcn/ui` (Radix UI + Tailwind CSS) for a responsive UI. State management uses TanStack Query and local React state. Key features include a Golfee-inspired course listing with inline tee times, list/map view toggle (Leaflet), advanced sorting and filtering, and comprehensive CourseDetail pages. User authentication includes Login/Signup with i18n support. The Profile page offers advanced booking management (Upcoming/Past bookings, cancellation with Zest API integration, "Book Again"). A **Multi-Search** feature at `/search` allows users to select multiple courses and date ranges (up to 7 days), searching all combinations in parallel with results grouped by facility.
-
-An Admin dashboard provides tools for managing bookings, courses, images, affiliate emails, and an **Inbox** for course email conversations with thread management, status filters, and reply functionality. It also includes a comprehensive reviews and social proof system, an Analytics Dashboard (revenue, booking trends, popular courses) visualized with Recharts, and a User Management system with full CRUD and role-based access control. A Commission & ROI Tracking System monitors affiliate earnings and campaign performance.
-
-The **AI Contract Processing** feature leverages OpenAI GPT-4o and unpdf for automated extraction of golf course contract data, including kickback rates, package types, time restrictions, group discounts, seasonal rates, and contact information. This data is used to display customer package selections in the booking modal.
+The frontend uses React 18, TypeScript, Vite, Wouter for routing, and `shadcn/ui` (Radix UI + Tailwind CSS) for a responsive UI. State management utilizes TanStack Query and local React state. Key features include Golfee-inspired course listings with inline tee times, a list/map view toggle, advanced sorting/filtering, comprehensive `CourseDetail` pages, and multi-search functionality. User authentication supports Login/Signup with i18n. An Admin dashboard provides tools for booking, course, image, and affiliate email management, including an Inbox for course email conversations, a reviews system, an Analytics Dashboard (Recharts), and User Management with RBAC. A Commission & ROI Tracking System is also included. The AI Contract Processing feature uses OpenAI GPT-4o and unpdf for automated extraction of golf course contract data.
 
 ### Backend
-
-The backend is built with Node.js and Express in TypeScript, providing RESTful APIs with JSON handling and error management. Drizzle ORM with PostgreSQL is used for data storage. Core API routes manage golf courses, tee time searches, booking requests, and affiliate email campaigns. The database is automatically seeded with 43 Costa del Sol golf courses.
+The backend is built with Node.js and Express in TypeScript, providing RESTful APIs. Drizzle ORM with PostgreSQL is used for data storage, automatically seeded with 43 Costa del Sol golf courses. Core API routes manage golf courses, tee time searches, booking requests, and affiliate email campaigns. Custom email/password authentication uses bcrypt and PostgreSQL-backed sessions, with `isAuthenticated` and `isAdmin` middleware for authorization.
 
 ### Data Storage
+The Drizzle ORM schema includes tables for `users`, `sessions`, `golf_courses`, `tee_time_providers`, `course_provider_links`, `booking_requests`, `affiliate_emails`, `inbound_email_threads`, and `inbound_email_messages`. `golf_courses` includes `imageUrl` and `kickbackPercent`. UUIDs are used for primary keys.
 
-The Drizzle ORM schema includes tables for `users`, `sessions`, `golf_courses`, `tee_time_providers`, `course_provider_links`, `booking_requests`, `affiliate_emails`, `inbound_email_threads`, and `inbound_email_messages`. `golf_courses` include `imageUrl` and `kickbackPercent`. UUIDs are used for primary keys.
+### External API v1 (AI CEO Integration)
+A secure external REST API (`/api/v1/external/*`) provides comprehensive business data for integration with AI CEO and other trusted systems. It uses API Key Authentication with SHA-256 hashed keys and granular scopes (`read:courses`, `read:bookings`, `write:bookings`, `read:analytics`, `read:users`). Endpoints provide access to courses, bookings, analytics (revenue, bookings, customers, marketing data), and user information. UTM tracking data (`utmSource`, `utmMedium`, `utmCampaign`, `utmContent`, `utmTerm`) is recorded for bookings.
 
-### Authentication and Authorization
+### Stripe Payment Integration
+The platform integrates Stripe Checkout for secure payments. It employs a server-side price cache with a 30-minute expiry to prevent client-side price manipulation. The checkout flow validates add-ons and ensures server-computed amounts are used to create Stripe Checkout sessions. `paymentStatus`, `stripeSessionId`, `totalAmountCents`, and `addOnsJson` are stored in the `bookingRequests` table. Add-ons are dynamic and stored in the database, with intelligent logic for mutual exclusivity (e.g., buggy vs. trolley) and package inclusions.
 
-Custom email/password authentication uses bcrypt hashing and PostgreSQL-backed sessions. `isAuthenticated` middleware protects user and admin routes, while `isAdmin` middleware enforces role-based access control for admin functionalities.
-
-### External API (AI CEO Integration)
-
-A secure external REST API (`/api/v1/external/*`) is available for integration with AI CEO and other trusted systems. It features API Key Authentication with SHA-256 hashed keys and scope-based access control (`read:courses`, `read:bookings`, `write:bookings`, `read:analytics`, `read:users`). Endpoints exist for courses, bookings, available slots, analytics, and users.
-
-### OnTee-inspired Booking API (TeeOne Integration)
-
-A complete booking flow API for TeeOne golf courses is implemented, supporting real-time tee time retrieval, order creation with 15-minute holds, and booking confirmation. The flow involves calling `/bookings/available`, then `/orders/items`, and finally `/bookings/confirm` after payment.
-
-### Email System
-
-Nodemailer with SMTP transport is used for sending bulk affiliate proposals and individual course outreach, supporting templating.
-
-### Geolocation System
-
-Client-side geolocation uses the Browser Geolocation API for proximity-based course sorting, with a fallback to manual city selection.
+### Optimized Image CDN
+A responsive image system converts original PNGs to WebP in desktop, mobile, and thumbnail sizes. Images are served from a CDN route (`/cdn/images/:imagePath`) with aggressive caching. An `OptimizedImage` component auto-detects device size to serve the appropriate image, significantly reducing image payload.
 
 ## External Dependencies
 
 ### Third-Party Services
-
 -   **SMTP Email Service**: Configurable via environment variables.
 -   **Neon Serverless PostgreSQL**: Database connection.
--   **OpenAI GPT-4o**: Used for AI Contract Processing.
--   **unpdf**: Used for PDF data extraction in AI Contract Processing.
+-   **OpenAI GPT-4o**: For AI Contract Processing.
+-   **unpdf**: For PDF data extraction in AI Contract Processing.
 
 ### Core Libraries
-
 -   **UI & Styling**: Tailwind CSS, Radix UI primitives, `class-variance-authority`, Lucide React.
 -   **Data & Forms**: Drizzle ORM, Zod, React Hook Form, `date-fns`.
 -   **Development Tools**: Vite, `tsx`, `esbuild`.
 
 ### API Integration Points
-
--   **Golfmanager Integration**: Supports Golfmanager API V1/V3 for 14 courses (e.g., Finca Cortesín, La Cala Resort). Features per-tenant authentication with **course-specific credentials stored in the database** (`golfmanagerV1User`, `golfmanagerV1Password` for V1, `golfmanagerUser`, `golfmanagerPassword` for V3). Admin can manage credentials via Courses → Credentials tab with copy-to-clipboard buttons. Alhaurin Golf is LIVE with real tee times and packages.
--   **TeeOne Golf System**: Integrates with TeeOne Online Booking Engine API v1.12 for 12 courses (e.g., El Paraíso, Marbella Golf & CC). 
-    - **API Base URL**: Development: `https://devapi.teeone.golf/TOBookingEngine/v1`, Production: `https://api.teeone.golf/TOBookingEngine/v1`
-    - **Authentication**: Token-based with username/password → sessionID, vendorID, accessToken
-    - **Endpoints**: `Access/Token`, `Vendors/Providers`, `Vendors/ProviderCourses`, `Availability/DayAvailability`, `PreBooking/PreBookingRequest`, `Booking/BookingConfirmationRequest`, `Booking/BookingDetails`, `PreCancellation/PreCancellationRequest`, `Cancellation/CancellationConfirmationRequest`
-    - **Price Format**: Integers with last 2 digits as decimals (7200 = €72.00)
-    - **Service**: `server/services/teeoneBooking.ts` with full prebooking/confirmation flow
-    - **Status**: MOCK mode, awaiting credentials (TEEONE_USERNAME, TEEONE_PASSWORD env vars)
--   **Zest Golf Integration**: Supports Zest Golf API for real-time tee times, bulk booking (multiple tee times in one request), and cancellation with policy enforcement. Features `POST /api/zest/bookings/bulk` for multi-booking requests returning groupId.
+-   **Golfmanager Integration**: Supports Golfmanager API V1/V3 for 14 courses, with course-specific credentials stored in the database.
+-   **TeeOne Golf System**: Integrates with TeeOne Online Booking Engine API v1.12 for 12 courses, using token-based authentication and a full prebooking/confirmation flow.
+-   **Zest Golf Integration**: Supports Zest Golf API for real-time tee times, bulk booking, and cancellation.
 -   **Tee Time Provider Integration**: Flexible system supporting REST APIs, direct booking links, and web scraping.
--   **Open-Meteo API**: Provides real-time weather data for course detail pages.
+-   **Open-Meteo API**: Provides real-time weather data.
 -   **Browser Geolocation API**: Used for client-side location services.
--   **Stripe Payment Integration**: Secure payment processing with server-side price validation.
-
-### Stripe Payment Integration
-
-The platform integrates with Stripe Checkout for secure payment processing:
-
--   **Server-Side Price Cache**: Tee time prices are cached server-side when fetched from APIs (Zest, TeeOne) or generated (mock data). The cache uses a Map with 30-minute expiry and prevents client-side price manipulation.
--   **Secure Checkout Flow**: 
-    1. User views tee times → prices cached server-side
-    2. User selects slot and add-ons → frontend sends only IDs, no prices
-    3. Server retrieves authoritative price from cache
-    4. If cache miss/expired → checkout fails (no fallback to client values)
-    5. Add-ons validated against database pricing
-    6. Stripe Checkout session created with server-computed amounts
--   **Add-ons System**: Dynamic add-ons (buggy, clubs, trolley) stored in database with per-player or per-buggy pricing
--   **Payment Confirmation**: BookingSuccess page displays only confirmed database booking data
--   **Database Fields**: `paymentStatus`, `stripeSessionId`, `totalAmountCents`, `addOnsJson` in bookingRequests table
-
-### Recent Improvements (December 2024)
-
--   **Smart Add-on Logic**: PackageSelectionDialog implements intelligent add-on handling:
-    - Buggy and trolley are mutually exclusive (transport conflict group)
-    - When package includes buggy, buggy add-ons are hidden and info banner shown
-    - Trolley add-ons show "Buggy already selected" conflict message when buggy is in cart
-    - Club Rental remains independently selectable
-    - Quantity-based selection with +/- buttons for each add-on
--   **Add-ons in Multi-Search Response**: The `/api/teetimes/multi-search` endpoint now includes add-ons from database (`storage.getAddOnsByCourseId()`) for all providers (Zest and Golfmanager)
--   **Package Deduplication**: Enhanced deduplication ensures discounted variants (Early Bird, Twilight, or seasonal like "invierno/verano") supersede their regular equivalents. When a time-restricted package is available, the regular version is hidden. Supports both Spanish and English seasonal keywords.
--   **Player Name Input**: Golfmanager-style booking flow requires player names after package selection (minimum 2 characters), with per-field validation and inline error feedback
--   **Commission Sync Service**: Centralized `commissionSync.ts` service ensures kickback percentages stay synchronized across `golf_courses.kickbackPercent`, `course_onboarding.agreedCommission`, and `courseRatePeriods`. Automatically upserts onboarding rows when missing.
--   **Persistent Booking Holds**: `bookingHolds` table stores tee time holds in database with TTL, including full order payload as JSON. Survives server restarts with unique constraint on (sessionId, courseId, teeTime).
--   **API Retry Logic**: Both `zestGolf.ts` and `golfmanager.ts` services now include retry logic with exponential backoff for transient network errors (ECONNRESET, ETIMEDOUT, 5xx responses). 30-second timeout configured.
--   **Database Performance Indexes**: Added composite indexes for `courseRatePeriods(courseId, seasonLabel)`, `zestPricingData(courseId, zestFacilityId)`, and `bookingRequests(courseId, teeTime)`.
--   **Loading States**: Admin dashboard uses Skeleton components for loading states on bookings, users, follow-ups, and course management sections.
--   **Optimized Image CDN (December 2024)**: Responsive image system for mobile SEO performance:
-    - Original PNG images (1.5-2.3MB) converted to WebP in three sizes: desktop (~150KB), mobile (~45KB), thumbnail (~8KB)
-    - CDN route at `/cdn/images/:imagePath` serves optimized images from Object Storage with `public, max-age=31536000, immutable` caching
-    - `imageVersions.json` maps original filenames to optimized CDN paths
-    - `OptimizedImage` component auto-detects device at first render (no mobile-to-desktop fetch race) and serves appropriate size
-    - 97% reduction in image payload for mobile users
--   **Contract-Driven Pricing (December 2024)**: Price matching now correctly uses contract rack rates from `courseRatePeriods` table instead of TTOO+20% fallback markup. Key fixes:
-    - Rate period date filtering matches tee time dates to applicable season periods (startDate/endDate)
-    - Boolean flags (isTwilight, isEarlyBird, includesLunch) correctly compared as strings ("true"/"false") matching DB text type
-    - Package type matching: Twilight packages match `isTwilight=true` periods, Lunch matches `includesLunch=true`, Regular matches no special flags
-    - Winter 2025 rates populated: Twilight €62, Regular €72, Lunch €95 for Alhaurin Golf
