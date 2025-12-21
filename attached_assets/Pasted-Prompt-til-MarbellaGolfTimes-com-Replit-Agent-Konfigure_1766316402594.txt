@@ -1,0 +1,186 @@
+Prompt til MarbellaGolfTimes.com Replit Agent:
+
+Konfigurer API'en /api/v1/external til at give fuld adgang til alle forretningsdata for vores CEO AI Assistant. API'en skal autentificeres med X-API-Key header.
+Udvid følgende endpoints med komplet data:
+## 1. GET /analytics - Fuld forretningsanalyse
+Returner JSON med:
+{
+  "period": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
+  
+  // OMSÆTNING
+  "revenue": {
+    "total": number,
+    "previous_period": number,
+    "change_percent": number,
+    "by_day": [{ "date": "YYYY-MM-DD", "amount": number }],  // sidste 30 dage
+    "by_week": [{ "week": number, "amount": number }],
+    "by_month": [{ "month": "YYYY-MM", "amount": number }],
+    "by_region": [{ "region": string, "amount": number }],
+    "by_course": [{ "course_id": number, "name": string, "amount": number }]
+  },
+  
+  // BOOKINGER
+  "bookings": {
+    "total": number,
+    "confirmed": number,
+    "pending": number,
+    "cancelled": number,
+    "no_shows": number,
+    "cancellation_rate": number,
+    "no_show_rate": number,
+    "avg_lead_time_days": number,
+    "avg_value": number,
+    "by_day": [{ "date": "YYYY-MM-DD", "count": number }],
+    "by_status": { "confirmed": number, "pending": number, "cancelled": number },
+    "peak_hours": [{ "hour": number, "count": number }],
+    "peak_days": [{ "day": string, "count": number }]
+  },
+  
+  // KUNDER
+  "customers": {
+    "total_registered": number,
+    "active_30_days": number,
+    "new_30_days": number,
+    "returning": number,
+    "churn_rate": number,
+    "avg_bookings_per_customer": number,
+    "avg_spend_per_customer": number,
+    "customer_lifetime_value": number,
+    "segments": {
+      "new": number,
+      "returning": number,
+      "vip": number,
+      "inactive": number
+    },
+    "top_customers": [{ "id": number, "name": string, "total_spend": number, "bookings": number }]
+  },
+  
+  // GOLFBANER/PARTNERE
+  "courses": {
+    "total_active": number,
+    "new_last_90_days": number,
+    "avg_kickback_percent": number,
+    "total_kickback_earned": number,
+    "capacity_utilization": number,
+    "top_performers": [{ 
+      "course_id": number, 
+      "name": string, 
+      "bookings": number, 
+      "revenue": number,
+      "kickback": number,
+      "utilization": number,
+      "trend": "up" | "down" | "stable"
+    }],
+    "underperformers": [{ "course_id": number, "name": string, "reason": string }],
+    "by_region": [{ "region": string, "count": number, "revenue": number }]
+  },
+  
+  // FINANSIELLE KPI'ER
+  "financial_kpis": {
+    "gross_margin": number,
+    "avg_order_value": number,
+    "revenue_per_booking": number,
+    "cost_per_acquisition": number,
+    "roi": number
+  },
+  
+  // TRENDS OG FORECASTS
+  "trends": {
+    "revenue_growth_rate": number,
+    "booking_growth_rate": number,
+    "customer_growth_rate": number,
+    "seasonality_index": [{ "month": number, "index": number }],
+    "year_over_year": {
+      "revenue_change": number,
+      "bookings_change": number,
+      "customers_change": number
+    }
+  },
+  
+  // ALERTS/ADVARSLER
+  "alerts": [
+    { "type": "warning" | "critical" | "info", "message": string, "metric": string, "value": number }
+  ]
+}
+## 2. GET /courses - Alle golfbaner med detaljer
+Inkluder for hver bane:
+{
+  "id": number,
+  "name": string,
+  "region": string,
+  "kickback_percent": number,
+  "facilities": [string],
+  "price_range": { "min": number, "max": number },
+  "rating": number,
+  "total_bookings": number,
+  "total_revenue": number,
+  "capacity_per_day": number,
+  "utilization_rate": number,
+  "avg_booking_value": number,
+  "trend": "up" | "down" | "stable",
+  "last_booking_date": "YYYY-MM-DD",
+  "is_active": boolean,
+  "partner_since": "YYYY-MM-DD"
+}
+## 3. GET /bookings - Alle bookinger med detaljer
+Inkluder for hver booking:
+{
+  "id": number,
+  "course_id": number,
+  "course_name": string,
+  "customer_id": number,
+  "customer_name": string,
+  "date": "YYYY-MM-DD",
+  "time": "HH:MM",
+  "players": number,
+  "status": "confirmed" | "pending" | "cancelled" | "completed" | "no_show",
+  "total_price": number,
+  "kickback_amount": number,
+  "created_at": "YYYY-MM-DDTHH:MM:SS",
+  "lead_time_days": number,
+  "source": "web" | "app" | "phone" | "partner"
+}
+## 4. GET /slots - Tilgængelige tider
+Parametre: date (required), course_id (optional)
+Returner:
+{
+  "date": "YYYY-MM-DD",
+  "slots": [{
+    "course_id": number,
+    "course_name": string,
+    "time": "HH:MM",
+    "available": boolean,
+    "price": number,
+    "players_max": number
+  }]
+}
+## 5. NYT: GET /customers - Kundeoversigt
+{
+  "id": number,
+  "name": string,
+  "email": string,
+  "phone": string,
+  "created_at": "YYYY-MM-DD",
+  "total_bookings": number,
+  "total_spend": number,
+  "last_booking": "YYYY-MM-DD",
+  "avg_booking_value": number,
+  "segment": "new" | "returning" | "vip" | "inactive",
+  "preferred_courses": [number],
+  "preferred_days": [string]
+}
+## 6. NYT: GET /reports/summary - Executive summary
+{
+  "generated_at": "YYYY-MM-DDTHH:MM:SS",
+  "highlights": [string],
+  "concerns": [string],
+  "opportunities": [string],
+  "recommended_actions": [string]
+}
+Alle endpoints skal:
+- Acceptere X-API-Key header til autentificering
+- Returnere JSON med UTF-8 encoding
+- Inkludere pagination hvor relevant (page, limit, total)
+- Tillade filtrering via query params (date_from, date_to, course_id, region, status)
+Kopier denne prompt og paste den i din Replit Agent i MarbellaGolfTimes projektet. Den vil konfigurere API'en til at give alle de data CEO AI Assistant'en kan bruge til analyse.
+
