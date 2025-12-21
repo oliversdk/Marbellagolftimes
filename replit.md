@@ -20,7 +20,52 @@ The backend is built with Node.js and Express in TypeScript, providing RESTful A
 The Drizzle ORM schema includes tables for `users`, `sessions`, `golf_courses`, `tee_time_providers`, `course_provider_links`, `booking_requests`, `affiliate_emails`, `inbound_email_threads`, and `inbound_email_messages`. `golf_courses` includes `imageUrl` and `kickbackPercent`. UUIDs are used for primary keys.
 
 ### External API v1 (AI CEO Integration)
-A secure external REST API (`/api/v1/external/*`) provides comprehensive business data for integration with AI CEO and other trusted systems. It uses API Key Authentication with SHA-256 hashed keys and granular scopes (`read:courses`, `read:bookings`, `write:bookings`, `read:analytics`, `read:users`). Endpoints provide access to courses, bookings, analytics (revenue, bookings, customers, marketing data), and user information. UTM tracking data (`utmSource`, `utmMedium`, `utmCampaign`, `utmContent`, `utmTerm`) is recorded for bookings.
+
+A secure external REST API (`/api/v1/external/*`) provides comprehensive business data for integration with AI CEO and other trusted systems.
+
+#### Authentication & Scopes
+- **API Key Authentication**: Bearer token in `Authorization` header, SHA-256 hashed keys
+- **Scopes**: `read:courses`, `read:bookings`, `write:bookings`, `read:analytics`, `read:users`
+
+#### Core Endpoints
+- **GET /api/v1/external/courses** - Golf course data (scope: `read:courses`)
+- **GET /api/v1/external/bookings** - Booking requests with filters (scope: `read:bookings`)
+- **GET /api/v1/external/bookings/:id** - Single booking details
+- **POST /api/v1/external/bookings** - Create booking (scope: `write:bookings`)
+- **GET /api/v1/external/slots** - Available tee times (scope: `read:courses`)
+- **GET /api/v1/external/users** - User list (scope: `read:users`)
+
+#### Analytics Endpoints (scope: `read:analytics`)
+
+**GET /api/v1/external/analytics** - Comprehensive business analytics:
+- Revenue (total, by status, by course, by month)
+- Bookings (counts, conversion rate, avg value)
+- Customers (total, repeat rate, top customers)
+- Financial KPIs (gross revenue, commission, projected monthly)
+- Marketing summary (spend, ROAS, CPA, top channels)
+- Profitability summary (gross profit, margin %, loss-making count)
+- Accepts `from` and `to` date range query params
+
+**GET /api/v1/external/marketing** - Full marketing analytics:
+- Traffic (sessions, users, bounce rate, by channel, by day)
+- Acquisition (channel mix, top campaigns, source/medium)
+- Campaign performance (spend, revenue, ROAS, CPA per campaign)
+- ROI (overall ROAS, CPA, LTV/CAC ratio, by channel)
+- Marketing goals progress and alerts
+- Accepts `from` and `to` date range query params
+
+**GET /api/v1/external/profitability** - Profitability analysis for CEO AI:
+- Summary: total revenue, cost, gross profit, profit margin %, loss count
+- By product type: tee_time, buggy, clubs, trolley (revenue, cost, profit, margin)
+- By course: per-course profitability with avg profit per booking
+- Loss-making transactions: detailed breakdown with reasons
+- Recommendations: focus areas, reduce focus items, price adjustments
+- Accepts `from` and `to` date range query params
+
+#### Data Model
+- UTM tracking on bookings: `utmSource`, `utmMedium`, `utmCampaign`, `utmContent`, `utmTerm`
+- Add-ons include `costCents` for profit calculation
+- Rate periods store `rackRate` (selling) and `netRate` (cost) for margin analysis
 
 ### Stripe Payment Integration
 The platform integrates Stripe Checkout for secure payments. It employs a server-side price cache with a 30-minute expiry to prevent client-side price manipulation. The checkout flow validates add-ons and ensures server-computed amounts are used to create Stripe Checkout sessions. `paymentStatus`, `stripeSessionId`, `totalAmountCents`, and `addOnsJson` are stored in the `bookingRequests` table. Add-ons are dynamic and stored in the database, with intelligent logic for mutual exclusivity (e.g., buggy vs. trolley) and package inclusions.

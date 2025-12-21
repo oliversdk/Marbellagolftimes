@@ -177,7 +177,7 @@ export class ProfitabilityAnalyticsService {
       if (!course) continue;
 
       const teeTimeRevenue = getBookingPriceEuros(booking);
-      const teeTimeCost = this.calculateTeeTimeCost(booking, ratePeriodsByCourse.get(booking.courseId) || []);
+      const teeTimeCost = this.calculateTeeTimeCost(booking, ratePeriodsByCourse.get(booking.courseId) || [], course);
       
       const { addOnRevenue, addOnCost, addOnBreakdown } = this.calculateAddOnCosts(
         booking,
@@ -206,10 +206,17 @@ export class ProfitabilityAnalyticsService {
     return results;
   }
 
-  private calculateTeeTimeCost(booking: BookingRequest, ratePeriods: CourseRatePeriod[]): number {
+  private calculateTeeTimeCost(booking: BookingRequest, ratePeriods: CourseRatePeriod[], course: GolfCourse): number {
+    const revenue = getBookingPriceEuros(booking);
+    
+    // Use course-level kickbackPercent as fallback if available
+    const courseKickback = course.kickbackPercent || 0;
+    const fallbackCost = courseKickback > 0 
+      ? revenue * (1 - courseKickback / 100)
+      : revenue * 0.80; // Default 20% margin if no data
+    
     if (ratePeriods.length === 0) {
-      const revenue = getBookingPriceEuros(booking);
-      return revenue * 0.85;
+      return fallbackCost;
     }
 
     const bookingDate = booking.teeTime ? new Date(booking.teeTime) : new Date();
@@ -235,12 +242,23 @@ export class ProfitabilityAnalyticsService {
       matchedPeriod = ratePeriods[0];
     }
 
-    if (matchedPeriod && matchedPeriod.netRate) {
-      return matchedPeriod.netRate * (booking.players || 1);
+    if (matchedPeriod) {
+      // netRate is the cost per booking (already includes all players in the package)
+      // For packages like "2 Greenfee + Buggy" the netRate is for 2 players
+      // We do NOT multiply by player count as the rate is per-booking not per-player
+      if (matchedPeriod.netRate) {
+        return matchedPeriod.netRate;
+      }
+      
+      // If we have kickbackPercent, calculate cost from it
+      // kickback = (rack - net) / rack * 100, so net = rack * (1 - kickback/100)
+      if (matchedPeriod.kickbackPercent && matchedPeriod.rackRate) {
+        return matchedPeriod.rackRate * (1 - matchedPeriod.kickbackPercent / 100);
+      }
     }
 
-    const revenue = getBookingPriceEuros(booking);
-    return revenue * 0.85;
+    // Fallback: use course-level kickback or default 20% margin
+    return fallbackCost;
   }
 
   private isDateInRange(month: number, day: number, startDate: string, endDate: string): boolean {
@@ -282,6 +300,8 @@ export class ProfitabilityAnalyticsService {
       return { addOnRevenue, addOnCost, addOnBreakdown: breakdown };
     }
 
+    const playerCount = booking.players || 1;
+
     try {
       const addOns: AddOnItem[] = JSON.parse(booking.addOnsJson);
       const addOnMap = new Map(courseAddOns.map(a => [a.id, a]));
@@ -294,12 +314,20 @@ export class ProfitabilityAnalyticsService {
 
         if (addOn.id && addOnMap.has(addOn.id)) {
           const courseAddOn = addOnMap.get(addOn.id)!;
-          revenue = (courseAddOn.priceCents / 100) * quantity;
-          cost = courseAddOn.costCents ? (courseAddOn.costCents / 100) * quantity : revenue * 0.7;
+          
+          // Calculate multiplier: if perPlayer="true", multiply by player count
+          const isPerPlayer = courseAddOn.perPlayer === "true";
+          const multiplier = isPerPlayer ? quantity * playerCount : quantity;
+          
+          revenue = (courseAddOn.priceCents / 100) * multiplier;
+          // Use costCents if available, otherwise estimate 70% of price as cost
+          cost = courseAddOn.costCents 
+            ? (courseAddOn.costCents / 100) * multiplier 
+            : revenue * 0.70;
           type = normalizeAddOnType(courseAddOn.type);
         } else if (addOn.priceCents) {
           revenue = (addOn.priceCents / 100) * quantity;
-          cost = revenue * 0.7;
+          cost = revenue * 0.70;
           type = addOn.type ? normalizeAddOnType(addOn.type) : 'other';
         }
 
