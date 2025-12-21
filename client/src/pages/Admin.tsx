@@ -3676,6 +3676,18 @@ export default function Admin() {
     });
   }, [selectedCourseIds, affiliateEmailCourses, isRecentlyContacted]);
 
+  // Check if any selected courses are already contacted (have an onboarding stage)
+  const alreadyContactedSelected = useMemo(() => {
+    return selectedCourseIds.filter(id => {
+      const course = affiliateEmailCourses?.find(c => c.id === id);
+      if (!course) return false;
+      // Same logic as backend - any course with OUTREACH_SENT, INTERESTED, or NOT_INTERESTED
+      return course.onboardingStage === "OUTREACH_SENT" || 
+             course.onboardingStage === "INTERESTED" || 
+             course.onboardingStage === "NOT_INTERESTED";
+    });
+  }, [selectedCourseIds, affiliateEmailCourses]);
+
   // Page-level auth protection - Code from blueprint:javascript_log_in_with_replit
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -3763,18 +3775,6 @@ export default function Admin() {
     setPendingEmailRecipients(recipients);
     setShowEmailConfirmDialog(true);
   };
-
-  // Check if any selected courses are already contacted (have an onboarding stage)
-  const alreadyContactedSelected = useMemo(() => {
-    return selectedCourseIds.filter(id => {
-      const course = affiliateEmailCourses?.find(c => c.id === id);
-      if (!course) return false;
-      // Same logic as backend - any course with OUTREACH_SENT, INTERESTED, or NOT_INTERESTED
-      return course.onboardingStage === "OUTREACH_SENT" || 
-             course.onboardingStage === "INTERESTED" || 
-             course.onboardingStage === "NOT_INTERESTED";
-    });
-  }, [selectedCourseIds, affiliateEmailCourses]);
 
   const confirmSendEmails = () => {
     setShowEmailConfirmDialog(false);
