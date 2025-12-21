@@ -11,6 +11,7 @@ import { syncBookingToProvider } from "./services/bookingSyncService";
 import * as bookingHoldsService from "./services/bookingHolds";
 import { syncCommissionForCourse } from "./services/commissionSync";
 import { ExternalAnalyticsService } from "./services/externalAnalytics";
+import { MarketingAnalyticsService } from "./services/marketingAnalytics";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts, zestPricingData } from "@shared/schema";
 import { db } from "./db";
@@ -1302,6 +1303,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
       res.status(500).json({ error: "Failed to mark notifications as read" });
+    }
+  });
+
+  // ============================================================
+  // ADMIN MARKETING DATA MANAGEMENT
+  // ============================================================
+
+  // POST /api/admin/marketing/channels - Create a marketing channel
+  app.post("/api/admin/marketing/channels", isAdmin, async (req, res) => {
+    try {
+      const { name, displayName, type, isActive } = req.body;
+      
+      if (!name || !displayName) {
+        return res.status(400).json({ error: "name and displayName are required" });
+      }
+      
+      const channel = await storage.createMarketingChannel({
+        name,
+        displayName,
+        type: type || "paid",
+        isActive: isActive !== false ? "true" : "false",
+      });
+      
+      res.status(201).json({ success: true, data: channel });
+    } catch (error) {
+      console.error("Admin API - Create marketing channel error:", error);
+      res.status(500).json({ error: "Failed to create marketing channel" });
+    }
+  });
+
+  // POST /api/admin/marketing/campaigns - Create a campaign
+  app.post("/api/admin/marketing/campaigns", isAdmin, async (req, res) => {
+    try {
+      const { channelId, name, externalId, status, budgetCents, startDate, endDate } = req.body;
+      
+      if (!channelId || !name) {
+        return res.status(400).json({ error: "channelId and name are required" });
+      }
+      
+      const campaign = await storage.createMarketingCampaign({
+        channelId,
+        name,
+        externalId: externalId || null,
+        status: status || "active",
+        budgetCents: budgetCents || null,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+      });
+      
+      res.status(201).json({ success: true, data: campaign });
+    } catch (error) {
+      console.error("Admin API - Create marketing campaign error:", error);
+      res.status(500).json({ error: "Failed to create marketing campaign" });
+    }
+  });
+
+  // POST /api/admin/marketing/metrics - Add daily metrics
+  app.post("/api/admin/marketing/metrics", isAdmin, async (req, res) => {
+    try {
+      const { 
+        date, channelId, campaignId, 
+        sessions, users, newUsers, 
+        bounceRate, avgSessionDuration,
+        conversions, conversionValue 
+      } = req.body;
+      
+      if (!date || !channelId) {
+        return res.status(400).json({ error: "date and channelId are required" });
+      }
+      
+      const metrics = await storage.upsertMarketingMetrics({
+        date: new Date(date),
+        channelId,
+        campaignId: campaignId || null,
+        sessions: sessions || 0,
+        users: users || 0,
+        newUsers: newUsers || 0,
+        bounceRate: bounceRate || 0,
+        avgSessionDuration: avgSessionDuration || 0,
+        conversions: conversions || 0,
+        conversionValue: conversionValue || 0,
+      });
+      
+      res.status(201).json({ success: true, data: metrics });
+    } catch (error) {
+      console.error("Admin API - Add marketing metrics error:", error);
+      res.status(500).json({ error: "Failed to add marketing metrics" });
+    }
+  });
+
+  // POST /api/admin/marketing/spend - Record ad spend
+  app.post("/api/admin/marketing/spend", isAdmin, async (req, res) => {
+    try {
+      const { channelId, campaignId, date, amountCents, currency, description } = req.body;
+      
+      if (!channelId || !date || amountCents === undefined) {
+        return res.status(400).json({ error: "channelId, date, and amountCents are required" });
+      }
+      
+      const record = await storage.createAdSpendRecord({
+        channelId,
+        campaignId: campaignId || null,
+        date: new Date(date),
+        amountCents,
+        description: description || null,
+      });
+      
+      res.status(201).json({ success: true, data: record });
+    } catch (error) {
+      console.error("Admin API - Record ad spend error:", error);
+      res.status(500).json({ error: "Failed to record ad spend" });
     }
   });
 
@@ -5667,6 +5779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Initialize external analytics service
   const externalAnalyticsService = new ExternalAnalyticsService(storage);
+  const marketingAnalyticsService = new MarketingAnalyticsService(storage);
 
   // Helper function to determine management tool type from provider links
   const getManagementToolType = (providerLinks: { providerCourseCode: string | null }[]): string | null => {
@@ -5976,13 +6089,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const analytics = await externalAnalyticsService.getComprehensiveAnalytics();
       
+      // Include marketing summary
+      let marketingSummary = null;
+      try {
+        const marketing = await marketingAnalyticsService.getMarketingAnalytics();
+        marketingSummary = {
+          total_spend: marketing.spend.total_spend,
+          overall_roas: marketing.roi.overall_roas,
+          cpa: marketing.roi.cpa,
+          top_channels: marketing.acquisition.channels_mix.slice(0, 3),
+        };
+      } catch (marketingError) {
+        console.warn("External API - Marketing analytics unavailable:", marketingError);
+      }
+      
       res.json({
         success: true,
-        data: analytics,
+        data: {
+          ...analytics,
+          marketing: marketingSummary,
+        },
       });
     } catch (error) {
       console.error("External API - Get analytics error:", error);
       res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // GET /api/v1/external/marketing - Get full marketing analytics
+  app.get("/api/v1/external/marketing", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
+    try {
+      const marketing = await marketingAnalyticsService.getMarketingAnalytics();
+      
+      res.json({
+        success: true,
+        data: marketing,
+      });
+    } catch (error) {
+      console.error("External API - Get marketing analytics error:", error);
+      res.status(500).json({ error: "Failed to fetch marketing analytics" });
     }
   });
 
