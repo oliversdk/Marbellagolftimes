@@ -12,6 +12,7 @@ import * as bookingHoldsService from "./services/bookingHolds";
 import { syncCommissionForCourse } from "./services/commissionSync";
 import { ExternalAnalyticsService } from "./services/externalAnalytics";
 import { MarketingAnalyticsService } from "./services/marketingAnalytics";
+import { ProfitabilityAnalyticsService } from "./services/profitabilityAnalytics";
 import { getSession, isAuthenticated, isAdmin, isApiKeyAuthenticated, requireScope } from "./customAuth";
 import { insertBookingRequestSchema, insertAffiliateEmailSchema, insertUserSchema, insertCourseReviewSchema, insertTestimonialSchema, insertAdCampaignSchema, insertCompanyProfileSchema, insertPartnershipFormSchema, type CourseWithSlots, type TeeTimeSlot, type User, type GolfCourse, users, courseRatePeriods, golfCourses, contractIngestions, courseOnboarding, courseProviderLinks, teeTimeProviders, courseContacts, zestPricingData } from "@shared/schema";
 import { db } from "./db";
@@ -5780,6 +5781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize external analytics service
   const externalAnalyticsService = new ExternalAnalyticsService(storage);
   const marketingAnalyticsService = new MarketingAnalyticsService(storage);
+  const profitabilityAnalyticsService = new ProfitabilityAnalyticsService(storage);
 
   // Helper function to determine management tool type from provider links
   const getManagementToolType = (providerLinks: { providerCourseCode: string | null }[]): string | null => {
@@ -6113,11 +6115,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("External API - Marketing analytics unavailable:", marketingError);
       }
       
+      // Include profitability summary
+      let profitabilitySummary = null;
+      try {
+        const profitability = await profitabilityAnalyticsService.getProfitabilityAnalytics(marketingOptions);
+        profitabilitySummary = {
+          gross_profit: profitability.summary.gross_profit,
+          profit_margin_percent: profitability.summary.profit_margin_percent,
+          loss_making_transactions: profitability.summary.loss_making_transactions,
+          top_product_types: profitability.by_product_type.slice(0, 3).map(p => ({
+            type: p.product_type,
+            margin: p.margin_percent,
+          })),
+          focus_recommendation: profitability.recommendations.focus_areas[0] || null,
+        };
+      } catch (profitError) {
+        console.warn("External API - Profitability analytics unavailable:", profitError);
+      }
+      
       res.json({
         success: true,
         data: {
           ...analytics,
           marketing: marketingSummary,
+          profitability: profitabilitySummary,
         },
       });
     } catch (error) {
@@ -6148,6 +6169,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("External API - Get marketing analytics error:", error);
       res.status(500).json({ error: "Failed to fetch marketing analytics" });
+    }
+  });
+
+  // GET /api/v1/external/profitability - Get profitability analytics for CEO AI
+  app.get("/api/v1/external/profitability", isApiKeyAuthenticated, requireScope("read:analytics"), async (req, res) => {
+    try {
+      const { from, to } = req.query;
+      const options: { startDate?: Date; endDate?: Date } = {};
+      
+      if (from && typeof from === 'string') {
+        options.startDate = new Date(from);
+      }
+      if (to && typeof to === 'string') {
+        options.endDate = new Date(to);
+      }
+      
+      const profitability = await profitabilityAnalyticsService.getProfitabilityAnalytics(options);
+      
+      res.json({
+        success: true,
+        data: profitability,
+      });
+    } catch (error) {
+      console.error("External API - Get profitability analytics error:", error);
+      res.status(500).json({ error: "Failed to fetch profitability analytics" });
     }
   });
 
