@@ -22,9 +22,10 @@ interface CourseCardProps {
   providerName?: "golfmanager" | "teeone" | "zest" | null;
   onBook?: () => void;
   onViewDetails?: () => void;
+  priority?: boolean;
 }
 
-export const CourseCard = memo(function CourseCard({ course, distance, price, priceRange, isBestDeal, providerName, onBook, onViewDetails }: CourseCardProps) {
+export const CourseCard = memo(function CourseCard({ course, distance, price, priceRange, isBestDeal, providerName, onBook, onViewDetails, priority = false }: CourseCardProps) {
   const { t } = useI18n();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { isMobile } = useBreakpoint();
@@ -71,6 +72,7 @@ export const CourseCard = memo(function CourseCard({ course, distance, price, pr
           src={course.imageUrl || placeholderImage}
           alt={course.name}
           className="w-full h-40 sm:h-48 object-cover rounded-t-lg"
+          priority={priority}
           data-testid={`img-course-${course.id}`}
         />
       <CardHeader className="p-3 sm:p-4 space-y-2">

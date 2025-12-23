@@ -135,7 +135,8 @@ export function OptimizedImage({
         src={imageSrc}
         alt={alt}
         loading={priority ? "eager" : "lazy"}
-        decoding="async"
+        decoding={priority ? "sync" : "async"}
+        fetchPriority={priority ? "high" : "auto"}
         onLoad={handleLoad}
         onError={handleError}
         className="w-full h-full object-cover"

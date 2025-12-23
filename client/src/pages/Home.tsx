@@ -1169,10 +1169,11 @@ export default function Home() {
                             
                             {/* Courses in this category */}
                             <div className="space-y-4 pl-2">
-                              {categoryCourses.map((courseSlot) => {
+                              {categoryCourses.map((courseSlot, courseIndex) => {
                         const minPrice = getMinPrice(courseSlot.slots);
                         const courseImage = courseSlot.course?.imageUrl || placeholderImage;
                         const isBestDeal = hasBestDeal && minPrice !== null && minPrice === bestDealPrice;
+                        const isPriorityImage = courseIndex < 3;
                         
                         return (
                           <Card 
@@ -1187,6 +1188,7 @@ export default function Home() {
                                   src={courseImage}
                                   alt={`${courseSlot.courseName} golf course`}
                                   size="auto"
+                                  priority={isPriorityImage}
                                   className="w-full h-32 object-cover rounded-md hover-elevate cursor-pointer"
                                   data-testid={`img-course-${courseSlot.courseId}`}
                                 />
