@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { User, LogOut, UserCircle, Shield, Menu, Mail, Search } from "lucide-react";
-// Use optimized WebP logo (1.5KB vs 339KB original PNG)
-const logoImage = "/generated_images/marbella_golf_times_logo-desktop.webp";
+// New official logo
+const logoImage = "/logo.jpeg";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
