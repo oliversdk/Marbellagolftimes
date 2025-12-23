@@ -65,7 +65,7 @@ export function Header() {
               <img 
                 src={logoImage} 
                 alt="Marbella Golf Times" 
-                className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
+                className="h-12 w-12 sm:h-14 sm:w-14 object-contain"
                 data-testid="img-logo"
               />
               <div className="flex flex-col">
