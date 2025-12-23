@@ -33,7 +33,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { GolfCourse, InsertBookingRequest, CourseWithSlots, TeeTimeSlot } from "@shared/schema";
 import { useFilterPersistence, type SortMode } from "@/hooks/useFilterPersistence";
 // Use CDN paths for optimized WebP delivery instead of Vite bundling large PNGs
-const heroImage = "/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.png";
+const heroImage = "/generated_images/Daytime_Costa_del_Sol_golf_walk_d48fdca9.webp";
 const placeholderImage = "/generated_images/Premium_Spanish_golf_signature_hole_153a6079.png";
 import golfVideo from "@assets/golf video_1763551739293.mp4";
 
