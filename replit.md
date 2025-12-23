@@ -71,7 +71,7 @@ A secure external REST API (`/api/v1/external/*`) provides comprehensive busines
 The platform integrates Stripe Checkout for secure payments. It employs a server-side price cache with a 30-minute expiry to prevent client-side price manipulation. The checkout flow validates add-ons and ensures server-computed amounts are used to create Stripe Checkout sessions. `paymentStatus`, `stripeSessionId`, `totalAmountCents`, and `addOnsJson` are stored in the `bookingRequests` table. Add-ons are dynamic and stored in the database, with intelligent logic for mutual exclusivity (e.g., buggy vs. trolley) and package inclusions.
 
 ### Optimized Image CDN
-A responsive image system converts original PNGs to WebP in desktop, mobile, and thumbnail sizes. Images are served from a CDN route (`/cdn/images/:imagePath`) with aggressive caching. An `OptimizedImage` component auto-detects device size to serve the appropriate image, significantly reducing image payload.
+A responsive image system converts original PNGs to WebP in desktop, mobile, and thumbnail sizes. Images are served from a CDN route (`/cdn/images/:imagePath`) with aggressive caching. An `OptimizedImage` component auto-detects device size to serve the appropriate image, significantly reducing image payload. **Performance optimization**: Image version mappings are inlined directly in the component to eliminate API waterfall delays (previously 6+ seconds), and hero images use responsive preloading in index.html.
 
 ## External Dependencies
 
