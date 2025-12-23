@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { User, LogOut, UserCircle, Shield, Menu, Mail, Search } from "lucide-react";
-// Official logo with white background
-const logoImage = "/logo.jpeg";
+// Optimized logo (2.6KB WebP vs 540KB JPEG)
+const logoImage = "/logo.webp";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/useAuth";
