@@ -46,6 +46,27 @@ export function MobileHomeScreen({
     ? (userLocation.lat === 36.5101 ? "Marbella" : t('mobile.yourLocation'))
     : "Costa del Sol";
 
+  const availableDates = useMemo(() => {
+    if (!courses) return [];
+    const timestamps = new Set<number>();
+    courses.forEach(course => {
+      course.slots.forEach(slot => {
+        try {
+          if (slot.startTime) {
+            const slotDate = new Date(slot.startTime);
+            if (!isNaN(slotDate.getTime())) {
+              // Use startOfDay for local timezone midnight, store as timestamp for uniqueness
+              timestamps.add(startOfDay(slotDate).getTime());
+            }
+          }
+        } catch (e) {
+          // Skip invalid dates silently
+        }
+      });
+    });
+    return Array.from(timestamps).map(ts => new Date(ts));
+  }, [courses]);
+
   const sortedCourses = useMemo(() => {
     if (!courses) return [];
     
@@ -149,7 +170,7 @@ export function MobileHomeScreen({
                   onDateSelect={(date) => {
                     setSelectedDate(date);
                   }}
-                  availableDates={[new Date()]}
+                  availableDates={availableDates}
                 />
               </div>
             )}

@@ -18,6 +18,13 @@ import {
   isAfter,
   startOfDay
 } from "date-fns";
+import { enUS, es, da, sv, ru } from "date-fns/locale";
+import type { Locale } from "date-fns";
+
+const getLocale = (lang: string): Locale => {
+  const locales: Record<string, Locale> = { en: enUS, es, da, sv, ru };
+  return locales[lang] || enUS;
+};
 
 interface MobileCalendarViewProps {
   selectedDate: Date;
@@ -30,7 +37,8 @@ export function MobileCalendarView({
   onDateSelect,
   availableDates = [],
 }: MobileCalendarViewProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = getLocale(language);
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(selectedDate));
   const today = startOfDay(new Date());
   const tomorrow = addDays(today, 1);
@@ -47,9 +55,9 @@ export function MobileCalendarView({
     const start = startOfWeek(new Date(), { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) => {
       const day = addDays(start, i);
-      return format(day, 'EEE');
+      return format(day, 'EEE', { locale });
     });
-  }, []);
+  }, [locale]);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -122,7 +130,7 @@ export function MobileCalendarView({
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <span className="text-base font-semibold text-foreground" data-testid="current-month">
-          {format(currentMonth, 'MMMM yyyy')}
+          {format(currentMonth, 'MMMM yyyy', { locale })}
         </span>
         <Button
           variant="ghost"
