@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { MapPin, Clock, Heart, ChevronRight, Euro } from "lucide-react";
+import { MapPin, Clock, Heart, ChevronRight, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OptimizedImage } from "@/components/OptimizedImage";
@@ -131,8 +131,8 @@ export function MobileCourseCard({ course, onBook, priority = false }: MobileCou
                 onClick={() => onBook?.(course)}
                 data-testid={`mobile-book-button-${course.courseId}`}
               >
-                <Euro className="h-4 w-4 mr-2" />
-                {t('mobile.bookNow')}
+                <CalendarDays className="h-4 w-4 mr-2" />
+                {t('mobile.viewTimes')}
               </Button>
               <Button 
                 variant="outline"
