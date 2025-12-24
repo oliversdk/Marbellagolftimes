@@ -99,15 +99,17 @@ export function OptimizedImage({
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  // Use matchMedia to avoid forced reflow from reading innerWidth
   const [isMobile, setIsMobile] = useState(() => 
-    typeof window !== 'undefined' && window.innerWidth < 768
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
   );
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    const mql = window.matchMedia('(max-width: 767px)');
+    const checkMobile = () => setIsMobile(mql.matches);
+    mql.addEventListener("change", checkMobile);
+    return () => mql.removeEventListener("change", checkMobile);
   }, []);
 
   useEffect(() => {

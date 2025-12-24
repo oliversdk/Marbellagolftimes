@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useI18n } from "@/lib/i18n";
@@ -227,8 +227,8 @@ const MARBELLA_COORDS = { lat: 36.5101, lng: -4.8826 };
 // Check if mobile on initial load (client-side only)
 function getInitialLocation(): { lat: number; lng: number } | null {
   if (typeof window === 'undefined') return null;
-  // On mobile, start with Marbella immediately so courses show right away
-  if (window.innerWidth < 768) {
+  // Use matchMedia to avoid forced reflow
+  if (window.matchMedia('(max-width: 767px)').matches) {
     return MARBELLA_COORDS;
   }
   return null;
@@ -242,12 +242,13 @@ export default function Home() {
   // Show fewer courses initially on mobile for faster load  
   const [visibleCount, setVisibleCount] = useState(12);
   
-  // CRITICAL: Mark as hydrated and set Marbella location on mobile BEFORE paint
-  useLayoutEffect(() => {
+  // Mark as hydrated and set Marbella location on mobile after first render
+  // Using useEffect + matchMedia to avoid forced reflow from reading offsetWidth
+  useEffect(() => {
     setHasHydrated(true);
-    if (typeof window === 'undefined') return;
-    if (window.innerWidth < 768) {
-      // Mobile: Set Marbella immediately
+    // Use matchMedia (no layout recalculation) instead of window.innerWidth
+    const mobileQuery = window.matchMedia('(max-width: 767px)');
+    if (mobileQuery.matches) {
       setUserLocation(MARBELLA_COORDS);
     }
   }, []);
@@ -480,7 +481,7 @@ export default function Home() {
 
   // On mobile, try to upgrade to user's actual location (non-blocking)
   useEffect(() => {
-    const actuallyMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const actuallyMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
     if (!actuallyMobile || !navigator.geolocation) return;
 
     // Try to get more accurate location in background
