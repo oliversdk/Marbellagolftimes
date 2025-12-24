@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useTransition } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useI18n } from "@/lib/i18n";
@@ -8,13 +8,14 @@ import { LocationSearch } from "@/components/LocationSearch";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
 import { OptimizedImage } from "@/components/OptimizedImage";
 
-// Lazy load heavy components to reduce initial bundle size
-const SearchFilters = lazy(() => import("@/components/SearchFilters").then(m => ({ default: m.SearchFilters })));
-const CourseCard = lazy(() => import("@/components/CourseCard").then(m => ({ default: m.CourseCard })));
-const BookingModal = lazy(() => import("@/components/BookingModal").then(m => ({ default: m.BookingModal })));
-const PostBookingSignupDialog = lazy(() => import("@/components/PostBookingSignupDialog").then(m => ({ default: m.PostBookingSignupDialog })));
-const CompactWeather = lazy(() => import("@/components/CompactWeather").then(m => ({ default: m.CompactWeather })));
-const MobileHomeScreen = lazy(() => import("@/components/MobileHomeScreen").then(m => ({ default: m.MobileHomeScreen })));
+// Direct imports for critical components (avoid Suspense issues)
+import { SearchFilters } from "@/components/SearchFilters";
+import { BookingModal } from "@/components/BookingModal";
+import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
+import { CompactWeather } from "@/components/CompactWeather";
+import { MobileHomeScreen } from "@/components/MobileHomeScreen";
+
+// Lazy load only non-critical heavy components
 const CoursesMap = lazy(() => import("@/components/CoursesMap").then(m => ({ default: m.CoursesMap })));
 const TestimonialsCarousel = lazy(() => import("@/components/TestimonialsCarousel").then(m => ({ default: m.TestimonialsCarousel })));
 import { AvailabilityDotsCompact } from "@/components/AvailabilityDots";
@@ -258,8 +259,6 @@ export default function Home() {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [showPostBookingSignup, setShowPostBookingSignup] = useState(false);
   
-  // Use transition to prevent suspense errors when lazy components load
-  const [isPending, startTransition] = useTransition();
   const [lastBookingData, setLastBookingData] = useState<{
     name: string;
     email: string;
@@ -749,7 +748,6 @@ export default function Home() {
           type="website"
           structuredData={organizationSchema}
         />
-        <Suspense fallback={<div className="min-h-screen bg-gradient-to-b from-green-700 to-green-600" />}>
         <MobileHomeScreen
           courses={availableSlots}
           allGolfCourses={courses}
@@ -798,7 +796,6 @@ export default function Home() {
           customerEmail={lastBookingData?.email || ""}
           customerPhone={lastBookingData?.phone || ""}
         />
-        </Suspense>
       </>
     );
   }
