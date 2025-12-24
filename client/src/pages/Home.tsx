@@ -664,10 +664,17 @@ export default function Home() {
   };
 
   const handleBookCourse = (courseSlot: CourseWithSlots, specificSlot?: TeeTimeSlot) => {
-    if (courseSlot.course) {
+    // Try to get course from courseSlot, or look it up from courses array
+    let courseToBook = courseSlot.course;
+    
+    if (!courseToBook && courses) {
+      courseToBook = courses.find(c => c.id === courseSlot.courseId);
+    }
+    
+    if (courseToBook) {
       const slotToBook = specificSlot || getCheapestSlot(courseSlot.slots);
       if (slotToBook) {
-        setSelectedCourse(courseSlot.course);
+        setSelectedCourse(courseToBook);
         setSelectedSlot(slotToBook);
         setBookingModalOpen(true);
       }
