@@ -23,6 +23,18 @@
     
     <link rel="icon" type="image/png" href="/favicon.png" />
     
+    <!-- Critical CSS for above-the-fold content to eliminate render-blocking -->
+    <style>
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+      html{scroll-behavior:smooth}
+      body{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+      #root{min-height:100vh;display:flex;flex-direction:column}
+      img,picture,video,canvas,svg{display:block;max-width:100%}
+      .hero-skeleton{position:relative;width:100%;min-height:100vh;background:linear-gradient(135deg,#1a472a 0%,#2d5a3d 50%,#1a472a 100%)}
+      .nav-skeleton{position:fixed;top:0;left:0;right:0;height:64px;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);z-index:50;display:flex;align-items:center;padding:0 1rem}
+      @media(min-width:768px){.nav-skeleton{padding:0 2rem}}
+    </style>
+    
     <!-- Preload critical hero image for faster LCP -->
     <link rel="preload" as="image" href="/cdn/images/Daytime_Costa_del_Sol_golf_walk_d48fdca9-desktop.webp" type="image/webp" fetchpriority="high" media="(min-width: 768px)" />
     <link rel="preload" as="image" href="/cdn/images/Daytime_Costa_del_Sol_golf_walk_d48fdca9-mobile.webp" type="image/webp" fetchpriority="high" media="(max-width: 767px)" />
