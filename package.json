@@ -8,7 +8,8 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test": "DATABASE_URL=dummy vitest --root ."
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -133,7 +134,9 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.6",
     "typescript": "5.6.3",
-    "vite": "^5.4.20"
+    "vite": "^5.4.20",
+    "vitest": "^4.0.16",
+    "vitest-mock-extended": "^3.1.0"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
