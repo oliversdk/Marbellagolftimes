@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Marbella Golf Times",
+    "slug": "marbella-golf-times",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#166534"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.marbellagolftimes.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to find golf courses near you.",
+        "NSLocationAlwaysUsageDescription": "We use your location to find golf courses near you."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#166534"
+      },
+      "package": "com.marbellagolftimes.app",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiUrl": "https://marbellagolftimes.com/api",
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-location"
+    ],
+    "scheme": "mgtgolf"
+  }
+}
