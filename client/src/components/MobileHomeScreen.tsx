@@ -147,22 +147,20 @@ export function MobileHomeScreen({
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4">
-              {totalSlots > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="bg-primary/20 p-1.5 rounded-lg">
-                    <Flame className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-foreground">
-                      {totalSlots} {t('mobile.availableTimesToday')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {coursesWithSlots.length} {t('mobile.differentCourses')}
-                    </p>
-                  </div>
+            <div className="flex items-center justify-between mb-4 min-h-[44px]">
+              <div className="flex items-center gap-2">
+                <div className="bg-primary/20 p-1.5 rounded-lg">
+                  <Flame className="h-5 w-5 text-primary" />
                 </div>
-              )}
+                <div>
+                  <p className="font-semibold text-sm text-foreground">
+                    {totalSlots > 0 ? `${totalSlots} ${t('mobile.availableTimesToday')}` : t('mobile.searchingTimes')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {coursesWithSlots.length} {t('mobile.differentCourses')}
+                  </p>
+                </div>
+              </div>
               
               <Button
                 variant={showCalendar ? "default" : "outline"}
