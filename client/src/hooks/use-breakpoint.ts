@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useTransition } from "react"
 
 type Breakpoint = "sm" | "md" | "lg" | "xl" | "2xl"
 
@@ -44,6 +44,9 @@ export function useBreakpoint(): UseBreakpointReturn {
     }
     return 320 // Mobile fallback
   })
+  
+  // Use transition to prevent Suspense errors when lazy components depend on breakpoint
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -52,14 +55,17 @@ export function useBreakpoint(): UseBreakpointReturn {
     const mediaQueries = BREAKPOINTS.map((bp) => {
       const mql = window.matchMedia(`(min-width: ${bp.minWidth}px)`)
       const handler = () => {
-        // Find current breakpoint from matchMedia (avoids innerWidth reflow)
-        for (let i = BREAKPOINTS.length - 1; i >= 0; i--) {
-          if (window.matchMedia(`(min-width: ${BREAKPOINTS[i].minWidth}px)`).matches) {
-            setWidth(BREAKPOINTS[i].minWidth)
-            return
+        // Wrap in startTransition to prevent Suspense from throwing
+        startTransition(() => {
+          // Find current breakpoint from matchMedia (avoids innerWidth reflow)
+          for (let i = BREAKPOINTS.length - 1; i >= 0; i--) {
+            if (window.matchMedia(`(min-width: ${BREAKPOINTS[i].minWidth}px)`).matches) {
+              setWidth(BREAKPOINTS[i].minWidth)
+              return
+            }
           }
-        }
-        setWidth(320)
+          setWidth(320)
+        });
       }
       mql.addEventListener("change", handler)
       return { mql, handler }
