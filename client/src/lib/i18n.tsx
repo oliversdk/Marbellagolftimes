@@ -446,6 +446,9 @@ const translations: Record<Language, Translations> = {
       of: 'of',
       courses: 'courses',
       more: 'more',
+      today: 'Today',
+      tomorrow: 'Tomorrow',
+      selectDate: 'Select date',
     },
   },
   es: {
@@ -887,6 +890,9 @@ const translations: Record<Language, Translations> = {
       of: 'de',
       courses: 'campos',
       more: 'más',
+      today: 'Hoy',
+      tomorrow: 'Mañana',
+      selectDate: 'Seleccionar fecha',
     },
   },
   da: {
@@ -1328,6 +1334,9 @@ const translations: Record<Language, Translations> = {
       of: 'af',
       courses: 'baner',
       more: 'mere',
+      today: 'I dag',
+      tomorrow: 'I morgen',
+      selectDate: 'Vælg dato',
     },
   },
   sv: {
@@ -1769,6 +1778,9 @@ const translations: Record<Language, Translations> = {
       of: 'av',
       courses: 'banor',
       more: 'mer',
+      today: 'Idag',
+      tomorrow: 'Imorgon',
+      selectDate: 'Välj datum',
     },
   },
   ru: {
@@ -2210,6 +2222,9 @@ const translations: Record<Language, Translations> = {
       of: 'из',
       courses: 'полей',
       more: 'ещё',
+      today: 'Сегодня',
+      tomorrow: 'Завтра',
+      selectDate: 'Выбрать дату',
     },
   },
 };
