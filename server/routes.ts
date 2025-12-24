@@ -3512,6 +3512,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Convert Zest tee times to our TeeTimeSlot format
               const slots: TeeTimeSlot[] = (zestResponse.teeTimeV2 || zestResponse.teeTimeV3 || [])
                 .filter((tt: any) => {
+                  // Filter by holes - Zest API may not filter correctly
+                  const teeHoles = tt.holes || 18;
+                  if (numHoles === 9 && teeHoles !== 9) return false;
+                  if (numHoles === 18 && teeHoles === 9) return false;
+                  
                   // Filter by time range if specified
                   if (!fromTime && !toTime) return true;
                   const teeHour = new Date(tt.time).getHours();
@@ -3683,6 +3688,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Convert Zest tee times to our TeeTimeSlot format
               const slots: TeeTimeSlot[] = (zestResponse.teeTimeV2 || zestResponse.teeTimeV3 || [])
                 .filter((tt: any) => {
+                  // Filter by holes - Zest API may not filter correctly
+                  const teeHoles = tt.holes || 18;
+                  if (numHoles === 9 && teeHoles !== 9) return false;
+                  if (numHoles === 18 && teeHoles === 9) return false;
+                  
                   // Filter by time range if specified
                   if (!fromTime && !toTime) return true;
                   const teeHour = new Date(tt.time).getHours();
