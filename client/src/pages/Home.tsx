@@ -12,6 +12,7 @@ import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
 import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { MobileHomeScreen } from "@/components/MobileHomeScreen";
 
 // Lazy load heavy components for better mobile performance
 const CoursesMap = lazy(() => import("@/components/CoursesMap").then(m => ({ default: m.CoursesMap })));
@@ -706,6 +707,81 @@ export default function Home() {
       "https://marbellagolftimes.com"
     ]
   };
+
+  // Calculate active filters count for mobile header
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchFilters.date) count++;
+    if (searchFilters.players !== 2) count++;
+    if (searchFilters.fromTime !== "06:00") count++;
+    if (searchFilters.toTime !== "20:00") count++;
+    if (searchFilters.holes !== 18) count++;
+    if (searchFilters.showFavoritesOnly) count++;
+    return count;
+  }, [searchFilters]);
+
+  // Mobile view - Stitch-style design
+  if (hasHydrated && isMobile) {
+    return (
+      <>
+        <SEO
+          title="Marbella Golf Times - Premium Golf Tee Times Costa del Sol"
+          description="Book tee times at 40+ premier golf courses from Sotogrande to Málaga. Real availability, curated selection, concierge service."
+          image={heroImage}
+          url="https://marbellagolftimes.com"
+          type="website"
+          structuredData={organizationSchema}
+        />
+        <MobileHomeScreen
+          courses={availableSlots}
+          isLoading={isSearching}
+          userLocation={userLocation}
+          onLocationClick={() => setMobileFiltersOpen(true)}
+          onFiltersClick={() => setMobileFiltersOpen(true)}
+          onBookCourse={handleBookCourse}
+          searchValue={searchFilters.courseSearch || ""}
+          onSearchChange={(value) => setSearchFilters({ ...searchFilters, courseSearch: value })}
+          activeFiltersCount={activeFiltersCount}
+        />
+        
+        {/* Mobile Filters Sheet */}
+        <MobileSheet
+          open={mobileFiltersOpen}
+          onOpenChange={setMobileFiltersOpen}
+          title={t('search.filtersTitle')}
+        >
+          <SearchFilters
+            currentFilters={searchFilters}
+            onSearch={(filters) => {
+              handleFiltersApplied(filters);
+              setMobileFiltersOpen(false);
+            }}
+          />
+        </MobileSheet>
+
+        {/* Booking Modal */}
+        <BookingModal
+          course={selectedCourse}
+          selectedSlot={selectedSlot}
+          open={bookingModalOpen}
+          onOpenChange={(open) => {
+            setBookingModalOpen(open);
+            if (!open) setSelectedSlot(null);
+          }}
+          onSubmit={handleBookingSubmit}
+          isPending={createBookingMutation.isPending}
+        />
+        
+        <PostBookingSignupDialog
+          open={showPostBookingSignup}
+          onOpenChange={setShowPostBookingSignup}
+          customerName={lastBookingData?.name || ""}
+          customerEmail={lastBookingData?.email || ""}
+          customerPhone={lastBookingData?.phone || ""}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
