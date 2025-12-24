@@ -13,6 +13,13 @@ Preferred communication style: Simple, everyday language.
 ### Frontend
 The frontend uses React 18, TypeScript, Vite, Wouter for routing, and `shadcn/ui` (Radix UI + Tailwind CSS) for a responsive UI. State management utilizes TanStack Query and local React state. Key features include Golfee-inspired course listings with inline tee times, a list/map view toggle, advanced sorting/filtering, comprehensive `CourseDetail` pages, and multi-search functionality. User authentication supports Login/Signup with i18n. An Admin dashboard provides tools for booking, course, image, and affiliate email management, including an Inbox for course email conversations, a reviews system, an Analytics Dashboard (Recharts), and User Management with RBAC. A Commission & ROI Tracking System is also included. The AI Contract Processing feature uses OpenAI GPT-4o and unpdf for automated extraction of golf course contract data.
 
+#### Mobile Booking Flow
+The mobile experience follows Google Stitch design patterns with a dedicated date/time selection flow:
+1. **MobileCourseCard**: Shows "View times" button with calendar icon
+2. **MobileTeeTimeSheet**: Full-screen sheet with horizontal date scroller and time slots grouped by period (Morning/Midday/Afternoon/Twilight)
+3. **teeTimeUtils.ts**: Shared utility module for slot grouping, date indexing, and period classification
+4. Selecting a slot opens the booking modal with package selection
+
 ### Backend
 The backend is built with Node.js and Express in TypeScript, providing RESTful APIs. Drizzle ORM with PostgreSQL is used for data storage, automatically seeded with 43 Costa del Sol golf courses. Core API routes manage golf courses, tee time searches, booking requests, and affiliate email campaigns. Custom email/password authentication uses bcrypt and PostgreSQL-backed sessions, with `isAuthenticated` and `isAdmin` middleware for authorization.
 
