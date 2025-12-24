@@ -449,11 +449,29 @@ export class GolfmanagerProvider {
       if (slot.types && Array.isArray(slot.types)) {
         // Filter valid types based on requested holes (9 or 18)
         const holesTag = holes === 9 ? "9holes" : "18holes";
-        const validTypes = slot.types.filter((t: any) => 
-          t.price !== undefined && 
-          !t.onlyMembers &&
-          (!t.tags || t.tags.length === 0 || t.tags?.includes(holesTag))
-        );
+        const validTypes = slot.types.filter((t: any) => {
+          if (t.price === undefined || t.onlyMembers) return false;
+          
+          // If product has tags, check if it matches requested holes
+          if (t.tags && t.tags.length > 0) {
+            return t.tags.includes(holesTag);
+          }
+          
+          // No tags - check product name for 9-hole indicators
+          const nameLower = (t.name || "").toLowerCase();
+          const is9HoleProduct = nameLower.includes("9 hole") || 
+                                  nameLower.includes("9hole") || 
+                                  nameLower.includes("9 hoyos") ||
+                                  nameLower.includes("9-hole");
+          
+          // If 9 holes requested, only show 9-hole products (by tag or name)
+          // If 18 holes requested, show products that are NOT 9-hole
+          if (holes === 9) {
+            return is9HoleProduct;
+          } else {
+            return !is9HoleProduct;
+          }
+        });
         
         if (validTypes.length > 0) {
           // Get tee time date for rate period filtering
