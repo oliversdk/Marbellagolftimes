@@ -3,6 +3,7 @@ import { MobileLayout } from "./MobileLayout";
 import { MobileHeader } from "./MobileHeader";
 import { MobileCourseCard } from "./MobileCourseCard";
 import { MobileCalendarView } from "./MobileCalendarView";
+import { MobileTeeTimeSheet } from "./MobileTeeTimeSheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +14,12 @@ import type { CourseWithSlots, TeeTimeSlot, GolfCourse } from "@shared/schema";
 
 interface MobileHomeScreenProps {
   courses: CourseWithSlots[] | undefined;
+  allGolfCourses?: GolfCourse[];
   isLoading: boolean;
   userLocation: { lat: number; lng: number } | null;
   onLocationClick: () => void;
   onFiltersClick: () => void;
-  onBookCourse: (course: CourseWithSlots, slot?: TeeTimeSlot) => void;
+  onBookCourse: (course: GolfCourse, slot: TeeTimeSlot) => void;
   searchValue: string;
   onSearchChange: (value: string) => void;
   activeFiltersCount: number;
@@ -27,6 +29,7 @@ type SortOption = "distance" | "price" | "availability";
 
 export function MobileHomeScreen({
   courses,
+  allGolfCourses,
   isLoading,
   userLocation,
   onLocationClick,
@@ -41,6 +44,16 @@ export function MobileHomeScreen({
   const [visibleCount, setVisibleCount] = useState(6);
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedCourseForTimes, setSelectedCourseForTimes] = useState<CourseWithSlots | null>(null);
+
+  const handleViewTimes = (course: CourseWithSlots) => {
+    setSelectedCourseForTimes(course);
+  };
+
+  const handleSlotSelected = (course: GolfCourse, slot: TeeTimeSlot) => {
+    setSelectedCourseForTimes(null);
+    onBookCourse(course, slot);
+  };
 
   const locationName = userLocation 
     ? (userLocation.lat === 36.5101 ? "Marbella" : t('mobile.yourLocation'))
@@ -52,8 +65,8 @@ export function MobileHomeScreen({
     courses.forEach(course => {
       course.slots.forEach(slot => {
         try {
-          if (slot.startTime) {
-            const slotDate = new Date(slot.startTime);
+          if (slot.teeTime) {
+            const slotDate = new Date(slot.teeTime);
             if (!isNaN(slotDate.getTime())) {
               // Use startOfDay for local timezone midnight, store as timestamp for uniqueness
               timestamps.add(startOfDay(slotDate).getTime());
@@ -213,7 +226,7 @@ export function MobileHomeScreen({
                   <MobileCourseCard
                     key={course.courseId}
                     course={course}
-                    onBook={onBookCourse}
+                    onBook={handleViewTimes}
                     priority={index < 2}
                   />
                 ))}
@@ -240,6 +253,16 @@ export function MobileHomeScreen({
           </>
         )}
       </div>
+      
+      {selectedCourseForTimes && (
+        <MobileTeeTimeSheet
+          course={selectedCourseForTimes}
+          open={!!selectedCourseForTimes}
+          onClose={() => setSelectedCourseForTimes(null)}
+          onSelectSlot={handleSlotSelected}
+          allCourses={allGolfCourses}
+        />
+      )}
     </MobileLayout>
   );
 }

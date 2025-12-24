@@ -681,6 +681,13 @@ export default function Home() {
     }
   };
 
+  // Mobile-specific handler for booking with pre-selected course and slot
+  const handleMobileBookCourse = (course: GolfCourse, slot: TeeTimeSlot) => {
+    setSelectedCourse(course);
+    setSelectedSlot(slot);
+    setBookingModalOpen(true);
+  };
+
   const handleBookingSubmit = (data: Omit<InsertBookingRequest, "status">) => {
     createBookingMutation.mutate({ ...data, status: "PENDING" });
   };
@@ -741,11 +748,12 @@ export default function Home() {
         />
         <MobileHomeScreen
           courses={availableSlots}
+          allGolfCourses={courses}
           isLoading={isSearching}
           userLocation={userLocation}
           onLocationClick={() => setMobileFiltersOpen(true)}
           onFiltersClick={() => setMobileFiltersOpen(true)}
-          onBookCourse={handleBookCourse}
+          onBookCourse={handleMobileBookCourse}
           searchValue={searchFilters.courseSearch || ""}
           onSearchChange={(value) => setSearchFilters({ ...searchFilters, courseSearch: value })}
           activeFiltersCount={activeFiltersCount}

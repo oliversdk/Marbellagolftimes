@@ -13,6 +13,7 @@ interface MobileTeeTimeSheetProps {
   open: boolean;
   onClose: () => void;
   onSelectSlot: (course: GolfCourse, slot: TeeTimeSlot) => void;
+  allCourses?: GolfCourse[];
 }
 
 const localeMap: Record<string, Locale> = {
@@ -30,7 +31,7 @@ const periodIcons: Record<TimePeriod, typeof Sun> = {
   twilight: Sunset,
 };
 
-export function MobileTeeTimeSheet({ course, open, onClose, onSelectSlot }: MobileTeeTimeSheetProps) {
+export function MobileTeeTimeSheet({ course, open, onClose, onSelectSlot, allCourses }: MobileTeeTimeSheetProps) {
   const { t, language } = useI18n();
   const locale = localeMap[language] || enGB;
   
@@ -60,8 +61,14 @@ export function MobileTeeTimeSheet({ course, open, onClose, onSelectSlot }: Mobi
   const groupedSlots = useMemo(() => groupSlotsByPeriod(slotsForSelectedDate), [slotsForSelectedDate]);
   
   const handleSelectSlot = (slot: TeeTimeSlot) => {
-    if (course.course) {
-      onSelectSlot(course.course, slot);
+    let courseToBook = course.course;
+    
+    if (!courseToBook && allCourses) {
+      courseToBook = allCourses.find(c => c.id === course.courseId);
+    }
+    
+    if (courseToBook) {
+      onSelectSlot(courseToBook, slot);
     }
   };
   
