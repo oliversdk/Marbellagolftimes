@@ -1,0 +1,206 @@
+m run ios
+remote: Enumerating objects: 279, done.
+remote: Counting objects: 100% (279/279), done.
+remote: Compressing objects: 100% (77/77), done.
+remote: Total 258 (delta 182), reused 255 (delta 179), pack-reused 0 (from 0)
+Receiving objects: 100% (258/258), 6.76 MiB | 5.79 MiB/s, done.
+Resolving deltas: 100% (182/182), completed with 18 local objects.
+From https://github.com/oliversdk/Marbellagolftimes
+   07f9898..20dd0f2  main       -> origin/main
+Updating 07f9898..20dd0f2
+Fast-forward
+ ...-1-0-0-lockfileVersion-3-requ_1766567371645.txt | 14794 +++++++++++++++++++
+ ...lede_2025-12-24_kl._04.01.10_1766545272406.png" |   Bin 0 -> 131454 bytes
+ ...lede_2025-12-24_kl._04.32.46_1766547169186.png" |   Bin 0 -> 132564 bytes
+ ...lede_2025-12-24_kl._04.35.23_1766547325936.png" |   Bin 0 -> 109686 bytes
+ ...lede_2025-12-24_kl._04.41.25_1766547689026.png" |   Bin 0 -> 645374 bytes
+ ...lede_2025-12-24_kl._05.19.46_1766549988653.png" |   Bin 0 -> 253519 bytes
+ ...lede_2025-12-24_kl._05.28.09_1766550492717.png" |   Bin 0 -> 32061 bytes
+ ...lede_2025-12-24_kl._10.41.20_1766569282675.png" |   Bin 0 -> 131732 bytes
+ ...lede_2025-12-24_kl._11.05.42_1766570744883.png" |   Bin 0 -> 170111 bytes
+ ...lede_2025-12-24_kl._11.09.23_1766570965196.png" |   Bin 0 -> 195292 bytes
+ ...lede_2025-12-24_kl._11.29.55_1766572198188.png" |   Bin 0 -> 151707 bytes
+ ...lede_2025-12-24_kl._11.33.21_1766572403153.png" |   Bin 0 -> 58894 bytes
+ ...lede_2025-12-24_kl._11.35.22_1766572524736.png" |   Bin 0 -> 319927 bytes
+ ...lede_2025-12-24_kl._12.25.19_1766575520968.png" |   Bin 0 -> 250087 bytes
+ attached_assets/image_1766551781171.png            |   Bin 0 -> 405315 bytes
+ attached_assets/image_1766551790821.png            |   Bin 0 -> 405315 bytes
+ attached_assets/image_1766551814272.png            |   Bin 0 -> 405315 bytes
+ attached_assets/image_1766551934121.png            |   Bin 0 -> 338929 bytes
+ attached_assets/image_1766551954555.png            |   Bin 0 -> 245504 bytes
+ attached_assets/image_1766566618451.png            |   Bin 0 -> 602466 bytes
+ attached_assets/image_1766571728411.png            |   Bin 0 -> 678773 bytes
+ attached_assets/image_1766571746262.png            |   Bin 0 -> 645705 bytes
+ attached_assets/image_1766571771556.png            |   Bin 0 -> 704938 bytes
+ attached_assets/image_1766571789138.png            |   Bin 0 -> 356115 bytes
+ attached_assets/image_1766587413742.png            |   Bin 0 -> 145251 bytes
+ attached_assets/image_1766587439352.png            |   Bin 0 -> 145251 bytes
+ attached_assets/image_1766587474964.png            |   Bin 0 -> 145251 bytes
+ booking_fallback.png                               |   Bin 0 -> 51153 bytes
+ client/index.html                                  |    29 +-
+ client/public/icons/icon-128x128.png               |   Bin 0 -> 26455 bytes
+ client/public/icons/icon-144x144.png               |   Bin 0 -> 32321 bytes
+ client/public/icons/icon-152x152.png               |   Bin 0 -> 35517 bytes
+ client/public/icons/icon-192x192.png               |   Bin 0 -> 54345 bytes
+ client/public/icons/icon-384x384.png               |   Bin 0 -> 195665 bytes
+ client/public/icons/icon-512x512.png               |   Bin 0 -> 340880 bytes
+ client/public/icons/icon-72x72.png                 |   Bin 0 -> 10175 bytes
+ client/public/icons/icon-96x96.png                 |   Bin 0 -> 16512 bytes
+ client/public/icons/icon-maskable-512x512.png      |   Bin 0 -> 349493 bytes
+ client/public/manifest.json                        |    79 +
+ client/public/sw.js                                |    62 +
+ client/src/App.tsx                                 |     6 +
+ client/src/components/MobileCalendarView.tsx       |   213 +
+ client/src/components/MobileCourseCard.tsx         |   204 +
+ client/src/components/MobileHeader.tsx             |   105 +
+ client/src/components/MobileHomeScreen.tsx         |   266 +
+ client/src/components/MobileLayout.tsx             |    81 +
+ client/src/components/MobileTeeTimeSheet.tsx       |   216 +
+ client/src/hooks/use-breakpoint.ts                 |    22 +-
+ client/src/index.css                               |    17 +
+ client/src/lib/i18n.tsx                            |   237 +
+ client/src/lib/teeTimeUtils.ts                     |    84 +
+ client/src/main.tsx                                |    12 +
+ client/src/pages/Home.tsx                          |   107 +-
+ client/src/pages/MyBookings.tsx                    |   205 +
+ mobile/.gitignore                                  |    41 +
+ mobile/App.tsx                                     |    11 +
+ mobile/README.md                                   |   119 +
+ mobile/app.json                                    |    48 +
+ mobile/assets/adaptive-icon.png                    |   Bin 0 -> 573315 bytes
+ mobile/assets/favicon.png                          |   Bin 0 -> 417561 bytes
+ mobile/assets/icon.png                             |   Bin 0 -> 573315 bytes
+ mobile/assets/splash-icon.png                      |   Bin 0 -> 573315 bytes
+ mobile/index.ts                                    |     8 +
+ mobile/package.json                                |    22 +
+ mobile/src/api/client.ts                           |   121 +
+ mobile/src/screens/HomeScreen.tsx                  |   207 +
+ mobile/tsconfig.json                               |     6 +
+ replit.md                                          |     7 +
+ server/providers/golfmanager.ts                    |    28 +-
+ server/routes.ts                                   |    10 +
+ 70 files changed, 17343 insertions(+), 24 deletions(-)
+ create mode 100644 attached_assets/Pasted--name-rest-express-version-1-0-0-lockfileVersion-3-requ_1766567371645.txt
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._04.01.10_1766545272406.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._04.32.46_1766547169186.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._04.35.23_1766547325936.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._04.41.25_1766547689026.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._05.19.46_1766549988653.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._05.28.09_1766550492717.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._10.41.20_1766569282675.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._11.05.42_1766570744883.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._11.09.23_1766570965196.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._11.29.55_1766572198188.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._11.33.21_1766572403153.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._11.35.22_1766572524736.png"
+ create mode 100644 "attached_assets/Sk\303\246rmbillede_2025-12-24_kl._12.25.19_1766575520968.png"
+ create mode 100644 attached_assets/image_1766551781171.png
+ create mode 100644 attached_assets/image_1766551790821.png
+ create mode 100644 attached_assets/image_1766551814272.png
+ create mode 100644 attached_assets/image_1766551934121.png
+ create mode 100644 attached_assets/image_1766551954555.png
+ create mode 100644 attached_assets/image_1766566618451.png
+ create mode 100644 attached_assets/image_1766571728411.png
+ create mode 100644 attached_assets/image_1766571746262.png
+ create mode 100644 attached_assets/image_1766571771556.png
+ create mode 100644 attached_assets/image_1766571789138.png
+ create mode 100644 attached_assets/image_1766587413742.png
+ create mode 100644 attached_assets/image_1766587439352.png
+ create mode 100644 attached_assets/image_1766587474964.png
+ create mode 100644 booking_fallback.png
+ create mode 100644 client/public/icons/icon-128x128.png
+ create mode 100644 client/public/icons/icon-144x144.png
+ create mode 100644 client/public/icons/icon-152x152.png
+ create mode 100644 client/public/icons/icon-192x192.png
+ create mode 100644 client/public/icons/icon-384x384.png
+ create mode 100644 client/public/icons/icon-512x512.png
+ create mode 100644 client/public/icons/icon-72x72.png
+ create mode 100644 client/public/icons/icon-96x96.png
+ create mode 100644 client/public/icons/icon-maskable-512x512.png
+ create mode 100644 client/public/manifest.json
+ create mode 100644 client/public/sw.js
+ create mode 100644 client/src/components/MobileCalendarView.tsx
+ create mode 100644 client/src/components/MobileCourseCard.tsx
+ create mode 100644 client/src/components/MobileHeader.tsx
+ create mode 100644 client/src/components/MobileHomeScreen.tsx
+ create mode 100644 client/src/components/MobileLayout.tsx
+ create mode 100644 client/src/components/MobileTeeTimeSheet.tsx
+ create mode 100644 client/src/lib/teeTimeUtils.ts
+ create mode 100644 client/src/pages/MyBookings.tsx
+ create mode 100644 mobile/.gitignore
+ create mode 100644 mobile/App.tsx
+ create mode 100644 mobile/README.md
+ create mode 100644 mobile/app.json
+ create mode 100644 mobile/assets/adaptive-icon.png
+ create mode 100644 mobile/assets/favicon.png
+ create mode 100644 mobile/assets/icon.png
+ create mode 100644 mobile/assets/splash-icon.png
+ create mode 100644 mobile/index.ts
+ create mode 100644 mobile/package.json
+ create mode 100644 mobile/src/api/client.ts
+ create mode 100644 mobile/src/screens/HomeScreen.tsx
+ create mode 100644 mobile/tsconfig.json
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+
+added 698 packages, and audited 699 packages in 1m
+
+56 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+> mobile@1.0.0 ios
+> expo start --ios
+
+Starting project at /Users/morten/Marbellagolftimes/mobile
+PluginError: Failed to resolve plugin for module "expo-router" relative to "/Users/morten/Marbellagolftimes/mobile". Do you have node modules installed?
+PluginError: Failed to resolve plugin for module "expo-router" relative to "/Users/morten/Marbellagolftimes/mobile". Do you have node modules installed?
+    at resolvePluginForModule (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/utils/plugin-resolver.js:96:9)
+    at resolveConfigPluginFunctionWithInfo (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/utils/plugin-resolver.js:145:7)
+    at resolveConfigPluginFunction (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/utils/plugin-resolver.js:136:7)
+    at withStaticPlugin (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/plugins/withStaticPlugin.js:85:70)
+    at /Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/plugins/withPlugins.js:30:84
+    at Array.reduce (<anonymous>)
+    at withPlugins (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/plugins/withPlugins.js:30:18)
+    at withConfigPlugins (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config/build/plugins/withConfigPlugins.js:35:47)
+    at fillAndReturnConfig (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config/build/Config.js:236:78)
+    at getConfig (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config/build/Config.js:293:10)
+morten@MacBook-Air-tilhrende-Morten-2 mobile % cd ~/Marbellagolftimes
+morten@MacBook-Air-tilhrende-Morten-2 Marbellagolftimes % git pull
+
+Already up to date.
+morten@MacBook-Air-tilhrende-Morten-2 Marbellagolftimes % cd mobile
+
+morten@MacBook-Air-tilhrende-Morten-2 mobile % npm install
+
+added 1 package, and audited 700 packages in 795ms
+
+56 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+morten@MacBook-Air-tilhrende-Morten-2 mobile % npm run ios
+
+
+> mobile@1.0.0 ios
+> expo start --ios
+
+Starting project at /Users/morten/Marbellagolftimes/mobile
+PluginError: Failed to resolve plugin for module "expo-router" relative to "/Users/morten/Marbellagolftimes/mobile". Do you have node modules installed?
+PluginError: Failed to resolve plugin for module "expo-router" relative to "/Users/morten/Marbellagolftimes/mobile". Do you have node modules installed?
+    at resolvePluginForModule (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/utils/plugin-resolver.js:96:9)
+    at resolveConfigPluginFunctionWithInfo (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/utils/plugin-resolver.js:145:7)
+    at resolveConfigPluginFunction (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/utils/plugin-resolver.js:136:7)
+    at withStaticPlugin (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/plugins/withStaticPlugin.js:85:70)
+    at /Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/plugins/withPlugins.js:30:84
+    at Array.reduce (<anonymous>)
+    at withPlugins (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config-plugins/build/plugins/withPlugins.js:30:18)
+    at withConfigPlugins (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config/build/plugins/withConfigPlugins.js:35:47)
+    at fillAndReturnConfig (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config/build/Config.js:236:78)
+    at getConfig (/Users/morten/Marbellagolftimes/mobile/node_modules/@expo/config/build/Config.js:293:10)
+morten@MacBook-Air-tilhrende-Morten-2 mobile % 

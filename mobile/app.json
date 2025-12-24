@@ -38,11 +38,6 @@
         "projectId": "your-project-id"
       }
     },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      "expo-location"
-    ],
     "scheme": "mgtgolf"
   }
 }
