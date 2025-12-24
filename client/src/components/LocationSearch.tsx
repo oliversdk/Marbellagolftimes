@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Navigation } from "lucide-react";
+import { Loader, MapPin, Navigation } from "lucide-react";
 import { getCurrentLocation, COSTA_DEL_SOL_CITIES } from "@/lib/geolocation";
 import { useToast } from "@/hooks/use-toast";
 
@@ -84,7 +84,7 @@ export function LocationSearch({ onLocationSelected }: LocationSearchProps) {
             data-testid="button-use-location"
           >
             {isLoading ? (
-              "Getting Location..."
+              <Loader className="animate-spin" />
             ) : (
               <>
                 <Navigation className="mr-2 h-4 w-4" />

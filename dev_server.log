@@ -1,0 +1,465 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+[Golfmanager] Using demo credentials for demo
+[Golfmanager] Initialized in DEMO mode (V1)
+[Golfmanager] Base URL: https://mt.golfmanager.app/api
+[Golfmanager] Tenant: demo
+[Golfmanager] User: SZc5XNpGd0
+[Golfmanager] Using demo credentials for demo
+[Golfmanager] Initialized in DEMO mode (V3)
+[Golfmanager] Base URL: https://eu.golfmanager.com/main/apimt
+[Golfmanager] Tenant: demo
+[Golfmanager] User: wagner@freeway.dk
+[TeeOne Booking] No credentials configured - will use mock data
+[OnTee API] Startup: Error cleaning up expired holds: TypeError: Invalid URL
+    at new URL (node:internal/url:827:25)
+    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+  code: 'ERR_INVALID_URL',
+  input: 'dummy'
+}
+3:07:05 AM [express] serving on port 5000
+Database seeding failed: TypeError: Invalid URL
+    at new URL (node:internal/url:827:25)
+    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14) {
+  code: 'ERR_INVALID_URL',
+  input: 'dummy'
+}
+CDN image error: Error: PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).
+    at ObjectStorageService.getPublicObjectSearchPaths (/app/server/objectStorage.ts:67:13)
+    at ObjectStorageService.searchPublicObject (/app/server/objectStorage.ts:87:35)
+    at <anonymous> (/app/server/routes.ts:538:47)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/app/server/index.ts:59:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/app/node_modules/body-parser/lib/types/urlencoded.js:94:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at jsonParser (/app/node_modules/body-parser/lib/types/json.js:113:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at compression (/app/node_modules/compression/index.js:243:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/app/node_modules/express/lib/middleware/init.js:40:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at query (/app/node_modules/express/lib/middleware/query.js:45:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+CDN image error: Error: PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).
+    at ObjectStorageService.getPublicObjectSearchPaths (/app/server/objectStorage.ts:67:13)
+    at ObjectStorageService.searchPublicObject (/app/server/objectStorage.ts:87:35)
+    at <anonymous> (/app/server/routes.ts:538:47)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/app/server/index.ts:59:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/app/node_modules/body-parser/lib/types/urlencoded.js:94:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at jsonParser (/app/node_modules/body-parser/lib/types/json.js:113:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at compression (/app/node_modules/compression/index.js:243:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/app/node_modules/express/lib/middleware/init.js:40:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at query (/app/node_modules/express/lib/middleware/query.js:45:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+3:07:27 AM [express] GET /api/auth/user 401 in 2ms :: {"message":"Unauthorized"}
+3:07:27 AM [express] GET /api/courses 500 in 3ms :: {"error":"Failed to fetch courses"}
+Error fetching testimonials: TypeError: Invalid URL
+    at new URL (node:internal/url:827:25)
+    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14)
+    at NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:31)
+    at <anonymous> (/app/node_modules/src/pg-core/query-builders/select.ts:1009:27)
+    at Object.startActiveSpan (/app/node_modules/src/tracing.ts:27:11)
+    at PgSelectBase.execute (/app/node_modules/src/pg-core/query-builders/select.ts:1008:17)
+    at PgSelectBase.then (/app/node_modules/src/query-promise.ts:31:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  code: 'ERR_INVALID_URL',
+  input: 'dummy'
+}
+3:07:27 AM [express] GET /api/testimonials 500 in 10ms :: {"error":"Failed to fetch testimonials"}
+3:07:28 AM [express] GET /api/courses 500 in 2ms :: {"error":"Failed to fetch courses"}
+Error fetching testimonials: TypeError: Invalid URL
+    at new URL (node:internal/url:827:25)
+    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14)
+    at NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:31)
+    at <anonymous> (/app/node_modules/src/pg-core/query-builders/select.ts:1009:27)
+    at Object.startActiveSpan (/app/node_modules/src/tracing.ts:27:11)
+    at PgSelectBase.execute (/app/node_modules/src/pg-core/query-builders/select.ts:1008:17)
+    at PgSelectBase.then (/app/node_modules/src/query-promise.ts:31:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  code: 'ERR_INVALID_URL',
+  input: 'dummy'
+}
+3:07:28 AM [express] GET /api/testimonials 500 in 2ms :: {"error":"Failed to fetch testimonials"}
+CDN image error: Error: PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).
+    at ObjectStorageService.getPublicObjectSearchPaths (/app/server/objectStorage.ts:67:13)
+    at ObjectStorageService.searchPublicObject (/app/server/objectStorage.ts:87:35)
+    at <anonymous> (/app/server/routes.ts:538:47)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/app/server/index.ts:59:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/app/node_modules/body-parser/lib/types/urlencoded.js:94:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at jsonParser (/app/node_modules/body-parser/lib/types/json.js:113:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at compression (/app/node_modules/compression/index.js:243:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/app/node_modules/express/lib/middleware/init.js:40:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at query (/app/node_modules/express/lib/middleware/query.js:45:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+CDN image error: Error: PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).
+    at ObjectStorageService.getPublicObjectSearchPaths (/app/server/objectStorage.ts:67:13)
+    at ObjectStorageService.searchPublicObject (/app/server/objectStorage.ts:87:35)
+    at <anonymous> (/app/server/routes.ts:538:47)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/app/server/index.ts:59:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/app/node_modules/body-parser/lib/types/urlencoded.js:94:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at jsonParser (/app/node_modules/body-parser/lib/types/json.js:113:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at compression (/app/node_modules/compression/index.js:243:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/app/node_modules/express/lib/middleware/init.js:40:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at query (/app/node_modules/express/lib/middleware/query.js:45:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+3:07:57 AM [express] GET /api/auth/user 401 in 1ms :: {"message":"Unauthorized"}
+3:07:57 AM [express] GET /api/courses 500 in 1ms :: {"error":"Failed to fetch courses"}
+Error fetching testimonials: TypeError: Invalid URL
+    at new URL (node:internal/url:827:25)
+    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14)
+    at NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:31)
+    at <anonymous> (/app/node_modules/src/pg-core/query-builders/select.ts:1009:27)
+    at Object.startActiveSpan (/app/node_modules/src/tracing.ts:27:11)
+    at PgSelectBase.execute (/app/node_modules/src/pg-core/query-builders/select.ts:1008:17)
+    at PgSelectBase.then (/app/node_modules/src/query-promise.ts:31:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  code: 'ERR_INVALID_URL',
+  input: 'dummy'
+}
+3:07:57 AM [express] GET /api/testimonials 500 in 4ms :: {"error":"Failed to fetch testimonials"}
+3:07:58 AM [express] GET /api/courses 500 in 2ms :: {"error":"Failed to fetch courses"}
+Error fetching testimonials: TypeError: Invalid URL
+    at new URL (node:internal/url:827:25)
+    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14)
+    at NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:31)
+    at <anonymous> (/app/node_modules/src/pg-core/query-builders/select.ts:1009:27)
+    at Object.startActiveSpan (/app/node_modules/src/tracing.ts:27:11)
+    at PgSelectBase.execute (/app/node_modules/src/pg-core/query-builders/select.ts:1008:17)
+    at PgSelectBase.then (/app/node_modules/src/query-promise.ts:31:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  code: 'ERR_INVALID_URL',
+  input: 'dummy'
+}
+3:07:58 AM [express] GET /api/testimonials 500 in 2ms :: {"error":"Failed to fetch testimonials"}
+CDN image error: Error: PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).
+    at ObjectStorageService.getPublicObjectSearchPaths (/app/server/objectStorage.ts:67:13)
+    at ObjectStorageService.searchPublicObject (/app/server/objectStorage.ts:87:35)
+    at <anonymous> (/app/server/routes.ts:538:47)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/app/server/index.ts:59:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/app/node_modules/body-parser/lib/types/urlencoded.js:94:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at jsonParser (/app/node_modules/body-parser/lib/types/json.js:113:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at compression (/app/node_modules/compression/index.js:243:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/app/node_modules/express/lib/middleware/init.js:40:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at query (/app/node_modules/express/lib/middleware/query.js:45:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+CDN image error: Error: PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).
+    at ObjectStorageService.getPublicObjectSearchPaths (/app/server/objectStorage.ts:67:13)
+    at ObjectStorageService.searchPublicObject (/app/server/objectStorage.ts:87:35)
+    at <anonymous> (/app/server/routes.ts:538:47)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/app/server/index.ts:59:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at urlencodedParser (/app/node_modules/body-parser/lib/types/urlencoded.js:94:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at jsonParser (/app/node_modules/body-parser/lib/types/json.js:113:7)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at compression (/app/node_modules/compression/index.js:243:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at expressInit (/app/node_modules/express/lib/middleware/init.js:40:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at query (/app/node_modules/express/lib/middleware/query.js:45:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/app/node_modules/express/lib/router/index.js:328:13)
+    at /app/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:346:12)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.handle (/app/node_modules/express/lib/router/index.js:175:3)
+3:08:54 AM [express] GET /api/auth/user 401 in 1ms :: {"message":"Unauthorized"}
+3:08:54 AM [express] GET /api/courses 500 in 2ms :: {"error":"Failed to fetch courses"}
+Error fetching testimonials: TypeError: Invalid URL
+    at new URL (node:internal/url:827:25)
+    at Object.parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:841:225)
+    at parse (file:///app/node_modules/@neondatabase/serverless/index.mjs:848:1)
+    at new ConnectionParameters (file:///app/node_modules/@neondatabase/serverless/index.mjs:869:23)
+    at new Client (file:///app/node_modules/@neondatabase/serverless/index.mjs:1226:35)
+    at new NeonClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1570:121)
+    at Cn.newClient (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:74)
+    at Cn.connect (file:///app/node_modules/@neondatabase/serverless/index.mjs:1378:23)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1407:63)
+    at Cn.query (file:///app/node_modules/@neondatabase/serverless/index.mjs:1623:14)
+    at NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:31)
+    at <anonymous> (/app/node_modules/src/pg-core/query-builders/select.ts:1009:27)
+    at Object.startActiveSpan (/app/node_modules/src/tracing.ts:27:11)
+    at PgSelectBase.execute (/app/node_modules/src/pg-core/query-builders/select.ts:1008:17)
+    at PgSelectBase.then (/app/node_modules/src/query-promise.ts:31:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+  code: 'ERR_INVALID_URL',
+  input: 'dummy'
+}
+3:08:54 AM [express] GET /api/testimonials 500 in 2ms :: {"error":"Failed to fetch testimonials"}
