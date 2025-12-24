@@ -74,7 +74,7 @@ export function MobileCourseCard({ course, onBook, priority = false }: MobileCou
         {hasSlots && (
           <div className="absolute bottom-3 left-3">
             <Badge className="bg-primary text-white shadow-lg">
-              {course.slots.length} {t('course.availableTimes') || 'tider'}
+              {course.slots.length} {t('mobile.times')}
             </Badge>
           </div>
         )}
@@ -83,7 +83,7 @@ export function MobileCourseCard({ course, onBook, priority = false }: MobileCou
           <div className="absolute bottom-3 right-3">
             <Badge variant="secondary" className="bg-white/90 text-foreground shadow-sm">
               <MapPin className="h-3 w-3 mr-1" />
-              {course.distanceKm.toFixed(1)} km
+              {course.distanceKm.toFixed(1)} {t('mobile.km')}
             </Badge>
           </div>
         )}
@@ -108,7 +108,7 @@ export function MobileCourseCard({ course, onBook, priority = false }: MobileCou
           
           {minPrice !== null && (
             <div className="text-right flex-shrink-0">
-              <p className="text-xs text-muted-foreground">{t('course.from') || 'fra'}</p>
+              <p className="text-xs text-muted-foreground">{t('mobile.from')}</p>
               <p className="text-2xl font-bold text-primary" data-testid={`mobile-course-price-${course.courseId}`}>
                 €{minPrice}
               </p>
@@ -132,7 +132,7 @@ export function MobileCourseCard({ course, onBook, priority = false }: MobileCou
                 data-testid={`mobile-book-button-${course.courseId}`}
               >
                 <Euro className="h-4 w-4 mr-2" />
-                {t('course.bookNow') || 'Book nu'}
+                {t('mobile.bookNow')}
               </Button>
               <Button 
                 variant="outline"
@@ -155,7 +155,7 @@ export function MobileCourseCard({ course, onBook, priority = false }: MobileCou
             asChild
           >
             <Link href={`/course/${course.courseId}`}>
-              {t('home.viewDetails') || 'Se detaljer'}
+              {t('home.viewDetails')}
               <ChevronRight className="h-4 w-4 ml-2" />
             </Link>
           </Button>

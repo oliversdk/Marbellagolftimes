@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Home, Search, Calendar, User, Heart } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useI18n } from "@/lib/i18n";
 
 interface MobileLayoutProps {
   children: React.ReactNode;
@@ -12,13 +13,14 @@ export function MobileLayout({ children, activeTab = "home" }: MobileLayoutProps
   const [location] = useLocation();
   const { isAuthenticated } = useAuth();
   const { favorites } = useFavorites();
+  const { t } = useI18n();
   
   const navItems = [
-    { id: "home", icon: Home, label: "Hjem", href: "/" },
-    { id: "search", icon: Search, label: "Søg", href: "/?search=true" },
-    { id: "favorites", icon: Heart, label: "Favoritter", href: "/?favorites=true", badge: favorites.size },
-    { id: "bookings", icon: Calendar, label: "Bookinger", href: "/my-bookings" },
-    { id: "profile", icon: User, label: "Profil", href: isAuthenticated ? "/profile" : "/auth" },
+    { id: "home", icon: Home, label: t('mobile.navHome'), href: "/" },
+    { id: "search", icon: Search, label: t('mobile.navSearch'), href: "/?search=true" },
+    { id: "favorites", icon: Heart, label: t('mobile.navFavorites'), href: "/?favorites=true", badge: favorites.size },
+    { id: "bookings", icon: Calendar, label: t('mobile.navBookings'), href: "/my-bookings" },
+    { id: "profile", icon: User, label: t('mobile.navProfile'), href: isAuthenticated ? "/profile" : "/auth" },
   ];
 
   return (

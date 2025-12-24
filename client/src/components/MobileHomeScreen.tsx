@@ -39,7 +39,7 @@ export function MobileHomeScreen({
   const [visibleCount, setVisibleCount] = useState(6);
 
   const locationName = userLocation 
-    ? (userLocation.lat === 36.5101 ? "Marbella" : "Din placering")
+    ? (userLocation.lat === 36.5101 ? "Marbella" : t('mobile.yourLocation'))
     : "Costa del Sol";
 
   const sortedCourses = useMemo(() => {
@@ -74,16 +74,16 @@ export function MobileHomeScreen({
   const totalSlots = coursesWithSlots.reduce((sum, c) => sum + c.slots.length, 0);
 
   const sortOptions: { id: SortOption; label: string; icon: typeof Clock }[] = [
-    { id: "availability", label: "Ledige tider", icon: Clock },
-    { id: "distance", label: "Afstand", icon: MapPin },
-    { id: "price", label: "Pris", icon: TrendingUp },
+    { id: "availability", label: t('mobile.availableTimes'), icon: Clock },
+    { id: "distance", label: t('mobile.distance'), icon: MapPin },
+    { id: "price", label: t('mobile.price'), icon: TrendingUp },
   ];
 
   return (
     <MobileLayout activeTab="home">
       <MobileHeader
         title="Marbella Golf Times"
-        subtitle={`${coursesWithSlots.length} baner med ledige tider`}
+        subtitle={`${coursesWithSlots.length} ${t('mobile.coursesWithAvailableTimes')}`}
         locationName={locationName}
         onLocationClick={onLocationClick}
         onSearchChange={onSearchChange}
@@ -116,10 +116,10 @@ export function MobileHomeScreen({
                 </div>
                 <div>
                   <p className="font-semibold text-foreground">
-                    {totalSlots} ledige tider i dag
+                    {totalSlots} {t('mobile.availableTimesToday')}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    På {coursesWithSlots.length} forskellige baner
+                    {coursesWithSlots.length} {t('mobile.differentCourses')}
                   </p>
                 </div>
               </div>
@@ -152,9 +152,9 @@ export function MobileHomeScreen({
                 <div className="bg-muted/50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
                   <MapPin className="h-10 w-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Ingen baner fundet</h3>
+                <h3 className="text-lg font-semibold mb-2">{t('mobile.noCoursesFound')}</h3>
                 <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                  Prøv at ændre dine filtre eller søg efter en specifik bane
+                  {t('mobile.tryChangingFilters')}
                 </p>
               </div>
             ) : (
@@ -179,13 +179,13 @@ export function MobileHomeScreen({
                   data-testid="mobile-load-more"
                 >
                   <ChevronDown className="h-4 w-4 mr-2" />
-                  Vis flere ({sortedCourses.length - visibleCount} mere)
+                  {t('mobile.showMore')} ({sortedCourses.length - visibleCount} {t('mobile.more')})
                 </Button>
               </div>
             )}
             
             <p className="text-center text-xs text-muted-foreground py-4">
-              Viser {Math.min(visibleCount, sortedCourses.length)} af {sortedCourses.length} baner
+              {t('mobile.showing')} {Math.min(visibleCount, sortedCourses.length)} {t('mobile.of')} {sortedCourses.length} {t('mobile.courses')}
             </p>
           </>
         )}
