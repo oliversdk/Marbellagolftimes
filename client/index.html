@@ -35,9 +35,13 @@
       @media(min-width:768px){.nav-skeleton{padding:0 2rem}}
     </style>
     
-    <!-- Preload critical hero image for faster LCP -->
+    <!-- Preload critical images for faster LCP -->
+    <!-- Hero image preload -->
     <link rel="preload" as="image" href="/cdn/images/Daytime_Costa_del_Sol_golf_walk_d48fdca9-desktop.webp" type="image/webp" fetchpriority="high" media="(min-width: 768px)" />
     <link rel="preload" as="image" href="/cdn/images/Daytime_Costa_del_Sol_golf_walk_d48fdca9-mobile.webp" type="image/webp" fetchpriority="high" media="(max-width: 767px)" />
+    <!-- Course card placeholder image (common LCP element on mobile) -->
+    <link rel="preload" as="image" href="/cdn/images/Premium_Spanish_golf_signature_hole_153a6079-mobile.webp" type="image/webp" fetchpriority="high" media="(max-width: 767px)" />
+    <link rel="preload" as="image" href="/cdn/images/Premium_Spanish_golf_signature_hole_153a6079-desktop.webp" type="image/webp" fetchpriority="high" media="(min-width: 768px)" />
     
     <!-- DNS prefetch for external APIs -->
     <link rel="dns-prefetch" href="https://eu.golfmanager.com" />
