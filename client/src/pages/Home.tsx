@@ -5,16 +5,16 @@ import { useI18n } from "@/lib/i18n";
 import { SEO } from "@/components/SEO";
 import { Header } from "@/components/Header";
 import { LocationSearch } from "@/components/LocationSearch";
-import { SearchFilters } from "@/components/SearchFilters";
-import { CourseCard } from "@/components/CourseCard";
-import { BookingModal } from "@/components/BookingModal";
-import { PostBookingSignupDialog } from "@/components/PostBookingSignupDialog";
-import { CompactWeather } from "@/components/CompactWeather";
 import { CourseCardSkeletonGrid, MapLoadingSkeleton } from "@/components/CourseCardSkeleton";
 import { OptimizedImage } from "@/components/OptimizedImage";
-import { MobileHomeScreen } from "@/components/MobileHomeScreen";
 
-// Lazy load heavy components for better mobile performance
+// Lazy load heavy components to reduce initial bundle size
+const SearchFilters = lazy(() => import("@/components/SearchFilters").then(m => ({ default: m.SearchFilters })));
+const CourseCard = lazy(() => import("@/components/CourseCard").then(m => ({ default: m.CourseCard })));
+const BookingModal = lazy(() => import("@/components/BookingModal").then(m => ({ default: m.BookingModal })));
+const PostBookingSignupDialog = lazy(() => import("@/components/PostBookingSignupDialog").then(m => ({ default: m.PostBookingSignupDialog })));
+const CompactWeather = lazy(() => import("@/components/CompactWeather").then(m => ({ default: m.CompactWeather })));
+const MobileHomeScreen = lazy(() => import("@/components/MobileHomeScreen").then(m => ({ default: m.MobileHomeScreen })));
 const CoursesMap = lazy(() => import("@/components/CoursesMap").then(m => ({ default: m.CoursesMap })));
 const TestimonialsCarousel = lazy(() => import("@/components/TestimonialsCarousel").then(m => ({ default: m.TestimonialsCarousel })));
 import { AvailabilityDotsCompact } from "@/components/AvailabilityDots";
@@ -746,6 +746,7 @@ export default function Home() {
           type="website"
           structuredData={organizationSchema}
         />
+        <Suspense fallback={<div className="min-h-screen bg-gradient-to-b from-green-700 to-green-600" />}>
         <MobileHomeScreen
           courses={availableSlots}
           allGolfCourses={courses}
@@ -794,6 +795,7 @@ export default function Home() {
           customerEmail={lastBookingData?.email || ""}
           customerPhone={lastBookingData?.phone || ""}
         />
+        </Suspense>
       </>
     );
   }
