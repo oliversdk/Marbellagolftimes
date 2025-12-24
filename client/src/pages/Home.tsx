@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useTransition } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useI18n } from "@/lib/i18n";
@@ -257,6 +257,9 @@ export default function Home() {
   const [selectedSlot, setSelectedSlot] = useState<TeeTimeSlot | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [showPostBookingSignup, setShowPostBookingSignup] = useState(false);
+  
+  // Use transition to prevent suspense errors when lazy components load
+  const [isPending, startTransition] = useTransition();
   const [lastBookingData, setLastBookingData] = useState<{
     name: string;
     email: string;
