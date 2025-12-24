@@ -2,11 +2,13 @@ import { useState, useMemo } from "react";
 import { MobileLayout } from "./MobileLayout";
 import { MobileHeader } from "./MobileHeader";
 import { MobileCourseCard } from "./MobileCourseCard";
+import { MobileCalendarView } from "./MobileCalendarView";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
-import { ChevronDown, Clock, MapPin, TrendingUp, Flame } from "lucide-react";
+import { ChevronDown, Clock, MapPin, TrendingUp, Flame, Calendar, List } from "lucide-react";
+import { format, isSameDay, startOfDay } from "date-fns";
 import type { CourseWithSlots, TeeTimeSlot, GolfCourse } from "@shared/schema";
 
 interface MobileHomeScreenProps {
@@ -37,6 +39,8 @@ export function MobileHomeScreen({
   const { t } = useI18n();
   const [sortBy, setSortBy] = useState<SortOption>("availability");
   const [visibleCount, setVisibleCount] = useState(6);
+  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const locationName = userLocation 
     ? (userLocation.lat === 36.5101 ? "Marbella" : t('mobile.yourLocation'))
@@ -109,19 +113,44 @@ export function MobileHomeScreen({
           </div>
         ) : (
           <>
-            {totalSlots > 0 && (
-              <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl p-4 mb-4 flex items-center gap-3">
-                <div className="bg-primary/20 p-2 rounded-xl">
-                  <Flame className="h-6 w-6 text-primary" />
+            <div className="flex items-center justify-between mb-4">
+              {totalSlots > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="bg-primary/20 p-1.5 rounded-lg">
+                    <Flame className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-foreground">
+                      {totalSlots} {t('mobile.availableTimesToday')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {coursesWithSlots.length} {t('mobile.differentCourses')}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-foreground">
-                    {totalSlots} {t('mobile.availableTimesToday')}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {coursesWithSlots.length} {t('mobile.differentCourses')}
-                  </p>
-                </div>
+              )}
+              
+              <Button
+                variant={showCalendar ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowCalendar(!showCalendar)}
+                className="h-9 rounded-xl gap-2"
+                data-testid="toggle-calendar-view"
+              >
+                <Calendar className="h-4 w-4" />
+                {showCalendar ? t('mobile.hideCalendar') : t('mobile.showCalendar')}
+              </Button>
+            </div>
+            
+            {showCalendar && (
+              <div className="mb-4">
+                <MobileCalendarView
+                  selectedDate={selectedDate}
+                  onDateSelect={(date) => {
+                    setSelectedDate(date);
+                  }}
+                  availableDates={[new Date()]}
+                />
               </div>
             )}
             

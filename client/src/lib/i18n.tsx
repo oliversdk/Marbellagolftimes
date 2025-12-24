@@ -449,6 +449,8 @@ const translations: Record<Language, Translations> = {
       today: 'Today',
       tomorrow: 'Tomorrow',
       selectDate: 'Select date',
+      showCalendar: 'Calendar',
+      hideCalendar: 'Hide',
     },
   },
   es: {
@@ -893,6 +895,8 @@ const translations: Record<Language, Translations> = {
       today: 'Hoy',
       tomorrow: 'Mañana',
       selectDate: 'Seleccionar fecha',
+      showCalendar: 'Calendario',
+      hideCalendar: 'Ocultar',
     },
   },
   da: {
@@ -1337,6 +1341,8 @@ const translations: Record<Language, Translations> = {
       today: 'I dag',
       tomorrow: 'I morgen',
       selectDate: 'Vælg dato',
+      showCalendar: 'Kalender',
+      hideCalendar: 'Skjul',
     },
   },
   sv: {
@@ -1781,6 +1787,8 @@ const translations: Record<Language, Translations> = {
       today: 'Idag',
       tomorrow: 'Imorgon',
       selectDate: 'Välj datum',
+      showCalendar: 'Kalender',
+      hideCalendar: 'Dölj',
     },
   },
   ru: {
@@ -2225,6 +2233,8 @@ const translations: Record<Language, Translations> = {
       today: 'Сегодня',
       tomorrow: 'Завтра',
       selectDate: 'Выбрать дату',
+      showCalendar: 'Календарь',
+      hideCalendar: 'Скрыть',
     },
   },
 };
