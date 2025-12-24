@@ -1058,7 +1058,7 @@ export default function Home() {
                 data-testid="button-clear-course-filter"
               >
                 <X className="h-4 w-4 mr-1" />
-                {t('common.clear') || 'Clear'}
+                Clear
               </Button>
             </div>
           )}
