@@ -131,7 +131,7 @@ export function MobileHomeScreen({
         activeFiltersCount={activeFiltersCount}
       />
       
-      <div className="px-4 -mt-2">
+      <div className="px-4 pt-3">
         {isLoading ? (
           <div className="space-y-4 mt-4">
             {[1, 2, 3].map((i) => (
