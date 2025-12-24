@@ -118,12 +118,50 @@ export function MobileCourseCard({ course, onBook, priority = false }: MobileCou
         
         {hasSlots && (
           <>
-            {timeRange && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                <Clock className="h-4 w-4" />
-                <span>{timeRange}</span>
+            {/* Quick View - First 4 available tee times */}
+            <div className="mb-3" data-testid={`quick-view-times-${course.courseId}`}>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                <Clock className="h-3.5 w-3.5" />
+                <span>{t('mobile.nextTimes')}</span>
               </div>
-            )}
+              <div className="flex flex-wrap gap-1.5">
+                {course.slots.slice(0, 4).map((slot, idx) => {
+                  const time = new Date(slot.teeTime);
+                  const timeStr = time.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+                  return (
+                    <Button
+                      key={idx}
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onBook?.(course, slot);
+                      }}
+                      className="gap-1"
+                      data-testid={`quick-time-${course.courseId}-${idx}`}
+                    >
+                      {timeStr}
+                      <span className="text-xs text-muted-foreground">€{slot.greenFee}</span>
+                    </Button>
+                  );
+                })}
+                {course.slots.length > 4 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onBook?.(course);
+                    }}
+                    data-testid={`quick-more-${course.courseId}`}
+                  >
+                    +{course.slots.length - 4}
+                  </Button>
+                )}
+              </div>
+            </div>
             
             <div className="flex gap-2">
               <Button 
