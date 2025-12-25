@@ -12,6 +12,13 @@ import {
 import { golfApi, CourseWithSlots } from '../api/client';
 
 const MARBELLA_COORDS = { lat: 36.5101, lng: -4.8826 };
+const BASE_URL = 'https://marbella-golf-times-wagnerdk.replit.app';
+
+const getImageUrl = (imageUrl: string | null): string => {
+  if (!imageUrl) return 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=400';
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${BASE_URL}${imageUrl}`;
+};
 
 export default function HomeScreen() {
   const [courses, setCourses] = useState<CourseWithSlots[]>([]);
@@ -58,7 +65,7 @@ export default function HomeScreen() {
     return (
       <TouchableOpacity style={styles.courseCard}>
         <Image
-          source={{ uri: item.course.imageUrl || 'https://via.placeholder.com/300x200' }}
+          source={{ uri: getImageUrl(item.course.imageUrl) }}
           style={styles.courseImage}
         />
         <View style={styles.courseInfo}>
