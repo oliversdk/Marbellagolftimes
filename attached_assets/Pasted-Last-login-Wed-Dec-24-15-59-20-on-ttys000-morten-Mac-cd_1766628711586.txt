@@ -1,0 +1,118 @@
+Last login: Wed Dec 24 15:59:20 on ttys000
+morten@Mac ~ % cd ~/Marbellagolftimes/mobile
+npx expo start
+Starting project at /Users/morten/Marbellagolftimes/mobile
+Starting Metro Bundler
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+█ ▄▄▄▄▄ █▀▄█▀ ██  █ ▄▄▄▄▄ █
+█ █   █ █▄   ▄██ ▀█ █   █ █
+█ █▄▄▄█ █ ▀█▀██▀ ██ █▄▄▄█ █
+█▄▄▄▄▄▄▄█ ▀▄█ █▄█▄█▄▄▄▄▄▄▄█
+█▄ ▀▄█▀▄ ▀█ ▀█▄▀▄▄▀  ▄▀▄▄▀█
+█▀▀▄█ █▄▀ ▄▄██  ▀█▄▀ ▀▀█▄▄█
+█▄▄▀▄▄▄▄ ▄█▀▀ ▄ █▀█ ▄█ ██▀█
+█▄▀▄█▀▄▄▄ █▀█ ▀██ ▄▄ ▀▀██▄█
+█▄▄▄█▄▄▄█ ▄▄▄██▄  ▄▄▄ █ ▄ █
+█ ▄▄▄▄▄ █▄ ▄▀██▄  █▄█  ▀▄ █
+█ █   █ █▀▄▄   ▀▀▄ ▄▄ █▀█▄█
+█ █▄▄▄█ █▀▀█   ▄█  █▄  ▄█▄█
+█▄▄▄▄▄▄▄█▄▄█▄▄█▄█▄███▄▄█▄▄█
+
+› Metro waiting on exp://192.168.0.60:8081
+› Scan the QR code above with Expo Go (Android) or the Camera app (iOS)
+
+› Using Expo Go
+› Press s │ switch to development build
+
+› Press a │ open Android
+› Press i │ open iOS simulator
+› Press w │ open web
+
+› Press j │ open debugger
+› Press r │ reload app
+› Press m │ toggle menu
+› shift+m │ more tools
+› Press o │ open project code in your editor
+
+› Press ? │ show all commands
+
+Logs for your project will appear below. Press Ctrl+C to exit.
+✔ 
+
+It is recommended to log in with your Expo account before proceeding. 
+Learn more: https://expo.fyi/unverified-app-expo-go
+ › Log in
+
+? Email or username › Log in to EAS with email or username (exit and run 'npx expo login --help' for other login options)
+✔ Email or username … wagner@freeway.dk
+✔ Password … **********
+It looks like you're trying to use web support but don't have the required
+dependencies installed.
+
+Install react-dom@19.1.0, react-native-web@^0.21.0 by running:
+
+npx expo install react-dom react-native-web
+
+If you're not using web, please ensure you remove the "web" string from the
+platforms array in the project Expo config.
+
+It looks like you're trying to use web support but don't have the required
+dependencies installed.
+
+Install react-dom@19.1.0, react-native-web@^0.21.0 by running:
+
+npx expo install react-dom react-native-web
+
+If you're not using web, please ensure you remove the "web" string from the
+platforms array in the project Expo config.
+
+› Opening on iOS...
+› Opening exp://192.168.0.60:8081 on iPhone 16e
+› Press ? │ show all commands
+iOS Bundled 3584ms index.ts (689 modules)
+› Stopped server
+morten@Mac mobile % git pull
+Already up to date.
+morten@Mac mobile % npx expo start
+Starting project at /Users/morten/Marbellagolftimes/mobile
+Starting Metro Bundler
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+█ ▄▄▄▄▄ █▀▄█▀ ██  █ ▄▄▄▄▄ █
+█ █   █ █▄   ▄██ ▀█ █   █ █
+█ █▄▄▄█ █ ▀█▀██▀ ██ █▄▄▄█ █
+█▄▄▄▄▄▄▄█ ▀▄█ █▄█▄█▄▄▄▄▄▄▄█
+█▄ ▀▄█▀▄ ▀█ ▀█▄▀▄▄▀  ▄▀▄▄▀█
+█▀▀▄█ █▄▀ ▄▄██  ▀█▄▀ ▀▀█▄▄█
+█▄▄▀▄▄▄▄ ▄█▀▀ ▄ █▀█ ▄█ ██▀█
+█▄▀▄█▀▄▄▄ █▀█ ▀██ ▄▄ ▀▀██▄█
+█▄▄▄█▄▄▄█ ▄▄▄██▄  ▄▄▄ █ ▄ █
+█ ▄▄▄▄▄ █▄ ▄▀██▄  █▄█  ▀▄ █
+█ █   █ █▀▄▄   ▀▀▄ ▄▄ █▀█▄█
+█ █▄▄▄█ █▀▀█   ▄█  █▄  ▄█▄█
+█▄▄▄▄▄▄▄█▄▄█▄▄█▄█▄███▄▄█▄▄█
+
+› Metro waiting on exp://192.168.0.60:8081
+› Scan the QR code above with Expo Go (Android) or the Camera app (iOS)
+
+› Using Expo Go
+› Press s │ switch to development build
+
+› Press a │ open Android
+› Press i │ open iOS simulator
+› Press w │ open web
+
+› Press j │ open debugger
+› Press r │ reload app
+› Press m │ toggle menu
+› shift+m │ more tools
+› Press o │ open project code in your editor
+
+› Press ? │ show all commands
+
+Logs for your project will appear below. Press Ctrl+C to exit.
+iOS Bundled 463ms index.ts (616 modules)
+› Opening on iOS...
+› Opening exp://192.168.0.60:8081 on iPhone 16e
+› Press ? │ show all commands
+iOS Bundled 39ms index.ts (1 module)
+

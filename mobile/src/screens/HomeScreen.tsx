@@ -12,12 +12,18 @@ import {
 import { golfApi, CourseWithSlots } from '../api/client';
 
 const MARBELLA_COORDS = { lat: 36.5101, lng: -4.8826 };
-const BASE_URL = 'https://marbella-golf-times-wagnerdk.replit.app';
 
-const getImageUrl = (imageUrl: string | null): string => {
-  if (!imageUrl) return 'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=400';
-  if (imageUrl.startsWith('http')) return imageUrl;
-  return `${BASE_URL}${imageUrl}`;
+const GOLF_IMAGES = [
+  'https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=600',
+  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=600',
+  'https://images.unsplash.com/photo-1592919505780-303950717480?w=600',
+  'https://images.unsplash.com/photo-1593111774240-d529f12cf4bb?w=600',
+  'https://images.unsplash.com/photo-1600791029037-86de8f141faa?w=600',
+];
+
+const getImageUrl = (courseId: string): string => {
+  const index = Math.abs(courseId.charCodeAt(0)) % GOLF_IMAGES.length;
+  return GOLF_IMAGES[index];
 };
 
 export default function HomeScreen() {
@@ -65,7 +71,7 @@ export default function HomeScreen() {
     return (
       <TouchableOpacity style={styles.courseCard}>
         <Image
-          source={{ uri: getImageUrl(item.course.imageUrl) }}
+          source={{ uri: getImageUrl(item.courseId) }}
           style={styles.courseImage}
         />
         <View style={styles.courseInfo}>
