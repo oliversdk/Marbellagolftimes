@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, Navigation } from "lucide-react";
 import { getCurrentLocation, COSTA_DEL_SOL_CITIES } from "@/lib/geolocation";
 import { useToast } from "@/hooks/use-toast";
+import { GolfLoader } from "./GolfLoader";
 
 interface LocationSearchProps {
   onLocationSelected: (lat: number, lng: number) => void;
@@ -84,7 +85,10 @@ export function LocationSearch({ onLocationSelected }: LocationSearchProps) {
             data-testid="button-use-location"
           >
             {isLoading ? (
-              "Getting Location..."
+              <>
+                <GolfLoader size="sm" />
+                <span className="sr-only">Getting Location...</span>
+              </>
             ) : (
               <>
                 <Navigation className="mr-2 h-4 w-4" />
