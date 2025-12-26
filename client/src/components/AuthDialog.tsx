@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertUserSchema, type InsertUser } from "@shared/schema";
 import { useI18n } from "@/lib/i18n";
+import { Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -26,6 +27,8 @@ interface AuthDialogProps {
 
 export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDialogProps) {
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
   const { t } = useI18n();
   const { toast } = useToast();
 
@@ -163,12 +166,26 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                   <FormItem>
                     <FormLabel>{t('auth.password')}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        data-testid="input-login-password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showLoginPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          data-testid="input-login-password"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowLoginPassword(!showLoginPassword)}
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 focus-visible:ring-2"
+                          aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                        >
+                          {showLoginPassword ? (
+                            <EyeOff className="h-5 w-5 text-gray-500" />
+                          ) : (
+                            <Eye className="h-5 w-5 text-gray-500" />
+                          )}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -273,12 +290,26 @@ export function AuthDialog({ open, onOpenChange, initialMode = "login" }: AuthDi
                   <FormItem>
                     <FormLabel>{t('auth.password')}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        data-testid="input-signup-password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showSignupPassword ? "text" : "password"}
+                          placeholder="••••••••"
+                          data-testid="input-signup-password"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSignupPassword(!showSignupPassword)}
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 focus-visible:ring-2"
+                          aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                        >
+                          {showSignupPassword ? (
+                            <EyeOff className="h-5 w-5 text-gray-500" />
+                          ) : (
+                            <Eye className="h-5 w-5 text-gray-500" />
+                          )}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
