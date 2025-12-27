@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { SEO } from "@/components/SEO";
@@ -82,6 +82,7 @@ export default function TeeTimeSearch() {
   const [players, setPlayers] = useState<string>("4");
   const [holes, setHoles] = useState<string>("18");
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  const [courseSelectionStatus, setCourseSelectionStatus] = useState("");
   
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [selectedTeeTime, setSelectedTeeTime] = useState<TeeTime | null>(null);
@@ -89,6 +90,15 @@ export default function TeeTimeSearch() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   
   const { hasItem, getItemCount } = useBookingCart();
+
+  useEffect(() => {
+    if (selectedCourses.length > 0) {
+      const courseCount = selectedCourses.length;
+      setCourseSelectionStatus(`${courseCount} course${courseCount > 1 ? 's' : ''} selected`);
+    } else {
+      setCourseSelectionStatus("No courses selected");
+    }
+  }, [selectedCourses]);
 
   // Use the new multi-provider endpoint that returns Zest AND Golfmanager courses
   const { data: courses, isLoading: coursesLoading } = useQuery<{ success: boolean; courses: RealTimeCourse[] }>({
@@ -305,6 +315,9 @@ export default function TeeTimeSearch() {
                     <label className="text-sm font-medium mb-2 block">
                       Select Courses ({selectedCourses.length} selected)
                     </label>
+                    <div className="sr-only" aria-live="polite" aria-atomic="true">
+                      {courseSelectionStatus}
+                    </div>
                     {coursesLoading ? (
                       <div className="py-4">
                         <GolfLoader size="sm" text="Loading courses..." />
